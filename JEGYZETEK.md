@@ -16,6 +16,11 @@ bizonytalan pont, amit később fejlesztünk vagy tisztázunk. Bátran bővítsd
   opciók (pl. Konyha → konyhabútor színe; Fürdő → szaniter stílus).
 - **Egyéni szín (color picker)** a kurált paletta mellé a haladóknak.
 - **Feliratok / branding átnézése** a dizájn-fázisban (pl. „Twinx AI Portal" csere).
+- **Értékbecslés szint-választás (tiered)** — a partner választhasson a generálás előtt:
+  *Standard* elemzés (most: `sonar-pro`, 1 kredit) vagy *Mély / Prémium* elemzés
+  (`sonar-deep-research`, több száz forrás, lassabb) magasabb kreditért (pl. 2-3 kredit).
+  A modell már env/config-vezérelt; kell hozzá: UI-választó a formon + kredit-differenciálás
+  (a `chargeCredit` már paraméteres `amount`-tal). Illik a prémium PDF-hez is.
 - **Prémium Értékbecslő PDF** — a mostani nyers szöveg helyett szépen tördelt sablon:
   fejléc logóval, kiemelt ár-dobozok, az 5 összehasonlító ingatlan táblázatban, SWOT
   négyzetrácsban, esetleg borító. Kell hozzá a branding (logó, színek); külön menet
