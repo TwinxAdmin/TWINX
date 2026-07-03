@@ -1,5 +1,6 @@
 // Google AI Studio — Gemini 2.5 Flash Image ("Nano Banana") Image-to-Image hívás.
-const MODEL = "gemini-2.5-flash-image-preview";
+// A modell env-ből felülírható (pl. újabb Nano Banana 2: gemini-3.1-flash-image).
+const MODEL = process.env.GOOGLE_IMAGE_MODEL || "gemini-2.5-flash-image";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 type InlineImage = { bytes: Uint8Array; mimeType: string };
@@ -35,7 +36,10 @@ export async function generateImage(
   const res = await fetch(`${ENDPOINT}/${MODEL}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }] }),
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+    }),
   });
 
   if (!res.ok) {
