@@ -14,19 +14,19 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [ ] `schema.sql` lefuttatása a Supabase SQL Editorban
 
 ## 2. fázis — Supabase Auth + Dashboard alap
-- [ ] Supabase kliens bekötése (browser + server)
-- [ ] Regisztráció (e-mail/jelszó): validáció → API → Auth (új fiók: 0 kredit)
-- [ ] Belépés / kijelentkezés
-- [ ] Védett route-ok (middleware a `dashboard`-ra)
-- [ ] `dashboard/page.tsx`: kredit egyenlegek lekérése
-- [ ] Legutóbbi 50 elem üres panele (`usage_history`, LIMIT 50)
+- [x] Supabase kliens bekötése (browser + server)
+- [x] Regisztráció (e-mail/jelszó): validáció → API → Auth (új fiók: 0 kredit)
+- [x] Belépés / kijelentkezés
+- [x] Védett route-ok (middleware a `dashboard`-ra)
+- [x] `dashboard/page.tsx`: kredit egyenlegek lekérése
+- [x] Legutóbbi 50 elem üres panele (`usage_history`, LIMIT 50)
 
 ## 3. fázis — Stripe + admin kredit kontroll
-- [ ] Stripe Checkout Session (10-es fix csomag / modul)
-- [ ] Stripe Webhook: sikeres fizetés → +10 kredit
-- [ ] Kreditek NEM járnak le (nincs lejárati logika)
-- [ ] Admin: manuális kredit hozzáadás fiókokhoz
-- [ ] Backend logika: `admin` és `sales` megkerüli a kreditlevonást
+- [x] Stripe Checkout Session (10-es fix csomag / modul)
+- [x] Stripe Webhook: sikeres fizetés → +10 kredit
+- [x] Kreditek NEM járnak le (nincs lejárati logika)
+- [x] Admin: manuális kredit hozzáadás fiókokhoz (`/api/admin/credits`)
+- [x] Backend logika: `admin` és `sales` megkerüli a kreditlevonást (`chargeCredit`)
 
 ## 4. fázis — Ingatlan Értékbecslő modul
 - [ ] 4.1 Frontend űrlap: Város/Kerület, Négyzetméter, Szobák, Állapot — szigorú backend validáció
