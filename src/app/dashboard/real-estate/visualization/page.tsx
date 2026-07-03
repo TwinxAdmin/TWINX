@@ -1,25 +1,35 @@
-// dashboard/real-estate/visualization — Ingatlan Látványtervező (wireframe).
-// Üzleti szabály: 1 ingatlan = 1 kredit, max. 8 képpel (a köteg egyben).
-// Sorrend: űrlap (képek + stílus + megjegyzés) validáció -> API.
+// dashboard/real-estate/visualization — Látványtervező (helységenkénti konfig, wireframe).
+// Kép kiválasztása -> helység (kötelező) + opcionális változók. Kész-jelzés a kártyán.
+// Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
 
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import {
+  ROOM_TYPES,
   STYLE_OPTIONS,
-  validateImageFiles,
+  WALL_COLORS,
+  WALL_COVERINGS,
+  FLOORINGS,
+  FURNISHINGS,
+  LIGHT_MOODS,
   MAX_IMAGES,
   MAX_NOTE_LENGTH,
+  EMPTY_ROOM_CONFIG,
+  validateImageFiles,
+  isRoomConfigReady,
+  type RoomConfig,
+  type Option,
 } from "@/lib/visualization";
 
-type Picked = { file: File; url: string };
+type Item = { file: File; url: string; config: RoomConfig };
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 export default function VisualizationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [items, setItems] = useState<Picked[]>([]);
-  const [style, setStyle] = useState("");
-  const [note, setNote] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
@@ -30,13 +40,14 @@ export default function VisualizationPage() {
     const incoming = Array.from(fileList).map((file) => ({
       file,
       url: URL.createObjectURL(file),
+      config: { ...EMPTY_ROOM_CONFIG },
     }));
-    // Max. 8 kép összesen.
     setItems((prev) => [...prev, ...incoming].slice(0, MAX_IMAGES));
   }
 
   function removeAt(index: number) {
     setItems((prev) => prev.filter((_, i) => i !== index));
+    setSelected(null);
   }
 
   function onDrop(e: DragEvent) {
@@ -45,48 +56,53 @@ export default function VisualizationPage() {
     addFiles(e.dataTransfer.files);
   }
 
+  function updateConfig(patch: Partial<RoomConfig>) {
+    if (selected === null) return;
+    setItems((prev) =>
+      prev.map((it, i) =>
+        i === selected ? { ...it, config: { ...it.config, ...patch } } : it
+      )
+    );
+  }
+
+  const allReady =
+    items.length > 0 && items.every((it) => isRoomConfigReady(it.config));
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setServerError(null);
     setMessage(null);
     setResultUrls([]);
 
-    const files = items.map((it) => it.file);
-
-    // 1) Kliensoldali validáció
-    const nextErrors: Record<string, string> = {};
-    const imagesError = validateImageFiles(files);
-    if (imagesError) nextErrors.images = imagesError;
-    if (note.length > MAX_NOTE_LENGTH) {
-      nextErrors.note = `A megjegyzés legfeljebb ${MAX_NOTE_LENGTH} karakter lehet.`;
+    const fileError = validateImageFiles(items.map((it) => it.file));
+    if (fileError) {
+      setServerError(fileError);
+      return;
     }
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (!allReady) {
+      setServerError(
+        "Minden képhez adj meg helységtípust és legalább egy módosítást."
+      );
+      return;
+    }
 
-    // 2) API bekötés (multipart/form-data, több kép)
     setLoading(true);
     try {
       const fd = new FormData();
-      for (const f of files) fd.append("images", f);
-      fd.append("style", style);
-      fd.append("note", note);
+      for (const it of items) fd.append("images", it.file);
+      fd.append("configs", JSON.stringify(items.map((it) => it.config)));
 
       const res = await fetch("/api/real-estate/visualization", {
         method: "POST",
         body: fd,
       });
       const data = await res.json();
-
       if (!res.ok) {
-        if (data.errors) setErrors(data.errors);
-        setServerError(data.error ?? "Hiba történt a feldolgozás során.");
+        setServerError(data.error ?? "Hiba történt a generálás során.");
         return;
       }
       if (Array.isArray(data.urls)) setResultUrls(data.urls);
-      setMessage(
-        data.message ??
-          `Kész! ${data.urls?.length ?? 0} látványterv elkészült.`
-      );
+      setMessage(`Kész! ${data.urls?.length ?? 0} látványterv elkészült.`);
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
     } finally {
@@ -94,116 +110,208 @@ export default function VisualizationPage() {
     }
   }
 
+  const current = selected !== null ? items[selected] : null;
+
   return (
-    <main className="mx-auto max-w-lg space-y-4">
+    <main className="mx-auto max-w-3xl space-y-4">
       <h1 className="text-2xl font-semibold">Ingatlan Látványtervező</h1>
       <p className="text-sm text-gray-500">
-        Tölts fel az ingatlanról max. {MAX_IMAGES} képet, válassz stílust (vagy csak
-        felújítást), és adj hozzá opcionális megjegyzést. Egy ingatlan (a teljes köteg)
-        1 kredit — admin/sales díjmentes.
+        Tölts fel max. {MAX_IMAGES} képet. Kattints egy képre, add meg a helységet
+        (kötelező) és a kívánt módosításokat (opcionális). Egy ingatlan = 1 kredit
+        (admin/sales díjmentes).
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
-        {/* Drag-and-drop zóna */}
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer border-2 border-dashed p-6 text-center text-sm ${
-            dragOver ? "border-gray-800 bg-gray-50" : "border-gray-300"
-          }`}
-        >
-          <span className="text-gray-500">
-            Húzd ide a képeket, vagy kattints a tallózáshoz (JPG / PNG / WEBP, max. 10 MB /
-            kép, max. {MAX_IMAGES} kép)
-          </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            className="hidden"
-            onChange={(e) => addFiles(e.target.files)}
-          />
-        </div>
+      {/* Feltöltő zóna */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`cursor-pointer border-2 border-dashed p-6 text-center text-sm ${
+          dragOver ? "border-gray-800 bg-gray-50" : "border-gray-300"
+        }`}
+      >
+        <span className="text-gray-500">
+          Húzd ide a képeket, vagy kattints a tallózáshoz (JPG / PNG / WEBP, max. 10 MB,
+          max. {MAX_IMAGES})
+        </span>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          onChange={(e) => addFiles(e.target.files)}
+        />
+      </div>
 
-        {items.length > 0 && (
-          <div className="grid grid-cols-4 gap-2">
-            {items.map((it, i) => (
-              <div key={it.url} className="relative">
+      {/* Kép-kártyák */}
+      {items.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {items.map((it, i) => {
+            const ready = isRoomConfigReady(it.config);
+            return (
+              <div
+                key={it.url}
+                onClick={() => setSelected(i)}
+                className={`relative cursor-pointer border-2 ${
+                  selected === i ? "border-gray-800" : "border-transparent"
+                }`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={it.url}
-                  alt={`Kép ${i + 1}`}
-                  className="h-20 w-full object-cover"
-                />
+                <img src={it.url} alt={`Kép ${i + 1}`} className="h-20 w-full object-cover" />
+                <span
+                  className={`absolute left-0 top-0 px-1 text-xs text-white ${
+                    ready ? "bg-green-600" : "bg-gray-500"
+                  }`}
+                >
+                  {ready ? "kész" : "beállít"}
+                </span>
                 <button
                   type="button"
-                  onClick={() => removeAt(i)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeAt(i);
+                  }}
                   className="absolute right-0 top-0 bg-gray-800 px-1 text-xs text-white"
                   aria-label="Törlés"
                 >
                   ×
                 </button>
               </div>
-            ))}
-          </div>
-        )}
-        <p className="text-xs text-gray-400">
-          {items.length}/{MAX_IMAGES} kép kiválasztva
-        </p>
-        {errors.images && <p className="text-xs text-red-600">{errors.images}</p>}
-
-        {/* Stílus */}
-        <div>
-          <label htmlFor="style" className="block text-sm">
-            Stílus
-          </label>
-          <select
-            id="style"
-            value={style}
-            onChange={(e) => setStyle(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
-          >
-            {STYLE_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          {errors.style && <p className="mt-1 text-xs text-red-600">{errors.style}</p>}
+            );
+          })}
         </div>
+      )}
 
-        {/* Megjegyzés */}
-        <div>
-          <label htmlFor="note" className="block text-sm">
-            Megjegyzés (opcionális)
-          </label>
-          <textarea
-            id="note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            maxLength={MAX_NOTE_LENGTH}
-            className="w-full border border-gray-300 p-2 text-sm"
-            placeholder="pl. világos tónusok, fa padló, növények"
+      {/* Konfig panel a kiválasztott képhez */}
+      {current && (
+        <div className="space-y-3 border border-gray-200 p-4">
+          <h2 className="font-medium">
+            {(selected ?? 0) + 1}. kép beállításai
+          </h2>
+
+          <Field label="Helység típusa (kötelező)">
+            <select
+              value={current.config.roomType}
+              onChange={(e) => updateConfig({ roomType: e.target.value })}
+              className="w-full border border-gray-300 p-2 text-sm"
+            >
+              <option value="">— Válassz helységet —</option>
+              {ROOM_TYPES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Stílus (opcionális)">
+            <select
+              value={current.config.style}
+              onChange={(e) => updateConfig({ style: e.target.value })}
+              className="w-full border border-gray-300 p-2 text-sm"
+            >
+              {STYLE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {current.config.style && SUPABASE_URL && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`${SUPABASE_URL}/storage/v1/object/public/references/${current.config.style}/nappali.png`}
+                alt="Stílus minta"
+                className="mt-2 max-h-28 object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            )}
+          </Field>
+
+          <Field label="Falszín (opcionális)">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => updateConfig({ wallColor: "" })}
+                className={`h-7 rounded border px-2 text-xs ${
+                  current.config.wallColor === "" ? "border-gray-800" : "border-gray-300"
+                }`}
+              >
+                nincs
+              </button>
+              {WALL_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  title={c.label}
+                  onClick={() => updateConfig({ wallColor: c.value })}
+                  className={`h-7 w-7 rounded-full border-2 ${
+                    current.config.wallColor === c.value
+                      ? "border-gray-800"
+                      : "border-gray-200"
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                />
+              ))}
+            </div>
+          </Field>
+
+          <OptionSelect
+            label="Falburkolat (opcionális)"
+            options={WALL_COVERINGS}
+            value={current.config.wallCovering}
+            onChange={(v) => updateConfig({ wallCovering: v })}
           />
-          <p className="text-xs text-gray-400">
-            {note.length}/{MAX_NOTE_LENGTH}
-          </p>
-          {errors.note && <p className="text-xs text-red-600">{errors.note}</p>}
-        </div>
+          <OptionSelect
+            label="Padlóburkolat (opcionális)"
+            options={FLOORINGS}
+            value={current.config.flooring}
+            onChange={(v) => updateConfig({ flooring: v })}
+          />
+          <OptionSelect
+            label="Berendezettség (opcionális)"
+            options={FURNISHINGS}
+            value={current.config.furnishing}
+            onChange={(v) => updateConfig({ furnishing: v })}
+          />
+          <OptionSelect
+            label="Fény-hangulat (opcionális)"
+            options={LIGHT_MOODS}
+            value={current.config.lightMood}
+            onChange={(v) => updateConfig({ lightMood: v })}
+          />
 
+          <Field label="Megjegyzés (opcionális)">
+            <textarea
+              value={current.config.note}
+              onChange={(e) => updateConfig({ note: e.target.value })}
+              rows={2}
+              maxLength={MAX_NOTE_LENGTH}
+              className="w-full border border-gray-300 p-2 text-sm"
+              placeholder="pl. növények, meleg tónusok"
+            />
+          </Field>
+        </div>
+      )}
+
+      {/* Generálás */}
+      <form onSubmit={onSubmit}>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !allReady}
           className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
         >
-          {loading ? "Feldolgozás…" : "Látványterv generálása"}
+          {loading
+            ? "Generálás…"
+            : allReady
+              ? "Látványtervek generálása"
+              : "Állítsd be az összes képet"}
         </button>
       </form>
 
@@ -217,11 +325,7 @@ export default function VisualizationPage() {
             {resultUrls.map((url, i) => (
               <div key={url} className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={`Látványterv ${i + 1}`}
-                  className="w-full object-cover"
-                />
+                <img src={url} alt={`Látványterv ${i + 1}`} className="w-full object-cover" />
                 <a
                   href={url}
                   target="_blank"
@@ -236,5 +340,43 @@ export default function VisualizationPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm">{label}</label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+function OptionSelect({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: Option[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-gray-300 p-2 text-sm"
+      >
+        <option value="">— Válassz —</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }

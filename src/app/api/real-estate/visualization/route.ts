@@ -1,19 +1,22 @@
-// POST /api/real-estate/visualization — Látványtervező teljes lánc (köteg).
-// Üzleti szabály: 1 ingatlan = 1 kredit, max. 8 kép. 1 kredit CSAK ha MIND sikerül,
-// különben teljes visszatérítés. Sorrend: validáció -> kredit -> köteg generálás
-// (Nano Banana) -> Storage -> 1 usage_history sor.
+// POST /api/real-estate/visualization — Látványtervező (helységenkénti konfig).
+// 1 ingatlan = 1 kredit, max. 8 kép. Minden kép saját helység + változók + prompt.
+// Stílus esetén [stílus][helység] referenciakép is megy a Nano Bananának.
+// 1 kredit CSAK ha MIND sikerül, különben teljes visszatérítés.
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  MAX_NOTE_LENGTH,
-  isValidStyle,
+  MAX_IMAGES,
+  ROOM_TYPES,
   validateImageFiles,
-  buildVisualizationPrompt,
+  validateRoomConfig,
+  buildRoomPrompt,
+  type RoomConfig,
 } from "@/lib/visualization";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
+import { getReferenceImage } from "@/lib/references";
 
 export const runtime = "nodejs";
 
@@ -41,19 +44,33 @@ export async function POST(request: Request) {
   const files = form
     .getAll("images")
     .filter((v): v is File => v instanceof File && v.size > 0);
-  const style = String(form.get("style") ?? "");
-  const note = String(form.get("note") ?? "");
+
+  let configs: RoomConfig[];
+  try {
+    configs = JSON.parse(String(form.get("configs") ?? "[]"));
+  } catch {
+    return NextResponse.json({ error: "Érvénytelen konfiguráció." }, { status: 400 });
+  }
 
   // Validáció
-  const errors: Record<string, string> = {};
   const imagesError = validateImageFiles(files);
-  if (imagesError) errors.images = imagesError;
-  if (!isValidStyle(style)) errors.style = "Érvénytelen stílus.";
-  if (note.length > MAX_NOTE_LENGTH) {
-    errors.note = `A megjegyzés legfeljebb ${MAX_NOTE_LENGTH} karakter lehet.`;
+  if (imagesError) {
+    return NextResponse.json({ errors: { images: imagesError } }, { status: 422 });
   }
-  if (Object.keys(errors).length > 0) {
-    return NextResponse.json({ errors }, { status: 422 });
+  if (!Array.isArray(configs) || configs.length !== files.length) {
+    return NextResponse.json(
+      { error: "A képek és a beállítások száma nem egyezik." },
+      { status: 422 }
+    );
+  }
+  for (let i = 0; i < configs.length; i++) {
+    const err = validateRoomConfig(configs[i]);
+    if (err) {
+      return NextResponse.json(
+        { error: `${i + 1}. kép: ${err}` },
+        { status: 422 }
+      );
+    }
   }
 
   const admin = createAdminClient();
@@ -67,7 +84,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
   }
 
-  // 1 kredit az egész ingatlanra (köteg). Ha bármelyik kép hibázik -> visszatérítés.
+  // 1 kredit az egész ingatlanra (all-or-nothing).
   const charge = await chargeCredit({
     userId: user.id,
     serviceId: service.id,
@@ -81,16 +98,27 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prompt = buildVisualizationPrompt(style, note);
-    const outputUrls: string[] = [];
+    const results: Array<{ url: string; config: RoomConfig }> = [];
 
-    // Köteg: minden képet legeneráljuk. Bármelyik hiba -> az egész köteg bukik.
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const config = configs[i];
+      const { prompt, useReference } = buildRoomPrompt(config);
+
       const inputBytes = new Uint8Array(await file.arrayBuffer());
+
+      // Stílus esetén a [stílus][helység] referenciakép is megy.
+      let reference: { bytes: Uint8Array; mimeType: string } | undefined;
+      if (useReference) {
+        const room = ROOM_TYPES.find((r) => r.value === config.roomType);
+        const ref = await getReferenceImage(config.style, room?.slug ?? "");
+        if (ref) reference = ref;
+      }
 
       const result = await generateImage({
         source: { bytes: inputBytes, mimeType: file.type },
         prompt,
+        reference,
       });
 
       const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
@@ -104,26 +132,29 @@ export async function POST(request: Request) {
       if (uploadError) throw new Error(`Storage feltöltés hiba: ${uploadError.message}`);
 
       const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(filePath);
-      outputUrls.push(pub.publicUrl);
+      results.push({ url: pub.publicUrl, config });
     }
 
-    // 1 usage_history sor az ingatlanra (a kimeneti képek listája az input_data-ban).
+    // 1 usage_history sor az ingatlanra (helységenkénti konfig + kimenetek).
     const { error: histError } = await admin.from("usage_history").insert({
       user_id: user.id,
       service_id: service.id,
       feature_used: FEATURE,
-      input_data: { style, note, image_count: files.length, outputs: outputUrls },
-      output_file_url: outputUrls[0] ?? null,
+      input_data: {
+        image_count: files.length,
+        rooms: results.map((r) => ({ ...r.config, output: r.url })),
+      },
+      output_file_url: results[0]?.url ?? null,
     });
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
 
     return NextResponse.json({
       ok: true,
-      urls: outputUrls,
+      urls: results.map((r) => r.url),
       charged: !charge.bypassed,
     });
   } catch (err) {
-    // Nem sikerült MIND -> teljes visszatérítés (admin/sales-nél nem volt levonás).
+    // Nem sikerült MIND -> teljes visszatérítés.
     if (!charge.bypassed) {
       await admin.rpc("add_credits", {
         p_user_id: user.id,
