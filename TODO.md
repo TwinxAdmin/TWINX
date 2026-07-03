@@ -41,11 +41,19 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [ ] dev szerver újraindítása
 
 ## 5. fázis — Ingatlan Látványtervező modul
-- [ ] 5.1 Drag-and-drop képfeltöltő + stílusválasztó (pl. Modern, Provence) + szabad szöveges mező
-- [ ] 5.2 Fix angol promptsablon + negatív prompt összefűzése:
-      - stílussal → fix stílus-referenciakép küldése (Google Studio / Nano Banana)
-      - "csak felújítás" → referenciakép nélkül, Image-to-Image (falak nem változnak)
-- [ ] 5.3 Kész kép + letöltés → 1 kredit levonás → `usage_history` (LIMIT 50 megjelenítés)
+- [x] 5.1 Drag-and-drop képfeltöltő (max. 8 kép/ingatlan) + stílusválasztó + szabad szöveg
+- [x] 5.2 Fix angol promptsablon + negatív prompt (stílussal / csak felújítás) — Nano Banana hívás
+- [x] 5.3 Köteg generálás → Storage → 1 kredit CSAK ha mind sikerül (különben visszatérítés) → 1 `usage_history` sor
+- [x] Üzleti szabály: 1 ingatlan = 1 kredit, max. 8 kép
+
+**Későbbre (a partner anyagai után):**
+- [ ] Képenkénti (helységenkénti) konfiguráció: helységtípus + saját változók (konyha, nappali, terasz…)
+- [ ] Stílus-referenciaképek bekötése (Google Drive anyagok)
+- [ ] Prompt-finomhangolás
+
+**5. fázis élesítése (teszthez):**
+- [ ] `GOOGLE_AI_STUDIO_API_KEY` a `.env.local`-ba
+- [ ] Supabase Storage: publikus `reports` bucket (ha még nincs a 4-esből)
 
 ## 6. fázis — B2B ajánlatkérő + privát modulok
 - [ ] Landing page B2B ajánlatkérő űrlap → Resend/SendGrid API (e-mail a vezetőségnek)
