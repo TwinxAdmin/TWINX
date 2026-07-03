@@ -1,5 +1,6 @@
 // twinx.hu — Landing page (wireframe)
-// Tartalmazza majd: hero, modulok bemutatása, B2B ajánlatkérő űrlap (6. fázis).
+// Hero, modulok, B2B ajánlatkérő űrlap.
+import B2BForm from "@/components/B2BForm";
 
 export default function LandingPage() {
   return (
@@ -18,11 +19,12 @@ export default function LandingPage() {
           <a href="/register">Regisztráció</a>
         </nav>
 
-        <section className="border border-dashed border-gray-300 p-4">
-          <h2 className="font-medium">B2B ajánlatkérő űrlap</h2>
-          <p className="text-sm text-gray-500">
-            Placeholder — 6. fázisban köti be a Resend/SendGrid API-t.
+        <section className="border border-gray-200 p-4">
+          <h2 className="font-medium">B2B ajánlatkérés — egyedi modulok</h2>
+          <p className="mb-3 text-sm text-gray-500">
+            Egyedi, privát AI-modulra van szükségetek? Írjátok meg, és keresünk.
           </p>
+          <B2BForm />
         </section>
       </div>
     </main>

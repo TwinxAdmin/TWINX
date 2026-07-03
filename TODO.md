@@ -56,9 +56,14 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [ ] Supabase Storage: publikus `reports` bucket (ha még nincs a 4-esből)
 
 ## 6. fázis — B2B ajánlatkérő + privát modulok
-- [ ] Landing page B2B ajánlatkérő űrlap → Resend/SendGrid API (e-mail a vezetőségnek)
-- [ ] `dashboard/custom/` útvonalvédelem élesítése (szerepkör + `company_access`)
-- [ ] Privát → publikus modul: csak egy `services.status` flag váltása
+- [x] Landing page B2B ajánlatkérő űrlap → Resend API (lead mentés + e-mail a vezetőségnek)
+- [x] `dashboard/custom/` útvonalvédelem élesítése (szerepkör + `company_access`, RLS)
+- [x] Privát → publikus modul: `services.status` flag (public/private) — beépítve
+
+**6. fázis élesítése:**
+- [x] `b2b.sql` (leads tábla) lefuttatva
+- [x] `RESEND_API_KEY` + `LEADS_NOTIFY_EMAIL` beállítva (teszt: office@twinx.hu)
+- [ ] Éles: `twinx.hu` domain hitelesítés a Resendben + `RESEND_FROM` a saját domainre
 
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)
