@@ -1,21 +1,27 @@
-// dashboard/real-estate/valuation — Ingatlan Értékbecslő (wireframe).
-// Sorrend: űrlap validáció -> API route (/api/real-estate/valuation).
+// dashboard/real-estate/valuation — Ingatlan Értékbecslő (14 mezős, wireframe).
+// A partner bevált eszköze alapján. Sorrend: űrlap validáció -> API.
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CONDITION_OPTIONS, validateValuationInput } from "@/lib/valuation";
+import {
+  VALUATION_FIELDS,
+  EMPTY_VALUATION,
+  validateValuationInput,
+  type ValuationInput,
+} from "@/lib/valuation";
 
 export default function ValuationPage() {
-  const [city, setCity] = useState("");
-  const [squareMeters, setSquareMeters] = useState("");
-  const [rooms, setRooms] = useState("");
-  const [condition, setCondition] = useState("");
+  const [values, setValues] = useState<ValuationInput>({ ...EMPTY_VALUATION });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function setField(key: keyof ValuationInput, value: string) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -24,28 +30,21 @@ export default function ValuationPage() {
     setResultUrl(null);
     setReport(null);
 
-    const input = {
-      city,
-      squareMeters: Number(squareMeters),
-      rooms: Number(rooms),
-      condition,
-    };
-
-    // 1) Kliensoldali validáció
-    const result = validateValuationInput(input);
+    const result = validateValuationInput(values);
     setErrors(result.errors);
-    if (!result.valid) return;
+    if (!result.valid) {
+      setServerError("Tölts ki minden kötelező mezőt.");
+      return;
+    }
 
-    // 2) API bekötés
     setLoading(true);
     try {
       const res = await fetch("/api/real-estate/valuation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(values),
       });
       const data = await res.json();
-
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
@@ -53,7 +52,7 @@ export default function ValuationPage() {
       }
       if (data.url) setResultUrl(data.url);
       if (data.report) setReport(data.report);
-      setMessage(data.message ?? "Kész! Az értékbecslés elkészült.");
+      setMessage("Kész! Az értékbecslés elkészült.");
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
     } finally {
@@ -62,83 +61,48 @@ export default function ValuationPage() {
   }
 
   return (
-    <main className="mx-auto max-w-lg space-y-4">
+    <main className="mx-auto max-w-3xl space-y-4">
       <h1 className="text-2xl font-semibold">Ingatlan Értékbecslő</h1>
       <p className="text-sm text-gray-500">
-        Töltsd ki az összes mezőt. Egy értékbecslés 1 kreditbe kerül (admin/sales díjmentes).
+        Válaszd a listából a leggyakoribb értékeket, vagy írj be sajátot. A csillagos
+        (*) mezők kötelezők. Egy értékbecslés 1 kredit (admin/sales díjmentes).
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="space-y-3">
-        <div>
-          <label htmlFor="city" className="block text-sm">
-            Város / Kerület
-          </label>
-          <input
-            id="city"
-            type="text"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
-            placeholder="pl. Budapest XIII. kerület"
-          />
-          {errors.city && <p className="mt-1 text-xs text-red-600">{errors.city}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="squareMeters" className="block text-sm">
-            Négyzetméter (m²)
-          </label>
-          <input
-            id="squareMeters"
-            type="number"
-            value={squareMeters}
-            onChange={(e) => setSquareMeters(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
-            min={5}
-            max={10000}
-          />
-          {errors.squareMeters && (
-            <p className="mt-1 text-xs text-red-600">{errors.squareMeters}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="rooms" className="block text-sm">
-            Szobák száma
-          </label>
-          <input
-            id="rooms"
-            type="number"
-            value={rooms}
-            onChange={(e) => setRooms(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
-            min={1}
-            max={50}
-            step="0.5"
-          />
-          {errors.rooms && <p className="mt-1 text-xs text-red-600">{errors.rooms}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="condition" className="block text-sm">
-            Állapot
-          </label>
-          <select
-            id="condition"
-            value={condition}
-            onChange={(e) => setCondition(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
-          >
-            <option value="">— Válassz —</option>
-            {CONDITION_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          {errors.condition && (
-            <p className="mt-1 text-xs text-red-600">{errors.condition}</p>
-          )}
+      <form onSubmit={onSubmit} noValidate className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {VALUATION_FIELDS.map((field) => {
+            const listId = field.options ? `dl-${field.key}` : undefined;
+            return (
+              <div
+                key={field.key}
+                className={field.fullWidth ? "sm:col-span-2" : ""}
+              >
+                <label htmlFor={field.key} className="block text-sm">
+                  {field.label}
+                  {field.required && <span className="text-red-600"> *</span>}
+                </label>
+                <input
+                  id={field.key}
+                  type="text"
+                  list={listId}
+                  value={values[field.key]}
+                  onChange={(e) => setField(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  className="w-full border border-gray-300 p-2 text-sm"
+                />
+                {field.options && (
+                  <datalist id={listId}>
+                    {field.options.map((o) => (
+                      <option key={o} value={o} />
+                    ))}
+                  </datalist>
+                )}
+                {errors[field.key] && (
+                  <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <button
@@ -146,7 +110,7 @@ export default function ValuationPage() {
           disabled={loading}
           className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
         >
-          {loading ? "Feldolgozás…" : "Értékbecslés indítása"}
+          {loading ? "Feldolgozás… (akár 30-60 mp)" : "Értékbecslés indítása"}
         </button>
       </form>
 

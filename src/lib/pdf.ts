@@ -1,11 +1,32 @@
 // PDF generálás pdf-lib-bel, Unicode (magyar ékezetes) fonttal.
 // A font fájlt ide kell tenni:  assets/fonts/NotoSans-Regular.ttf
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 
-const FONT_PATH = path.join(process.cwd(), "assets", "fonts", "NotoSans-Regular.ttf");
+const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
+
+// Az assets/fonts/ mappából bármelyik .ttf-et használja (a "Regular"-t előnyben).
+async function loadFontBytes(): Promise<Buffer> {
+  let files: string[];
+  try {
+    files = await readdir(FONT_DIR);
+  } catch {
+    throw new Error(
+      "Hiányzó betűtípus: hozd létre az assets/fonts/ mappát és tegyél bele egy .ttf fájlt (pl. NotoSans-Regular.ttf)."
+    );
+  }
+  const ttfs = files.filter((f) => f.toLowerCase().endsWith(".ttf"));
+  const pick =
+    ttfs.find((f) => /regular/i.test(f)) ?? ttfs[0];
+  if (!pick) {
+    throw new Error(
+      "Nincs .ttf fájl az assets/fonts/ mappában. Tegyél bele egy Unicode fontot (pl. NotoSans-Regular.ttf)."
+    );
+  }
+  return readFile(path.join(FONT_DIR, pick));
+}
 
 export async function generateValuationPdf(params: {
   title: string;
@@ -15,14 +36,7 @@ export async function generateValuationPdf(params: {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 
-  let fontBytes: Buffer;
-  try {
-    fontBytes = await readFile(FONT_PATH);
-  } catch {
-    throw new Error(
-      "Hiányzó betűtípus: tedd a NotoSans-Regular.ttf fájlt az assets/fonts/ mappába."
-    );
-  }
+  const fontBytes = await loadFontBytes();
   const font = await pdfDoc.embedFont(fontBytes);
 
   const pageW = 595.28;

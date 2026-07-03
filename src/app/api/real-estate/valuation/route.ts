@@ -41,13 +41,11 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // A modul (service) azonosítója.
   const { data: service } = await admin
     .from("services")
     .select("id")
     .eq("slug", SERVICE_SLUG)
     .single();
-
   if (!service) {
     return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
   }
@@ -73,15 +71,16 @@ export async function POST(request: Request) {
     const pdfBytes = await generateValuationPdf({
       title: "Ingatlan értékbecslés",
       meta: [
-        `Elhelyezkedés: ${input.city}`,
-        `Alapterület: ${input.squareMeters} m² · Szobák: ${input.rooms} · Állapot: ${input.condition}`,
+        `Elhelyezkedés: ${input.telepules}${input.utca ? " · " + input.utca : ""}`,
+        `Típus: ${input.tipus} · ${input.meret} · ${input.szobak}`,
+        `Állapot: ${input.allapot} · Építés: ${input.epitesEve}`,
         `Készült: ${new Date().toLocaleString("hu-HU")}`,
       ],
       body: report,
     });
 
     // 4) Feltöltés a Supabase Storage-ba.
-    const filePath = `${user.id}/${randomUUID()}.pdf`;
+    const filePath = `valuation/${user.id}/${randomUUID()}.pdf`;
     const { error: uploadError } = await admin.storage
       .from(BUCKET)
       .upload(filePath, pdfBytes, {
@@ -109,7 +108,6 @@ export async function POST(request: Request) {
       charged: !charge.bypassed,
     });
   } catch (err) {
-    // Visszatérítés, ha ténylegesen vontunk kreditet (admin/sales-nél nem).
     if (!charge.bypassed) {
       await admin.rpc("add_credits", {
         p_user_id: user.id,

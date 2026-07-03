@@ -29,8 +29,8 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [x] Backend logika: `admin` és `sales` megkerüli a kreditlevonást (`chargeCredit`)
 
 ## 4. fázis — Ingatlan Értékbecslő modul
-- [x] 4.1 Frontend űrlap: Város/Kerület, Négyzetméter, Szobák, Állapot — szigorú backend validáció
-- [x] 4.2 Prompt Template → Perplexity API (Sonar modell) — *kód kész, kulcs kell az élesítéshez*
+- [x] 4.1 Frontend űrlap: **14 mező** (partner eszköze), datalist-javaslatok, 12 kötelező + 2 opcionális
+- [x] 4.2 **Partner bevált Perplexity-promptja** (Sonar) beépítve — *kulcs + billing kell az élesítéshez*
 - [x] 4.3 PDF generálás → Supabase Storage → 1 kredit levonás (kivéve admin/sales) → `usage_history` — *kód kész*
 
 **4. fázis élesítése (teszthez):**
