@@ -19,3 +19,4 @@ Nyisd meg a [http://localhost:3000](http://localhost:3000) címet a böngészőb
 - **Supabase** (Auth, Database, Storage) — később kerül bekötésre
 
 A fejlesztési szabályokat lásd a [CLAUDE.md](./CLAUDE.md), a feladatlistát a [TODO.md](./TODO.md) fájlban.
+# TWINX
