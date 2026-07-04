@@ -27,6 +27,7 @@ export default async function DashboardLayout({
         <nav className="flex gap-4 text-sm underline">
           <a href="/dashboard/real-estate/valuation">Értékbecslő</a>
           <a href="/dashboard/real-estate/visualization">Látványtervező</a>
+          <a href="/dashboard/real-estate/video">Videó</a>
           <a href="/dashboard/custom">Egyedi modulok</a>
           {isAdmin && (
             <a href="/admin/analytics" className="font-medium">

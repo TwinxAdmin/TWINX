@@ -51,3 +51,20 @@ export const MUSIC_STYLES: MusicStyle[] = [
 export function isValidMusicStyle(slug: string): boolean {
   return MUSIC_STYLES.some((s) => s.slug === slug);
 }
+
+// Klip hossz (mp/kép) — a teljes videóhossz = klip × képszám.
+export const VIDEO_CLIP_SECONDS = 5;
+
+// Hossz-binek: a zene a videó hosszához illő mappából jön (`music/{style}/{bin}/`).
+export type LengthBin = { slug: string; label: string };
+export const LENGTH_BINS: LengthBin[] = [
+  { slug: "rovid", label: "Rövid (3-4 kép)" },
+  { slug: "kozepes", label: "Közepes (5-6 kép)" },
+  { slug: "hosszu", label: "Hosszú (7-8 kép)" },
+];
+
+export function lengthBinForImages(count: number): string {
+  if (count <= 4) return "rovid";
+  if (count <= 6) return "kozepes";
+  return "hosszu";
+}

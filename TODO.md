@@ -82,13 +82,19 @@ marketing videó. Vágómotor: **Shotstack** (hosted API), aszinkron **webhook**
 Döntések: real-estate **feature** (kredit a meglévő poolból, képszám szerint 2-6),
 zene **stílus-alapú** (random szám a `music/{stílus}/`-ból), formátumot a user választ
 (9:16 / 1:1 / 16:9). Kulcsok (Luma, Shotstack) + teszt: később (webhookhoz tunnel/deploy).
-- [ ] 6.6.1 Config (formátumok, kredit-tábla, zenei stílusok) + `video_jobs` tábla (SQL) + `music` bucket
-- [ ] 6.6.2 Luma + Shotstack env + kliensek; submit endpoint: job létrehozás, kredit levonás, 3-8 kép párhuzamos küldése a Luma Image-to-Video-nak
-- [ ] 6.6.3 Luma webhook kezelő: a beérkező kész MP4 snittek mentése Supabase Storage-ba, job-állapot frissítés
-- [ ] 6.6.4 Ha minden snitt kész → Shotstack render (snittek + áttűnések + random zene a stílusból + formátum) → Shotstack webhook → végleges videó mentése
-- [ ] 6.6.5 UI/UX a dashboardon: forrás (látványterv-előzmény checkbox VAGY feltöltés), formátum + zenei stílus választó, folyamatjelző, kredit (képszám szerint)
+- [x] 6.6.1 Config + `video_jobs` tábla (`video.sql`)
+- [x] 6.6.2 Luma kliens + submit endpoint (job, kredit képszám szerint, Luma indítás) + státusz endpoint
+- [x] 6.6.3 Luma webhook: kész snittek mentése Storage-ba, job-állapot
+- [x] 6.6.4 Shotstack render (áttűnés + random zene + formátum) + Shotstack webhook → végleges videó, history, költséglogolás, refund
+- [x] 6.6.5 UI: forrásválasztó (előzmény/feltöltés), formátum + zene, kredit, folyamatjelző, eredmény
 - **Kredit-tábla (config):** 3 kép→2 · 4→3 · 5→3 · 6→4 · 7→5 · 8→6 kredit
-- **Zenei stílusok:** elegans, porgos, nyugodt, cinematic, vidam (`music/{slug}/*.mp3`)
+- **Zene:** `music/{stílus}/{hossz-bin}/*.mp3` — stílusok: elegans, porgos, nyugodt, cinematic, vidam; binek: `rovid` (3-4 kép), `kozepes` (5-6), `hosszu` (7-8)
+
+**6.6 élesítése (teszthez):**
+- [ ] `LUMA_API_KEY` + `SHOTSTACK_API_KEY` + `APP_URL` (publikus/tunnel) + `VIDEO_WEBHOOK_SECRET` a `.env.local`-ba
+- [ ] Publikus `music` bucket + jogtiszta MP3-ak `{stílus}/{hossz-bin}/` mappákba
+- [ ] `video.sql` lefuttatva (megvan)
+- [ ] Webhook-teszthez ngrok tunnel (vagy éles deploy)
 
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)

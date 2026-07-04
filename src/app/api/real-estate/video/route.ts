@@ -12,6 +12,7 @@ import {
   creditForImages,
   getFormat,
   isValidMusicStyle,
+  lengthBinForImages,
 } from "@/lib/video";
 import { pickRandomMusic } from "@/lib/music";
 import { submitImageToVideo } from "@/lib/luma";
@@ -108,8 +109,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Random zene a stílusból.
-    const musicUrl = await pickRandomMusic(musicStyle);
+    // Random zene a stílusból, a videó hosszához illő bin-ből.
+    const musicUrl = await pickRandomMusic(musicStyle, lengthBinForImages(count));
     if (!musicUrl) {
       throw new Error("Nincs elérhető zene ehhez a stílushoz (töltsd fel a music bucketbe).");
     }
