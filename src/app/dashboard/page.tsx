@@ -45,7 +45,15 @@ export default async function DashboardHome() {
       <h1 className="text-2xl font-semibold">Portál Központ</h1>
 
       <section>
-        <h2 className="font-medium">Elérhető modulok</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-medium">Elérhető modulok</h2>
+          <a
+            href="/pricing"
+            className="border border-gray-800 bg-gray-800 px-3 py-1.5 text-xs text-white"
+          >
+            Kredit vásárlása
+          </a>
+        </div>
         {serviceList.length === 0 ? (
           <div className="mt-2 border border-dashed border-gray-300 p-4 text-sm text-gray-500">
             Nincs elérhető modul. (Vegyél fel egy sort a <code>services</code>{" "}

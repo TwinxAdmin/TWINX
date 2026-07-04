@@ -29,6 +29,7 @@ export default async function DashboardLayout({
           <a href="/dashboard/real-estate/visualization">Látványtervező</a>
           <a href="/dashboard/real-estate/video">Videó</a>
           <a href="/dashboard/custom">Egyedi modulok</a>
+          <a href="/pricing" className="font-medium">Csomagok</a>
           {isAdmin && (
             <a href="/admin/analytics" className="font-medium">
               Admin
