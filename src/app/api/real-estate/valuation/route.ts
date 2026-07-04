@@ -54,7 +54,6 @@ export async function POST(request: Request) {
   // 1) Kredit levonás (admin/sales megkerüli). Sikertelen generálásnál visszatérítjük.
   const charge = await chargeCredit({
     userId: user.id,
-    serviceId: service.id,
     amount: 1,
   });
   if (!charge.ok) {
@@ -120,9 +119,8 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (!charge.bypassed) {
-      await admin.rpc("add_credits", {
+      await admin.rpc("wallet_add", {
         p_user_id: user.id,
-        p_service_id: service.id,
         p_amount: 1,
       });
     }

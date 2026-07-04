@@ -85,10 +85,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
   }
 
-  // 1 kredit az egész ingatlanra (all-or-nothing).
+  // 1 kredit az egész generálásra (all-or-nothing), a közös egyenlegből.
   const charge = await chargeCredit({
     userId: user.id,
-    serviceId: service.id,
     amount: 1,
   });
   if (!charge.ok) {
@@ -167,9 +166,8 @@ export async function POST(request: Request) {
   } catch (err) {
     // Nem sikerült MIND -> teljes visszatérítés.
     if (!charge.bypassed) {
-      await admin.rpc("add_credits", {
+      await admin.rpc("wallet_add", {
         p_user_id: user.id,
-        p_service_id: service.id,
         p_amount: 1,
       });
     }

@@ -50,10 +50,9 @@ export async function POST(request: Request) {
       .from("video_jobs")
       .update({ status: "failed", error: "Shotstack render hiba." })
       .eq("id", jobId);
-    if (job.credits_charged > 0 && job.service_id) {
-      await admin.rpc("add_credits", {
+    if (job.credits_charged > 0) {
+      await admin.rpc("wallet_add", {
         p_user_id: job.user_id,
-        p_service_id: job.service_id,
         p_amount: job.credits_charged,
       });
     }
@@ -116,10 +115,9 @@ export async function POST(request: Request) {
       .from("video_jobs")
       .update({ status: "failed", error: (err as Error).message })
       .eq("id", jobId);
-    if (job.credits_charged > 0 && job.service_id) {
-      await admin.rpc("add_credits", {
+    if (job.credits_charged > 0) {
+      await admin.rpc("wallet_add", {
         p_user_id: job.user_id,
-        p_service_id: job.service_id,
         p_amount: job.credits_charged,
       });
     }

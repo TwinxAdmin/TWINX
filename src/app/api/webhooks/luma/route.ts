@@ -12,16 +12,11 @@ const BUCKET = "reports";
 
 type Clip = { index: number; luma_id: string; status: string; url: string | null };
 
-async function refund(job: {
-  credits_charged: number;
-  user_id: string;
-  service_id: string | null;
-}) {
-  if (job.credits_charged > 0 && job.service_id) {
+async function refund(job: { credits_charged: number; user_id: string }) {
+  if (job.credits_charged > 0) {
     const admin = createAdminClient();
-    await admin.rpc("add_credits", {
+    await admin.rpc("wallet_add", {
       p_user_id: job.user_id,
-      p_service_id: job.service_id,
       p_amount: job.credits_charged,
     });
   }

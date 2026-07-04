@@ -55,7 +55,7 @@ export default function AdminCreditForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
             placeholder="pl. partner@ceg.hu"
           />
         </div>
@@ -69,17 +69,13 @@ export default function AdminCreditForm() {
             min={1}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
             placeholder="pl. 10"
           />
         </div>
       </div>
-      <button
-        type="submit"
-        disabled={loading}
-        className="border border-gray-800 bg-gray-800 px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
-        {loading ? "Jóváírás…" : "Kredit jóváírása (Ingatlan modul)"}
+      <button type="submit" disabled={loading} className="twx-btn">
+        {loading ? "Jóváírás…" : "Egyenleg jóváírása"}
       </button>
       {message && <p className="text-sm text-green-700">{message}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}

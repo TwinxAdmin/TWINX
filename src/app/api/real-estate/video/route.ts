@@ -98,7 +98,6 @@ export async function POST(request: Request) {
   const credits = creditForImages(count);
   const charge = await chargeCredit({
     userId: user.id,
-    serviceId: service.id,
     amount: credits,
   });
   if (!charge.ok) {
@@ -154,9 +153,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, jobId: job.id });
   } catch (err) {
     if (!charge.bypassed) {
-      await admin.rpc("add_credits", {
+      await admin.rpc("wallet_add", {
         p_user_id: user.id,
-        p_service_id: service.id,
         p_amount: credits,
       });
     }

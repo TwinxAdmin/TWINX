@@ -56,10 +56,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
 
-      // Atomikus jóváírás.
-      const { error: creditError } = await admin.rpc("add_credits", {
+      // Atomikus jóváírás a közös egyenlegre.
+      const { error: creditError } = await admin.rpc("wallet_add", {
         p_user_id: userId,
-        p_service_id: serviceId,
         p_amount: credits,
       });
 

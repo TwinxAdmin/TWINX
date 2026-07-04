@@ -36,12 +36,10 @@ export async function POST(request: Request) {
   const {
     userId,
     email,
-    serviceSlug = "real-estate",
     amount,
   } = (body ?? {}) as {
     userId?: string;
     email?: string;
-    serviceSlug?: string;
     amount?: number;
   };
 
@@ -76,19 +74,9 @@ export async function POST(request: Request) {
     resolvedUserId = found.id;
   }
 
-  const { data: service } = await admin
-    .from("services")
-    .select("id")
-    .eq("slug", serviceSlug)
-    .single();
-
-  if (!service) {
-    return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
-  }
-
-  const { error } = await admin.rpc("add_credits", {
+  // Közös egyenlegre írunk jóvá (bármelyik modulban elkölthető).
+  const { error } = await admin.rpc("wallet_add", {
     p_user_id: resolvedUserId,
-    p_service_id: service.id,
     p_amount: amount,
   });
 
