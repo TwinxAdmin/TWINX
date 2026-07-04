@@ -8,8 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ActivityItem = {
   id: string;
-  serviceName: string;
-  feature_used: string;
+  title: string;
+  typeLabel: string;
   output_file_url: string | null;
   created_at: string;
 };
@@ -122,16 +122,10 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
                   )}
 
                   <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {h.serviceName} · {h.feature_used}
+                    <p className="truncate font-medium">{h.title}</p>
+                    <p className="truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {h.typeLabel} · {new Date(h.created_at).toLocaleString("hu-HU")}
                     </p>
-                    <time
-                      dateTime={h.created_at}
-                      className="text-xs"
-                      style={{ color: "var(--twx-ink-muted)" }}
-                    >
-                      {new Date(h.created_at).toLocaleString("hu-HU")}
-                    </time>
                   </div>
                 </button>
               </li>
@@ -191,7 +185,7 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
             {curKind === "pdf" && current.output_file_url && (
               <iframe
                 src={current.output_file_url}
-                title={current.feature_used}
+                title={current.title}
                 className="h-[80vh] w-[min(90vw,900px)] rounded-xl bg-white"
                 style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
               />
@@ -210,9 +204,9 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
 
             {/* Felirat */}
             <div className="text-center text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
-              <span className="font-medium">
-                {current.serviceName} · {current.feature_used}
-              </span>
+              <span className="font-medium">{current.title}</span>
+              <span className="mx-2" style={{ color: "rgba(255,255,255,0.4)" }}>·</span>
+              <span>{current.typeLabel}</span>
               <span className="mx-2" style={{ color: "rgba(255,255,255,0.4)" }}>·</span>
               <time dateTime={current.created_at}>
                 {new Date(current.created_at).toLocaleString("hu-HU")}

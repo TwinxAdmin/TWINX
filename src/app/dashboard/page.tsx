@@ -4,10 +4,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
+import { activityTitle, featureLabel } from "@/lib/activity";
 
 type HistoryRow = {
   id: string;
   feature_used: string;
+  input_data: Record<string, unknown> | null;
   output_file_url: string | null;
   created_at: string;
   services: { name: string } | null;
@@ -25,7 +27,7 @@ export default async function DashboardHome() {
       : Promise.resolve({ data: null }),
     supabase
       .from("usage_history")
-      .select("id, feature_used, output_file_url, created_at, services(name)")
+      .select("id, feature_used, input_data, output_file_url, created_at, services(name)")
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -89,8 +91,8 @@ export default async function DashboardHome() {
       <RecentActivity
         items={historyList.map((h) => ({
           id: h.id,
-          serviceName: h.services?.name ?? "—",
-          feature_used: h.feature_used,
+          title: activityTitle(h.feature_used, h.input_data),
+          typeLabel: featureLabel(h.feature_used),
           output_file_url: h.output_file_url,
           created_at: h.created_at,
         }))}
