@@ -19,6 +19,18 @@ is**. Új funkció kredit-árát mindig ehhez igazítjuk (a hasznot nem csökken
 - Látványtervező: 1 kredit / ingatlan (max 8 kép).
 - Videó: **kép = kredit** (4 kép→4 … 8 kép→8 kredit).
 
+## 📣 Marketing / pozicionálás (PARKOLVA — dizájn-fázishoz)
+
+- **Vízió:** kredit-alapú AI-marketplace („app store" iparági modulokkal). Az ingatlan
+  csak az első modul. Go-to-market: vertikális-először (ingatlan a zászlóshajó), majd
+  iparáganként ismételni.
+- **Cégnév:** TWINX.
+- **Szlogen-jelöltek (kreatív-techy, leíró):**
+  - *„Plug & play AI-modulok minden iparágnak, kreditre hangolva."* (favorit)
+  - *„Kredit be, eredmény ki. Moduláris AI-eszköztár iparágaknak."*
+  - *„A mindennapjaid AI-motorja: válassz modult, tankolj kreditet, indíts."*
+- A landing hero: konkrét zászlóshajó vertikális + „növekvő marketplace" keret.
+
 ## 💡 Ötletek (későbbi fejlesztések)
 
 - **Stílus-galéria a Látványtervezőhöz** — egy stílushoz az összes referenciakép
