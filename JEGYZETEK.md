@@ -16,6 +16,9 @@ bizonytalan pont, amit később fejlesztünk vagy tisztázunk. Bátran bővítsd
   opciók (pl. Konyha → konyhabútor színe; Fürdő → szaniter stílus).
 - **Egyéni szín (color picker)** a kurált paletta mellé a haladóknak.
 - **Feliratok / branding átnézése** a dizájn-fázisban (pl. „Twinx AI Portal" csere).
+- **Videó feliratok / intro** — a marketing videóhoz szöveges rétegek: intro-cím az elején
+  (pl. cím, ár, cím-sor), esetleg outro/logó a végén. Shotstack text/title asset. Bővítés a
+  videó pipeline-hoz később.
 - **Értékbecslés szint-választás (tiered)** — a partner választhasson a generálás előtt:
   *Standard* elemzés (most: `sonar-pro`, 1 kredit) vagy *Mély / Prémium* elemzés
   (`sonar-deep-research`, több száz forrás, lassabb) magasabb kreditért (pl. 2-3 kredit).

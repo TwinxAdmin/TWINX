@@ -1,7 +1,7 @@
 // Videó pipeline — közös konfiguráció (formátumok, kredit-tábla, zenei stílusok).
 // Üzleti szabály: real-estate feature, kredit a képszám (videóhossz) szerint.
 
-export const MIN_VIDEO_IMAGES = 3;
+export const MIN_VIDEO_IMAGES = 4; // 4 kép = ~20 mp (5 mp/klip)
 export const MAX_VIDEO_IMAGES = 8;
 
 // Kredit a képszám szerint (config — bármikor állítható).
@@ -58,9 +58,9 @@ export const VIDEO_CLIP_SECONDS = 5;
 // Hossz-binek: a zene a videó hosszához illő mappából jön (`music/{style}/{bin}/`).
 export type LengthBin = { slug: string; label: string };
 export const LENGTH_BINS: LengthBin[] = [
-  { slug: "rovid", label: "Rövid (3-4 kép)" },
-  { slug: "kozepes", label: "Közepes (5-6 kép)" },
-  { slug: "hosszu", label: "Hosszú (7-8 kép)" },
+  { slug: "rovid", label: "Rövid (4 kép, ~20 mp)" },
+  { slug: "kozepes", label: "Közepes (5-6 kép, ~25-30 mp)" },
+  { slug: "hosszu", label: "Hosszú (7-8 kép, ~35-40 mp)" },
 ];
 
 export function lengthBinForImages(count: number): string {
