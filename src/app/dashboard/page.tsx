@@ -3,6 +3,7 @@
 // 50 tevékenység (usage_history, LIMIT 50). Az RLS csak a saját sorokat adja vissza.
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/catalog";
+import RecentActivity from "@/components/RecentActivity";
 
 type HistoryRow = {
   id: string;
@@ -84,51 +85,16 @@ export default async function DashboardHome() {
         </div>
       </section>
 
-      {/* Legutóbbi tevékenység */}
-      <section>
-        <h2 className="font-display text-xl font-medium">Legutóbbi tevékenység (max. 50)</h2>
-        {historyList.length === 0 ? (
-          <div
-            className="mt-3 rounded-xl border border-dashed p-4 text-sm"
-            style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
-          >
-            Még nincs tevékenység.
-          </div>
-        ) : (
-          <ul
-            className="mt-3 divide-y overflow-hidden rounded-xl"
-            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", borderColor: "var(--twx-line)" }}
-          >
-            {historyList.map((h) => (
-              <li
-                key={h.id}
-                className="flex items-center justify-between p-4 text-sm"
-                style={{ borderColor: "var(--twx-line)" }}
-              >
-                <span>
-                  {h.services?.name ?? "—"} · {h.feature_used}
-                </span>
-                <span className="flex items-center gap-3" style={{ color: "var(--twx-ink-muted)" }}>
-                  <time dateTime={h.created_at}>
-                    {new Date(h.created_at).toLocaleString("hu-HU")}
-                  </time>
-                  {h.output_file_url && (
-                    <a
-                      href={h.output_file_url}
-                      className="underline"
-                      style={{ color: "var(--twx-coral)" }}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Letöltés
-                    </a>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Legutóbbi tevékenység — összecsukva, gombra nyílik */}
+      <RecentActivity
+        items={historyList.map((h) => ({
+          id: h.id,
+          serviceName: h.services?.name ?? "—",
+          feature_used: h.feature_used,
+          output_file_url: h.output_file_url,
+          created_at: h.created_at,
+        }))}
+      />
     </main>
   );
 }
