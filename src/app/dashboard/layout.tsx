@@ -19,29 +19,34 @@ export default async function DashboardLayout({
   const isAdmin = me?.role === "admin";
 
   return (
-    <div className="min-h-screen font-sans">
-      <header className="flex items-center justify-between border-b border-gray-200 p-4">
-        <a href="/dashboard" className="font-semibold">
-          Twinx Portál
+    <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
+      <header
+        className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
+        style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
+      >
+        <a
+          href="/dashboard"
+          className="font-display text-2xl font-semibold tracking-wide"
+          style={{ color: "var(--twx-on-dark)" }}
+        >
+          TWINX
         </a>
-        <nav className="flex gap-4 text-sm underline">
-          <a href="/dashboard/real-estate/valuation">Értékbecslő</a>
-          <a href="/dashboard/real-estate/visualization">Látványtervező</a>
-          <a href="/dashboard/real-estate/video">Videó</a>
-          <a href="/dashboard/custom">Egyedi modulok</a>
-          <a href="/pricing" className="font-medium">Csomagok</a>
+        <nav className="flex flex-wrap gap-5 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <a href="/dashboard/real-estate/valuation" className="hover:text-white">Értékbecslő</a>
+          <a href="/dashboard/real-estate/visualization" className="hover:text-white">Látványtervező</a>
+          <a href="/dashboard/real-estate/video" className="hover:text-white">Videó</a>
+          <a href="/dashboard/custom" className="hover:text-white">Egyedi modulok</a>
+          <a href="/pricing" className="hover:opacity-80" style={{ color: "var(--twx-coral)" }}>Csomagok</a>
           {isAdmin && (
-            <a href="/admin/analytics" className="font-medium">
-              Admin
-            </a>
+            <a href="/admin/analytics" className="hover:text-white">Admin</a>
           )}
         </nav>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>{user?.email}</span>
+        <div className="flex items-center gap-4 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <span className="hidden sm:inline">{user?.email}</span>
           <LogoutButton />
         </div>
       </header>
-      <div className="p-6">{children}</div>
+      <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
     </div>
   );
 }

@@ -45,53 +45,54 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 font-sans">
-      <div className="mx-auto max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Belépés</h1>
-
-        <form onSubmit={onSubmit} noValidate className="space-y-3">
-          <div>
-            <label htmlFor="email" className="block text-sm">
-              E-mail
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 p-2 text-sm"
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm">
-              Jelszó
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 p-2 text-sm"
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
-          >
-            {loading ? "Belépés…" : "Belépés"}
-          </button>
-        </form>
-
-        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-
-        <a href="/register" className="block text-sm underline">
-          Nincs fiókod? Regisztráció
+    <main className="flex min-h-screen items-center justify-center p-6 font-sans" style={{ background: "var(--twx-dark)" }}>
+      <div className="w-full max-w-sm">
+        <a
+          href="/"
+          className="mb-6 block text-center font-display text-3xl font-semibold tracking-wide"
+          style={{ color: "var(--twx-on-dark)" }}
+        >
+          TWINX
         </a>
+        <div className="twx-card p-7">
+          <h1 className="font-display text-2xl font-semibold">Belépés</h1>
+
+          <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm">E-mail</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm">Jelszó</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="current-password"
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="twx-btn w-full">
+              {loading ? "Belépés…" : "Belépés"}
+            </button>
+          </form>
+
+          {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
+
+          <a href="/register" className="mt-4 block text-sm underline" style={{ color: "var(--twx-coral)" }}>
+            Nincs fiókod? Regisztráció
+          </a>
+        </div>
       </div>
     </main>
   );

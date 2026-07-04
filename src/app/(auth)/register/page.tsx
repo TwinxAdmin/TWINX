@@ -57,60 +57,61 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 font-sans">
-      <div className="mx-auto max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Regisztráció</h1>
-
-        <form onSubmit={onSubmit} noValidate className="space-y-3">
-          <div>
-            <label htmlFor="email" className="block text-sm">
-              E-mail
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 p-2 text-sm"
-              autoComplete="email"
-            />
-            {errors.email && (
-              <p className="mt-1 text-xs text-red-600">{errors.email}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm">
-              Jelszó
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 p-2 text-sm"
-              autoComplete="new-password"
-            />
-            {errors.password && (
-              <p className="mt-1 text-xs text-red-600">{errors.password}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
-          >
-            {loading ? "Regisztráció…" : "Regisztráció"}
-          </button>
-        </form>
-
-        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-        {message && <p className="text-sm text-green-700">{message}</p>}
-
-        <a href="/login" className="block text-sm underline">
-          Van már fiókod? Belépés
+    <main className="flex min-h-screen items-center justify-center p-6 font-sans" style={{ background: "var(--twx-dark)" }}>
+      <div className="w-full max-w-sm">
+        <a
+          href="/"
+          className="mb-6 block text-center font-display text-3xl font-semibold tracking-wide"
+          style={{ color: "var(--twx-on-dark)" }}
+        >
+          TWINX
         </a>
+        <div className="twx-card p-7">
+          <h1 className="font-display text-2xl font-semibold">Regisztráció</h1>
+
+          <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm">E-mail</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="email"
+              />
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm">Jelszó</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="new-password"
+              />
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-600">{errors.password}</p>
+              )}
+            </div>
+
+            <button type="submit" disabled={loading} className="twx-btn w-full">
+              {loading ? "Regisztráció…" : "Regisztráció"}
+            </button>
+          </form>
+
+          {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
+          {message && <p className="mt-3 text-sm text-green-700">{message}</p>}
+
+          <a href="/login" className="mt-4 block text-sm underline" style={{ color: "var(--twx-coral)" }}>
+            Van már fiókod? Belépés
+          </a>
+        </div>
       </div>
     </main>
   );

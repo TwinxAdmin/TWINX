@@ -33,29 +33,30 @@ export default function PricingPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 font-sans">
-      <div className="mx-auto max-w-3xl space-y-4">
-        <h1 className="text-2xl font-semibold">Csomagok</h1>
-        <p className="text-sm text-gray-500">
-          Fix áras csomagok. A megvásárolt kreditek nem járnak le.
+    <main className="twx-page p-8 font-sans">
+      <div className="mx-auto max-w-3xl space-y-5 py-8">
+        <a href="/" className="font-display text-2xl font-semibold tracking-wide">TWINX</a>
+        <h1 className="font-display text-4xl font-semibold">Csomagok</h1>
+        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          Fix áras csomagok. A megvásárolt egyenleg nem jár le.
         </p>
 
         <ul className="space-y-3">
           {CREDIT_PACKAGES.map((pkg) => (
             <li
               key={pkg.id}
-              className="flex items-center justify-between border border-gray-200 p-4"
+              className="twx-card flex items-center justify-between p-5"
             >
               <div>
-                <p className="font-medium">{pkg.name}</p>
-                <p className="text-sm text-gray-500">
-                  {pkg.credits} kredit · {pkg.priceHuf.toLocaleString("hu-HU")} Ft
+                <p className="font-display text-xl font-medium">{pkg.name}</p>
+                <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                  {pkg.priceHuf.toLocaleString("hu-HU")} Ft
                 </p>
               </div>
               <button
                 onClick={() => buy(pkg.id)}
                 disabled={loadingId !== null}
-                className="border border-gray-800 bg-gray-800 px-4 py-2 text-sm text-white disabled:opacity-50"
+                className="twx-btn"
               >
                 {loadingId === pkg.id ? "Átirányítás…" : "Vásárlás"}
               </button>
@@ -64,7 +65,7 @@ export default function PricingPage() {
         </ul>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <p className="text-xs text-gray-400">
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           Bejelentkezés szükséges a vásárláshoz.
         </p>
       </div>

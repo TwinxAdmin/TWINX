@@ -33,6 +33,37 @@ body {
   font-family: var(--font-display);
 }
 
+/* Belső felület — közös elemek (világos krém + korall) */
+.twx-page {
+  min-height: 100vh;
+  background: var(--twx-cream);
+  color: var(--twx-ink);
+}
+.twx-card {
+  background: var(--twx-cream-card);
+  border: 1px solid var(--twx-line);
+  border-radius: 16px;
+}
+.twx-btn {
+  border-radius: 9999px;
+  background: var(--twx-coral);
+  color: #1c1005;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.twx-btn:disabled { opacity: 0.5; }
+.twx-input {
+  width: 100%;
+  border: 1px solid var(--twx-line);
+  background: var(--twx-cream-card);
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--twx-ink);
+}
+.twx-input:focus { outline: none; border-color: var(--twx-coral); }
+
 @keyframes twx-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(0, -22px) scale(1.05); }

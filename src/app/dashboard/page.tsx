@@ -41,38 +41,42 @@ export default async function DashboardHome() {
   const historyList = (history ?? []) as unknown as HistoryRow[];
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8">
-      <h1 className="text-2xl font-semibold">Portál Központ</h1>
+    <main className="space-y-10">
+      <h1 className="font-display text-4xl font-semibold">Portál Központ</h1>
 
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="font-medium">Elérhető modulok</h2>
+          <h2 className="font-display text-xl font-medium">Elérhető modulok</h2>
           <a
             href="/pricing"
-            className="border border-gray-800 bg-gray-800 px-3 py-1.5 text-xs text-white"
+            className="rounded-full px-4 py-2 text-xs font-medium"
+            style={{ background: "var(--twx-coral)", color: "#1c1005" }}
           >
             Kredit vásárlása
           </a>
         </div>
         {serviceList.length === 0 ? (
-          <div className="mt-2 border border-dashed border-gray-300 p-4 text-sm text-gray-500">
-            Nincs elérhető modul. (Vegyél fel egy sort a <code>services</code>{" "}
-            táblába, pl. a <code>real-estate</code> modult.)
+          <div
+            className="mt-3 rounded-xl border border-dashed p-4 text-sm"
+            style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
+          >
+            Nincs elérhető modul.
           </div>
         ) : (
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-3 space-y-2">
             {serviceList.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between border border-gray-200 p-3 text-sm"
+                className="flex items-center justify-between rounded-xl p-4 text-sm"
+                style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
               >
                 <span>
                   {s.name}{" "}
                   {s.status === "private" && (
-                    <span className="text-xs text-gray-400">(privát)</span>
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>(privát)</span>
                   )}
                 </span>
-                <span className="text-gray-600">
+                <span style={{ color: "var(--twx-ink-muted)" }}>
                   Kredit: {creditMap.get(s.id) ?? 0}
                 </span>
               </li>
@@ -82,19 +86,29 @@ export default async function DashboardHome() {
       </section>
 
       <section>
-        <h2 className="font-medium">Legutóbbi tevékenység (max. 50)</h2>
+        <h2 className="font-display text-xl font-medium">Legutóbbi tevékenység (max. 50)</h2>
         {historyList.length === 0 ? (
-          <div className="mt-2 border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+          <div
+            className="mt-3 rounded-xl border border-dashed p-4 text-sm"
+            style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
+          >
             Még nincs tevékenység.
           </div>
         ) : (
-          <ul className="mt-2 divide-y divide-gray-200 border border-gray-200">
+          <ul
+            className="mt-3 divide-y overflow-hidden rounded-xl"
+            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", borderColor: "var(--twx-line)" }}
+          >
             {historyList.map((h) => (
-              <li key={h.id} className="flex items-center justify-between p-3 text-sm">
+              <li
+                key={h.id}
+                className="flex items-center justify-between p-4 text-sm"
+                style={{ borderColor: "var(--twx-line)" }}
+              >
                 <span>
                   {h.services?.name ?? "—"} · {h.feature_used}
                 </span>
-                <span className="flex items-center gap-3 text-gray-500">
+                <span className="flex items-center gap-3" style={{ color: "var(--twx-ink-muted)" }}>
                   <time dateTime={h.created_at}>
                     {new Date(h.created_at).toLocaleString("hu-HU")}
                   </time>
@@ -102,6 +116,7 @@ export default async function DashboardHome() {
                     <a
                       href={h.output_file_url}
                       className="underline"
+                      style={{ color: "var(--twx-coral)" }}
                       target="_blank"
                       rel="noreferrer"
                     >
