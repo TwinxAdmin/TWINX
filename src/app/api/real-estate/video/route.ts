@@ -125,7 +125,8 @@ export async function POST(request: Request) {
         music_style: musicStyle,
         music_url: musicUrl,
         image_count: count,
-        credits_charged: credits,
+        // admin/sales-nél nem volt tényleges levonás -> 0 (nincs téves visszatérítés)
+        credits_charged: charge.bypassed ? 0 : credits,
         source_images: sourceImages,
         clips: [],
       })
