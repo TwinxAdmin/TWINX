@@ -16,8 +16,16 @@
 -- =====================================================================
 -- 1) ENUM TÍPUSOK
 -- =====================================================================
-create type public.user_role as enum ('user', 'sales', 'admin');
-create type public.service_status as enum ('public', 'private');
+-- Idempotens enum-létrehozás (újrafuttatható marad).
+do $$ begin
+  create type public.user_role as enum ('user', 'sales', 'admin');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type public.service_status as enum ('public', 'private');
+exception when duplicate_object then null;
+end $$;
 
 
 -- =====================================================================
