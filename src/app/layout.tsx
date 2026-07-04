@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sans = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Twinx AI Portal",
-  description: "Twinx AI Portal",
+  title: "TWINX — AI-alapú üzleti automatizáció",
+  description:
+    "Saját fejlesztésű, kategorizált AI alkalmazás-platform a mindennapi üzletmenethez. Használat alapon, havidíjak nélkül.",
 };
 
 export default function RootLayout({
@@ -24,9 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="hu">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
-      </body>
+      <body className={`${sans.variable} antialiased`}>{children}</body>
     </html>
   );
 }

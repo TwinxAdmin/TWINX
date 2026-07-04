@@ -1,26 +1,50 @@
 @import "tailwindcss";
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap");
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Fő cím betű — Clash Display (Juan Mora-vibe), törzs Inter */
+  --font-display: "Clash Display", var(--font-sans), sans-serif;
+
+  /* TWINX paletta — sötét cinematic hero + világos editorial, korall akcent */
+  --twx-dark: #12100e;
+  --twx-dark-2: #0c0b0a;
+  --twx-cream: #f7f3ec;
+  --twx-cream-card: #fdfbf6;
+  --twx-ink: #1c1815;
+  --twx-ink-muted: #6e655c;
+  --twx-line: #e8e1d6;
+  --twx-coral: #ef7a5a;
+  --twx-coral-soft: #f9c9b6;
+  --twx-on-dark: #f4efe7;
+  --twx-on-dark-muted: #a79f94;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #171717;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+@keyframes twx-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(0, -22px) scale(1.05); }
+}
+@keyframes twx-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.twx-orb { animation: twx-float 9s ease-in-out infinite; }
+.twx-orb-2 { animation: twx-float 12s ease-in-out infinite; }
+.twx-reveal { animation: twx-fade-up 0.8s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .twx-orb, .twx-orb-2, .twx-reveal { animation: none; }
 }

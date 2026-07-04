@@ -19,16 +19,24 @@ is**. Új funkció kredit-árát mindig ehhez igazítjuk (a hasznot nem csökken
 - Látványtervező: 1 kredit / ingatlan (max 8 kép).
 - Videó: **kép = kredit** (4 kép→4 … 8 kép→8 kredit).
 
-## 📣 Marketing / pozicionálás (PARKOLVA — dizájn-fázishoz)
+## 📣 Marketing / pozicionálás (FIX szabályok)
 
-- **Vízió:** kredit-alapú AI-marketplace („app store" iparági modulokkal). Az ingatlan
-  csak az első modul. Go-to-market: vertikális-először (ingatlan a zászlóshajó), majd
-  iparáganként ismételni.
+- **Vízió:** TWINX = **saját fejlesztésű, kategorizált, folyamatosan bővülő AI
+  alkalmazás-ökoszisztéma** (mint egy App Store, DE minden appot/motort MI fejlesztünk =
+  Native Dev → prémium minőség, tiszta Pay-As-You-Go, adatbiztonság). Az ingatlan az
+  **első kiemelt kategória**, nem a teljes identitás.
 - **Cégnév:** TWINX.
-- **Szlogen-jelöltek (kreatív-techy, leíró):**
-  - *„Plug & play AI-modulok minden iparágnak, kreditre hangolva."* (favorit)
-  - *„Kredit be, eredmény ki. Moduláris AI-eszköztár iparágaknak."*
-  - *„A mindennapjaid AI-motorja: válassz modult, tankolj kreditet, indíts."*
+- **Fő mondat (fix):** „TWINX — AI-alapú üzleti automatizáció. Saját fejlesztésű
+  AI-motorok a mindennapi üzletmenethez, egyetlen kategorizált platformon."
+- **PÁRTOLT kifejezések:** „üzleti AI-motorok", „AI alkalmazás-ökoszisztéma", „mindennapi
+  folyamatok AI-osítása", „kategorizált céleszközök", „használat alapú (Pay-As-You-Go)
+  asszisztensek", „saját fejlesztésű AI appok".
+- **KERÜLENDŐ:** „ingatlanos szoftver" (túl szűk), „AI Agency / ügynökség", „havidíjas
+  csomagok", és a **„kredit" szó** (fizetési mechanizmus, nem értékajánlat).
+- **Kategóriák (App Store-szerű tálalás):** Ingatlan & Látványtervezés (Elérhető),
+  Adatelemzés & Automatizáció (Hamarosan), Média & Tartalomgyártás (Hamarosan)… bővül.
+- **Dizájn-irány:** az új referencia-oldalak alapján dől el (paletta, fontok, animációk).
+  Logó helyett nagy TWINX wordmark. *(A korábbi kép-alapú sötét bronz irányt elengedtük.)*
 - A landing hero: konkrét zászlóshajó vertikális + „növekvő marketplace" keret.
 
 ## 💡 Ötletek (későbbi fejlesztések)

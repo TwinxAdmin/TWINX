@@ -114,7 +114,8 @@ export default function B2BForm() {
       <button
         type="submit"
         disabled={loading}
-        className="border border-gray-800 bg-gray-800 px-4 py-2 text-sm text-white disabled:opacity-50"
+        className="rounded-full px-6 py-2.5 text-sm font-medium disabled:opacity-50"
+        style={{ background: "var(--twx-coral)", color: "#1c1005" }}
       >
         {loading ? "Küldés…" : "Ajánlatkérés küldése"}
       </button>
