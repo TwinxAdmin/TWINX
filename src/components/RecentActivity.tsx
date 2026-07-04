@@ -26,78 +26,74 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <section>
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-medium">Legutóbbi tevékenység</h2>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          disabled={items.length === 0}
-          className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-          style={{
-            border: "1px solid var(--twx-line)",
-            background: open ? "var(--twx-coral)" : "var(--twx-cream-card)",
-            color: open ? "#1c1005" : "var(--twx-ink)",
-            opacity: items.length === 0 ? 0.5 : 1,
-          }}
-        >
-          {items.length === 0
-            ? "Nincs tevékenység"
-            : open
-              ? "Elrejtés"
-              : `Megjelenítés (${items.length})`}
-        </button>
-      </div>
+    <section className="max-w-md">
+      <h2 className="font-display text-xl font-medium">Legutóbbi tevékenység</h2>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={items.length === 0}
+        className="mt-3 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        style={{
+          border: "1px solid var(--twx-line)",
+          background: open ? "var(--twx-coral)" : "var(--twx-cream-card)",
+          color: open ? "#1c1005" : "var(--twx-ink)",
+          opacity: items.length === 0 ? 0.5 : 1,
+        }}
+      >
+        {items.length === 0
+          ? "Nincs tevékenység"
+          : open
+            ? "Elrejtés"
+            : `Megjelenítés (${items.length})`}
+      </button>
 
       {open && (
-        <ul
-          className="mt-4 max-h-[28rem] space-y-2 overflow-y-auto pr-1"
-        >
+        <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
           {items.map((h) => {
             const k = kind(h.output_file_url);
+            const label =
+              k === "pdf" ? "PDF" : k === "video" ? "MP4" : k === "other" ? "Fájl" : "";
             return (
-              <li
-                key={h.id}
-                className="flex items-center justify-between gap-3 rounded-xl p-3 text-sm"
-                style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">
-                    {h.serviceName} · {h.feature_used}
-                  </p>
-                  <time
-                    dateTime={h.created_at}
-                    className="text-xs"
-                    style={{ color: "var(--twx-ink-muted)" }}
-                  >
-                    {new Date(h.created_at).toLocaleString("hu-HU")}
-                  </time>
-                </div>
+              <li key={h.id}>
+                <a
+                  href={h.output_file_url ?? "#"}
+                  target={h.output_file_url ? "_blank" : undefined}
+                  rel="noreferrer"
+                  className="flex items-center gap-3 rounded-xl p-2.5 text-sm transition-colors hover:bg-black/[0.03]"
+                  style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+                >
+                  {/* Fájl / preview */}
+                  {k === "image" && h.output_file_url ? (
+                    <img
+                      src={h.output_file_url}
+                      alt=""
+                      className="h-11 w-11 shrink-0 rounded-lg object-cover"
+                      style={{ border: "1px solid var(--twx-line)" }}
+                    />
+                  ) : (
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold"
+                      style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}
+                    >
+                      {label}
+                    </span>
+                  )}
 
-                {h.output_file_url && (
-                  <a
-                    href={h.output_file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex shrink-0 items-center gap-2"
-                  >
-                    {k === "image" ? (
-                      <img
-                        src={h.output_file_url}
-                        alt=""
-                        className="h-12 w-16 rounded-lg object-cover"
-                        style={{ border: "1px solid var(--twx-line)" }}
-                      />
-                    ) : (
-                      <span
-                        className="rounded-full px-3 py-1.5 text-xs font-medium"
-                        style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}
-                      >
-                        {k === "pdf" ? "PDF megnyitása" : k === "video" ? "Videó megnyitása" : "Letöltés"}
-                      </span>
-                    )}
-                  </a>
-                )}
+                  {/* Név + dátum közvetlenül mellette */}
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {h.serviceName} · {h.feature_used}
+                    </p>
+                    <time
+                      dateTime={h.created_at}
+                      className="text-xs"
+                      style={{ color: "var(--twx-ink-muted)" }}
+                    >
+                      {new Date(h.created_at).toLocaleString("hu-HU")}
+                    </time>
+                  </div>
+                </a>
               </li>
             );
           })}
