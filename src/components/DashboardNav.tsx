@@ -9,7 +9,7 @@ export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
-    <nav className="relative flex flex-wrap items-center gap-1 text-sm">
+    <nav className="relative flex items-center gap-1 text-sm">
       {/* Kattintáson kívülre zárás */}
       {open && (
         <button

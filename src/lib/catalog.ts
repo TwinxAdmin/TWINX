@@ -12,7 +12,7 @@ export type Category = {
 export const CATEGORIES: Category[] = [
   {
     slug: "real-estate",
-    label: "Ingatlan & Látványtervezés",
+    label: "Ingatlan",
     status: "available",
     modules: [
       { label: "Értékbecslő", href: "/dashboard/real-estate/valuation" },
@@ -22,13 +22,13 @@ export const CATEGORIES: Category[] = [
   },
   {
     slug: "data",
-    label: "Adatelemzés & Automatizáció",
+    label: "Adatelemzés",
     status: "soon",
     modules: [],
   },
   {
     slug: "media",
-    label: "Média & Tartalomgyártás",
+    label: "Tartalomgyártás",
     status: "soon",
     modules: [],
   },
