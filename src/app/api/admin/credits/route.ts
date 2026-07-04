@@ -33,20 +33,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const { userId, serviceSlug, amount } = (body ?? {}) as {
+  const {
+    userId,
+    email,
+    serviceSlug = "real-estate",
+    amount,
+  } = (body ?? {}) as {
     userId?: string;
+    email?: string;
     serviceSlug?: string;
     amount?: number;
   };
 
-  if (!userId || !serviceSlug || !Number.isInteger(amount) || (amount ?? 0) <= 0) {
+  if (!Number.isInteger(amount) || (amount ?? 0) <= 0) {
     return NextResponse.json(
-      { error: "Hiányzó vagy hibás adat (userId, serviceSlug, amount>0)." },
+      { error: "A kredit mennyiség pozitív egész szám legyen." },
+      { status: 422 }
+    );
+  }
+  if (!userId && !email) {
+    return NextResponse.json(
+      { error: "Add meg a felhasználó e-mail címét vagy azonosítóját." },
       { status: 422 }
     );
   }
 
   const admin = createAdminClient();
+
+  // Felhasználó feloldása e-mail alapján (ha nem userId-t adtak meg).
+  let resolvedUserId = userId;
+  if (!resolvedUserId && email) {
+    const { data: list } = await admin.auth.admin.listUsers();
+    const found = list?.users?.find(
+      (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
+    );
+    if (!found) {
+      return NextResponse.json(
+        { error: "Nincs ilyen e-mailű felhasználó." },
+        { status: 404 }
+      );
+    }
+    resolvedUserId = found.id;
+  }
 
   const { data: service } = await admin
     .from("services")
@@ -59,7 +87,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await admin.rpc("add_credits", {
-    p_user_id: userId,
+    p_user_id: resolvedUserId,
     p_service_id: service.id,
     p_amount: amount,
   });

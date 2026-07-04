@@ -5,13 +5,13 @@ export const MIN_VIDEO_IMAGES = 4; // 4 kép = ~20 mp (5 mp/klip)
 export const MAX_VIDEO_IMAGES = 8;
 
 // Kredit a képszám szerint (config — bármikor állítható).
+// Szabály: min. 100% haszon a legmélyebb kedvezményes áron is → "kép = kredit".
 export const VIDEO_CREDIT_BY_IMAGES: Record<number, number> = {
-  3: 2,
-  4: 3,
-  5: 3,
-  6: 4,
-  7: 5,
-  8: 6,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
 };
 
 export function creditForImages(count: number): number {

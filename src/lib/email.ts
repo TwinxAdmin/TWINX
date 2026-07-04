@@ -40,6 +40,48 @@ export async function sendLeadNotification(lead: LeadInput): Promise<void> {
   }
 }
 
+export async function sendIdeaNotification(idea: {
+  authorName?: string;
+  authorEmail?: string;
+  content: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.LEADS_NOTIFY_EMAIL;
+  if (!apiKey || !to) {
+    throw new Error("Hiányzó RESEND_API_KEY vagy LEADS_NOTIFY_EMAIL.");
+  }
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+
+  const html = `
+    <h2>Új ötlet érkezett az ötletládába</h2>
+    <p><strong>Név:</strong> ${escapeHtml(idea.authorName || "-")}</p>
+    <p><strong>E-mail:</strong> ${escapeHtml(idea.authorEmail || "-")}</p>
+    <p><strong>Ötlet:</strong></p>
+    <p>${escapeHtml(idea.content).replace(/\n/g, "<br>")}</p>
+    <p>Jóváhagyás / elutasítás: az admin felület /admin/ideas oldalán.</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      reply_to: idea.authorEmail || undefined,
+      subject: "Új ötlet az ötletládában",
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

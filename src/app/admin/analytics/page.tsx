@@ -29,9 +29,11 @@ export default async function AdminAnalyticsPage() {
     <main className="mx-auto max-w-4xl space-y-6 p-6 font-sans">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Admin — Költségfigyelő</h1>
-        <a href="/dashboard" className="text-sm underline">
-          ← Dashboard
-        </a>
+        <nav className="flex gap-3 text-sm underline">
+          <a href="/admin/ideas">Ötletek</a>
+          <a href="/admin/credits">Kredit</a>
+          <a href="/dashboard">Dashboard</a>
+        </nav>
       </div>
       <p className="text-sm text-gray-500">
         Árfolyam: 1 USD = {m.hufPerUsd} Ft. A költség becsült nyers API-önköltség.

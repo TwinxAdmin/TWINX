@@ -5,6 +5,20 @@ bizonytalan pont, amit később fejlesztünk vagy tisztázunk. Bátran bővítsd
 
 ---
 
+## 💰 Árazási alapszabály — KÖTELEZŐ 100% haszon
+
+**Nem eltérhető:** minden kreditet fogyasztó funkciónál az eladási ár ≥ **2× a nyers
+API-önköltség** (min. 100% haszon), a **legmélyebb kedvezményes szinten (349 Ft/kredit)
+is**. Új funkció kredit-árát mindig ehhez igazítjuk (a hasznot nem csökkentjük).
+
+**Csomagok:** Induló 10 kr = 4 990 Ft (499/kr) · Közepes 50 kr = 19 990 Ft (399/kr, −20%)
+· Nagy 100 kr = 34 990 Ft (349/kr, −30%).
+
+**Kredit-árak (100%-ra ellenőrizve 349 Ft/kredit-nél):**
+- Értékbecslő (sonar-pro): 1 kredit (deep-research esetén 2).
+- Látványtervező: 1 kredit / ingatlan (max 8 kép).
+- Videó: **kép = kredit** (4 kép→4 … 8 kép→8 kredit).
+
 ## 💡 Ötletek (későbbi fejlesztések)
 
 - **Stílus-galéria a Látványtervezőhöz** — egy stílushoz az összes referenciakép
