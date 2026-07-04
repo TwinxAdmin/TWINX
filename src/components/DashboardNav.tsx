@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/catalog";
 
-export default function DashboardNav() {
+export default function DashboardNav({ hasCustom = false }: { hasCustom?: boolean }) {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -85,13 +85,24 @@ export default function DashboardNav() {
         );
       })}
 
-      <a
-        href="/dashboard/custom"
-        className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-        style={{ color: "var(--twx-on-dark)" }}
-      >
-        Egyedi modulok
-      </a>
+      {hasCustom ? (
+        <a
+          href="/dashboard/custom"
+          className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
+          style={{ color: "var(--twx-on-dark)" }}
+        >
+          Egyedi modulok
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-b2b"))}
+          className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
+          style={{ color: "var(--twx-on-dark)" }}
+        >
+          Egyedi modulok
+        </button>
+      )}
     </nav>
   );
 }

@@ -63,7 +63,7 @@ export default function B2BForm() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full border border-gray-300 p-2 text-sm"
+          className="twx-input mt-1"
         />
         {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
       </div>
@@ -77,7 +77,7 @@ export default function B2BForm() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full border border-gray-300 p-2 text-sm"
+          className="twx-input mt-1"
         />
         {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
       </div>
@@ -91,7 +91,7 @@ export default function B2BForm() {
           type="text"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
-          className="w-full border border-gray-300 p-2 text-sm"
+          className="twx-input mt-1"
         />
         {errors.company && <p className="mt-1 text-xs text-red-600">{errors.company}</p>}
       </div>
@@ -105,7 +105,7 @@ export default function B2BForm() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={4}
-          className="w-full border border-gray-300 p-2 text-sm"
+          className="twx-input mt-1"
           placeholder="Mondd el, milyen egyedi modulra / megoldásra van szükségetek."
         />
         {errors.message && <p className="mt-1 text-xs text-red-600">{errors.message}</p>}
