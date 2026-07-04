@@ -2,6 +2,8 @@
 // Sötét cinematic hero → világos editorial szekciók, korall akcent.
 import B2BForm from "@/components/B2BForm";
 import IdeaForm from "@/components/IdeaForm";
+import AuthModal from "@/components/AuthModal";
+import AuthTrigger from "@/components/AuthTrigger";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
@@ -79,14 +81,14 @@ export default async function LandingPage() {
           <div className="flex items-center gap-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
             <a href="#kategoriak" className="hidden hover:text-white sm:inline">Kategóriák</a>
             <a href="/pricing" className="hidden hover:text-white sm:inline">Csomagok</a>
-            <a href="/login" className="hover:text-white">Belépés</a>
-            <a
-              href="/register"
+            <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
+            <AuthTrigger
+              mode="register"
               className="rounded-full px-4 py-2 text-sm font-medium"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
               Regisztráció
-            </a>
+            </AuthTrigger>
           </div>
         </nav>
 
@@ -112,13 +114,13 @@ export default async function LandingPage() {
             használat alapon.
           </p>
           <div className="twx-reveal mt-9 flex flex-wrap gap-3">
-            <a
-              href="/register"
+            <AuthTrigger
+              mode="register"
               className="rounded-full px-6 py-3 text-sm font-medium"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
               Kezdés
-            </a>
+            </AuthTrigger>
             <a
               href="#kategoriak"
               className="rounded-full border px-6 py-3 text-sm font-medium"
@@ -275,8 +277,8 @@ export default async function LandingPage() {
             <div className="flex gap-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
               <a href="#kategoriak" className="hover:text-white">Kategóriák</a>
               <a href="/pricing" className="hover:text-white">Csomagok</a>
-              <a href="/login" className="hover:text-white">Belépés</a>
-              <a href="/register" className="hover:text-white">Regisztráció</a>
+              <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
+              <AuthTrigger mode="register" className="hover:text-white">Regisztráció</AuthTrigger>
             </div>
             <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
               Saját fejlesztésű AI alkalmazás-platform
@@ -290,6 +292,9 @@ export default async function LandingPage() {
           </p>
         </div>
       </footer>
+
+      {/* Belépés / Regisztráció modális ablak */}
+      <AuthModal />
     </main>
   );
 }
