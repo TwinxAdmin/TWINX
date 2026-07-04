@@ -6,6 +6,7 @@ export type Category = {
   slug: string;
   label: string;
   status: "available" | "soon";
+  blurb: string;
   modules: ModuleLink[];
 };
 
@@ -14,6 +15,8 @@ export const CATEGORIES: Category[] = [
     slug: "real-estate",
     label: "Ingatlan",
     status: "available",
+    blurb:
+      "Percek alatt kész értékbecslés, belsőépítészeti látványtervek üres vagy elavult szobákból, és profi bemutató videó a feltöltött fotókból — hogy az ingatlan gyorsabban, jobb áron keljen el.",
     modules: [
       { label: "Értékbecslő", href: "/dashboard/real-estate/valuation" },
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization" },
@@ -24,12 +27,14 @@ export const CATEGORIES: Category[] = [
     slug: "data",
     label: "Adatelemzés",
     status: "soon",
+    blurb: "Automatizált adatelemzés és riportok.",
     modules: [],
   },
   {
     slug: "media",
     label: "Tartalomgyártás",
     status: "soon",
+    blurb: "AI-alapú tartalom- és médiagyártás.",
     modules: [],
   },
 ];

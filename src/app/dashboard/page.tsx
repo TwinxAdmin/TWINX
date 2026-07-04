@@ -75,25 +75,9 @@ export default async function DashboardHome() {
                     </span>
                   )}
                 </div>
-                {soon ? (
-                  <p className="mt-3 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                    Fejlesztés alatt — hamarosan elérhető.
-                  </p>
-                ) : (
-                  <ul className="mt-3 space-y-1.5">
-                    {cat.modules.map((m) => (
-                      <li key={m.href}>
-                        <a
-                          href={m.href}
-                          className="text-sm underline-offset-2 hover:underline"
-                          style={{ color: "var(--twx-coral)" }}
-                        >
-                          {m.label}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+                  {soon ? `${cat.blurb} Hamarosan elérhető.` : cat.blurb}
+                </p>
               </div>
             );
           })}
