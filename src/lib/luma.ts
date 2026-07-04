@@ -3,6 +3,8 @@
 const ENDPOINT = "https://api.lumalabs.ai/dream-machine/v1/generations";
 const MODEL = process.env.LUMA_MODEL || "ray-2";
 const DURATION = process.env.LUMA_DURATION || "5s";
+// 720p a költséghatékony klipekhez (a Shotstack úgyis 1080p-re rendereli a végeredményt).
+const RESOLUTION = process.env.LUMA_RESOLUTION || "720p";
 
 const DEFAULT_PROMPT =
   "Slow, subtle cinematic camera movement across the interior, gentle parallax, " +
@@ -29,6 +31,7 @@ export async function submitImageToVideo(params: {
       prompt: params.prompt ?? DEFAULT_PROMPT,
       aspect_ratio: params.aspectRatio,
       duration: DURATION,
+      resolution: RESOLUTION,
       keyframes: { frame0: { type: "image", url: params.imageUrl } },
       callback_url: params.callbackUrl,
     }),
