@@ -4,6 +4,8 @@ import B2BForm from "@/components/B2BForm";
 import IdeaForm from "@/components/IdeaForm";
 import AuthModal from "@/components/AuthModal";
 import AuthTrigger from "@/components/AuthTrigger";
+import PricingModal from "@/components/PricingModal";
+import PricingTrigger from "@/components/PricingTrigger";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
@@ -80,7 +82,7 @@ export default async function LandingPage() {
           </div>
           <div className="flex items-center gap-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
             <a href="#kategoriak" className="hidden hover:text-white sm:inline">Kategóriák</a>
-            <a href="/pricing" className="hidden hover:text-white sm:inline">Csomagok</a>
+            <PricingTrigger className="hidden hover:text-white sm:inline">Csomagok</PricingTrigger>
             <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
             <AuthTrigger
               mode="register"
@@ -193,13 +195,12 @@ export default async function LandingPage() {
               Fizess csak azért, amit használsz — havidíjak nélkül.
             </p>
           </div>
-          <a
-            href="/pricing"
+          <PricingTrigger
             className="rounded-full px-7 py-3 text-sm font-medium"
             style={{ background: "var(--twx-coral)", color: "#1c1005" }}
           >
             Csomagok
-          </a>
+          </PricingTrigger>
         </div>
       </section>
 
@@ -276,7 +277,7 @@ export default async function LandingPage() {
           <div className="flex flex-wrap items-center justify-between gap-6 border-b pb-10" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
             <div className="flex gap-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
               <a href="#kategoriak" className="hover:text-white">Kategóriák</a>
-              <a href="/pricing" className="hover:text-white">Csomagok</a>
+              <PricingTrigger className="hover:text-white">Csomagok</PricingTrigger>
               <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
               <AuthTrigger mode="register" className="hover:text-white">Regisztráció</AuthTrigger>
             </div>
@@ -293,8 +294,9 @@ export default async function LandingPage() {
         </div>
       </footer>
 
-      {/* Belépés / Regisztráció modális ablak */}
+      {/* Belépés / Regisztráció + Csomagok modális ablakok */}
       <AuthModal />
+      <PricingModal />
     </main>
   );
 }
