@@ -50,7 +50,7 @@ Kimeneti struktúra (kérlek, SZIGORÚAN ezt a formát kövesd, rövid, vázlatp
 
 // A valós piackutatáshoz erősebb keresőmodell kell (2x találat, több forrás).
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
-const MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
+export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
 export async function runValuation(input: ValuationInput): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -63,7 +63,7 @@ export async function runValuation(input: ValuationInput): Promise<string> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: PERPLEXITY_MODEL,
       messages: [{ role: "user", content: buildValuationPrompt(input) }],
       temperature: 0.2,
     }),

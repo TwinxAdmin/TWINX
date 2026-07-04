@@ -17,6 +17,7 @@ import {
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
 import { getReferenceImage } from "@/lib/references";
+import { logCost, googleImageCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
 
@@ -147,6 +148,16 @@ export async function POST(request: Request) {
       output_file_url: results[0]?.url ?? null,
     });
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
+
+    // Nyers API-önköltség logolása (admin-only, best-effort). Kép/darab alapján.
+    await logCost({
+      userId: user.id,
+      serviceId: service.id,
+      feature: FEATURE,
+      serviceName: "google-studio",
+      units: files.length,
+      estimatedCostUsd: googleImageCostUsd(files.length),
+    });
 
     return NextResponse.json({
       ok: true,

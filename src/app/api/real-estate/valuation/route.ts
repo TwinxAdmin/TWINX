@@ -7,8 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { chargeCredit } from "@/lib/credits";
-import { runValuation } from "@/lib/perplexity";
+import { runValuation, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { generateValuationPdf } from "@/lib/pdf";
+import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
 
@@ -100,6 +101,16 @@ export async function POST(request: Request) {
       output_file_url: pub.publicUrl,
     });
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
+
+    // Nyers API-önköltség logolása (admin-only, best-effort).
+    await logCost({
+      userId: user.id,
+      serviceId: service.id,
+      feature: FEATURE,
+      serviceName: "perplexity",
+      units: 1,
+      estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+    });
 
     return NextResponse.json({
       ok: true,

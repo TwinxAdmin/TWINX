@@ -53,6 +53,34 @@ bizonytalan pont, amit később fejlesztünk vagy tisztázunk. Bátran bővítsd
 
 ---
 
+## 🎨 Dizájn-fázis (7.) — előkészítés és források
+
+Döntés még nyitott: **kész template** vagy **saját ihlet-galéria alapján egyedi build**.
+A mi stackünk Tailwind CSS → a Tailwind-alapú források illeszkednek (Bootstrap kerülendő).
+
+**Ihlet / irány (böngészni, hogy meglegyen a „vibe"):**
+- land-book.com — landing galéria
+- landingfolio.com — landing ihlet + Tailwind komponensek
+- saaslandingpage.com — SaaS landingek
+- dribbble.com — keresés: „real estate app", „SaaS landing", „proptech"
+- godly.website, lapa.ninja — kurált inspiráció
+
+**Tailwind komponensek/blokkok (ezekből közvetlenül lehet építeni):**
+- hyperui.dev, flowbite.com, preline.co, daisyui.com
+- tailwindui.com (Tailwind Plus) — pár ingyenes, többi fizetős
+
+**Kész Next.js sablonok:**
+- vercel.com/templates — ingyenes landing/starter (szűrő: landing page)
+
+**Munkamódszer:** elég 2-3 tetsző oldal iránynak, azt Tailwinddel megépítjük — a
+template-et nem kötelező letölteni. Legerősebb aduász: valódi előtte/utána
+látványterv-párok a hero-ba + minta értékbecslő PDF.
+
+**Amit érdemes hozni a dizájnhoz:** logó (SVG/PNG), márkaszínek, betűtípus-preferencia,
+2-3 ihlet-oldal, néhány szép példakép (látványterv előtte/utána), végleges szövegek.
+
+---
+
 ## Státusz pillanatkép (hol tartunk)
 
 - 1–3. fázis: kész és élesben tesztelt (auth, dashboard, Stripe fizetés + kredit).

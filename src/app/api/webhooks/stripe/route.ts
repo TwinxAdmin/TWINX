@@ -44,6 +44,8 @@ export async function POST(request: Request) {
         user_id: userId,
         service_id: serviceId,
         credits,
+        // A ténylegesen fizetett összeg (HUF) — a bevétel/profit metrikához.
+        amount_huf: Math.round((session.amount_total ?? 0) / 100),
       });
 
       if (insertError) {

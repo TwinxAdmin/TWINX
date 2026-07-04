@@ -65,6 +65,27 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [x] `RESEND_API_KEY` + `LEADS_NOTIFY_EMAIL` beállítva (teszt: office@twinx.hu)
 - [ ] Éles: `twinx.hu` domain hitelesítés a Resendben + `RESEND_FROM` a saját domainre
 
+## 6.5. fázis — Admin API Költségfigyelő & Riasztórendszer (LEGFŐBB PRIORITÁS)
+Cél: lássuk a valós AI-önköltséget vs. Stripe bevétel (profitmarzs), és védjük a
+rendszert az API egyenleg-hibáktól. Döntések: külön `api_cost_logs` tábla (a userek
+elől TELJESEN rejtve, admin-only RLS), dashboard CSAK admin, riasztás emailben (Resend).
+- [x] 6.5.1 Külön `api_cost_logs` tábla admin-only RLS-sel (`metrics.sql`)
+- [x] 6.5.2 Backend hívások költség-logolása (config-vezérelt egységárak, `costs.ts` + `logCost`)
+- [x] 6.5.3 Védett `/api/admin/metrics` endpoint (admin-only) + webhook `amount_huf` (bevétel)
+- [x] 6.5.4 Admin Dashboard UI (`/admin/analytics`) — bevétel vs. költség, profitmarzs, funkció/API-bontás
+- [ ] 6.5.5 Globális hibakezelő + admin email riasztás egyenleg-hibára — **PARKOLVA (nem prioritás)**
+- *Döntve: költség-egységárak configból; bevétel a `credit_purchases.amount_huf`-ból; fix 380 HUF/USD.*
+
+## 6.6. fázis — Prémium Hibrid AI Videó Pipeline (Luma Labs + Shotstack)
+Cél: a kiválasztott látványterv-képekből mozgó, zenés, prémium marketing videó.
+Vágómotor: **Shotstack** (hosted API). Aszinkron, webhook-alapú lánc.
+- [ ] 6.6.1 Luma Labs + Shotstack env (`.env.local`) + kliens inicializálás
+- [ ] 6.6.2 Aszinkron logika: 5-6 kép párhuzamos küldése a Luma Image-to-Video API-nak (job-követő állapottal)
+- [ ] 6.6.3 Webhook kezelő: a beérkező kész MP4 snittek mentése Supabase Storage-ba
+- [ ] 6.6.4 Shotstack vágó-sablon: snittek ritmusra fűzése + áttűnések + választott hangsáv → végleges videó
+- [ ] 6.6.5 UI/UX a dashboard előzményeknél: többszörös képkiválasztás (checkbox), zeneválasztó, folyamatjelző, emelt kreditlevonás (5-7 kredit)
+- *Nyitott: videó külön service vagy real-estate feature; pontos kreditár; zene forrása (hosztolt licencelt könyvtár vs. user feltöltés); Luma + Shotstack kulcsok.*
+
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)
 - [ ] Reszponzív finomítás + végső QA
