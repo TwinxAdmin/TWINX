@@ -18,7 +18,7 @@ export default async function SettingsPage() {
 
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   const role = me?.role ?? "user";
-  const created = user.created_at ? new Date(user.created_at).toLocaleString("hu-HU") : "—";
+  const created = user.created_at ? new Date(user.created_at).toLocaleDateString("hu-HU") : "—";
 
   return (
     <main className="mx-auto max-w-2xl space-y-6">

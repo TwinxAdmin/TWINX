@@ -60,12 +60,7 @@ export default async function DashboardLayout({
 
         {/* Jobb: fiók-menü + kilépés */}
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-          <AccountMenu
-            email={user?.email ?? ""}
-            role={me?.role ?? "user"}
-            balance={balance}
-            createdAt={user?.created_at ?? null}
-          />
+          <AccountMenu email={user?.email ?? ""} role={me?.role ?? "user"} balance={balance} />
           <LogoutButton />
         </div>
       </header>

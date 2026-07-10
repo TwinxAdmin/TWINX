@@ -13,12 +13,10 @@ export default function AccountMenu({
   email,
   role,
   balance,
-  createdAt,
 }: {
   email: string;
   role: string;
   balance: number;
-  createdAt: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -31,8 +29,6 @@ export default function AccountMenu({
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [open]);
-
-  const created = createdAt ? new Date(createdAt).toLocaleDateString("hu-HU") : "—";
 
   return (
     <div className="relative" ref={ref}>
@@ -62,7 +58,7 @@ export default function AccountMenu({
         <div className="px-2 pb-2">
           <p className="truncate text-sm font-medium" style={{ color: "var(--twx-on-dark)" }}>{email || "—"}</p>
           <p className="text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
-            {ROLE_LABEL[role] ?? role} · reg. {created}
+            {ROLE_LABEL[role] ?? role}
           </p>
         </div>
 
