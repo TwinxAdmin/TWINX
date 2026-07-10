@@ -16,6 +16,7 @@ export default function BrandingPage() {
   const [editing, setEditing] = useState<BrandingProfile | null>(null);
   const [values, setValues] = useState<BrandingInput>({ ...EMPTY_BRANDING });
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,7 @@ export default function BrandingPage() {
     setEditing(null);
     setValues({ ...EMPTY_BRANDING });
     setLogoFile(null);
+    setLogoPreview(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -60,6 +62,7 @@ export default function BrandingPage() {
       theme: p.theme,
     });
     setLogoFile(null);
+    setLogoPreview(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -201,11 +204,42 @@ export default function BrandingPage() {
           </div>
 
           <div>
-            <label className="block text-sm">Logó (PNG/JPG/SVG)</label>
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} className="mt-1 text-sm" />
-            {editing?.logo_url && !logoFile && (
-              <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Jelenlegi logó megmarad, ha nem töltesz fel újat.</p>
-            )}
+            <label className="block text-sm">Logó</label>
+            <div className="mt-1 flex items-center gap-4">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
+              >
+                {logoPreview || editing?.logo_url ? (
+                  <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain" />
+                ) : (
+                  <span className="text-2xl" style={{ color: "var(--twx-line)" }}>▦</span>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="logo-input"
+                  className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                >
+                  {logoFile || editing?.logo_url ? "Logó cseréje" : "Logó feltöltése"}
+                </label>
+                <input
+                  id="logo-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setLogoFile(f);
+                    setLogoPreview(f ? URL.createObjectURL(f) : null);
+                  }}
+                  className="hidden"
+                />
+                <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {logoFile ? logoFile.name : "PNG, JPG vagy SVG — átlátszó háttér ajánlott."}
+                </p>
+              </div>
+            </div>
           </div>
 
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
