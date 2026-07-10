@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     `Egyéb: ${v(f.extra) || "[nincs megadva]"}`,
   ].join("\n");
 
-  const prompt = `Ingatlanhirdetés szövegírója vagy. Írj magyar nyelvű hirdetésszöveget KIZÁRÓLAG az alábbi tények alapján. NE találj ki új adatot (címet, árat, méretet), amit nem adtak meg. Hangnem: ${tone}.
+  const prompt = `Ingatlanhirdetés szövegírója vagy. Írj magyar nyelvű hirdetésszöveget KIZÁRÓLAG az alábbi tények alapján. NE találj ki új adatot (címet, árat, méretet), amit nem adtak meg. Hangnem: ${tone}. Ügyelj a helyes magyar helyesírásra és az egybeírandó szavakra (pl. "újépítésű", "belvárosi", "kétszintes").
 
 Tények:
 ${factLines}
@@ -52,8 +52,8 @@ ${factLines}
 Válaszolj KIZÁRÓLAG egyetlen érvényes JSON objektummal, pontosan ezekkel a kulcsokkal (magyarul, ékezetekkel):
 {
   "title": "rövid, ütős főcím (pl. 'Eladó 1 szobás lakás')",
-  "subtitle": "alcím / lokáció egy sorban",
-  "price": "az ár rövid, olvasható formában (ha nincs, üres string)",
+  "subtitle": "a PONTOS lokáció egy sorban: település, kerület ÉS utca is, ha meg van adva (ne csak a várost)",
+  "price": "CSAK a szám millióban, mértékegység nélkül (pl. '46,5' vagy '50'); ha nincs ár, üres string",
   "highlights": ["3-4 nagyon rövid kiemelés, egyenként max 3 szó"],
   "characteristics": ["5-7 pontban a főbb jellemzők, rövid mondatokban"],
   "infra": "1-2 mondat az infrastruktúráról/környékről (csak ha van rá alap)",

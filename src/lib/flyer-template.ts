@@ -37,6 +37,12 @@ function esc(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Az árból csak a számot vesszük ki (a "M" és "Ft" a sablonból jön automatikusan).
+function priceNumber(raw: string): string {
+  const m = String(raw ?? "").match(/\d+([.,]\d+)?/);
+  return m ? m[0] : String(raw ?? "").trim();
+}
+
 export function buildFlyerHtml(opts: {
   format: FlyerFormat;
   profile: FlyerProfileData;
@@ -86,10 +92,12 @@ export function buildFlyerHtml(opts: {
   .title { font-size: 42px; font-weight: 800; line-height: 1.02; text-transform: uppercase; letter-spacing: -0.5px; }
   .subtitle { display: inline-block; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 17px; padding: 6px 14px; border-radius: 6px; }
   .hero-wrap { position: relative; padding: 0 40px; }
-  .hero { width: 100%; height: 360px; object-fit: cover; border-radius: 16px; display: block; }
-  .price { position: absolute; right: 60px; bottom: -26px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 12px 22px; box-shadow: 0 12px 30px rgba(0,0,0,.18); text-align: center; }
+  .hero { width: 100%; height: 430px; object-fit: cover; border-radius: 16px; display: block; }
+  .price { position: absolute; right: 60px; bottom: -26px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 12px 24px; box-shadow: 0 12px 30px rgba(0,0,0,.18); text-align: center; }
   .price small { display: block; font-size: 12px; color: ${muted}; letter-spacing: 1px; }
-  .price b { font-size: 26px; color: ${accent}; }
+  .price .val { display: flex; align-items: baseline; justify-content: center; gap: 5px; }
+  .price .num, .price .mil { font-size: 36px; font-weight: 800; color: ${accent}; line-height: 1; }
+  .price .ft { font-size: 16px; font-weight: 700; color: ${ink}; }
   .body { padding: 44px 40px 20px; display: flex; flex-direction: column; gap: 22px; }
   .hl { display: flex; flex-wrap: wrap; gap: 10px; }
   .hl span { background: ${accent}22; color: ${ink}; border: 1px solid ${accent}; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
@@ -98,7 +106,7 @@ export function buildFlyerHtml(opts: {
   ul.ch li { font-size: 14px; padding: 4px 0 4px 22px; position: relative; break-inside: avoid; }
   ul.ch li:before { content: "✓"; position: absolute; left: 0; color: ${accent}; font-weight: 800; }
   .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .gallery img { width: 100%; height: 130px; object-fit: cover; border-radius: 12px; }
+  .gallery img { width: 100%; height: 190px; object-fit: cover; border-radius: 12px; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   .cols p { font-size: 13.5px; color: ${ink}; line-height: 1.5; }
   .foot { margin-top: auto; background: ${dark ? "#0c0b0a" : "#12100e"}; color: #f4efe7; padding: 22px 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -120,7 +128,7 @@ export function buildFlyerHtml(opts: {
   ${
     hero
       ? `<div class="hero-wrap"><img class="hero" src="${esc(hero)}"/>${
-          text.price ? `<div class="price"><small>ÁRA</small><b>${esc(text.price)}</b></div>` : ""
+          text.price ? `<div class="price"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""
         }</div>`
       : ""
   }
