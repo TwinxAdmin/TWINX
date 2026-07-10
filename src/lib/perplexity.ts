@@ -92,16 +92,24 @@ function apiKeyOrThrow(): string {
 }
 
 // Szinkron hívás egy tetszőleges modellel (pl. sonar-pro a "normál" szinthez).
-export async function runSonar(prompt: string, model: string): Promise<string> {
+// opts.disableSearch: webkeresés kikapcsolása (pl. copywritinghez, csak a megadott tények).
+export async function runSonar(
+  prompt: string,
+  model: string,
+  opts?: { disableSearch?: boolean; temperature?: number }
+): Promise<string> {
   const apiKey = apiKeyOrThrow();
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: opts?.temperature ?? 0.2,
+  };
+  if (opts?.disableSearch) body.disable_search = true;
+
   const res = await fetch(`${PPLX_BASE}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();

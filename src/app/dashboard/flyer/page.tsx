@@ -5,7 +5,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
-import { MAX_FLYER_IMAGES, type LibraryItem } from "@/lib/flyer";
+import {
+  MAX_FLYER_IMAGES,
+  FLYER_TONES,
+  EMPTY_FACTS,
+  EMPTY_TEXT,
+  type FlyerFacts,
+  type FlyerText,
+  type LibraryItem,
+} from "@/lib/flyer";
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -20,6 +28,13 @@ export default function FlyerPage() {
   const [visibleCount, setVisibleCount] = useState(8); // 2 sor (4 oszlop) alapból
   const [dataVisibleCount, setDataVisibleCount] = useState(6); // adat-chipek alapból
   const [infoItem, setInfoItem] = useState<LibraryItem | null>(null); // összefoglaló ablak
+
+  // 3) Szöveg
+  const [tone, setTone] = useState("marketinges");
+  const [facts, setFacts] = useState<FlyerFacts>({ ...EMPTY_FACTS });
+  const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
+  const [genLoading, setGenLoading] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +84,47 @@ export default function FlyerPage() {
 
   function removeUpload(idx: number) {
     setUploads((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  // Alapadatok előtöltése a kiválasztott korábbi munkából.
+  useEffect(() => {
+    if (!prefill) return;
+    setFacts((prev) => ({
+      ...prev,
+      location: [prefill.telepules, prefill.utca].filter(Boolean).join(", "),
+      propertyType: prefill.tipus ?? prev.propertyType,
+      size: prefill.meret ?? prev.size,
+      rooms: prefill.szobak ?? prev.rooms,
+    }));
+  }, [prefill]);
+
+  function setFact<K extends keyof FlyerFacts>(key: K, val: FlyerFacts[K]) {
+    setFacts((prev) => ({ ...prev, [key]: val }));
+  }
+  function setTextField<K extends keyof FlyerText>(key: K, val: FlyerText[K]) {
+    setText((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function generateText() {
+    setGenError(null);
+    setGenLoading(true);
+    try {
+      const res = await fetch("/api/flyer/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ facts, tone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGenError(data.error ?? "Hiba a szöveg generálásakor.");
+        return;
+      }
+      setText(data.text as FlyerText);
+    } catch {
+      setGenError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setGenLoading(false);
+    }
   }
 
   const total = selectedImages.length + uploads.length;
@@ -275,7 +331,114 @@ export default function FlyerPage() {
         </div>
       </section>
 
-      {/* Összegzés + következő lépés (F3/F4) */}
+      {/* 3) Szöveg */}
+      <section className="space-y-5">
+        <h2 className="font-display text-xl font-medium">3. Szöveg</h2>
+
+        {/* Alapadatok */}
+        <div>
+          <p className="mb-2 text-sm font-medium">Alapadatok (ezekből dolgozik az AI)</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm">Elhelyezkedés</label>
+              <input value={facts.location} onChange={(e) => setFact("location", e.target.value)} className="twx-input mt-1" placeholder="pl. Budapest, XIV. kerület, Zugló" />
+            </div>
+            <div>
+              <label className="block text-sm">Ár</label>
+              <input value={facts.price} onChange={(e) => setFact("price", e.target.value)} className="twx-input mt-1" placeholder="pl. 46,5 millió Ft" />
+            </div>
+            <div>
+              <label className="block text-sm">Típus</label>
+              <input value={facts.propertyType} onChange={(e) => setFact("propertyType", e.target.value)} className="twx-input mt-1" placeholder="pl. tégla lakás" />
+            </div>
+            <div>
+              <label className="block text-sm">Méret</label>
+              <input value={facts.size} onChange={(e) => setFact("size", e.target.value)} className="twx-input mt-1" placeholder="pl. 34 nm" />
+            </div>
+            <div>
+              <label className="block text-sm">Szobák</label>
+              <input value={facts.rooms} onChange={(e) => setFact("rooms", e.target.value)} className="twx-input mt-1" placeholder="pl. 1 szoba" />
+            </div>
+            <div>
+              <label className="block text-sm">Állapot</label>
+              <input value={facts.condition} onChange={(e) => setFact("condition", e.target.value)} className="twx-input mt-1" placeholder="pl. felújított" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm">Egyéb tudnivaló (amit az AI tudjon)</label>
+              <textarea value={facts.extra} onChange={(e) => setFact("extra", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. alacsony rezsi, közel a metró, tehermentes, azonnal költözhető" />
+            </div>
+          </div>
+        </div>
+
+        {/* Hangnem + generálás */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-sm">Hangnem</label>
+            <select value={tone} onChange={(e) => setTone(e.target.value)} className="twx-input mt-1">
+              {FLYER_TONES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={generateText} disabled={genLoading} className="twx-btn">
+            {genLoading ? "Generálás…" : "AI-szöveg generálása"}
+          </button>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            A generált szöveget alább kézzel is átírhatod.
+          </span>
+        </div>
+        {genError && <p className="text-sm text-red-600">{genError}</p>}
+
+        {/* Szerkeszthető szövegek */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="sm:col-span-2">
+            <label className="block text-sm">Főcím</label>
+            <input value={text.title} onChange={(e) => setTextField("title", e.target.value)} className="twx-input mt-1" />
+          </div>
+          <div>
+            <label className="block text-sm">Ár (megjelenő)</label>
+            <input value={text.price} onChange={(e) => setTextField("price", e.target.value)} className="twx-input mt-1" />
+          </div>
+          <div className="sm:col-span-3">
+            <label className="block text-sm">Alcím / lokáció</label>
+            <input value={text.subtitle} onChange={(e) => setTextField("subtitle", e.target.value)} className="twx-input mt-1" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm">Kiemelések (soronként egy, max 4)</label>
+            <textarea
+              value={text.highlights.join("\n")}
+              onChange={(e) => setTextField("highlights", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 4))}
+              rows={4}
+              className="twx-input mt-1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm">Jellemzők (soronként egy)</label>
+            <textarea
+              value={text.characteristics.join("\n")}
+              onChange={(e) => setTextField("characteristics", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))}
+              rows={4}
+              className="twx-input mt-1"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm">Infrastruktúra</label>
+            <textarea value={text.infra} onChange={(e) => setTextField("infra", e.target.value)} rows={3} className="twx-input mt-1" />
+          </div>
+          <div>
+            <label className="block text-sm">Közlekedés</label>
+            <textarea value={text.transport} onChange={(e) => setTextField("transport", e.target.value)} rows={3} className="twx-input mt-1" />
+          </div>
+        </div>
+      </section>
+
+      {/* Összegzés + következő lépés (F4) */}
       <section className="twx-card space-y-1 p-4 text-sm">
         <p>
           <span style={{ color: "var(--twx-ink-muted)" }}>Arculat:</span>{" "}

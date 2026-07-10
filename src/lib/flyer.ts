@@ -33,6 +33,48 @@ export const FLYER_TONES: FlyerTone[] = [
   { value: "premium", label: "Elegáns, prémium" },
 ];
 
+// A hirdetés alapadatai (ezekből dolgozik az AI; kézzel is szerkeszthető).
+export type FlyerFacts = {
+  location: string; // település, kerület / utca
+  price: string;
+  propertyType: string;
+  size: string;
+  rooms: string;
+  condition: string;
+  extra: string; // egyéb, amit az AI tudjon (pl. felújított fürdő, metró közel)
+};
+
+export const EMPTY_FACTS: FlyerFacts = {
+  location: "",
+  price: "",
+  propertyType: "",
+  size: "",
+  rooms: "",
+  condition: "",
+  extra: "",
+};
+
+// Az AI által generált (és kézzel felülírható) hirdetés-szöveg.
+export type FlyerText = {
+  title: string;
+  subtitle: string;
+  price: string;
+  highlights: string[]; // rövid kiemelések (ikonsor), max 4
+  characteristics: string[]; // jellemzők pontokban
+  infra: string; // infrastruktúra leírás
+  transport: string; // közlekedés leírás
+};
+
+export const EMPTY_TEXT: FlyerText = {
+  title: "",
+  subtitle: "",
+  price: "",
+  highlights: [],
+  characteristics: [],
+  infra: "",
+  transport: "",
+};
+
 // Egy munkakönyvtár-elem (a korábbi munkákból).
 export type LibraryItem = {
   id: string;
