@@ -84,17 +84,17 @@ export default async function LandingPage() {
           aria-hidden
         />
 
-        <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3">
-            <Wordmark className="font-display text-4xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }} />
+        <nav className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Wordmark className="font-display text-3xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }} />
             <span
-              className="hidden rounded-full px-3 py-1 text-sm font-medium sm:inline"
+              className="hidden rounded-full px-3 py-1 text-xs font-medium xl:inline"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
               Automatizált üzleti intelligencia.
             </span>
           </div>
-          <div className="flex items-center gap-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
             <a href="#kategoriak" className="hidden hover:text-white sm:inline">Kategóriák</a>
             <PricingTrigger className="hidden hover:text-white sm:inline">Csomagok</PricingTrigger>
             <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
