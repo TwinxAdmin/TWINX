@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
   const form = await request.formData();
-  let payload: { profileId?: string; format?: string; sections?: FlyerSections; text?: FlyerText };
+  let payload: { profileId?: string; format?: string; layout?: string; sections?: FlyerSections; text?: FlyerText };
   try {
     payload = JSON.parse(String(form.get("payload") ?? "{}"));
   } catch {
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   };
 
   try {
-    const html = buildFlyerHtml({ format, profile: profileData, text, images, sections, watermark: true });
+    const html = buildFlyerHtml({ format, profile: profileData, text, images, sections, layout: payload.layout, watermark: true });
     const { bytes, ext, contentType } = await renderFlyer(html, format);
     const path = `flyer-preview/${user.id}/${randomUUID()}.${ext}`;
     const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType });
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     const previewUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
     // A véglegesítéshez (accept) kellő adatok — a képek már URL-ek.
-    const renderData = { profileId: profile.id, format: format.value, sections, text, images };
+    const renderData = { profileId: profile.id, format: format.value, layout: payload.layout, sections, text, images };
     return NextResponse.json({ ok: true, previewUrl, kind: format.kind, renderData });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });

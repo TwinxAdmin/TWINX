@@ -27,6 +27,13 @@ export const FLYER_FORMATS: FlyerFormat[] = [
   { value: "9:16", label: "9:16 — story", kind: "image", width: 1080, height: 1920 },
 ];
 
+// Választható TWINX elrendezések (a szín/betű/téma az arculatból jön).
+export type FlyerLayout = { value: string; label: string };
+export const FLYER_LAYOUTS: FlyerLayout[] = [
+  { value: "classic", label: "Klasszikus — nagy fő kép + galéria sáv" },
+  { value: "overlay", label: "Modern — címes fő kép (a szöveg a képen)" },
+];
+
 export type FlyerTone = { value: string; label: string };
 export const FLYER_TONES: FlyerTone[] = [
   { value: "tenyszeru", label: "Tényszerű, lényegre törő" },

@@ -49,9 +49,11 @@ export function buildFlyerHtml(opts: {
   text: FlyerText;
   images: string[];
   sections: FlyerSections;
+  layout?: string;
   watermark?: boolean;
 }): string {
   const { format, profile, text, images, sections, watermark } = opts;
+  const isOverlay = opts.layout === "overlay";
   const accent = /^#[0-9a-fA-F]{6}$/.test(profile.accent_color) ? profile.accent_color : "#ef7a5a";
   const font = FONT_MAP[profile.font] ?? FONT_MAP.inter;
   const dark = profile.theme === "dark";
@@ -98,7 +100,18 @@ export function buildFlyerHtml(opts: {
   .price .val { display: flex; align-items: baseline; justify-content: center; gap: 5px; }
   .price .num, .price .mil { font-size: 36px; font-weight: 800; color: ${accent}; line-height: 1; }
   .price .ft { font-size: 16px; font-weight: 700; color: ${ink}; }
-  .body { padding: 44px 40px 20px; display: flex; flex-direction: column; gap: 22px; }
+  /* Overlay elrendezés — címes fő kép */
+  .hero-overlay { position: relative; }
+  .hero-full { width: 100%; height: 520px; object-fit: cover; display: block; }
+  .hero-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px; background: linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,0)); }
+  .title-o { font-size: 46px; font-weight: 800; text-transform: uppercase; line-height: 1.0; color: #fff; }
+  .subtitle-o { display: inline-block; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 16px; padding: 6px 14px; border-radius: 6px; }
+  .price-o { position: absolute; right: 40px; top: 40px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 10px 20px; text-align: center; }
+  .price-o small { display: block; font-size: 11px; color: ${muted}; letter-spacing: 1px; }
+  .price-o .val { display: flex; align-items: baseline; justify-content: center; gap: 5px; }
+  .price-o .num, .price-o .mil { font-size: 32px; font-weight: 800; color: ${accent}; line-height: 1; }
+  .price-o .ft { font-size: 14px; font-weight: 700; color: ${ink}; }
+  .body { padding: ${isOverlay ? "32px 40px 20px" : "44px 40px 20px"}; display: flex; flex-direction: column; gap: 22px; }
   .hl { display: flex; flex-wrap: wrap; gap: 10px; }
   .hl span { background: ${accent}22; color: ${ink}; border: 1px solid ${accent}; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
   .sec-title { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: ${accent}; margin-bottom: 8px; }
@@ -120,17 +133,27 @@ export function buildFlyerHtml(opts: {
 </style></head><body>
 <div class="flyer">
   ${watermark ? `<div class="wm">${Array.from({ length: 6 }).map(() => `<span>ELŐNÉZET · TWINX</span>`).join("")}</div>` : ""}
-  <div class="head">
-    <div class="title">${esc(text.title || "Eladó ingatlan")}</div>
-    ${text.subtitle ? `<div class="subtitle">${esc(text.subtitle)}</div>` : ""}
-  </div>
-
   ${
-    hero
-      ? `<div class="hero-wrap"><img class="hero" src="${esc(hero)}"/>${
-          text.price ? `<div class="price"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""
-        }</div>`
-      : ""
+    isOverlay && hero
+      ? `<div class="hero-overlay">
+          <img class="hero-full" src="${esc(hero)}"/>
+          ${text.price ? `<div class="price-o"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""}
+          <div class="hero-cap">
+            <div class="title-o">${esc(text.title || "Eladó ingatlan")}</div>
+            ${text.subtitle ? `<div class="subtitle-o">${esc(text.subtitle)}</div>` : ""}
+          </div>
+        </div>`
+      : `<div class="head">
+          <div class="title">${esc(text.title || "Eladó ingatlan")}</div>
+          ${text.subtitle ? `<div class="subtitle">${esc(text.subtitle)}</div>` : ""}
+        </div>
+        ${
+          hero
+            ? `<div class="hero-wrap"><img class="hero" src="${esc(hero)}"/>${
+                text.price ? `<div class="price"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""
+              }</div>`
+            : ""
+        }`
   }
 
   <div class="body">

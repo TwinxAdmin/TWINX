@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   let body: {
     profileId?: string;
     format?: string;
+    layout?: string;
     sections?: FlyerSections;
     text?: FlyerText;
     images?: string[];
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
       title: "", subtitle: "", price: "", highlights: [], characteristics: [], infra: "", transport: "",
     };
 
-    const html = buildFlyerHtml({ format, profile: profileData, text, images: body.images ?? [], sections });
+    const html = buildFlyerHtml({ format, profile: profileData, text, images: body.images ?? [], sections, layout: body.layout });
     const { bytes, ext, contentType } = await renderFlyer(html, format);
 
     const path = `flyer/${user.id}/${randomUUID()}.${ext}`;
