@@ -393,13 +393,37 @@ export default function VisualizationPage() {
           )}
 
           <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] max-w-[92vw] flex-col items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={resultUrls[viewer]}
-              alt="Látványterv"
-              className="max-h-[80vh] max-w-[92vw] rounded-xl object-contain"
-              style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
-            />
+            <div className="relative inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resultUrls[viewer]}
+                alt="Látványterv"
+                className="max-h-[80vh] max-w-[92vw] rounded-xl object-contain"
+                style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+              />
+              {/* Vízjel-réteg */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-around overflow-hidden rounded-xl"
+                style={{ transform: "rotate(-24deg) scale(1.4)" }}
+              >
+                {Array.from({ length: 5 }).map((_, k) => (
+                  <span
+                    key={k}
+                    style={{
+                      fontSize: "clamp(30px, 6vw, 66px)",
+                      fontWeight: 800,
+                      letterSpacing: "10px",
+                      color: "rgba(255,255,255,0.34)",
+                      textShadow: "0 2px 10px rgba(0,0,0,0.4)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    TWINX
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <a
                 href={resultUrls[viewer]}
