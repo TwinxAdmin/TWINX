@@ -393,29 +393,28 @@ export default function VisualizationPage() {
           )}
 
           <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] max-w-[92vw] flex-col items-center gap-3">
-            <div className="relative inline-block">
+            <div className="relative inline-block overflow-hidden rounded-xl" style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={resultUrls[viewer]}
                 alt="Látványterv"
-                className="max-h-[80vh] max-w-[92vw] rounded-xl object-contain"
-                style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+                className="max-h-[80vh] max-w-[92vw] object-contain"
               />
-              {/* Vízjel-réteg */}
+              {/* Vízjel-réteg (a kép keretein belülre vágva) */}
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-around overflow-hidden rounded-xl"
-                style={{ transform: "rotate(-24deg) scale(1.4)" }}
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-around"
+                style={{ transform: "rotate(-22deg)" }}
               >
-                {Array.from({ length: 5 }).map((_, k) => (
+                {Array.from({ length: 3 }).map((_, k) => (
                   <span
                     key={k}
                     style={{
-                      fontSize: "clamp(30px, 6vw, 66px)",
+                      fontSize: "clamp(22px, 4vw, 46px)",
                       fontWeight: 800,
-                      letterSpacing: "10px",
-                      color: "rgba(255,255,255,0.34)",
-                      textShadow: "0 2px 10px rgba(0,0,0,0.4)",
+                      letterSpacing: "8px",
+                      color: "rgba(255,255,255,0.22)",
+                      textShadow: "0 2px 10px rgba(0,0,0,0.35)",
                       whiteSpace: "nowrap",
                     }}
                   >
