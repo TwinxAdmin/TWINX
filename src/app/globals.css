@@ -53,6 +53,28 @@ body {
   font-weight: 500;
 }
 .twx-btn:disabled { opacity: 0.5; }
+/* Másodlagos (kontúros) gomb — a "Letöltés / Mégse" típusú akciókhoz */
+.twx-btn-outline {
+  border-radius: 9999px;
+  border: 1px solid var(--twx-line);
+  background: var(--twx-cream-card);
+  color: var(--twx-ink);
+  padding: 0.6rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.twx-btn-outline:disabled { opacity: 0.5; }
+/* Kis címke / pill */
+.twx-badge {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--twx-coral-soft);
+  color: #7a2e17;
+}
+.twx-badge-muted { background: var(--twx-line); color: var(--twx-ink-muted); }
 .twx-input {
   width: 100%;
   border: 1px solid var(--twx-line);
