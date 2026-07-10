@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { CREDIT_PACKAGES } from "@/lib/packages";
+import Wordmark from "@/components/Wordmark";
 
 export default function PricingPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function PricingPage() {
   return (
     <main className="twx-page p-8 font-sans">
       <div className="mx-auto max-w-3xl space-y-5 py-8">
-        <a href="/" className="font-display text-2xl font-semibold tracking-wide">TWINX</a>
+        <a href="/" className="font-display text-2xl font-semibold tracking-wide"><Wordmark /></a>
         <h1 className="font-display text-4xl font-semibold">Csomagok</h1>
         <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
           Fix áras csomagok. A megvásárolt egyenleg nem jár le.

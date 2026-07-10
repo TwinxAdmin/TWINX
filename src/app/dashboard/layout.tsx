@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
 import DashboardNav from "@/components/DashboardNav";
 import B2BModal from "@/components/B2BModal";
+import Wordmark from "@/components/Wordmark";
 
 export default async function DashboardLayout({
   children,
@@ -37,7 +38,7 @@ export default async function DashboardLayout({
           className="font-display text-2xl font-semibold tracking-wide"
           style={{ color: "var(--twx-on-dark)" }}
         >
-          TWINX
+          <Wordmark />
         </a>
 
         {/* Modulsáv középre igazítva */}

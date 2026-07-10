@@ -1,0 +1,7 @@
+<svg viewBox="0 0 470 120" xmlns="http://www.w3.org/2000/svg">
+  <g stroke-width="16" stroke-linecap="round">
+    <line x1="26" y1="30" x2="96" y2="94" stroke="#12100e"/>
+    <line x1="96" y1="30" x2="26" y2="94" stroke="#ef7a5a"/>
+  </g>
+  <text x="128" y="78" font-family="'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="1" fill="#12100e">TWIN<tspan fill="#ef7a5a">X</tspan></text>
+</svg>

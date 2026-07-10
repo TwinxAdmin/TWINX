@@ -97,10 +97,10 @@ export function buildReportHtml(params: {
     padding: 22px 40px 26px;
   }
   .brand {
-    font-size: 13px; font-weight: 700; letter-spacing: 3px;
-    color: #ef7a5a; text-transform: uppercase;
+    font-size: 22px; font-weight: 800; letter-spacing: 3px; color: #f7f3ec;
   }
-  .rule { width: 44px; height: 3px; background: #ef7a5a; border-radius: 2px; margin: 10px 0 14px; }
+  .brand .x { color: #ef7a5a; }
+  .rule { width: 54px; height: 4px; background: #ef7a5a; border-radius: 2px; margin: 8px 0 14px; }
   .title { font-size: 24px; font-weight: 700; color: #f7f3ec; margin: 0; line-height: 1.15; }
   .wrap { padding: 22px 40px 40px; }
   .meta {
@@ -124,7 +124,7 @@ export function buildReportHtml(params: {
   strong { color: #1c1815; }
 </style></head><body>
   <div class="top">
-    <div class="brand">TWINX</div>
+    <div class="brand">TWIN<span class="x">X</span></div>
     <div class="rule"></div>
     <h1 class="title">${esc(params.title)}</h1>
   </div>
@@ -138,7 +138,7 @@ export function buildReportHtml(params: {
 export function reportFooterHtml(): string {
   return `<div style="width:100%; font-size:7.5px; color:#6e655c; padding:0 40px; -webkit-print-color-adjust:exact;">
     <div style="border-top:1px solid #e8e1d6; padding-top:5px; display:flex; justify-content:space-between; align-items:center;">
-      <span><span style="color:#ef7a5a; font-weight:700; letter-spacing:1px;">TWINX</span> &nbsp; ${SLOGAN}</span>
+      <span><span style="font-weight:700; letter-spacing:1px; color:#12100e;">TWIN<span style="color:#ef7a5a;">X</span></span> &nbsp; ${SLOGAN}</span>
       <span style="white-space:nowrap;">oldal <span class="pageNumber"></span>/<span class="totalPages"></span></span>
     </div>
   </div>`;

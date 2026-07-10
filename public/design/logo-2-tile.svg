@@ -1,0 +1,8 @@
+<svg viewBox="0 0 480 120" xmlns="http://www.w3.org/2000/svg">
+  <rect x="12" y="12" width="96" height="96" rx="24" fill="#ef7a5a"/>
+  <g stroke="#fdfbf6" stroke-width="12" stroke-linecap="round">
+    <line x1="42" y1="42" x2="78" y2="78"/>
+    <line x1="78" y1="42" x2="42" y2="78"/>
+  </g>
+  <text x="132" y="78" font-family="'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="1" fill="#12100e">TWINX</text>
+</svg>

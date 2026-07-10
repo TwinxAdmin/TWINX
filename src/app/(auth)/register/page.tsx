@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { validateAuthInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
+import Wordmark from "@/components/Wordmark";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -65,7 +66,7 @@ export default function RegisterPage() {
           className="mb-6 block text-center font-display text-3xl font-semibold tracking-wide"
           style={{ color: "var(--twx-on-dark)" }}
         >
-          TWINX
+          <Wordmark />
         </a>
         <div className="twx-card p-7">
           <h1 className="font-display text-2xl font-semibold">Regisztráció</h1>

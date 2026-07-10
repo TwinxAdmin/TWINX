@@ -6,6 +6,7 @@ import AuthModal from "@/components/AuthModal";
 import AuthTrigger from "@/components/AuthTrigger";
 import PricingModal from "@/components/PricingModal";
 import PricingTrigger from "@/components/PricingTrigger";
+import Wordmark from "@/components/Wordmark";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
@@ -70,9 +71,7 @@ export default async function LandingPage() {
 
         <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-3">
-            <span className="font-display text-4xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }}>
-              TWINX
-            </span>
+            <Wordmark className="font-display text-4xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }} />
             <span
               className="hidden rounded-full px-3 py-1 text-sm font-medium sm:inline"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
@@ -285,12 +284,10 @@ export default async function LandingPage() {
               Saját fejlesztésű AI alkalmazás-platform
             </p>
           </div>
-          <p
-            className="font-display mt-8 font-semibold leading-none"
+          <Wordmark
+            className="font-display mt-8 block font-semibold leading-none"
             style={{ fontSize: "clamp(4rem, 18vw, 12rem)", color: "var(--twx-on-dark)" }}
-          >
-            TWINX
-          </p>
+          />
         </div>
       </footer>
 
