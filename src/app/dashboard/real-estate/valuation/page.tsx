@@ -2,7 +2,7 @@
 // A partner bevált eszköze alapján. Sorrend: űrlap validáció -> API.
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   VALUATION_FIELDS,
   EMPTY_VALUATION,
@@ -20,6 +20,9 @@ export default function ValuationPage() {
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
+  // Fókuszkor kiürítjük a mezőt (hogy a datalist MINDEN opciót mutasson), és
+  // ha üresen kattint el a user, visszaállítjuk a korábbi értéket.
+  const restoreRef = useRef<{ key: keyof ValuationInput; val: string } | null>(null);
 
   useEffect(() => {
     if (!viewerOpen) return;
@@ -101,6 +104,18 @@ export default function ValuationPage() {
                   list={listId}
                   value={values[field.key]}
                   onChange={(e) => setField(field.key, e.target.value)}
+                  onFocus={(e) => {
+                    if (!field.options) return;
+                    restoreRef.current = { key: field.key, val: e.currentTarget.value };
+                    setField(field.key, "");
+                  }}
+                  onBlur={(e) => {
+                    const r = restoreRef.current;
+                    if (r && r.key === field.key && e.currentTarget.value === "") {
+                      setField(field.key, r.val);
+                    }
+                    restoreRef.current = null;
+                  }}
                   placeholder={field.placeholder}
                   className="twx-input mt-1"
                 />
