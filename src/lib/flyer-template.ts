@@ -88,9 +88,9 @@ export function buildFlyerHtml(opts: {
   }
   .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
   .wm span { font-size: 48px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: ${dark ? "rgba(255,255,255,0.16)" : "rgba(28,24,21,0.13)"}; }
-  .head { padding: 34px 40px 22px; }
-  .title { font-size: 42px; font-weight: 800; line-height: 1.02; text-transform: uppercase; letter-spacing: -0.5px; }
-  .subtitle { display: inline-block; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 17px; padding: 6px 14px; border-radius: 6px; }
+  .head { padding: 42px 44px 24px; }
+  .title { font-size: 47px; font-weight: 800; line-height: 1.0; text-transform: uppercase; letter-spacing: -0.6px; }
+  .subtitle { display: inline-block; margin-top: 14px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 17px; padding: 7px 15px; border-radius: 6px; }
   .hero-wrap { position: relative; padding: 0 40px; }
   .hero { width: 100%; height: 430px; object-fit: cover; border-radius: 16px; display: block; }
   .price { position: absolute; right: 60px; bottom: -26px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 12px 24px; box-shadow: 0 12px 30px rgba(0,0,0,.18); text-align: center; }
