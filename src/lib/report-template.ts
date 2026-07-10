@@ -89,38 +89,40 @@ export function buildReportHtml(params: {
   html, body { margin: 0; padding: 0; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #1c1815; font-size: 11.5px; line-height: 1.55;
+    color: #1c1815; font-size: 11.5px; line-height: 1.62;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .top {
     background: #12100e; color: #f4efe7;
-    padding: 22px 40px 26px;
+    padding: 32px 46px 30px;
   }
   .brand {
-    font-size: 22px; font-weight: 800; letter-spacing: 3px; color: #f7f3ec;
+    font-size: 20px; font-weight: 800; letter-spacing: 2.5px; color: #f7f3ec;
   }
   .brand .x { color: #ef7a5a; }
-  .rule { width: 54px; height: 4px; background: #ef7a5a; border-radius: 2px; margin: 8px 0 14px; }
-  .title { font-size: 24px; font-weight: 700; color: #f7f3ec; margin: 0; line-height: 1.15; }
-  .wrap { padding: 22px 40px 40px; }
+  .rule { width: 48px; height: 4px; background: #ef7a5a; border-radius: 2px; margin: 11px 0 16px; }
+  .title { font-size: 27px; font-weight: 700; color: #f7f3ec; margin: 0; line-height: 1.12; letter-spacing: -0.2px; }
+  .wrap { padding: 30px 46px 40px; }
   .meta {
-    background: #f7f3ec; border: 1px solid #e8e1d6; border-radius: 12px;
-    padding: 14px 18px; margin-bottom: 22px;
+    background: #f7f3ec; border: 1px solid #e8e1d6; border-left: 3px solid #ef7a5a;
+    border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 26px;
   }
-  .meta .row { display: flex; gap: 8px; padding: 2px 0; font-size: 11px; color: #3a332c; }
-  .meta .k { color: #6e655c; min-width: 130px; }
+  .meta .row { display: flex; gap: 10px; padding: 3px 0; font-size: 11px; color: #3a332c; }
+  .meta .k { color: #6e655c; min-width: 140px; font-weight: 600; }
   h3.section {
-    font-size: 13px; color: #b5482c; margin: 20px 0 6px;
-    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; color: #b5482c; margin: 26px 0 10px; padding-bottom: 7px;
+    border-bottom: 1px solid #ece3d6; text-transform: uppercase; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 10px;
   }
   h3.section .num {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 20px; height: 20px; border-radius: 999px;
-    background: #ef7a5a; color: #1c1005; font-size: 11px; font-weight: 700; flex: none;
+    width: 22px; height: 22px; border-radius: 999px;
+    background: #ef7a5a; color: #1c1005; font-size: 11px; font-weight: 800; flex: none;
   }
-  p { margin: 5px 0; }
-  ul { margin: 5px 0 5px 4px; padding-left: 18px; }
-  li { margin: 3px 0; }
+  p { margin: 6px 0; }
+  ul { margin: 8px 0; padding-left: 2px; list-style: none; }
+  li { margin: 5px 0; padding-left: 18px; position: relative; }
+  li:before { content: "•"; position: absolute; left: 2px; color: #ef7a5a; font-weight: 800; }
   strong { color: #1c1815; }
 </style></head><body>
   <div class="top">
