@@ -22,6 +22,7 @@ export const CATEGORIES: Category[] = [
       { label: "Telek értékbecslés", href: "/dashboard/real-estate/land" },
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization" },
       { label: "Videó generálás", href: "/dashboard/real-estate/video" },
+      { label: "Hirdetéskészítő", href: "/dashboard/flyer" },
     ],
   },
   {
