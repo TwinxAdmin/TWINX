@@ -36,36 +36,51 @@ export default async function LandingPage() {
     <main className="font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
       {/* ===== HERO (sötét, cinematic) ===== */}
       <section
-        className="relative overflow-hidden"
+        className="relative flex min-h-[92vh] flex-col overflow-hidden"
         style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
       >
-        {/* AI-generált hero háttér (public/design/hero-bg.jpg) — ha nincs, a sötét alap marad */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage: "url(/design/hero-bg.jpg)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: 0.6,
-          }}
-          aria-hidden
-        />
+        {/* ===== MÉDIA-SLOT — ide teheted a saját hero-médiádat =====
+            Most kép (public/design/hero-bg.jpg). Videóra cseréléshez lásd a lenti kommentet. */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/design/hero-bg.jpg"
+            alt=""
+            className="h-full w-full object-cover"
+            style={{ opacity: 0.55 }}
+          />
+          {/*
+            VIDEÓHOZ cseréld a fenti <img>-et erre (tegyél be egy public/design/hero.mp4-et):
+            <video autoPlay muted loop playsInline poster="/design/hero-bg.jpg"
+                   className="h-full w-full object-cover" style={{ opacity: 0.6 }}>
+              <source src="/design/hero.mp4" type="video/mp4" />
+            </video>
+          */}
+        </div>
+
+        {/* Sötét gradiens (fentről-lentről) a szöveg olvashatóságához */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "linear-gradient(90deg, rgba(18,16,14,0.92) 0%, rgba(18,16,14,0.55) 60%, rgba(18,16,14,0.35) 100%)",
+              "linear-gradient(180deg, rgba(18,16,14,0.72) 0%, rgba(18,16,14,0.40) 38%, rgba(12,11,10,0.90) 100%)",
           }}
+          aria-hidden
+        />
+        {/* Cinematic vignetta (sarkok elsötétítése) */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(120% 85% at 22% 32%, transparent 42%, rgba(12,11,10,0.75) 100%)" }}
           aria-hidden
         />
         <div
           className="twx-orb pointer-events-none absolute -left-24 top-10 h-80 w-80 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(239,122,90,0.45), transparent 70%)", filter: "blur(30px)" }}
+          style={{ background: "radial-gradient(circle, rgba(239,122,90,0.40), transparent 70%)", filter: "blur(34px)" }}
           aria-hidden
         />
         <div
           className="twx-orb-2 pointer-events-none absolute right-0 top-40 h-96 w-96 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(249,201,182,0.30), transparent 70%)", filter: "blur(40px)" }}
+          style={{ background: "radial-gradient(circle, rgba(249,201,182,0.26), transparent 70%)", filter: "blur(44px)" }}
           aria-hidden
         />
 
@@ -93,51 +108,62 @@ export default async function LandingPage() {
           </div>
         </nav>
 
-        <div className="relative z-10 mx-auto max-w-6xl px-6 pb-28 pt-16 sm:pt-24">
+        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16">
           <p
-            className="twx-reveal font-display font-medium leading-tight"
-            style={{ fontSize: "clamp(1.05rem, 2.2vw, 1.55rem)", color: "var(--twx-coral)" }}
+            className="twx-reveal font-display text-sm font-semibold uppercase"
+            style={{ color: "var(--twx-coral)", letterSpacing: "0.22em" }}
           >
             Saját fejlesztésű AI alkalmazás-platform
           </p>
           <h1
-            className="twx-reveal mt-2 font-display font-semibold leading-[1.0]"
-            style={{ fontSize: "clamp(3rem, 9vw, 6.5rem)", color: "var(--twx-on-dark)" }}
+            className="twx-reveal mt-4 font-display font-semibold leading-[0.95]"
+            style={{ fontSize: "clamp(3.2rem, 10vw, 7rem)", color: "var(--twx-on-dark)", animationDelay: "0.08s" }}
           >
             AI-APPSTORE
           </h1>
           <p
-            className="twx-reveal mt-6 max-w-2xl text-lg"
-            style={{ color: "var(--twx-on-dark-muted)" }}
+            className="twx-reveal mt-6 max-w-2xl text-lg leading-relaxed"
+            style={{ color: "var(--twx-on-dark-muted)", animationDelay: "0.16s" }}
           >
             AI-motorok a mindennapi üzletmenethez, egyetlen kategorizált platformon. Találd
             meg a vállalkozásodhoz passzoló célalkalmazást — havidíjak nélkül, tiszta
             használat alapon.
           </p>
-          <div className="twx-reveal mt-9 flex flex-wrap gap-3">
+          <div className="twx-reveal mt-9 flex flex-wrap gap-3" style={{ animationDelay: "0.24s" }}>
             <AuthTrigger
               mode="register"
-              className="rounded-full px-6 py-3 text-sm font-medium"
-              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              className="rounded-full px-7 py-3.5 text-sm font-semibold transition-transform hover:-translate-y-0.5"
+              style={{ background: "var(--twx-coral)", color: "#1c1005", boxShadow: "0 14px 34px rgba(239,122,90,0.35)" }}
             >
               Kezdés
             </AuthTrigger>
             <a
               href="#kategoriak"
-              className="rounded-full border px-6 py-3 text-sm font-medium"
-              style={{ borderColor: "rgba(255,255,255,0.25)", color: "var(--twx-on-dark)" }}
+              className="rounded-full border px-7 py-3.5 text-sm font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "rgba(255,255,255,0.28)", color: "var(--twx-on-dark)" }}
             >
               Kategóriák megtekintése
             </a>
             <a
               href="#egyedi"
-              className="rounded-full border px-6 py-3 text-sm font-medium"
-              style={{ borderColor: "rgba(255,255,255,0.25)", color: "var(--twx-on-dark)" }}
+              className="rounded-full border px-7 py-3.5 text-sm font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "rgba(255,255,255,0.28)", color: "var(--twx-on-dark)" }}
             >
               Egyedi fejlesztés
             </a>
           </div>
         </div>
+
+        {/* Görgetés-jelző */}
+        <a
+          href="#kategoriak"
+          className="relative z-10 mx-auto mb-8 flex flex-col items-center gap-1 text-[11px] uppercase tracking-widest transition-opacity hover:opacity-100"
+          style={{ color: "var(--twx-on-dark-muted)", opacity: 0.7 }}
+          aria-label="Görgess lejjebb"
+        >
+          Görgess
+          <span aria-hidden className="text-base">↓</span>
+        </a>
       </section>
 
       {/* ===== KATEGÓRIÁK (világos) ===== */}
