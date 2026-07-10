@@ -49,7 +49,10 @@ export default function FlyerPage() {
   });
   const [flyerLoading, setFlyerLoading] = useState(false);
   const [flyerError, setFlyerError] = useState<string | null>(null);
-  const [flyerUrl, setFlyerUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; kind: string; renderData: Record<string, unknown> } | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [finalUrl, setFinalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -122,7 +125,8 @@ export default function FlyerPage() {
 
   async function generateFlyer() {
     setFlyerError(null);
-    setFlyerUrl(null);
+    setFinalUrl(null);
+    setAcceptError(null);
     if (!profileId) {
       setFlyerError("Válassz arculatot a hirdetéshez.");
       return;
@@ -137,14 +141,38 @@ export default function FlyerPage() {
       const res = await fetch("/api/flyer/generate", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
-        setFlyerError(data.error ?? "Hiba a hirdetés generálásakor.");
+        setFlyerError(data.error ?? "Hiba az előnézet készítésekor.");
         return;
       }
-      setFlyerUrl(data.url as string);
+      setPreview({ url: data.previewUrl, kind: data.kind, renderData: data.renderData });
     } catch {
       setFlyerError("Hálózati hiba. Próbáld újra.");
     } finally {
       setFlyerLoading(false);
+    }
+  }
+
+  async function acceptFlyer() {
+    if (!preview) return;
+    setAcceptError(null);
+    setAccepting(true);
+    try {
+      const res = await fetch("/api/flyer/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(preview.renderData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAcceptError(data.error ?? "Hiba az elfogadáskor.");
+        return;
+      }
+      setFinalUrl(data.url as string);
+      setPreview(null);
+    } catch {
+      setAcceptError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setAccepting(false);
     }
   }
 
@@ -521,20 +549,20 @@ export default function FlyerPage() {
         </div>
 
         <button onClick={generateFlyer} disabled={flyerLoading} className="twx-btn w-full">
-          {flyerLoading ? "Hirdetés készül… (10-20 mp)" : "Hirdetés generálása"}
+          {flyerLoading ? "Előnézet készül… (10-20 mp)" : "Előnézet készítése (ingyenes)"}
         </button>
         {flyerError && <p className="text-sm text-red-600">{flyerError}</p>}
 
-        {flyerUrl && (
+        {finalUrl && (
           <div className="space-y-3">
-            <p className="text-sm text-green-700">Kész! A hirdetés elkészült.</p>
-            {flyerUrl.endsWith(".pdf") ? null : (
-              <img src={flyerUrl} alt="Hirdetés" className="w-full max-w-sm rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+            <p className="text-sm text-green-700">Kész! A hirdetés elfogadva és mentve.</p>
+            {finalUrl.endsWith(".pdf") ? null : (
+              <img src={finalUrl} alt="Hirdetés" className="w-full max-w-sm rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
             )}
             <div className="flex flex-wrap gap-3">
-              <a href={flyerUrl} target="_blank" rel="noreferrer" className="twx-btn">Megnyitás</a>
+              <a href={finalUrl} target="_blank" rel="noreferrer" className="twx-btn">Megnyitás</a>
               <a
-                href={toDownloadUrl(flyerUrl)}
+                href={toDownloadUrl(finalUrl)}
                 className="rounded-full px-5 py-2.5 text-sm font-medium"
                 style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
               >
@@ -544,6 +572,63 @@ export default function FlyerPage() {
           </div>
         )}
       </section>
+
+      {/* Előnézet ablak — vízjeles, elfogadás 1 kredit */}
+      {preview && (
+        <div
+          onClick={() => !accepting && setPreview(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(12,11,10,0.85)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+          >
+            <div className="flex items-center justify-between p-5 pb-3">
+              <h3 className="font-display text-xl font-semibold">Előnézet</h3>
+              <button
+                onClick={() => setPreview(null)}
+                disabled={accepting}
+                aria-label="Bezárás"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
+                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto px-5" style={{ background: "var(--twx-cream)" }}>
+              {preview.kind === "pdf" ? (
+                <iframe src={preview.url} title="Előnézet" className="h-[62vh] w-full rounded-lg bg-white" />
+              ) : (
+                <img src={preview.url} alt="Előnézet" className="mx-auto max-h-[70vh] w-auto rounded-lg" style={{ border: "1px solid var(--twx-line)" }} />
+              )}
+            </div>
+
+            <div className="space-y-2 p-5">
+              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Ez vízjeles előnézet. Az <b>elfogadás 1 kredit</b>, és tiszta, letölthető hirdetést ad
+                (admin/sales díjmentes).
+              </p>
+              {acceptError && <p className="text-sm text-red-600">{acceptError}</p>}
+              <div className="flex flex-wrap gap-3">
+                <button onClick={acceptFlyer} disabled={accepting} className="twx-btn">
+                  {accepting ? "Feldolgozás…" : "Elfogadom (1 kredit)"}
+                </button>
+                <button
+                  onClick={() => setPreview(null)}
+                  disabled={accepting}
+                  className="rounded-full px-5 py-2.5 text-sm font-medium"
+                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                >
+                  Módosítok még
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Saját kép feltöltése — felugró ablak (a könyvtár mögötte marad) */}
       {uploadOpen && (

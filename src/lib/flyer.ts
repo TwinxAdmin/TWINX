@@ -3,7 +3,8 @@
 
 // Kredit: induláskor 0 (ingyenes). Később egyetlen szám átírásával ára lehet
 // (a 100% haszon szabály szerint). 0 = nincs levonás.
-export const FLYER_CREDITS = Number(process.env.FLYER_CREDITS ?? 0);
+// Egy elfogadott (végleges) hirdetés ára. Az előnézet mindig ingyenes (vízjeles).
+export const FLYER_CREDITS = Number(process.env.FLYER_CREDITS ?? 1);
 
 // Egyoldalas hirdetés: legfeljebb ennyi kép fér el értelmesen (1 fő + pár galéria).
 // Később, többoldalas hirdetésnél ez emelhető.

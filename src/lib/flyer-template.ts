@@ -43,8 +43,9 @@ export function buildFlyerHtml(opts: {
   text: FlyerText;
   images: string[];
   sections: FlyerSections;
+  watermark?: boolean;
 }): string {
-  const { format, profile, text, images, sections } = opts;
+  const { format, profile, text, images, sections, watermark } = opts;
   const accent = /^#[0-9a-fA-F]{6}$/.test(profile.accent_color) ? profile.accent_color : "#ef7a5a";
   const font = FONT_MAP[profile.font] ?? FONT_MAP.inter;
   const dark = profile.theme === "dark";
@@ -72,12 +73,15 @@ export function buildFlyerHtml(opts: {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: ${format.width}px; }
   .flyer {
+    position: relative;
     width: ${format.width}px; min-height: ${format.height}px;
     background: ${bg}; color: ${ink};
     font-family: ${font.family};
     display: flex; flex-direction: column; overflow: hidden;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
+  .wm span { font-size: 48px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: ${dark ? "rgba(255,255,255,0.16)" : "rgba(28,24,21,0.13)"}; }
   .head { padding: 34px 40px 22px; }
   .title { font-size: 42px; font-weight: 800; line-height: 1.02; text-transform: uppercase; letter-spacing: -0.5px; }
   .subtitle { display: inline-block; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 17px; padding: 6px 14px; border-radius: 6px; }
@@ -107,6 +111,7 @@ export function buildFlyerHtml(opts: {
   .foot .brand .company { font-size: 15px; font-weight: 700; }
 </style></head><body>
 <div class="flyer">
+  ${watermark ? `<div class="wm">${Array.from({ length: 6 }).map(() => `<span>ELŐNÉZET · TWINX</span>`).join("")}</div>` : ""}
   <div class="head">
     <div class="title">${esc(text.title || "Eladó ingatlan")}</div>
     ${text.subtitle ? `<div class="subtitle">${esc(text.subtitle)}</div>` : ""}
