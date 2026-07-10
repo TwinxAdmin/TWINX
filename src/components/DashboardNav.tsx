@@ -85,13 +85,56 @@ export default function DashboardNav() {
         );
       })}
 
-      <a
-        href="/dashboard/flyer"
-        className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-        style={{ color: "var(--twx-on-dark)" }}
-      >
-        Hirdetéskészítő
-      </a>
+      {/* Hirdetéskészítő — legördülő: hirdetés + arculatok */}
+      <div className="relative z-30">
+        <button
+          type="button"
+          onClick={() => setOpen(open === "hirdetes" ? null : "hirdetes")}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors"
+          style={{
+            color: "var(--twx-on-dark)",
+            background: open === "hirdetes" ? "rgba(239,122,90,0.16)" : "transparent",
+          }}
+        >
+          <span>Hirdetéskészítő</span>
+          <span
+            className="text-xs transition-transform duration-200"
+            style={{ transform: open === "hirdetes" ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            ▾
+          </span>
+        </button>
+
+        <div
+          className="absolute left-0 top-full mt-2 min-w-[220px] rounded-2xl p-2 transition-all duration-200 ease-out"
+          style={{
+            background: "var(--twx-dark-2)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
+            transformOrigin: "top",
+            opacity: open === "hirdetes" ? 1 : 0,
+            transform: open === "hirdetes" ? "translateY(0) scaleY(1)" : "translateY(-8px) scaleY(0.96)",
+            pointerEvents: open === "hirdetes" ? "auto" : "none",
+          }}
+        >
+          <a
+            href="/dashboard/flyer"
+            onClick={() => setOpen(null)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Hirdetés készítése
+          </a>
+          <a
+            href="/dashboard/branding"
+            onClick={() => setOpen(null)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Arculatok
+          </a>
+        </div>
+      </div>
 
       {/* Egyedi modulok — legördülő: saját moduljaim + igénylés */}
       <div className="relative z-30">
