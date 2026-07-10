@@ -19,6 +19,7 @@ export default function FlyerPage() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [uploads, setUploads] = useState<{ file: File; url: string }[]>([]);
   const [prefill, setPrefill] = useState<LibraryItem["data"] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(8); // 2 sor (4 oszlop) alapból
 
   useEffect(() => {
     (async () => {
@@ -170,29 +171,40 @@ export default function FlyerPage() {
                   Nincs korábbi képed. Válts a „Saját feltöltés" fülre.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {libraryImages.map((url) => {
-                    const active = selectedImages.includes(url);
-                    return (
-                      <button
-                        key={url}
-                        onClick={() => toggleImage(url)}
-                        className="relative overflow-hidden rounded-xl"
-                        style={{ border: `2px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}
-                      >
-                        <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
-                        {active && (
-                          <span
-                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold"
-                            style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                          >
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {libraryImages.slice(0, visibleCount).map((url) => {
+                      const active = selectedImages.includes(url);
+                      return (
+                        <button
+                          key={url}
+                          onClick={() => toggleImage(url)}
+                          className="relative overflow-hidden rounded-xl"
+                          style={{ border: `2px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}
+                        >
+                          <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
+                          {active && (
+                            <span
+                              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold"
+                              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                            >
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {libraryImages.length > visibleCount && (
+                    <button
+                      onClick={() => setVisibleCount((c) => c + 8)}
+                      className="mt-3 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                      style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                    >
+                      Továbbiak betöltése ({libraryImages.length - visibleCount})
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
