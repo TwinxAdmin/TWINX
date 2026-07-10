@@ -5,6 +5,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toDownloadUrl } from "@/lib/files";
 
 export type ActivityItem = {
   id: string;
@@ -215,6 +216,28 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
                 {(active ?? 0) + 1} / {items.length}
               </span>
             </div>
+
+            {/* Megnyitás + Letöltés */}
+            {current.output_file_url && (
+              <div className="flex flex-wrap justify-center gap-3">
+                <a
+                  href={current.output_file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full px-5 py-2 text-sm font-medium"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                >
+                  Megnyitás
+                </a>
+                <a
+                  href={toDownloadUrl(current.output_file_url)}
+                  className="rounded-full px-5 py-2 text-sm font-medium"
+                  style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
+                >
+                  Letöltés
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Jobbra */}

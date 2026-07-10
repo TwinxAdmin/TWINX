@@ -9,6 +9,7 @@ import {
   validateValuationInput,
   type ValuationInput,
 } from "@/lib/valuation";
+import { toDownloadUrl } from "@/lib/files";
 
 export default function ValuationPage() {
   const [values, setValues] = useState<ValuationInput>({ ...EMPTY_VALUATION });
@@ -118,15 +119,18 @@ export default function ValuationPage() {
       {message && <p className="text-sm text-green-700">{message}</p>}
 
       {resultUrl && (
-        <a
-          href={resultUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block px-4 py-2 text-sm underline"
-          style={{ color: "var(--twx-coral)" }}
-        >
-          PDF letöltése
-        </a>
+        <div className="flex flex-wrap gap-3">
+          <a href={resultUrl} target="_blank" rel="noreferrer" className="twx-btn">
+            PDF megnyitása
+          </a>
+          <a
+            href={toDownloadUrl(resultUrl)}
+            className="rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+          >
+            Letöltés
+          </a>
+        </div>
       )}
 
       {report && (
