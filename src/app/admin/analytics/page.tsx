@@ -2,7 +2,9 @@
 // Bevétel (HUF) vs. API-költség (USD→HUF), profitmarzs, funkció/API-bontás.
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getMetrics } from "@/lib/metrics";
+import { getMetrics, getUserMetrics } from "@/lib/metrics";
+import UserMetricsBrowser from "@/components/UserMetricsBrowser";
+import UsersModalTrigger from "@/components/UsersModalTrigger";
 
 export const runtime = "nodejs";
 
@@ -24,6 +26,7 @@ export default async function AdminAnalyticsPage() {
   if (me?.role !== "admin") redirect("/dashboard");
 
   const m = await getMetrics();
+  const { users, hufPerUsd } = await getUserMetrics();
 
   return (
     <main className="twx-page font-sans">
@@ -31,7 +34,7 @@ export default async function AdminAnalyticsPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-semibold">Admin — Költségfigyelő</h1>
         <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-          <a href="/admin/users">Felhasználók</a>
+          <UsersModalTrigger />
           <a href="/admin/ideas">Ötletek</a>
           <a href="/admin/credits">Kredit</a>
           <a href="/dashboard">Dashboard</a>
@@ -95,6 +98,9 @@ export default async function AdminAnalyticsPage() {
         összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `metrics.sql`-ben
         lévő visszatöltő sorral pótolható.
       </p>
+
+      {/* A "Felhasználók" navra kattintva helyben nyíló ablak */}
+      <UserMetricsBrowser users={users} hufPerUsd={hufPerUsd} showButton={false} />
       </div>
     </main>
   );

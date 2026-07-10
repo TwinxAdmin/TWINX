@@ -2,21 +2,29 @@
 // görgethető lista (kb. 8 sor látszik egyszerre).
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UserMetric } from "@/lib/metrics";
 
 const huf = (n: number) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
-const usd = (n: number) => `$${n.toFixed(2)}`;
 
 export default function UserMetricsBrowser({
   users,
   hufPerUsd,
+  showButton = true,
 }: {
   users: UserMetric[];
   hufPerUsd: number;
+  showButton?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  // Máshonnan (pl. a Költségfigyelő nav-linkjéből) is nyitható eseménnyel.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("open-users", onOpen);
+    return () => window.removeEventListener("open-users", onOpen);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -26,9 +34,11 @@ export default function UserMetricsBrowser({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="twx-btn">
-        Felhasználók böngészése ({users.length})
-      </button>
+      {showButton && (
+        <button onClick={() => setOpen(true)} className="twx-btn">
+          Felhasználók böngészése ({users.length})
+        </button>
+      )}
 
       {open && (
         <div
