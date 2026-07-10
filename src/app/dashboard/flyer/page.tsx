@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
-import type { LibraryItem } from "@/lib/flyer";
+import { MAX_FLYER_IMAGES, type LibraryItem } from "@/lib/flyer";
 
 type Source = "library" | "upload";
 
@@ -49,15 +49,27 @@ export default function FlyerPage() {
   const dataItems = useMemo(() => library.filter((i) => i.data), [library]);
 
   function toggleImage(url: string) {
-    setSelectedImages((prev) =>
-      prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
-    );
+    setSelectedImages((prev) => {
+      if (prev.includes(url)) return prev.filter((u) => u !== url);
+      if (prev.length >= MAX_FLYER_IMAGES) return prev; // max elérve
+      return [...prev, url];
+    });
   }
 
   function onUpload(files: FileList | null) {
     if (!files) return;
-    const next = Array.from(files).map((file) => ({ file, url: URL.createObjectURL(file) }));
-    setUploads((prev) => [...prev, ...next]);
+    setUploads((prev) => {
+      const remaining = MAX_FLYER_IMAGES - prev.length;
+      if (remaining <= 0) return prev;
+      const next = Array.from(files)
+        .slice(0, remaining)
+        .map((file) => ({ file, url: URL.createObjectURL(file) }));
+      return [...prev, ...next];
+    });
+  }
+
+  function removeUpload(idx: number) {
+    setUploads((prev) => prev.filter((_, i) => i !== idx));
   }
 
   const chosenCount = source === "library" ? selectedImages.length : uploads.length;
@@ -168,7 +180,12 @@ export default function FlyerPage() {
 
             {/* Kép-választó */}
             <div>
-              <p className="mb-2 text-sm font-medium">Képek kiválasztása (látványtervek, feltöltések)</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium">Képek kiválasztása</p>
+                <span className="text-xs" style={{ color: selectedImages.length >= MAX_FLYER_IMAGES ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                  {selectedImages.length}/{MAX_FLYER_IMAGES} kép (egyoldalas hirdetés)
+                </span>
+              </div>
               {libraryImages.length === 0 ? (
                 <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                   Nincs korábbi képed. Válts a „Saját feltöltés" fülre.
@@ -178,12 +195,14 @@ export default function FlyerPage() {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {libraryImages.slice(0, visibleCount).map((url) => {
                       const active = selectedImages.includes(url);
+                      const blocked = !active && selectedImages.length >= MAX_FLYER_IMAGES;
                       return (
                         <button
                           key={url}
                           onClick={() => toggleImage(url)}
-                          className="relative overflow-hidden rounded-xl"
-                          style={{ border: `2px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}
+                          disabled={blocked}
+                          className="relative overflow-hidden rounded-xl transition-opacity"
+                          style={{ border: `2px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`, opacity: blocked ? 0.4 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
                         >
                           <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
                           {active && (
@@ -213,26 +232,46 @@ export default function FlyerPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <label
-              htmlFor="flyer-upload"
-              className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium"
-              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-            >
-              Képek feltöltése
-            </label>
+            <div className="flex items-center gap-3">
+              <label
+                htmlFor="flyer-upload"
+                className="inline-block rounded-full px-4 py-2 text-sm font-medium"
+                style={{
+                  border: "1px solid var(--twx-line)",
+                  background: "var(--twx-cream-card)",
+                  color: "var(--twx-ink)",
+                  cursor: uploads.length >= MAX_FLYER_IMAGES ? "not-allowed" : "pointer",
+                  opacity: uploads.length >= MAX_FLYER_IMAGES ? 0.5 : 1,
+                }}
+              >
+                Képek feltöltése
+              </label>
+              <span className="text-xs" style={{ color: uploads.length >= MAX_FLYER_IMAGES ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                {uploads.length}/{MAX_FLYER_IMAGES} kép
+              </span>
+            </div>
             <input
               id="flyer-upload"
               type="file"
               accept="image/png,image/jpeg,image/webp"
               multiple
+              disabled={uploads.length >= MAX_FLYER_IMAGES}
               className="hidden"
               onChange={(e) => onUpload(e.target.files)}
             />
             {uploads.length > 0 && (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {uploads.map((u, idx) => (
-                  <div key={idx} className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+                  <div key={idx} className="relative overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
                     <img src={u.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                    <button
+                      onClick={() => removeUpload(idx)}
+                      aria-label="Törlés"
+                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                      style={{ background: "rgba(12,11,10,0.7)", color: "#fff" }}
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>

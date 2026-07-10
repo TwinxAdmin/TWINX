@@ -5,6 +5,10 @@
 // (a 100% haszon szabály szerint). 0 = nincs levonás.
 export const FLYER_CREDITS = Number(process.env.FLYER_CREDITS ?? 0);
 
+// Egyoldalas hirdetés: legfeljebb ennyi kép fér el értelmesen (1 fő + pár galéria).
+// Később, többoldalas hirdetésnél ez emelhető.
+export const MAX_FLYER_IMAGES = 4;
+
 // Kimeneti formátumok. Az A4 PDF; a social arányok PNG kép (a megadott px méretben).
 export type FlyerFormat = {
   value: string;
