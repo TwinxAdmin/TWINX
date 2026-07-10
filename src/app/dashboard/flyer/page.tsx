@@ -251,6 +251,22 @@ export default function FlyerPage() {
                 </button>
               );
             })}
+
+            {/* + Új arculat */}
+            <a
+              href="/dashboard/branding"
+              title="Új arculat létrehozása"
+              className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-black/[0.03]"
+              style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
+            >
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold"
+                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              >
+                +
+              </span>
+              <span className="text-sm font-medium">Új arculat</span>
+            </a>
           </div>
         )}
       </section>
