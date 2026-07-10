@@ -1,6 +1,10 @@
-// /style — TWINX stílus-referencia (design system egy helyen).
+// /style — TWINX stílus-referencia (design system egy helyen). CSAK admin.
 // Ez a designhoz szolgáló belső referencia: paletta, tipográfia, gombok, mezők, kártyák, badge-ek.
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import Wordmark from "@/components/Wordmark";
+
+export const runtime = "nodejs";
 
 type Tok = { name: string; varName: string; hex: string; onDark?: boolean };
 
@@ -30,7 +34,15 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-export default function StyleGuidePage() {
+export default async function StyleGuidePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (me?.role !== "admin") redirect("/dashboard");
+
   return (
     <main className="twx-page font-sans">
       <div className="mx-auto max-w-4xl space-y-12 px-6 py-12">
