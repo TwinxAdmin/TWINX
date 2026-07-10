@@ -30,23 +30,18 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
       <header
-        className="relative flex items-center justify-between gap-4 px-6 py-3"
+        className="flex items-center gap-4 px-6 py-3"
         style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
       >
-        <a
-          href="/dashboard"
-          className="font-display text-2xl font-semibold tracking-wide"
-          style={{ color: "var(--twx-on-dark)" }}
-        >
-          <Wordmark />
-        </a>
-
-        {/* Modulsáv középre igazítva */}
-        <div className="absolute left-1/2 -translate-x-1/2">
-          <DashboardNav hasCustom={hasCustom} />
-        </div>
-
-        <div className="flex items-center gap-4 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+        {/* Bal: logó + fiók/admin linkek */}
+        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <a
+            href="/dashboard"
+            className="font-display text-2xl font-semibold tracking-wide"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            <Wordmark />
+          </a>
           {isAdmin && (
             <a
               href="/admin/analytics"
@@ -63,7 +58,16 @@ export default async function DashboardLayout({
           >
             Arculatok
           </a>
-          <span className="hidden sm:inline">{user?.email}</span>
+        </div>
+
+        {/* Közép: modulsáv */}
+        <div className="flex flex-1 justify-center">
+          <DashboardNav hasCustom={hasCustom} />
+        </div>
+
+        {/* Jobb: felhasználó + kilépés */}
+        <div className="flex items-center gap-4 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <span className="hidden lg:inline">{user?.email}</span>
           <LogoutButton />
         </div>
       </header>
