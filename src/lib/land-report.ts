@@ -3,7 +3,7 @@
 // (async job) ágban is. Szerveroldali (service_role admin klienssel hívandó).
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { generateValuationPdf } from "@/lib/pdf";
+import { generateReportPdf } from "@/lib/report-pdf";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { LAND_LEVELS, type LandInput, type LandLevel } from "@/lib/land";
 
@@ -21,7 +21,7 @@ export async function finalizeLandReport(params: {
   const { admin, userId, serviceId, input, level, report } = params;
 
   // 1) PDF
-  const pdfBytes = await generateValuationPdf({
+  const pdfBytes = await generateReportPdf({
     title: "Telek beépíthetőségi jelentés",
     meta: [
       `Cím: ${input.telepules}${input.utca ? ", " + input.utca : ""}`,

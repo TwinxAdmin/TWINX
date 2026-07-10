@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { chargeCredit } from "@/lib/credits";
 import { runValuation, PERPLEXITY_MODEL } from "@/lib/perplexity";
-import { generateValuationPdf } from "@/lib/pdf";
+import { generateReportPdf } from "@/lib/report-pdf";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const report = await runValuation(input);
 
     // 3) PDF generálás.
-    const pdfBytes = await generateValuationPdf({
+    const pdfBytes = await generateReportPdf({
       title: "Ingatlan értékbecslés",
       meta: [
         `Elhelyezkedés: ${input.telepules}${input.utca ? " · " + input.utca : ""}`,
