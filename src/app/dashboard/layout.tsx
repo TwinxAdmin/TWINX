@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
 import DashboardNav from "@/components/DashboardNav";
+import AccountMenu from "@/components/AccountMenu";
 import B2BModal from "@/components/B2BModal";
 import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
@@ -17,10 +18,14 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: me } = user
-    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
-    : { data: null };
+  const [{ data: me }, { data: wallet }] = user
+    ? await Promise.all([
+        supabase.from("profiles").select("role").eq("id", user.id).single(),
+        supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
   const isAdmin = me?.role === "admin";
+  const balance = (wallet?.balance as number | undefined) ?? 0;
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -53,9 +58,14 @@ export default async function DashboardLayout({
           <DashboardNav />
         </div>
 
-        {/* Jobb: felhasználó + kilépés */}
-        <div className="flex items-center gap-4 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-          <span className="hidden lg:inline">{user?.email}</span>
+        {/* Jobb: fiók-menü + kilépés */}
+        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+          <AccountMenu
+            email={user?.email ?? ""}
+            role={me?.role ?? "user"}
+            balance={balance}
+            createdAt={user?.created_at ?? null}
+          />
           <LogoutButton />
         </div>
       </header>
