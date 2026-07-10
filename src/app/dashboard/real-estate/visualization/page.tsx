@@ -425,21 +425,23 @@ export default function VisualizationPage() {
             </div>
             <div className="flex items-center gap-3">
               <a
-                href={resultUrls[viewer]}
-                target="_blank"
-                rel="noreferrer"
+                href={toDownloadUrl(resultUrls[viewer])}
                 className="rounded-full px-5 py-2 text-sm font-medium"
                 style={{ background: "var(--twx-coral)", color: "#1c1005" }}
               >
-                Megnyitás
+                Letöltés
               </a>
-              <a
-                href={toDownloadUrl(resultUrls[viewer])}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelected(viewer);
+                  setViewer(null);
+                }}
                 className="rounded-full px-5 py-2 text-sm font-medium"
                 style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
               >
-                Letöltés
-              </a>
+                Módosítás
+              </button>
               <span className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
                 {viewer + 1} / {resultUrls.length}
               </span>
