@@ -146,8 +146,7 @@ export default function VisualizationPage() {
       <h1 className="font-display text-3xl font-semibold">Ingatlan Látványtervező</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Tölts fel max. {MAX_IMAGES} képet. Kattints egy képre, add meg a helységet
-        (kötelező) és a kívánt módosításokat (opcionális). Egy ingatlan = 1 kredit
-        (admin/sales díjmentes).
+        (kötelező) és a kívánt módosításokat (opcionális). Egy ingatlan = 1 kredit.
       </p>
 
       {/* Feltöltő zóna */}

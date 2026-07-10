@@ -105,7 +105,7 @@ export default function LandPage() {
       <h1 className="font-display text-3xl font-semibold">Telek értékbecslés</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         A telek beépíthetőségéről készül tömör, 1 oldalas jelentés (HÉSZ + TAK alapján).
-        Minden mező kötelező. Admin/sales díjmentes.
+        Minden mező kötelező.
       </p>
 
       <form onSubmit={onSubmit} noValidate className="space-y-5">

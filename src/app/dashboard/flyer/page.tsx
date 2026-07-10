@@ -634,8 +634,7 @@ export default function FlyerPage() {
 
             <div className="space-y-2 p-5">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Ez vízjeles előnézet. Az <b>elfogadás 1 kredit</b>, és tiszta, letölthető hirdetést ad
-                (admin/sales díjmentes).
+                Ez vízjeles előnézet. Az <b>elfogadás 1 kredit</b>, és tiszta, letölthető hirdetést ad.
               </p>
               {acceptError && <p className="text-sm text-red-600">{acceptError}</p>}
               <div className="flex flex-wrap gap-3">

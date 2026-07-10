@@ -79,7 +79,7 @@ export default function ValuationPage() {
       <h1 className="font-display text-3xl font-semibold">Ingatlan értékbecslés</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Válaszd a listából a leggyakoribb értékeket, vagy írj be sajátot. A csillagos
-        (*) mezők kötelezők. Egy értékbecslés 1 kredit (admin/sales díjmentes).
+        (*) mezők kötelezők. Egy értékbecslés 1 kredit.
       </p>
 
       <form onSubmit={onSubmit} noValidate className="space-y-4">
@@ -127,7 +127,7 @@ export default function ValuationPage() {
           {loading ? "Feldolgozás… (akár 30-60 mp)" : "Ingatlan értékbecslés indítása"}
         </button>
         <p className="text-center text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          Költség: <strong>1 kredit</strong> / értékbecslés (admin/sales díjmentes).
+          Költség: <strong>1 kredit</strong> / értékbecslés.
         </p>
       </form>
 
