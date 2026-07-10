@@ -18,6 +18,7 @@ export default function FlyerPage() {
   const [uploads, setUploads] = useState<{ file: File; url: string }[]>([]);
   const [prefill, setPrefill] = useState<LibraryItem["data"] | null>(null);
   const [visibleCount, setVisibleCount] = useState(8); // 2 sor (4 oszlop) alapból
+  const [dataVisibleCount, setDataVisibleCount] = useState(6); // adat-chipek alapból
   const [infoItem, setInfoItem] = useState<LibraryItem | null>(null); // összefoglaló ablak
 
   useEffect(() => {
@@ -134,7 +135,7 @@ export default function FlyerPage() {
           <div>
             <p className="mb-2 text-sm font-medium">Adatok betöltése egy korábbi munkából</p>
             <div className="flex flex-wrap gap-2">
-              {dataItems.map((i) => {
+              {dataItems.slice(0, dataVisibleCount).map((i) => {
                 const active = prefill === i.data;
                 return (
                   <button
@@ -154,6 +155,28 @@ export default function FlyerPage() {
                 );
               })}
             </div>
+            {(dataItems.length > dataVisibleCount || dataVisibleCount > 6) && (
+              <div className="mt-2 flex gap-2">
+                {dataItems.length > dataVisibleCount && (
+                  <button
+                    onClick={() => setDataVisibleCount((c) => c + 6)}
+                    className="rounded-full px-4 py-2 text-xs font-medium transition-colors"
+                    style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                  >
+                    Továbbiak betöltése ({dataItems.length - dataVisibleCount})
+                  </button>
+                )}
+                {dataVisibleCount > 6 && (
+                  <button
+                    onClick={() => setDataVisibleCount((c) => Math.max(6, c - 6))}
+                    className="rounded-full px-4 py-2 text-xs font-medium transition-colors"
+                    style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }}
+                  >
+                    Kevesebb
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
