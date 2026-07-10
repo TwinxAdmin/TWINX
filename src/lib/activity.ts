@@ -7,7 +7,7 @@ import { VIDEO_FORMATS } from "@/lib/video";
 type Json = Record<string, unknown> | null | undefined;
 
 const FEATURE_LABEL: Record<string, string> = {
-  valuation: "Értékbecslés",
+  valuation: "Ingatlan értékbecslés",
   "land-valuation": "Telek értékbecslés",
   visualization: "Látványterv",
   video: "Videó",
@@ -27,7 +27,7 @@ export function activityTitle(feature: string, input: Json): string {
   if (feature === "valuation") {
     const hely = [s(d.telepules), s(d.utca)].filter(Boolean).join(", ");
     const reszlet = [s(d.tipus), s(d.meret)].filter(Boolean).join(" · ");
-    return [hely, reszlet].filter(Boolean).join(" — ") || "Értékbecslés";
+    return [hely, reszlet].filter(Boolean).join(" — ") || "Ingatlan értékbecslés";
   }
 
   if (feature === "land-valuation") {

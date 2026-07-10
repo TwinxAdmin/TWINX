@@ -62,7 +62,7 @@ export default function ValuationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="font-display text-3xl font-semibold">Ingatlan Értékbecslő</h1>
+      <h1 className="font-display text-3xl font-semibold">Ingatlan értékbecslés</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Válaszd a listából a leggyakoribb értékeket, vagy írj be sajátot. A csillagos
         (*) mezők kötelezők. Egy értékbecslés 1 kredit (admin/sales díjmentes).
@@ -110,7 +110,7 @@ export default function ValuationPage() {
           disabled={loading}
           className="twx-btn w-full"
         >
-          {loading ? "Feldolgozás… (akár 30-60 mp)" : "Értékbecslés indítása"}
+          {loading ? "Feldolgozás… (akár 30-60 mp)" : "Ingatlan értékbecslés indítása"}
         </button>
       </form>
 
