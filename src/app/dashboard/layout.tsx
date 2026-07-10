@@ -16,16 +16,10 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: me }, { data: privateServices }] = user
-    ? await Promise.all([
-        supabase.from("profiles").select("role").eq("id", user.id).single(),
-        // RLS: a felhasználó csak a számára engedélyezett privát modulokat látja.
-        supabase.from("services").select("id").eq("status", "private"),
-      ])
-    : [{ data: null }, { data: null }];
+  const { data: me } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    : { data: null };
   const isAdmin = me?.role === "admin";
-  // Van saját (privát) modulja? -> akkor a menü a modul-oldalra visz; különben B2B-modál.
-  const hasCustom = isAdmin || ((privateServices?.length ?? 0) > 0);
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -62,7 +56,7 @@ export default async function DashboardLayout({
 
         {/* Közép: modulsáv */}
         <div className="flex flex-1 justify-center">
-          <DashboardNav hasCustom={hasCustom} />
+          <DashboardNav />
         </div>
 
         {/* Jobb: felhasználó + kilépés */}

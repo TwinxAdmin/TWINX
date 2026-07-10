@@ -16,13 +16,6 @@ export default async function CustomModulesPage() {
   // A /dashboard-ot a middleware már védi, de biztonságból itt is ellenőrzünk.
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  const isAdmin = profile?.role === "admin";
-
   // Privát modulok, amelyeket ez a felhasználó láthat (RLS szűri).
   const { data: services } = await supabase
     .from("services")
@@ -30,11 +23,6 @@ export default async function CustomModulesPage() {
     .eq("status", "private");
 
   const list = (services ?? []) as PrivateService[];
-
-  // Nincs jogosultság: se nem admin, se nincs elérhető privát modulja.
-  if (!isAdmin && list.length === 0) {
-    redirect("/dashboard");
-  }
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
@@ -46,7 +34,8 @@ export default async function CustomModulesPage() {
 
       {list.length === 0 ? (
         <div className="rounded-xl p-4 text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-          Jelenleg nincs elérhető privát modul.
+          Még nincs számodra fejlesztett egyedi modul. Ha szeretnél egyet, a felső sávban az
+          „Egyedi modulok → Egyedi modul igénylése" ponton keresztül tudsz árajánlatot kérni.
         </div>
       ) : (
         <ul className="space-y-2">

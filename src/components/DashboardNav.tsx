@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/catalog";
 
-export default function DashboardNav({ hasCustom = false }: { hasCustom?: boolean }) {
+export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -93,24 +93,59 @@ export default function DashboardNav({ hasCustom = false }: { hasCustom?: boolea
         Hirdetéskészítő
       </a>
 
-      {hasCustom ? (
-        <a
-          href="/dashboard/custom"
-          className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-          style={{ color: "var(--twx-on-dark)" }}
-        >
-          Egyedi modulok
-        </a>
-      ) : (
+      {/* Egyedi modulok — legördülő: saját moduljaim + igénylés */}
+      <div className="relative z-30">
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent("open-b2b"))}
-          className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-          style={{ color: "var(--twx-on-dark)" }}
+          onClick={() => setOpen(open === "egyedi" ? null : "egyedi")}
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors"
+          style={{
+            color: "var(--twx-on-dark)",
+            background: open === "egyedi" ? "rgba(239,122,90,0.16)" : "transparent",
+          }}
         >
-          Egyedi modulok
+          <span>Egyedi modulok</span>
+          <span
+            className="text-xs transition-transform duration-200"
+            style={{ transform: open === "egyedi" ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            ▾
+          </span>
         </button>
-      )}
+
+        <div
+          className="absolute right-0 top-full mt-2 min-w-[240px] rounded-2xl p-2 transition-all duration-200 ease-out"
+          style={{
+            background: "var(--twx-dark-2)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
+            transformOrigin: "top",
+            opacity: open === "egyedi" ? 1 : 0,
+            transform: open === "egyedi" ? "translateY(0) scaleY(1)" : "translateY(-8px) scaleY(0.96)",
+            pointerEvents: open === "egyedi" ? "auto" : "none",
+          }}
+        >
+          <a
+            href="/dashboard/custom"
+            onClick={() => setOpen(null)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Saját moduljaim
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(null);
+              window.dispatchEvent(new CustomEvent("open-b2b"));
+            }}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Egyedi modul igénylése
+          </button>
+        </div>
+      </div>
     </nav>
   );
 }
