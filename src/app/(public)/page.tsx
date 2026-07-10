@@ -11,11 +11,23 @@ import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
 
-const CATEGORIES = [
+const CATEGORIES: {
+  title: string;
+  status: string;
+  desc: string;
+  modules?: string[];
+}[] = [
   {
     title: "Ingatlan & Látványtervezés",
     status: "Elérhető",
     desc: "Adatalapú értékbecslés, fotórealisztikus látványterv és prémium marketing videó — egy kategóriában.",
+    modules: [
+      "Ingatlan értékbecslés",
+      "Telek értékbecslés",
+      "Látványtervező",
+      "Videó",
+      "Hirdetéskészítő",
+    ],
   },
   {
     title: "Adatelemzés & Automatizáció",
@@ -185,23 +197,46 @@ export default async function LandingPage() {
             return (
               <div
                 key={c.title}
-                className="rounded-2xl p-7"
-                style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+                className="flex flex-col rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_rgba(28,24,21,0.10)]"
+                style={{
+                  background: "var(--twx-cream-card)",
+                  border: `1px solid ${live ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                }}
               >
                 <span
-                  className="inline-block rounded-full px-3 py-1 text-xs font-medium"
+                  className="inline-block self-start rounded-full px-3 py-1 text-xs font-semibold"
                   style={
                     live
                       ? { background: "var(--twx-coral)", color: "#1c1005" }
-                      : { background: "transparent", color: "var(--twx-ink-muted)", border: "1px solid var(--twx-line)" }
+                      : { background: "var(--twx-line)", color: "var(--twx-ink-muted)" }
                   }
                 >
                   {c.status}
                 </span>
                 <h3 className="font-display mt-4 text-2xl font-medium">{c.title}</h3>
-                <p className="mt-3 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
                   {c.desc}
                 </p>
+
+                {live && c.modules && (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {c.modules.map((m) => (
+                      <span
+                        key={m}
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}
+                      >
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {!live && (
+                  <span className="mt-5 text-xs font-medium uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
+                    Fejlesztés alatt
+                  </span>
+                )}
               </div>
             );
           })}
