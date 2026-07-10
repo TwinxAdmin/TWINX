@@ -11,6 +11,7 @@ const FEATURE_LABEL: Record<string, string> = {
   "land-valuation": "Telek értékbecslés",
   visualization: "Látványterv",
   video: "Videó",
+  flyer: "Hirdetés",
 };
 
 export function featureLabel(feature: string): string {
@@ -45,6 +46,11 @@ export function activityTitle(feature: string, input: Json): string {
     const desc = [roomLabel, styleLabel].filter(Boolean).join(" · ");
     const base = count ? `Látványterv — ${count} kép` : "Látványterv";
     return desc ? `${base} · ${desc}` : base;
+  }
+
+  if (feature === "flyer") {
+    const t = s(d.title);
+    return t ? `Hirdetés — ${t}` : "Hirdetés";
   }
 
   if (feature === "video") {

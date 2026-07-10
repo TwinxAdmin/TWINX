@@ -8,12 +8,14 @@ import type { BrandingProfile } from "@/lib/branding";
 import {
   MAX_FLYER_IMAGES,
   FLYER_TONES,
+  FLYER_FORMATS,
   EMPTY_FACTS,
   EMPTY_TEXT,
   type FlyerFacts,
   type FlyerText,
   type LibraryItem,
 } from "@/lib/flyer";
+import { toDownloadUrl } from "@/lib/files";
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -35,6 +37,19 @@ export default function FlyerPage() {
   const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+
+  // 4) Elrendezés + generálás
+  const [format, setFormat] = useState("a4");
+  const [sections, setSections] = useState({
+    highlights: true,
+    characteristics: true,
+    gallery: true,
+    infra: true,
+    transport: true,
+  });
+  const [flyerLoading, setFlyerLoading] = useState(false);
+  const [flyerError, setFlyerError] = useState<string | null>(null);
+  const [flyerUrl, setFlyerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -103,6 +118,34 @@ export default function FlyerPage() {
   }
   function setTextField<K extends keyof FlyerText>(key: K, val: FlyerText[K]) {
     setText((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function generateFlyer() {
+    setFlyerError(null);
+    setFlyerUrl(null);
+    if (!profileId) {
+      setFlyerError("Válassz arculatot a hirdetéshez.");
+      return;
+    }
+    setFlyerLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("payload", JSON.stringify({ profileId, format, sections, text }));
+      fd.append("libraryImages", JSON.stringify(selectedImages));
+      uploads.forEach((u) => fd.append("files", u.file));
+
+      const res = await fetch("/api/flyer/generate", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setFlyerError(data.error ?? "Hiba a hirdetés generálásakor.");
+        return;
+      }
+      setFlyerUrl(data.url as string);
+    } catch {
+      setFlyerError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setFlyerLoading(false);
+    }
   }
 
   async function generateText() {
@@ -438,30 +481,69 @@ export default function FlyerPage() {
         </div>
       </section>
 
-      {/* Összegzés + következő lépés (F4) */}
-      <section className="twx-card space-y-1 p-4 text-sm">
-        <p>
-          <span style={{ color: "var(--twx-ink-muted)" }}>Arculat:</span>{" "}
-          {profiles.find((p) => p.id === profileId)?.label ?? "—"}
-        </p>
-        <p>
-          <span style={{ color: "var(--twx-ink-muted)" }}>Kiválasztott kép:</span> {total} db
-        </p>
-        {prefill && (
-          <p>
-            <span style={{ color: "var(--twx-ink-muted)" }}>Betöltött adat:</span>{" "}
-            {[prefill.telepules, prefill.utca, prefill.tipus, prefill.meret].filter(Boolean).join(" · ")}
-          </p>
+      {/* 4) Elrendezés + generálás */}
+      <section className="space-y-4">
+        <h2 className="font-display text-xl font-medium">4. Elrendezés és formátum</h2>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm">Formátum</label>
+            <select value={format} onChange={(e) => setFormat(e.target.value)} className="twx-input mt-1">
+              {FLYER_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              A színt, betűt és a témát a kiválasztott arculat adja.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm">Szekciók</label>
+            <div className="mt-1 flex flex-wrap gap-3 text-sm">
+              {([
+                ["highlights", "Kiemelések"],
+                ["characteristics", "Jellemzők"],
+                ["gallery", "Galéria"],
+                ["infra", "Infrastruktúra"],
+                ["transport", "Közlekedés"],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={sections[key]}
+                    onChange={(e) => setSections((s) => ({ ...s, [key]: e.target.checked }))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <button onClick={generateFlyer} disabled={flyerLoading} className="twx-btn w-full">
+          {flyerLoading ? "Hirdetés készül… (10-20 mp)" : "Hirdetés generálása"}
+        </button>
+        {flyerError && <p className="text-sm text-red-600">{flyerError}</p>}
+
+        {flyerUrl && (
+          <div className="space-y-3">
+            <p className="text-sm text-green-700">Kész! A hirdetés elkészült.</p>
+            {flyerUrl.endsWith(".pdf") ? null : (
+              <img src={flyerUrl} alt="Hirdetés" className="w-full max-w-sm rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+            )}
+            <div className="flex flex-wrap gap-3">
+              <a href={flyerUrl} target="_blank" rel="noreferrer" className="twx-btn">Megnyitás</a>
+              <a
+                href={toDownloadUrl(flyerUrl)}
+                className="rounded-full px-5 py-2.5 text-sm font-medium"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+              >
+                Letöltés
+              </a>
+            </div>
+          </div>
         )}
       </section>
-
-      <button
-        disabled
-        className="twx-btn w-full"
-        title="A szöveg és az elrendezés a következő fázisban készül el"
-      >
-        Tovább a szöveghez és az elrendezéshez (hamarosan)
-      </button>
 
       {/* Saját kép feltöltése — felugró ablak (a könyvtár mögötte marad) */}
       {uploadOpen && (
