@@ -408,7 +408,7 @@ export default function FlyerPage() {
 
         {/* Alapadatok */}
         <div>
-          <p className="mb-2 text-sm font-medium">Alapadatok (ezekből dolgozik az AI)</p>
+          <p className="mb-2 text-sm font-medium">Alapadatok (ezekből dolgozik a Twinx)</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-sm">Elhelyezkedés</label>
@@ -452,7 +452,7 @@ export default function FlyerPage() {
             </select>
           </div>
           <button onClick={generateText} disabled={genLoading} className="twx-btn">
-            {genLoading ? "Generálás…" : "AI-szöveg generálása"}
+            {genLoading ? "Generálás…" : "Szöveg generálása"}
           </button>
           <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             A generált szöveget alább kézzel is átírhatod.
