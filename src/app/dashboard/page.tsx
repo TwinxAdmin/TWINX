@@ -4,6 +4,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
+import PricingTrigger from "@/components/PricingTrigger";
 import { activityTitle, featureLabel } from "@/lib/activity";
 
 type HistoryRow = {
@@ -50,13 +51,12 @@ export default async function DashboardHome() {
           </p>
           <p className="font-display text-5xl font-semibold">{balance}</p>
         </div>
-        <a
-          href="/pricing"
+        <PricingTrigger
           className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
           style={{ background: "var(--twx-coral)", color: "#1c1005" }}
         >
           Egyenleg feltöltése
-        </a>
+        </PricingTrigger>
       </section>
 
       {/* Kategóriák (App Store-szerű áttekintés) */}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
 import DashboardNav from "@/components/DashboardNav";
 import B2BModal from "@/components/B2BModal";
+import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
 
 export default async function DashboardLayout({
@@ -67,8 +68,9 @@ export default async function DashboardLayout({
       </header>
       <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
 
-      {/* Egyedi fejlesztés / árajánlatkérés modál (ha nincs saját modul) */}
+      {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
+      <PricingModal />
     </div>
   );
 }
