@@ -30,7 +30,8 @@ function renderBody(body: string): string {
   };
 
   for (const raw of lines) {
-    const line = raw.trim();
+    // Perplexity hivatkozás-jelek eltávolítása (pl. [1], [9][10]).
+    const line = raw.replace(/\[\d+\]/g, "").trim();
     if (!line) {
       closeList();
       continue;
@@ -43,10 +44,20 @@ function renderBody(body: string): string {
       html += `<h3 class="section">${inline(m[1])}</h3>`;
       continue;
     }
-    // Számozott szekció: "1. Cím" / "1.  **Cím:**"
+    // Számozott szekció: "1. Cím: tartalom" — a címke cím, a tartalom bekezdés.
     if ((m = line.match(/^(\d+)\.\s+(.*)$/))) {
       closeList();
-      html += `<h3 class="section"><span class="num">${m[1]}</span><span>${inline(m[2])}</span></h3>`;
+      const num = m[1];
+      const rest = m[2].replace(/\*\*/g, "").trim(); // a címkéből a ** felesleges
+      const ci = rest.indexOf(":");
+      if (ci > 0 && ci < rest.length - 1) {
+        const label = rest.slice(0, ci).trim();
+        const content = rest.slice(ci + 1).trim();
+        html += `<h3 class="section"><span class="num">${num}</span><span>${esc(label)}</span></h3>`;
+        if (content) html += `<p>${inline(content)}</p>`;
+      } else {
+        html += `<h3 class="section"><span class="num">${num}</span><span>${esc(rest.replace(/:$/, ""))}</span></h3>`;
+      }
       continue;
     }
     // Felsorolás: *, -, •
