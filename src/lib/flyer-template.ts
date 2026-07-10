@@ -77,7 +77,7 @@ export function buildFlyerHtml(opts: {
 <link rel="stylesheet" href="${font.link}">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: ${format.width}px; }
+  html, body { width: ${format.width}px; height: ${format.height}px; background: ${bg}; overflow: hidden; }
   .flyer {
     position: relative;
     width: ${format.width}px; min-height: ${format.height}px;

@@ -26,6 +26,20 @@ export async function renderFlyer(
     await page.setViewport({ width: format.width, height: format.height, deviceScaleFactor: 2 });
     await page.setContent(html, { waitUntil: "networkidle0" });
 
+    // Fit-to-page: ha a tartalom magasabb a lapnál, arányosan lekicsinyítjük,
+    // hogy semmi (arculat/lábléc) ne vágódjon le. Vízszintesen középre igazítjuk.
+    await page.evaluate((targetH: number) => {
+      const el = document.querySelector(".flyer") as HTMLElement | null;
+      if (!el) return;
+      const natural = el.scrollHeight;
+      if (natural > targetH) {
+        const scale = targetH / natural;
+        const offset = (el.offsetWidth - el.offsetWidth * scale) / 2;
+        el.style.transformOrigin = "top left";
+        el.style.transform = `translateX(${offset}px) scale(${scale})`;
+      }
+    }, format.height);
+
     if (format.kind === "pdf") {
       const pdf = await page.pdf({
         width: `${format.width}px`,
