@@ -225,14 +225,27 @@ export default function FlyerPage() {
                   );
                 })}
               </div>
-              {libraryImages.length > visibleCount && (
-                <button
-                  onClick={() => setVisibleCount((c) => c + 8)}
-                  className="mt-3 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-                >
-                  Továbbiak betöltése ({libraryImages.length - visibleCount})
-                </button>
+              {(libraryImages.length > visibleCount || visibleCount > 8) && (
+                <div className="mt-3 flex gap-2">
+                  {libraryImages.length > visibleCount && (
+                    <button
+                      onClick={() => setVisibleCount((c) => c + 8)}
+                      className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                      style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                    >
+                      Továbbiak betöltése ({libraryImages.length - visibleCount})
+                    </button>
+                  )}
+                  {visibleCount > 8 && (
+                    <button
+                      onClick={() => setVisibleCount((c) => Math.max(8, c - 8))}
+                      className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                      style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }}
+                    >
+                      Kevesebb kép
+                    </button>
+                  )}
+                </div>
               )}
             </>
           )}
