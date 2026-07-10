@@ -20,6 +20,7 @@ export default function FlyerPage() {
   const [uploads, setUploads] = useState<{ file: File; url: string }[]>([]);
   const [prefill, setPrefill] = useState<LibraryItem["data"] | null>(null);
   const [visibleCount, setVisibleCount] = useState(8); // 2 sor (4 oszlop) alapból
+  const [infoItem, setInfoItem] = useState<LibraryItem | null>(null); // összefoglaló ablak
 
   useEffect(() => {
     (async () => {
@@ -147,15 +148,17 @@ export default function FlyerPage() {
                     return (
                       <button
                         key={i.id}
-                        onClick={() => setPrefill(active ? null : i.data)}
-                        className="rounded-full px-3 py-1.5 text-xs transition-colors"
+                        onClick={() => setInfoItem(i)}
+                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors"
                         style={{
                           border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
                           background: active ? "var(--twx-coral-soft)" : "var(--twx-cream-card)",
                           color: "var(--twx-ink)",
                         }}
                       >
+                        {active && <span style={{ color: "var(--twx-coral)" }}>✓</span>}
                         {i.title}
+                        <span style={{ color: "var(--twx-ink-muted)" }}>ⓘ</span>
                       </button>
                     );
                   })}
@@ -262,6 +265,80 @@ export default function FlyerPage() {
       >
         Tovább a szöveghez és az elrendezéshez (hamarosan)
       </button>
+
+      {/* Összefoglaló ablak egy korábbi munka adatairól */}
+      {infoItem && (
+        <div
+          onClick={() => setInfoItem(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(12,11,10,0.82)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl p-6"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-xl font-semibold">{infoItem.title}</h3>
+                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {infoItem.typeLabel} · {new Date(infoItem.createdAt).toLocaleDateString("hu-HU")}
+                </p>
+              </div>
+              <button
+                onClick={() => setInfoItem(null)}
+                aria-label="Bezárás"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg"
+                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
+              >
+                ×
+              </button>
+            </div>
+
+            {infoItem.details.length > 0 ? (
+              <dl className="mt-4 space-y-1.5">
+                {infoItem.details.map((d) => (
+                  <div key={d.label} className="flex gap-3 text-sm">
+                    <dt className="min-w-[130px] shrink-0" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</dt>
+                    <dd className="flex-1">{d.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="mt-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                Ehhez a munkához nincs részletes adat.
+              </p>
+            )}
+
+            {infoItem.pdfUrl && (
+              <a href={infoItem.pdfUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm underline" style={{ color: "var(--twx-coral)" }}>
+                Eredeti PDF megnyitása
+              </a>
+            )}
+
+            <div className="mt-5 flex gap-3">
+              {infoItem.data && (
+                <button
+                  onClick={() => {
+                    setPrefill(prefill === infoItem.data ? null : infoItem.data);
+                    setInfoItem(null);
+                  }}
+                  className="twx-btn"
+                >
+                  {prefill === infoItem.data ? "Betöltés visszavonása" : "Adatok betöltése"}
+                </button>
+              )}
+              <button
+                onClick={() => setInfoItem(null)}
+                className="rounded-full px-5 py-2.5 text-sm font-medium"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }}
+              >
+                Bezárás
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

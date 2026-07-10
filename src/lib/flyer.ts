@@ -45,4 +45,5 @@ export type LibraryItem = {
     meret?: string;
     szobak?: string;
   } | null;
+  details: { label: string; value: string }[]; // összefoglaló a felugró ablakhoz
 };

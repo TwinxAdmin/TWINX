@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import type { LibraryItem } from "@/lib/flyer";
+import { VALUATION_FIELDS } from "@/lib/valuation";
+import { LAND_FIELDS } from "@/lib/land";
+
+// A funkcióhoz tartozó mezők (key -> label) az összefoglalóhoz.
+function detailFields(feature: string): { key: string; label: string }[] {
+  if (feature === "valuation") return VALUATION_FIELDS.map((f) => ({ key: f.key, label: f.label }));
+  if (feature === "land-valuation") return LAND_FIELDS.map((f) => ({ key: f.key, label: f.label }));
+  return [];
+}
 
 export const runtime = "nodejs";
 
@@ -66,6 +75,10 @@ export async function GET() {
           }
         : null;
 
+    const details = detailFields(r.feature_used)
+      .map((f) => ({ label: f.label, value: s(d[f.key]) ?? "" }))
+      .filter((x) => x.value.length > 0);
+
     return {
       id: r.id,
       type: r.feature_used,
@@ -75,6 +88,7 @@ export async function GET() {
       images,
       pdfUrl,
       data,
+      details,
     };
   });
 
