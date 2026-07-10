@@ -85,8 +85,8 @@ export default async function LandingPage() {
         />
 
         <nav className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-6">
-          <div className="flex min-w-0 flex-col leading-tight">
-            <Wordmark className="font-display text-3xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }} />
+          <div className="flex min-w-0 flex-col leading-tight" style={{ marginLeft: "-0.06em" }}>
+            <Wordmark className="font-display text-3xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
             <span
               className="font-display text-sm font-medium sm:text-base"
               style={{ color: "var(--twx-coral)", letterSpacing: "0.04em" }}
