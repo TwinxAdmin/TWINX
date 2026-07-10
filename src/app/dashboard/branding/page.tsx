@@ -133,7 +133,10 @@ export default function BrandingPage() {
             <li key={p.id} className="twx-card flex items-center justify-between gap-4 p-4">
               <button
                 type="button"
-                onClick={() => openEdit(p)}
+                onClick={() => {
+                  if (showForm && editing?.id === p.id) setShowForm(false);
+                  else openEdit(p);
+                }}
                 className="flex flex-1 items-center gap-3 rounded-lg text-left transition-colors hover:bg-black/[0.03]"
               >
                 {p.logo_url ? (
