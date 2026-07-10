@@ -85,13 +85,13 @@ export default async function LandingPage() {
         />
 
         <nav className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-6">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-col leading-tight">
             <Wordmark className="font-display text-3xl font-semibold tracking-wide" style={{ color: "var(--twx-on-dark)" }} />
             <span
-              className="hidden rounded-full px-3 py-1 text-xs font-medium xl:inline"
-              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              className="font-display text-sm font-medium sm:text-base"
+              style={{ color: "var(--twx-coral)", letterSpacing: "0.04em" }}
             >
-              Automatizált üzleti intelligencia.
+              Automatizált üzleti intelligencia
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
