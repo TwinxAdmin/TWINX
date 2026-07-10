@@ -131,7 +131,11 @@ export default function BrandingPage() {
         <ul className="space-y-3">
           {profiles.map((p) => (
             <li key={p.id} className="twx-card flex items-center justify-between gap-4 p-4">
-              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => openEdit(p)}
+                className="flex flex-1 items-center gap-3 rounded-lg text-left transition-colors hover:bg-black/[0.03]"
+              >
                 {p.logo_url ? (
                   <img src={p.logo_url} alt="" className="h-10 w-10 rounded object-contain" style={{ border: "1px solid var(--twx-line)" }} />
                 ) : (
@@ -144,7 +148,7 @@ export default function BrandingPage() {
                     {p.title ? ` · ${p.title}` : ""}
                   </p>
                 </div>
-              </div>
+              </button>
               <div className="flex items-center gap-2">
                 <span className="h-5 w-5 rounded-full" style={{ background: p.accent_color, border: "1px solid var(--twx-line)" }} />
                 <button onClick={() => openEdit(p)} className="text-sm underline" style={{ color: "var(--twx-coral)" }}>
