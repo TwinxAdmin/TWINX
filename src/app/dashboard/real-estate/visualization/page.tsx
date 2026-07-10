@@ -3,7 +3,8 @@
 // Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
 
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { toDownloadUrl } from "@/lib/files";
 import {
   ROOM_TYPES,
   STYLE_OPTIONS,
@@ -34,6 +35,34 @@ export default function VisualizationPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [viewer, setViewer] = useState<number | null>(null);
+
+  const closeViewer = useCallback(() => setViewer(null), []);
+  const moveViewer = useCallback(
+    (dir: number) =>
+      setViewer((i) => {
+        if (i === null) return i;
+        const n = i + dir;
+        return n < 0 || n >= resultUrls.length ? i : n;
+      }),
+    [resultUrls.length]
+  );
+
+  useEffect(() => {
+    if (viewer === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeViewer();
+      else if (e.key === "ArrowLeft") moveViewer(-1);
+      else if (e.key === "ArrowRight") moveViewer(1);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [viewer, closeViewer, moveViewer]);
 
   function addFiles(fileList: FileList | null) {
     if (!fileList) return;
@@ -323,23 +352,99 @@ export default function VisualizationPage() {
       {resultUrls.length > 0 && (
         <div className="space-y-2">
           <h2 className="font-display font-medium">Eredmény</h2>
+          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Kattints egy képre a nagyításhoz és letöltéshez.
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {resultUrls.map((url, i) => (
-              <div key={url} className="space-y-1">
+              <button
+                key={url}
+                type="button"
+                onClick={() => setViewer(i)}
+                className="overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                style={{ border: "1px solid var(--twx-line)" }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`Látványterv ${i + 1}`} className="w-full object-cover" />
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block text-xs underline"
-                  style={{ color: "var(--twx-coral)" }}
-                >
-                  Letöltés
-                </a>
-              </div>
+              </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Nézegető ablak */}
+      {viewer !== null && resultUrls[viewer] && (
+        <div
+          onClick={closeViewer}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(12,11,10,0.85)" }}
+        >
+          {resultUrls.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); moveViewer(-1); }}
+              disabled={viewer === 0}
+              aria-label="Előző"
+              className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-2xl"
+              style={{ background: "rgba(255,255,255,0.1)", color: "#fff", opacity: viewer === 0 ? 0.3 : 1 }}
+            >
+              ‹
+            </button>
+          )}
+
+          <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] max-w-[92vw] flex-col items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={resultUrls[viewer]}
+              alt="Látványterv"
+              className="max-h-[80vh] max-w-[92vw] rounded-xl object-contain"
+              style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+            />
+            <div className="flex items-center gap-3">
+              <a
+                href={resultUrls[viewer]}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full px-5 py-2 text-sm font-medium"
+                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              >
+                Megnyitás
+              </a>
+              <a
+                href={toDownloadUrl(resultUrls[viewer])}
+                className="rounded-full px-5 py-2 text-sm font-medium"
+                style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
+              >
+                Letöltés
+              </a>
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
+                {viewer + 1} / {resultUrls.length}
+              </span>
+            </div>
+          </div>
+
+          {resultUrls.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); moveViewer(1); }}
+              disabled={viewer === resultUrls.length - 1}
+              aria-label="Következő"
+              className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-2xl"
+              style={{ background: "rgba(255,255,255,0.1)", color: "#fff", opacity: viewer === resultUrls.length - 1 ? 0.3 : 1 }}
+            >
+              ›
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); closeViewer(); }}
+            aria-label="Bezárás"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-xl"
+            style={{ background: "rgba(255,255,255,0.1)", color: "#fff" }}
+          >
+            ×
+          </button>
         </div>
       )}
     </main>
