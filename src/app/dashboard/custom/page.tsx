@@ -38,14 +38,14 @@ export default async function CustomModulesPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">Egyedi B2B modulok</h1>
-      <p className="text-sm text-gray-500">
+      <h1 className="font-display text-3xl font-semibold">Egyedi B2B modulok</h1>
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         A számodra engedélyezett privát modulok. Hozzáférést az adminisztrátor ad
         (company_access).
       </p>
 
       {list.length === 0 ? (
-        <div className="border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+        <div className="rounded-xl p-4 text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
           Jelenleg nincs elérhető privát modul.
         </div>
       ) : (
@@ -53,10 +53,10 @@ export default async function CustomModulesPage() {
           {list.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between border border-gray-200 p-3 text-sm"
+              className="twx-card flex items-center justify-between p-3 text-sm"
             >
               <span>{s.name}</span>
-              <span className="text-xs text-gray-400">{s.slug}</span>
+              <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{s.slug}</span>
             </li>
           ))}
         </ul>

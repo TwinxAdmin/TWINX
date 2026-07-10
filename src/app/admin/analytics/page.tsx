@@ -26,16 +26,17 @@ export default async function AdminAnalyticsPage() {
   const m = await getMetrics();
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-6 font-sans">
+    <main className="twx-page font-sans">
+      <div className="mx-auto max-w-4xl space-y-6 px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Admin — Költségfigyelő</h1>
-        <nav className="flex gap-3 text-sm underline">
+        <h1 className="font-display text-3xl font-semibold">Admin — Költségfigyelő</h1>
+        <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
           <a href="/admin/ideas">Ötletek</a>
           <a href="/admin/credits">Kredit</a>
           <a href="/dashboard">Dashboard</a>
         </nav>
       </div>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Árfolyam: 1 USD = {m.hufPerUsd} Ft. A költség becsült nyers API-önköltség.
       </p>
 
@@ -55,15 +56,15 @@ export default async function AdminAnalyticsPage() {
       </div>
 
       <section>
-        <h2 className="font-medium">Szolgáltatás-alapú lebontás</h2>
+        <h2 className="font-display font-medium">Szolgáltatás-alapú lebontás</h2>
         {m.byFeature.length === 0 ? (
-          <div className="mt-2 border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+          <div className="mt-2 rounded-xl p-4 text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
             Még nincs költségadat.
           </div>
         ) : (
-          <table className="mt-2 w-full border border-gray-200 text-sm">
+          <table className="mt-2 w-full text-sm twx-card">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-gray-500">
+              <tr className="text-left" style={{ borderBottom: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
                 <th className="p-2">Funkció</th>
                 <th className="p-2">Külső API</th>
                 <th className="p-2 text-right">Hívások</th>
@@ -74,7 +75,7 @@ export default async function AdminAnalyticsPage() {
             </thead>
             <tbody>
               {m.byFeature.map((f) => (
-                <tr key={`${f.feature}-${f.serviceName}`} className="border-b border-gray-100">
+                <tr key={`${f.feature}-${f.serviceName}`} style={{ borderBottom: "1px solid var(--twx-line)" }}>
                   <td className="p-2">{f.feature}</td>
                   <td className="p-2">{f.serviceName}</td>
                   <td className="p-2 text-right">{f.count}</td>
@@ -88,11 +89,12 @@ export default async function AdminAnalyticsPage() {
         )}
       </section>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Megjegyzés: a bevétel csak azoknál a vásárlásoknál jelenik meg, ahol a fizetett
         összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `metrics.sql`-ben
         lévő visszatöltő sorral pótolható.
       </p>
+      </div>
     </main>
   );
 }
@@ -113,12 +115,12 @@ function Card({
       ? "text-green-700"
       : highlight === "neg"
         ? "text-red-600"
-        : "text-gray-900";
+        : "";
   return (
-    <div className="border border-gray-200 p-4">
-      <p className="text-xs uppercase text-gray-500">{label}</p>
+    <div className="twx-card p-4">
+      <p className="text-xs uppercase" style={{ color: "var(--twx-ink-muted)" }}>{label}</p>
       <p className={`mt-1 text-xl font-semibold ${color}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-gray-500">{sub}</p>}
+      {sub && <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{sub}</p>}
     </div>
   );
 }

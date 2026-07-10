@@ -106,16 +106,16 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
   if (jobId) {
     return (
       <main className="mx-auto max-w-2xl space-y-4">
-        <h1 className="text-2xl font-semibold">Marketing videó</h1>
+        <h1 className="font-display text-3xl font-semibold">Marketing videó</h1>
         {status !== "done" && status !== "failed" && (
-          <div className="border border-gray-200 p-4 text-sm">
+          <div className="twx-card p-4 text-sm">
             <p className="font-medium">Feldolgozás folyamatban…</p>
-            <p className="mt-1 text-gray-500">
+            <p className="mt-1" style={{ color: "var(--twx-ink-muted)" }}>
               {status === "rendering"
                 ? "Vágás és zene ráillesztése…"
                 : `Animálás: ${progress?.done ?? 0}/${progress?.total ?? 0} snitt kész`}
             </p>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
               Ez több percig is eltarthat. Az oldal automatikusan frissül.
             </p>
           </div>
@@ -125,7 +125,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
             <p className="text-sm text-green-700">Kész a videó!</p>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video src={outputUrl} controls className="w-full" />
-            <a href={outputUrl} target="_blank" rel="noreferrer" className="block text-sm underline">
+            <a href={outputUrl} target="_blank" rel="noreferrer" className="block text-sm underline" style={{ color: "var(--twx-coral)" }}>
               Letöltés
             </a>
           </div>
@@ -141,8 +141,8 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
 
   return (
     <main className="mx-auto max-w-3xl space-y-5">
-      <h1 className="text-2xl font-semibold">Marketing videó</h1>
-      <p className="text-sm text-gray-500">
+      <h1 className="font-display text-3xl font-semibold">Marketing videó</h1>
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Válassz {MIN_VIDEO_IMAGES}-{MAX_VIDEO_IMAGES} képet (korábbi látványtervekből
         vagy feltöltéssel), formátumot és zenei stílust. A kredit a képszámtól függ.
       </p>
@@ -150,21 +150,20 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
       {/* Korábbi látványtervek */}
       {historyImages.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium">Korábbi látványtervekből</h2>
+          <h2 className="font-display text-sm font-medium">Korábbi látványtervekből</h2>
           <div className="mt-2 grid grid-cols-4 gap-2">
             {historyImages.map((url) => (
               <button
                 key={url}
                 type="button"
                 onClick={() => toggleHistory(url)}
-                className={`relative border-2 ${
-                  selected.has(url) ? "border-gray-800" : "border-transparent"
-                }`}
+                className="relative rounded-lg border-2"
+                style={{ borderColor: selected.has(url) ? "var(--twx-coral)" : "transparent" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="Látványterv" className="h-20 w-full object-cover" />
                 {selected.has(url) && (
-                  <span className="absolute left-0 top-0 bg-gray-800 px-1 text-xs text-white">
+                  <span className="absolute left-0 top-0 px-1 text-xs" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
                     ✓
                   </span>
                 )}
@@ -176,10 +175,11 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
 
       {/* Feltöltés */}
       <section>
-        <h2 className="text-sm font-medium">Vagy tölts fel eredeti képeket</h2>
+        <h2 className="font-display text-sm font-medium">Vagy tölts fel eredeti képeket</h2>
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="mt-2 cursor-pointer border-2 border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+          className="mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-sm"
+          style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
         >
           Kattints a tallózáshoz (JPG / PNG / WEBP)
           <input
@@ -200,7 +200,8 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
                 <button
                   type="button"
                   onClick={() => removeUpload(i)}
-                  className="absolute right-0 top-0 bg-gray-800 px-1 text-xs text-white"
+                  className="absolute right-0 top-0 px-1 text-xs"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
                 >
                   ×
                 </button>
@@ -220,7 +221,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
             id="format"
             value={format}
             onChange={(e) => setFormat(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
           >
             {VIDEO_FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -237,7 +238,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
             id="music"
             value={musicStyle}
             onChange={(e) => setMusicStyle(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
           >
             {MUSIC_STYLES.map((s) => (
               <option key={s.slug} value={s.slug}>
@@ -248,7 +249,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
         </div>
       </div>
 
-      <div className="text-sm text-gray-600">
+      <div className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Kiválasztva: {count} kép ·{" "}
         {validCount ? (
           <span className="font-medium">{credits} kredit</span>
@@ -263,7 +264,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
         type="button"
         onClick={onSubmit}
         disabled={loading || !validCount}
-        className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
+        className="twx-btn w-full"
       >
         {loading ? "Indítás…" : "Videó generálása"}
       </button>

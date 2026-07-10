@@ -114,8 +114,8 @@ export default function VisualizationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">Ingatlan Látványtervező</h1>
-      <p className="text-sm text-gray-500">
+      <h1 className="font-display text-3xl font-semibold">Ingatlan Látványtervező</h1>
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Tölts fel max. {MAX_IMAGES} képet. Kattints egy képre, add meg a helységet
         (kötelező) és a kívánt módosításokat (opcionális). Egy ingatlan = 1 kredit
         (admin/sales díjmentes).
@@ -130,11 +130,13 @@ export default function VisualizationPage() {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`cursor-pointer border-2 border-dashed p-6 text-center text-sm ${
-          dragOver ? "border-gray-800 bg-gray-50" : "border-gray-300"
-        }`}
+        className="cursor-pointer rounded-xl border-2 border-dashed p-6 text-center text-sm"
+        style={{
+          borderColor: dragOver ? "var(--twx-coral)" : "var(--twx-line)",
+          background: dragOver ? "var(--twx-cream-card)" : "transparent",
+        }}
       >
-        <span className="text-gray-500">
+        <span style={{ color: "var(--twx-ink-muted)" }}>
           Húzd ide a képeket, vagy kattints a tallózáshoz (JPG / PNG / WEBP, max. 10 MB,
           max. {MAX_IMAGES})
         </span>
@@ -157,16 +159,14 @@ export default function VisualizationPage() {
               <div
                 key={it.url}
                 onClick={() => setSelected(i)}
-                className={`relative cursor-pointer border-2 ${
-                  selected === i ? "border-gray-800" : "border-transparent"
-                }`}
+                className="relative cursor-pointer rounded-lg border-2"
+                style={{ borderColor: selected === i ? "var(--twx-coral)" : "transparent" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={it.url} alt={`Kép ${i + 1}`} className="h-20 w-full object-cover" />
                 <span
-                  className={`absolute left-0 top-0 px-1 text-xs text-white ${
-                    ready ? "bg-green-600" : "bg-gray-500"
-                  }`}
+                  className="absolute left-0 top-0 px-1 text-xs text-white"
+                  style={{ background: ready ? "#16a34a" : "var(--twx-ink-muted)" }}
                 >
                   {ready ? "kész" : "beállít"}
                 </span>
@@ -176,7 +176,8 @@ export default function VisualizationPage() {
                     e.stopPropagation();
                     removeAt(i);
                   }}
-                  className="absolute right-0 top-0 bg-gray-800 px-1 text-xs text-white"
+                  className="absolute right-0 top-0 px-1 text-xs"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
                   aria-label="Törlés"
                 >
                   ×
@@ -189,8 +190,8 @@ export default function VisualizationPage() {
 
       {/* Konfig panel a kiválasztott képhez */}
       {current && (
-        <div className="space-y-3 border border-gray-200 p-4">
-          <h2 className="font-medium">
+        <div className="twx-card space-y-3 p-4">
+          <h2 className="font-display font-medium">
             {(selected ?? 0) + 1}. kép beállításai
           </h2>
 
@@ -198,7 +199,7 @@ export default function VisualizationPage() {
             <select
               value={current.config.roomType}
               onChange={(e) => updateConfig({ roomType: e.target.value })}
-              className="w-full border border-gray-300 p-2 text-sm"
+              className="twx-input"
             >
               <option value="">— Válassz helységet —</option>
               {ROOM_TYPES.map((r) => (
@@ -213,7 +214,7 @@ export default function VisualizationPage() {
             <select
               value={current.config.style}
               onChange={(e) => updateConfig({ style: e.target.value })}
-              className="w-full border border-gray-300 p-2 text-sm"
+              className="twx-input"
             >
               {STYLE_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -239,9 +240,8 @@ export default function VisualizationPage() {
               <button
                 type="button"
                 onClick={() => updateConfig({ wallColor: "" })}
-                className={`h-7 rounded border px-2 text-xs ${
-                  current.config.wallColor === "" ? "border-gray-800" : "border-gray-300"
-                }`}
+                className="h-7 rounded border px-2 text-xs"
+                style={{ borderColor: current.config.wallColor === "" ? "var(--twx-coral)" : "var(--twx-line)" }}
               >
                 nincs
               </button>
@@ -251,12 +251,14 @@ export default function VisualizationPage() {
                   type="button"
                   title={c.label}
                   onClick={() => updateConfig({ wallColor: c.value })}
-                  className={`h-7 w-7 rounded-full border-2 ${
-                    current.config.wallColor === c.value
-                      ? "border-gray-800"
-                      : "border-gray-200"
-                  }`}
-                  style={{ backgroundColor: c.hex }}
+                  className="h-7 w-7 rounded-full border-2"
+                  style={{
+                    backgroundColor: c.hex,
+                    borderColor:
+                      current.config.wallColor === c.value
+                        ? "var(--twx-coral)"
+                        : "var(--twx-line)",
+                  }}
                 />
               ))}
             </div>
@@ -293,7 +295,7 @@ export default function VisualizationPage() {
               onChange={(e) => updateConfig({ note: e.target.value })}
               rows={2}
               maxLength={MAX_NOTE_LENGTH}
-              className="w-full border border-gray-300 p-2 text-sm"
+              className="twx-input"
               placeholder="pl. növények, meleg tónusok"
             />
           </Field>
@@ -305,7 +307,7 @@ export default function VisualizationPage() {
         <button
           type="submit"
           disabled={loading || !allReady}
-          className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
+          className="twx-btn w-full"
         >
           {loading
             ? "Generálás…"
@@ -320,7 +322,7 @@ export default function VisualizationPage() {
 
       {resultUrls.length > 0 && (
         <div className="space-y-2">
-          <h2 className="font-medium">Eredmény</h2>
+          <h2 className="font-display font-medium">Eredmény</h2>
           <div className="grid grid-cols-2 gap-2">
             {resultUrls.map((url, i) => (
               <div key={url} className="space-y-1">
@@ -331,6 +333,7 @@ export default function VisualizationPage() {
                   target="_blank"
                   rel="noreferrer"
                   className="block text-xs underline"
+                  style={{ color: "var(--twx-coral)" }}
                 >
                   Letöltés
                 </a>
@@ -368,7 +371,7 @@ function OptionSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-300 p-2 text-sm"
+        className="twx-input"
       >
         <option value="">— Válassz —</option>
         {options.map((o) => (

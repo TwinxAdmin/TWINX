@@ -63,7 +63,7 @@ export default function IdeaForm() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
           />
           {errors.authorName && (
             <p className="mt-1 text-xs text-red-600">{errors.authorName}</p>
@@ -78,7 +78,7 @@ export default function IdeaForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 p-2 text-sm"
+            className="twx-input mt-1"
           />
           {errors.authorEmail && (
             <p className="mt-1 text-xs text-red-600">{errors.authorEmail}</p>
@@ -95,7 +95,7 @@ export default function IdeaForm() {
           onChange={(e) => setContent(e.target.value)}
           rows={3}
           maxLength={1000}
-          className="w-full border border-gray-300 p-2 text-sm"
+          className="twx-input mt-1"
           placeholder="Milyen funkciót, modult vagy fejlesztést szeretnél látni?"
         />
         {errors.content && <p className="mt-1 text-xs text-red-600">{errors.content}</p>}
@@ -103,8 +103,7 @@ export default function IdeaForm() {
       <button
         type="submit"
         disabled={loading}
-        className="rounded-full px-6 py-2.5 text-sm font-medium disabled:opacity-50"
-        style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+        className="twx-btn"
       >
         {loading ? "Küldés…" : "Ötlet beküldése"}
       </button>

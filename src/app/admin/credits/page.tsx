@@ -20,20 +20,22 @@ export default async function AdminCreditsPage() {
   if (me?.role !== "admin") redirect("/dashboard");
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6 font-sans">
+    <main className="twx-page font-sans">
+      <div className="mx-auto max-w-2xl space-y-6 px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Admin — Kredit adása</h1>
-        <nav className="flex gap-3 text-sm underline">
+        <h1 className="font-display text-3xl font-semibold">Admin — Kredit adása</h1>
+        <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
           <a href="/admin/analytics">Analitika</a>
           <a href="/admin/ideas">Ötletek</a>
           <a href="/dashboard">Dashboard</a>
         </nav>
       </div>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Manuális kredit-jóváírás egy felhasználónak (pl. értékesítői / prezentációs
         célra). A kreditek nem járnak le. Az Ingatlan modul egyenlegéhez írja jóvá.
       </p>
       <AdminCreditForm />
+      </div>
     </main>
   );
 }

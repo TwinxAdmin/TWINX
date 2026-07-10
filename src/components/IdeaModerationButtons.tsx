@@ -43,7 +43,8 @@ export default function IdeaModerationButtons({
         <button
           onClick={() => act("reject")}
           disabled={loading}
-          className="border border-gray-400 px-2 py-1 text-gray-600 disabled:opacity-50"
+          className="border px-2 py-1 disabled:opacity-50"
+          style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
         >
           Elutasítás
         </button>

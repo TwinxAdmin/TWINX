@@ -62,8 +62,8 @@ export default function ValuationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">Ingatlan Értékbecslő</h1>
-      <p className="text-sm text-gray-500">
+      <h1 className="font-display text-3xl font-semibold">Ingatlan Értékbecslő</h1>
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Válaszd a listából a leggyakoribb értékeket, vagy írj be sajátot. A csillagos
         (*) mezők kötelezők. Egy értékbecslés 1 kredit (admin/sales díjmentes).
       </p>
@@ -88,7 +88,7 @@ export default function ValuationPage() {
                   value={values[field.key]}
                   onChange={(e) => setField(field.key, e.target.value)}
                   placeholder={field.placeholder}
-                  className="w-full border border-gray-300 p-2 text-sm"
+                  className="twx-input mt-1"
                 />
                 {field.options && (
                   <datalist id={listId}>
@@ -108,7 +108,7 @@ export default function ValuationPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full border border-gray-800 bg-gray-800 p-2 text-sm text-white disabled:opacity-50"
+          className="twx-btn w-full"
         >
           {loading ? "Feldolgozás… (akár 30-60 mp)" : "Értékbecslés indítása"}
         </button>
@@ -122,14 +122,15 @@ export default function ValuationPage() {
           href={resultUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-block border border-gray-800 px-4 py-2 text-sm underline"
+          className="inline-block px-4 py-2 text-sm underline"
+          style={{ color: "var(--twx-coral)" }}
         >
           PDF letöltése
         </a>
       )}
 
       {report && (
-        <div className="whitespace-pre-wrap border border-gray-200 p-4 text-sm">
+        <div className="twx-card whitespace-pre-wrap p-4 text-sm">
           {report}
         </div>
       )}
