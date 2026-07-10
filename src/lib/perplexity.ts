@@ -79,3 +79,91 @@ export async function runValuation(input: ValuationInput): Promise<string> {
   if (!content) throw new Error("Üres válasz a Perplexity API-tól.");
   return content as string;
 }
+
+// =====================================================================
+// Generikus Sonar hívások (Telek értékbecslés + újrahasználható más modulokhoz)
+// =====================================================================
+const PPLX_BASE = "https://api.perplexity.ai";
+
+function apiKeyOrThrow(): string {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) throw new Error("Hiányzó PERPLEXITY_API_KEY.");
+  return apiKey;
+}
+
+// Szinkron hívás egy tetszőleges modellel (pl. sonar-pro a "normál" szinthez).
+export async function runSonar(prompt: string, model: string): Promise<string> {
+  const apiKey = apiKeyOrThrow();
+  const res = await fetch(`${PPLX_BASE}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Perplexity hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Üres válasz a Perplexity API-tól.");
+  return content as string;
+}
+
+// Aszinkron beküldés (pl. sonar-deep-research a "magas" szinthez).
+// Visszaadja a Perplexity request id-t, amivel később lekérdezhető az állapot.
+export async function submitSonarAsync(prompt: string, model: string): Promise<string> {
+  const apiKey = apiKeyOrThrow();
+  const res = await fetch(`${PPLX_BASE}/v1/async/sonar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      request: {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+      },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Perplexity async hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const id = data?.id;
+  if (!id) throw new Error("A Perplexity async válasz nem tartalmaz request id-t.");
+  return id as string;
+}
+
+export type SonarAsyncResult =
+  | { status: "processing" }
+  | { status: "completed"; content: string }
+  | { status: "failed"; error: string };
+
+// Async állapot lekérdezése request id alapján.
+export async function getSonarAsync(requestId: string): Promise<SonarAsyncResult> {
+  const apiKey = apiKeyOrThrow();
+  const res = await fetch(`${PPLX_BASE}/v1/async/sonar/${encodeURIComponent(requestId)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Perplexity async lekérdezés hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const status = data?.status as string | undefined;
+
+  if (status === "COMPLETED") {
+    const content = data?.response?.choices?.[0]?.message?.content;
+    if (!content) return { status: "failed", error: "Üres válasz a Perplexity async API-tól." };
+    return { status: "completed", content: content as string };
+  }
+  if (status === "FAILED") {
+    return { status: "failed", error: data?.error_message ?? "A kutatás sikertelen." };
+  }
+  // CREATED | IN_PROGRESS | egyéb
+  return { status: "processing" };
+}
