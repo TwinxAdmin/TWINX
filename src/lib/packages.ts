@@ -21,17 +21,17 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
   {
     id: "real-estate-50",
     serviceSlug: "real-estate",
-    name: "Közepes – 50 kredit (−20%)",
+    name: "Közepes – 50 kredit (−10%)",
     credits: 50,
-    priceHuf: 9960, // 199,2 Ft/kredit (−20%)
+    priceHuf: 11205, // 224,1 Ft/kredit (−10%)
     currency: "huf",
   },
   {
     id: "real-estate-100",
     serviceSlug: "real-estate",
-    name: "Nagy – 100 kredit (−30%)",
+    name: "Nagy – 100 kredit (−20%)",
     credits: 100,
-    priceHuf: 17430, // 174,3 Ft/kredit (−30%)
+    priceHuf: 19920, // 199,2 Ft/kredit (−20%)
     currency: "huf",
   },
 ];
