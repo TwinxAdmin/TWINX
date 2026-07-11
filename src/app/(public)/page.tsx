@@ -10,6 +10,9 @@ import Wordmark from "@/components/Wordmark";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
+// A főoldal futásidőben renderel (Supabase-ből tölti a jóváhagyott ötleteket),
+// ezért NE prerendereljük build-időben — különben env nélkül elbukna a build.
+export const dynamic = "force-dynamic";
 
 const CATEGORIES: {
   title: string;

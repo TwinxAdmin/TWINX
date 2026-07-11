@@ -37,18 +37,23 @@ export type PublicIdea = {
 };
 
 export async function getApprovedIdeas(limit = 50): Promise<PublicIdea[]> {
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("ideas")
-    .select("id, author_name, content, created_at")
-    .eq("status", "approved")
-    .order("approved_at", { ascending: false })
-    .limit(limit);
+  // A publikus főoldal nem dőlhet el emiatt: hiányzó env / hiba esetén üres lista.
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("ideas")
+      .select("id, author_name, content, created_at")
+      .eq("status", "approved")
+      .order("approved_at", { ascending: false })
+      .limit(limit);
 
-  return (data ?? []).map((d) => ({
-    id: d.id as string,
-    authorName: (d.author_name as string | null) ?? null,
-    content: d.content as string,
-    createdAt: d.created_at as string,
-  }));
+    return (data ?? []).map((d) => ({
+      id: d.id as string,
+      authorName: (d.author_name as string | null) ?? null,
+      content: d.content as string,
+      createdAt: d.created_at as string,
+    }));
+  } catch {
+    return [];
+  }
 }
