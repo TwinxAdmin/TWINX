@@ -164,16 +164,12 @@ export function isRoomConfigReady(c: RoomConfig): boolean {
   return validateRoomConfig(c) === null;
 }
 
-// ---- Mesterprompt összeállítása egy képhez ----
-export function buildRoomPrompt(c: RoomConfig): { prompt: string; useReference: boolean } {
-  const room = ROOM_TYPES.find((r) => r.value === c.roomType);
-  const roomEn = room?.en ?? "room";
-  const style = STYLE_OPTIONS.find((s) => s.value === c.style && s.value !== "");
-  // A referenciaképet NEM küldjük a modellnek (az eredeti szobát „lemásolná").
-  // A stílus szövegként megy a promptba; a referenciaképek csak a formon,
-  // vizuális útmutatóként szolgálnak.
-  const useReference = false;
+// ---- Mesterprompt: zárolt adat-blokk (szobatípus + kiválasztott módosítások)
+// és finomítható szegmensek (intro szerep-leírás + negatív korlátozások). ----
 
+// A zárolt "changes" blokk a felhasználó választásaiból épül (a változók zároltak).
+function roomChangesBlock(c: RoomConfig): string {
+  const style = STYLE_OPTIONS.find((s) => s.value === c.style && s.value !== "");
   const changes: string[] = [];
   if (style) changes.push(`Overall interior design style: ${style.en}.`);
   const wc = WALL_COLORS.find((o) => o.value === c.wallColor);
@@ -188,20 +184,47 @@ export function buildRoomPrompt(c: RoomConfig): { prompt: string; useReference: 
   if (lm) changes.push(`Lighting mood: ${lm.en}.`);
   if (c.note.trim()) changes.push(`Additional user requests: ${c.note.trim()}.`);
 
-  const base = [
-    "You are a professional real-estate interior visualization tool.",
-    "The FIRST image is the ORIGINAL room photo. Redesign ONLY the interior finishes, materials and furnishings of this room. The result must be photorealistic and clearly the SAME room, only redecorated.",
-    "CRITICAL — the architecture is FIXED: keep the exact same walls, ceiling and room dimensions, and the exact same number, size and position of windows and doors as in the FIRST image. Never add, remove, move or resize any door, window, arch or opening. Never place a door or window where the FIRST image shows a solid wall or furniture. Keep the exact same camera angle and perspective.",
-    `This room is a ${roomEn}.`,
-  ];
-  void useReference; // referenciaképet szándékosan nem küldünk a modellnek
-
-  const changesBlock =
+  return (
     "Apply the following changes and leave everything else in the original room unchanged:\n" +
-    changes.map((x) => `- ${x}`).join("\n");
+    changes.map((x) => `- ${x}`).join("\n")
+  );
+}
 
-  const negative =
-    "Must avoid: adding doors or windows that are not in the original; moving or changing wall, window or door positions; altering room geometry, proportions or perspective; changing the camera angle; warping or distorting the image; text, watermark or logo; blur or low quality.";
+export const VISUALIZATION_DATA_BLOCK_PREVIEW = `This room is a {szobatípus}.
 
-  return { prompt: `${base.join(" ")}\n\n${changesBlock}\n\n${negative}`, useReference };
+Apply the following changes and leave everything else in the original room unchanged:
+- Overall interior design style: {stílus}
+- Wall color / finish: {falszín} / {falburkolat}
+- Flooring: {padló}
+- Furnishing: {berendezés}
+- Lighting mood: {fényhangulat}
+- Additional user requests: {egyéni kérés}`;
+
+export const VISUALIZATION_DEFAULT_SEGMENTS = {
+  intro: `You are a professional real-estate interior visualization tool. The FIRST image is the ORIGINAL room photo. Redesign ONLY the interior finishes, materials and furnishings of this room. The result must be photorealistic and clearly the SAME room, only redecorated. CRITICAL — the architecture is FIXED: keep the exact same walls, ceiling and room dimensions, and the exact same number, size and position of windows and doors as in the FIRST image. Never add, remove, move or resize any door, window, arch or opening. Never place a door or window where the FIRST image shows a solid wall or furniture. Keep the exact same camera angle and perspective.`,
+  negative: `Must avoid: adding doors or windows that are not in the original; moving or changing wall, window or door positions; altering room geometry, proportions or perspective; changing the camera angle; warping or distorting the image; text, watermark or logo; blur or low quality.`,
+};
+
+export function composeRoomPrompt(
+  c: RoomConfig,
+  segments: { intro?: string; negative?: string }
+): { prompt: string; useReference: boolean } {
+  const room = ROOM_TYPES.find((r) => r.value === c.roomType);
+  const roomEn = room?.en ?? "room";
+  // A referenciaképet NEM küldjük a modellnek (az eredeti szobát „lemásolná").
+  const useReference = false;
+
+  const intro = (segments.intro ?? VISUALIZATION_DEFAULT_SEGMENTS.intro).trim();
+  const negative = (segments.negative ?? VISUALIZATION_DEFAULT_SEGMENTS.negative).trim();
+  const changesBlock = roomChangesBlock(c);
+
+  return {
+    prompt: `${intro} This room is a ${roomEn}.\n\n${changesBlock}\n\n${negative}`,
+    useReference,
+  };
+}
+
+// Alapértelmezett (kód) prompt — kompatibilitáshoz.
+export function buildRoomPrompt(c: RoomConfig): { prompt: string; useReference: boolean } {
+  return composeRoomPrompt(c, VISUALIZATION_DEFAULT_SEGMENTS);
 }

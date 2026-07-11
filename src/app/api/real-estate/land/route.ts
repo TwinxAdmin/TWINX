@@ -12,7 +12,7 @@ import {
   LAND_LEVELS,
   type LandInput,
 } from "@/lib/land";
-import { buildPrompt } from "@/lib/prompts";
+import { buildLandPromptActive } from "@/lib/prompts";
 import { runSonar, submitSonarAsync } from "@/lib/perplexity";
 import { finalizeLandReport } from "@/lib/land-report";
 
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const prompt = await buildPrompt("land", input);
+  const prompt = await buildLandPromptActive(input);
 
   // ---- NORMÁL: szinkron ----
   if (!cfg.async) {

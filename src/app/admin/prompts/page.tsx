@@ -9,6 +9,7 @@ import {
   listPromptVersions,
 } from "@/lib/prompts";
 import PromptEditor from "@/components/PromptEditor";
+import ModuleSelect from "@/components/ModuleSelect";
 
 export const runtime = "nodejs";
 
@@ -56,30 +57,14 @@ export default async function AdminPromptsPage({
           verziót hoz létre; a korábbiak megmaradnak és bármikor visszaállíthatók.
         </p>
 
-        {/* Modulválasztó */}
-        {PROMPT_MODULES.length > 1 && (
-          <div className="flex flex-wrap gap-2">
-            {PROMPT_MODULES.map((m) => {
-              const on = m.key === moduleKey;
-              return (
-                <a
-                  key={m.key}
-                  href={`?module=${m.key}`}
-                  className="rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
-                  style={
-                    on
-                      ? { background: "var(--twx-coral)", color: "#1c1005" }
-                      : { border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }
-                  }
-                >
-                  {m.label}
-                </a>
-              );
-            })}
-          </div>
-        )}
+        {/* Modulválasztó legördülő — csak a kiválasztott modul látszik */}
+        <ModuleSelect
+          modules={PROMPT_MODULES.map((m) => ({ key: m.key, label: m.label }))}
+          value={moduleKey}
+        />
 
         <PromptEditor
+          key={def.key}
           moduleKey={def.key}
           moduleLabel={def.label}
           segmentDefs={def.segments.map((s) => ({ id: s.id, label: s.label, hint: s.hint }))}

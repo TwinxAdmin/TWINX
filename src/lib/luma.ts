@@ -10,6 +10,9 @@ const DEFAULT_PROMPT =
   "Slow, subtle cinematic camera movement across the interior, gentle parallax, " +
   "photorealistic real-estate showcase. Keep the room unchanged.";
 
+// A videó-modul finomítható promptja (nincs zárolt változó-blokk).
+export const VIDEO_DEFAULT_PROMPT = DEFAULT_PROMPT;
+
 export async function submitImageToVideo(params: {
   imageUrl: string;
   aspectRatio: string; // '16:9' | '9:16' | '1:1'

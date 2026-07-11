@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { chargeCredit } from "@/lib/credits";
-import { runValuation, PERPLEXITY_MODEL } from "@/lib/perplexity";
+import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
+import { buildValuationPromptActive } from "@/lib/prompts";
 import { generateReportPdf } from "@/lib/report-pdf";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
@@ -64,8 +65,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 2) Perplexity (Sonar) hívás a validált adatokból.
-    const report = await runValuation(input);
+    // 2) Perplexity (Sonar) hívás a validált adatokból (az aktív prompttal).
+    const prompt = await buildValuationPromptActive(input);
+    const report = await runSonar(prompt, PERPLEXITY_MODEL, { temperature: 0.2 });
 
     // 3) PDF generálás.
     const pdfBytes = await generateReportPdf({

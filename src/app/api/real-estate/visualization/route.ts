@@ -11,9 +11,9 @@ import {
   ROOM_TYPES,
   validateImageFiles,
   validateRoomConfig,
-  buildRoomPrompt,
   type RoomConfig,
 } from "@/lib/visualization";
+import { buildRoomPromptActive } from "@/lib/prompts";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
 import { getReferenceImage } from "@/lib/references";
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const config = configs[i];
-      const { prompt, useReference } = buildRoomPrompt(config);
+      const { prompt, useReference } = await buildRoomPromptActive(config);
 
       const inputBytes = new Uint8Array(await file.arrayBuffer());
 

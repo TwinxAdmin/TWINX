@@ -16,6 +16,7 @@ import {
 } from "@/lib/video";
 import { pickRandomMusic } from "@/lib/music";
 import { submitImageToVideo } from "@/lib/luma";
+import { getVideoPromptActive } from "@/lib/prompts";
 
 export const runtime = "nodejs";
 
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
     // Luma indítása képenként (callback a mi webhookunkra).
     const appUrl = process.env.APP_URL || "http://localhost:3000";
     const secret = process.env.VIDEO_WEBHOOK_SECRET || "";
+    const videoPrompt = await getVideoPromptActive();
     const clips: Array<{ index: number; luma_id: string; status: string; url: string | null }> = [];
     for (let i = 0; i < sourceImages.length; i++) {
       const callbackUrl = `${appUrl}/api/webhooks/luma?job=${job.id}&index=${i}&secret=${secret}`;
@@ -144,6 +146,7 @@ export async function POST(request: Request) {
         imageUrl: sourceImages[i],
         aspectRatio: format,
         callbackUrl,
+        prompt: videoPrompt,
       });
       clips.push({ index: i, luma_id: lumaId, status: "animating", url: null });
     }

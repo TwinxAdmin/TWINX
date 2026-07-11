@@ -134,7 +134,7 @@ export default function PromptEditor({
         )}
       </div>
     );
-    if (s.id === dataBlockAfter) {
+    if (s.id === dataBlockAfter && dataBlockPreview) {
       rendered.push(
         <div key="__datablock" className="rounded-xl p-4" style={{ background: "var(--twx-coral-soft)", border: "1px dashed var(--twx-coral)" }}>
           <p className="text-xs font-semibold" style={{ color: "#7a2e17" }}>

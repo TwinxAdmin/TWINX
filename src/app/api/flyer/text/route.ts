@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runSonar } from "@/lib/perplexity";
+import { buildFlyerCopyPromptActive } from "@/lib/prompts";
 import type { FlyerFacts, FlyerText } from "@/lib/flyer";
 
 export const runtime = "nodejs";
@@ -34,32 +35,8 @@ export async function POST(request: Request) {
   const f = (body.facts ?? {}) as Partial<FlyerFacts>;
   const tone = TONE_DESC[body.tone ?? "marketinges"] ?? TONE_DESC.marketinges;
 
-  const factLines = [
-    `Elhelyezkedés: ${v(f.location) || "[nincs megadva]"}`,
-    `Ár: ${v(f.price) || "[nincs megadva]"}`,
-    `Típus: ${v(f.propertyType) || "[nincs megadva]"}`,
-    `Méret: ${v(f.size) || "[nincs megadva]"}`,
-    `Szobák: ${v(f.rooms) || "[nincs megadva]"}`,
-    `Állapot: ${v(f.condition) || "[nincs megadva]"}`,
-    `Egyéb: ${v(f.extra) || "[nincs megadva]"}`,
-  ].join("\n");
-
-  const prompt = `Ingatlanhirdetés szövegírója vagy. Írj magyar nyelvű hirdetésszöveget KIZÁRÓLAG az alábbi tények alapján. NE találj ki új adatot (címet, árat, méretet), amit nem adtak meg. Hangnem: ${tone}. Ügyelj a helyes magyar helyesírásra és az egybeírandó szavakra (pl. "újépítésű", "belvárosi", "kétszintes").
-
-Tények:
-${factLines}
-
-Válaszolj KIZÁRÓLAG egyetlen érvényes JSON objektummal, pontosan ezekkel a kulcsokkal (magyarul, ékezetekkel):
-{
-  "title": "rövid, ütős főcím (pl. 'Eladó 1 szobás lakás')",
-  "subtitle": "a PONTOS lokáció egy sorban: település, kerület ÉS utca is, ha meg van adva (ne csak a várost)",
-  "price": "CSAK a szám millióban, mértékegység nélkül (pl. '46,5' vagy '50'); ha nincs ár, üres string",
-  "highlights": ["3-4 nagyon rövid kiemelés, egyenként max 3 szó"],
-  "characteristics": ["5-7 pontban a főbb jellemzők, rövid mondatokban"],
-  "infra": "1-2 mondat az infrastruktúráról/környékről (csak ha van rá alap)",
-  "transport": "1-2 mondat a közlekedésről (csak ha van rá alap)"
-}
-Ne írj semmit a JSON elé vagy mögé.`;
+  // A prompt a hirdetés-modul aktív (finomítható) verziójából + zárolt adat-blokkból áll.
+  const prompt = await buildFlyerCopyPromptActive(f, tone);
 
   let raw: string;
   try {

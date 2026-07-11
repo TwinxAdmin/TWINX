@@ -10,6 +10,25 @@ import {
   composeLandPrompt,
   type LandInput,
 } from "@/lib/land";
+import {
+  VALUATION_DEFAULT_SEGMENTS,
+  VALUATION_DATA_BLOCK_PREVIEW,
+  composeValuationPrompt,
+  type ValuationInput,
+} from "@/lib/valuation";
+import {
+  VISUALIZATION_DEFAULT_SEGMENTS,
+  VISUALIZATION_DATA_BLOCK_PREVIEW,
+  composeRoomPrompt,
+  type RoomConfig,
+} from "@/lib/visualization";
+import {
+  FLYER_DEFAULT_SEGMENTS,
+  FLYER_DATA_BLOCK_PREVIEW,
+  composeFlyerCopyPrompt,
+  type FlyerFacts,
+} from "@/lib/flyer";
+import { VIDEO_DEFAULT_PROMPT } from "@/lib/luma";
 
 export type PromptSegments = Record<string, string>;
 
@@ -47,6 +66,80 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
         label: "Feladat / kimenet",
         hint: "A vizsgálandó pontok és a kimenet formája. Változó nem használható.",
         default: LAND_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
+    key: "valuation",
+    label: "Ingatlan értékbecslés",
+    dataBlockPreview: VALUATION_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep + keresési szabályok",
+        hint: "A szakértői szerep és a háttér-kutatási instrukciók. Változó nem használható.",
+        default: VALUATION_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Kimeneti struktúra",
+        hint: "A jelentés pontjai és formátuma. Változó nem használható.",
+        default: VALUATION_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
+    key: "visualization",
+    label: "Látványtervező (kép)",
+    dataBlockPreview: VISUALIZATION_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Szerep + architektúra-megkötések (angol)",
+        hint: "A képgeneráló szerepe és a „ne változtass a szerkezeten” szabályok. Változó nem használható.",
+        default: VISUALIZATION_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "negative",
+        label: "Tiltott elemek (negatív prompt, angol)",
+        hint: "Amit a modellnek kerülnie kell. Változó nem használható.",
+        default: VISUALIZATION_DEFAULT_SEGMENTS.negative,
+      },
+    ],
+  },
+  {
+    key: "flyer",
+    label: "Hirdetéskészítő (AI szöveg)",
+    dataBlockPreview: FLYER_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A szövegíró szerepe és az alapszabályok. Változó nem használható.",
+        default: FLYER_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Kimeneti forma (JSON)",
+        hint: "A kért JSON-kulcsok. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: FLYER_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
+    key: "video",
+    label: "Videó (mozgás-prompt)",
+    dataBlockPreview: "",
+    dataBlockAfter: "",
+    segments: [
+      {
+        id: "prompt",
+        label: "Videó mozgás-prompt (angol)",
+        hint: "A kameramozgás / hangulat leírása a Luma modellnek. Nincs zárolt változó.",
+        default: VIDEO_DEFAULT_PROMPT,
       },
     ],
   },
@@ -118,15 +211,35 @@ export async function getActiveSegments(module: string): Promise<PromptSegments>
   return base;
 }
 
-// --- Végső prompt összeállítása modulonként --------------------------------
-export async function buildPrompt(module: "land", input: LandInput): Promise<string> {
-  const segments = await getActiveSegments(module);
-  switch (module) {
-    case "land":
-      return composeLandPrompt(input, segments);
-    default:
-      throw new Error(`Ismeretlen prompt-modul: ${module}`);
-  }
+// --- Végső prompt összeállítása modulonként (az aktív verzióval) ------------
+export async function buildLandPromptActive(input: LandInput): Promise<string> {
+  const segments = await getActiveSegments("land");
+  return composeLandPrompt(input, segments);
+}
+
+export async function buildValuationPromptActive(input: ValuationInput): Promise<string> {
+  const segments = await getActiveSegments("valuation");
+  return composeValuationPrompt(input, segments);
+}
+
+export async function buildRoomPromptActive(
+  config: RoomConfig
+): Promise<{ prompt: string; useReference: boolean }> {
+  const segments = await getActiveSegments("visualization");
+  return composeRoomPrompt(config, segments);
+}
+
+export async function buildFlyerCopyPromptActive(
+  facts: Partial<FlyerFacts>,
+  toneDesc: string
+): Promise<string> {
+  const segments = await getActiveSegments("flyer");
+  return composeFlyerCopyPrompt(facts, toneDesc, segments);
+}
+
+export async function getVideoPromptActive(): Promise<string> {
+  const segments = await getActiveSegments("video");
+  return (segments.prompt ?? VIDEO_DEFAULT_PROMPT).trim();
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------
