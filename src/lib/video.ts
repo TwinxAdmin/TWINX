@@ -2,7 +2,7 @@
 // Üzleti szabály: real-estate feature, kredit a képszám (videóhossz) szerint.
 
 export const MIN_VIDEO_IMAGES = 4; // 4 kép = ~20 mp (5 mp/klip)
-export const MAX_VIDEO_IMAGES = 8;
+export const MAX_VIDEO_IMAGES = 4; // egyelőre fix 4 kép / videó
 
 // Kredit a képszám szerint (config — bármikor állítható).
 // Szabály: min. 100% haszon a legmélyebb kedvezményes áron is → "kép = kredit".

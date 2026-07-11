@@ -15,7 +15,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     serviceSlug: "real-estate",
     name: "Induló – 10 kredit",
     credits: 10,
-    priceHuf: 4990,
+    priceHuf: 2490, // 249 Ft/kredit (alapár)
     currency: "huf",
   },
   {
@@ -23,7 +23,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     serviceSlug: "real-estate",
     name: "Közepes – 50 kredit (−20%)",
     credits: 50,
-    priceHuf: 19990,
+    priceHuf: 9960, // 199,2 Ft/kredit (−20%)
     currency: "huf",
   },
   {
@@ -31,7 +31,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     serviceSlug: "real-estate",
     name: "Nagy – 100 kredit (−30%)",
     credits: 100,
-    priceHuf: 34990,
+    priceHuf: 17430, // 174,3 Ft/kredit (−30%)
     currency: "huf",
   },
 ];

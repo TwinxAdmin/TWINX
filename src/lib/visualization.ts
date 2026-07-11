@@ -3,7 +3,7 @@
 // a változók OPCIONÁLISAK. A prompt csak a ténylegesen kiválasztott változókat
 // tartalmazza. Ha egyetlen változó sincs -> a generálás nem indul.
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB / kép
-export const MAX_IMAGES = 8;
+export const MAX_IMAGES = 4;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const MAX_NOTE_LENGTH = 500;
 

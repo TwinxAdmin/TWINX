@@ -30,6 +30,10 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
   const count = selected.size + uploads.length;
   const credits = creditForImages(count);
   const validCount = count >= MIN_VIDEO_IMAGES && count <= MAX_VIDEO_IMAGES;
+  const countLabel =
+    MIN_VIDEO_IMAGES === MAX_VIDEO_IMAGES
+      ? `pontosan ${MIN_VIDEO_IMAGES}`
+      : `${MIN_VIDEO_IMAGES}-${MAX_VIDEO_IMAGES}`;
 
   function toggleHistory(url: string) {
     setSelected((prev) => {
@@ -75,7 +79,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
   async function onSubmit() {
     setError(null);
     if (!validCount) {
-      setError(`Válassz ${MIN_VIDEO_IMAGES}-${MAX_VIDEO_IMAGES} képet (most: ${count}).`);
+      setError(`Válassz ${countLabel} képet (most: ${count}).`);
       return;
     }
     setLoading(true);
@@ -143,7 +147,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
     <main className="mx-auto max-w-3xl space-y-5">
       <h1 className="font-display text-3xl font-semibold">Marketing videó</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Válassz {MIN_VIDEO_IMAGES}-{MAX_VIDEO_IMAGES} képet (korábbi látványtervekből
+        Válassz {countLabel} képet (korábbi látványtervekből
         vagy feltöltéssel), formátumot és zenei stílust. A kredit a képszámtól függ.
       </p>
 
@@ -255,7 +259,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
           <span className="font-medium">{credits} kredit</span>
         ) : (
           <span className="text-red-600">
-            válassz {MIN_VIDEO_IMAGES}-{MAX_VIDEO_IMAGES} képet
+            válassz {countLabel} képet
           </span>
         )}
       </div>
