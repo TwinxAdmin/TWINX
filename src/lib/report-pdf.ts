@@ -3,26 +3,13 @@
 // (Chromiumot tölt le; élesben is szükséges egy Chromium a szerveren.)
 import { buildReportHtml, reportFooterHtml } from "@/lib/report-template";
 import { generateValuationPdf } from "@/lib/pdf";
+import { launchBrowser } from "@/lib/browser";
 
 export type ReportParams = { title: string; meta: string[]; body: string };
 
-// Puppeteer betöltése; ha nincs telepítve, null-t adunk vissza (fallback a régi PDF-re).
-async function loadPuppeteer(): Promise<unknown | null> {
-  try {
-    // @ts-ignore - a puppeteer csomagot lokálisan kell telepíteni (npm install puppeteer)
-    const mod = await import("puppeteer");
-    return (mod as { default?: unknown }).default ?? mod;
-  } catch {
-    return null;
-  }
-}
-
-// HTML -> PDF (A4).
-async function renderHtmlToPdf(html: string, puppeteer: any): Promise<Uint8Array> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+// HTML -> PDF (A4) headless Chromiummal (lokál: puppeteer, Vercel: @sparticuz/chromium).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function renderHtmlToPdf(html: string, browser: any): Promise<Uint8Array> {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
@@ -41,11 +28,12 @@ async function renderHtmlToPdf(html: string, puppeteer: any): Promise<Uint8Array
 }
 
 export async function generateReportPdf(params: ReportParams): Promise<Uint8Array> {
-  const puppeteer = await loadPuppeteer();
-  if (!puppeteer) {
-    // Puppeteer nincs telepítve -> visszaesünk a korábbi (egyszerű) PDF-motorra.
+  try {
+    const browser = await launchBrowser();
+    const html = buildReportHtml(params);
+    return await renderHtmlToPdf(html, browser);
+  } catch {
+    // Ha nincs elérhető Chromium -> visszaesünk a korábbi (egyszerű) PDF-motorra.
     return generateValuationPdf(params);
   }
-  const html = buildReportHtml(params);
-  return renderHtmlToPdf(html, puppeteer);
 }

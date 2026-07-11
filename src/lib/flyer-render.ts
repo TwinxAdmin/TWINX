@@ -1,26 +1,13 @@
 // Hirdetés renderelés: HTML -> PDF (A4) vagy PNG (social méretek) headless Chromiummal.
 // A `puppeteer` csomag szükséges (npm install puppeteer).
 import type { FlyerFormat } from "@/lib/flyer";
-
-async function loadPuppeteer(): Promise<any> {
-  try {
-    // @ts-ignore - a puppeteer csomagot lokálisan kell telepíteni
-    const mod = await import("puppeteer");
-    return (mod as { default?: unknown }).default ?? mod;
-  } catch {
-    throw new Error("A hirdetés-generáláshoz telepíteni kell a puppeteer csomagot (npm install puppeteer).");
-  }
-}
+import { launchBrowser } from "@/lib/browser";
 
 export async function renderFlyer(
   html: string,
   format: FlyerFormat
 ): Promise<{ bytes: Uint8Array; ext: string; contentType: string }> {
-  const puppeteer = await loadPuppeteer();
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: format.width, height: format.height, deviceScaleFactor: 2 });

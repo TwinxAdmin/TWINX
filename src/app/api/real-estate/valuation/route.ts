@@ -13,6 +13,7 @@ import { generateReportPdf } from "@/lib/report-pdf";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // Perplexity + PDF renderelés hosszabb lehet
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";

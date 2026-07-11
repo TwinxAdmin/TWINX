@@ -11,6 +11,7 @@ import { buildFlyerHtml, type FlyerSections, type FlyerProfileData } from "@/lib
 import { renderFlyer } from "@/lib/flyer-render";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // hirdetés renderelése (Chromium)
 const BUCKET = "reports";
 
 export async function POST(request: Request) {

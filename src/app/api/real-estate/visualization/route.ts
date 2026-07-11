@@ -20,6 +20,7 @@ import { getReferenceImage } from "@/lib/references";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // több kép generálása egymás után
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "visualization";

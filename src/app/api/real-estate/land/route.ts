@@ -17,6 +17,7 @@ import { runSonar, submitSonarAsync } from "@/lib/perplexity";
 import { finalizeLandReport } from "@/lib/land-report";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // Perplexity (normál) + PDF renderelés
 
 const SERVICE_SLUG = "real-estate";
 
