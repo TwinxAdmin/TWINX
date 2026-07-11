@@ -7,12 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import {
-  buildLandPrompt,
   validateLandInput,
   isLandLevel,
   LAND_LEVELS,
   type LandInput,
 } from "@/lib/land";
+import { buildPrompt } from "@/lib/prompts";
 import { runSonar, submitSonarAsync } from "@/lib/perplexity";
 import { finalizeLandReport } from "@/lib/land-report";
 
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const prompt = buildLandPrompt(input);
+  const prompt = await buildPrompt("land", input);
 
   // ---- NORMÁL: szinkron ----
   if (!cfg.async) {

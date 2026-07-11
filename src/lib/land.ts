@@ -81,20 +81,35 @@ function v(value: string): string {
   return t.length > 0 ? t : "[Nincs megadva]";
 }
 
-export function buildLandPrompt(input: LandInput): string {
-  return `Kérlek, viselkedj úgy, mint egy 30 éves, segítőkész építészmérnök! A feladatod az, hogy egy laikus telektulajdonos számára érthetően, a felesleges szakszavakat kerülve egy rövid, tömör, lényegre törő, maximum 1 oldalas jelentést készíts a telek beépíthetőségéről.
+// --- Prompt: zárolt adat-blokk + finomítható szegmensek --------------------
+// A ZÁROLT adat-blokk (a felhasználói mezők behelyettesítése) kizárólag itt,
+// kódból módosítható — az admin felületen NEM szerkeszthető. Az admin csak az
+// alábbi alapértelmezett szövegtömböket ("intro", "task") finomíthatja.
 
-### A vizsgálandó telek adatai:
+// Zárolt adat-blokk: a változók helye garantáltan sértetlen marad.
+export function landDataBlock(input: LandInput): string {
+  return `### A vizsgálandó telek adatai:
 
 * **Város / kerület:** ${v(input.telepules)}
 * **Utca, házszám:** ${v(input.utca)}
 * **Helyrajzi szám:** ${v(input.hrsz)}
 * **Építési övezet:** ${v(input.ovezet)}
-* **Telek besorolása:** ${v(input.besorolas)}
+* **Telek besorolása:** ${v(input.besorolas)}`;
+}
 
----
+// Előnézet az admin felülethez (mit és hova helyettesít be a rendszer).
+export const LAND_DATA_BLOCK_PREVIEW = `### A vizsgálandó telek adatai:
 
-### A feladatod:
+* **Város / kerület:** {település}
+* **Utca, házszám:** {utca}
+* **Helyrajzi szám:** {hrsz}
+* **Építési övezet:** {övezet}
+* **Telek besorolása:** {besorolás}`;
+
+// Finomítható szegmensek alapértelmezett (v0 — kódban rögzített) szövege.
+export const LAND_DEFAULT_SEGMENTS = {
+  intro: `Kérlek, viselkedj úgy, mint egy 30 éves, segítőkész építészmérnök! A feladatod az, hogy egy laikus telektulajdonos számára érthetően, a felesleges szakszavakat kerülve egy rövid, tömör, lényegre törő, maximum 1 oldalas jelentést készíts a telek beépíthetőségéről.`,
+  task: `### A feladatod:
 
 Keress rá a weben a hatályos HÉSZ-re (Helyi Építési Szabályzat) és a TAK-ra (Településképi Arculati Kézikönyv). Az alábbi pontokból készíts egy szigorúan strukturált, azonnal átlátható, 1 oldalas összefoglalót:
 
@@ -109,5 +124,15 @@ Keress rá a weben a hatályos HÉSZ-re (Helyi Építési Szabályzat) és a TAK
 
 ---
 
-A válaszod legyen egy szigorúan strukturált, vázlatpontos jelentés. Ne írj hosszú bevezetőt vagy lezárást. Ha egy adat nem elérhető az interneten, jelezd röviden, hogy a főépítésznél érdeklődjön.`;
+A válaszod legyen egy szigorúan strukturált, vázlatpontos jelentés. Ne írj hosszú bevezetőt vagy lezárást. Ha egy adat nem elérhető az interneten, jelezd röviden, hogy a főépítésznél érdeklődjön.`,
+};
+
+// Végső prompt összeállítása: [bevezető] + [zárolt adat-blokk] + [feladat].
+export function composeLandPrompt(
+  input: LandInput,
+  segments: { intro?: string; task?: string }
+): string {
+  const intro = (segments.intro ?? LAND_DEFAULT_SEGMENTS.intro).trim();
+  const task = (segments.task ?? LAND_DEFAULT_SEGMENTS.task).trim();
+  return `${intro}\n\n${landDataBlock(input)}\n\n---\n\n${task}`;
 }
