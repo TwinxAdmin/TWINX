@@ -185,9 +185,9 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
             )}
             {curKind === "pdf" && current.output_file_url && (
               <iframe
-                src={current.output_file_url}
+                src={`${current.output_file_url}#view=FitH&toolbar=1&navpanes=0`}
                 title={current.title}
-                className="h-[80vh] w-[min(90vw,900px)] rounded-xl bg-white"
+                className="h-[86vh] w-[min(96vw,1100px)] rounded-xl bg-white"
                 style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
               />
             )}

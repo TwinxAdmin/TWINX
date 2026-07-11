@@ -206,7 +206,7 @@ export default function ValuationPage() {
                 </button>
               </div>
             </div>
-            <iframe src={resultUrl} title="Ingatlan értékbecslés" className="w-full flex-1 bg-white" />
+            <iframe src={`${resultUrl}#view=FitH&toolbar=1&navpanes=0`} title="Ingatlan értékbecslés" className="w-full flex-1 bg-white" />
           </div>
         </div>
       )}

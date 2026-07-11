@@ -251,7 +251,7 @@ export default function LandPage() {
               </div>
             </div>
             <iframe
-              src={resultUrl}
+              src={`${resultUrl}#view=FitH&toolbar=1&navpanes=0`}
               title="Telek értékbecslés PDF"
               className="w-full flex-1 rounded-xl bg-white"
             />
