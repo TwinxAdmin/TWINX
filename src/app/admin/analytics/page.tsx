@@ -53,6 +53,7 @@ export default async function AdminAnalyticsPage({
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-semibold">Admin — Költségfigyelő</h1>
         <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
+          <a href="/admin/prompts">Promptok</a>
           <a href="/admin/ideas">Ötletek</a>
           <a href="/admin/credits">Kredit</a>
           <a href="/dashboard">Dashboard</a>

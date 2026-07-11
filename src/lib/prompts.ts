@@ -128,3 +128,87 @@ export async function buildPrompt(module: "land", input: LandInput): Promise<str
       throw new Error(`Ismeretlen prompt-modul: ${module}`);
   }
 }
+
+// --- Verziók kezelése (admin) ----------------------------------------------
+export type PromptVersion = {
+  id: string;
+  module: string;
+  version: number;
+  name: string | null;
+  segments: PromptSegments;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function listPromptVersions(module: string): Promise<PromptVersion[]> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("ai_prompts")
+    .select("id, module, version, name, segments, is_active, created_at")
+    .eq("module", module)
+    .order("version", { ascending: false });
+  return (data ?? []) as PromptVersion[];
+}
+
+// Új verzió mentése + aktiválás. A hívó előbb validál (validateSegments).
+export async function saveNewVersion(params: {
+  module: string;
+  segments: PromptSegments;
+  name?: string | null;
+  createdBy?: string | null;
+}): Promise<{ id: string; version: number }> {
+  const admin = createAdminClient();
+
+  // Következő verziószám a modulon belül.
+  const { data: last } = await admin
+    .from("ai_prompts")
+    .select("version")
+    .eq("module", params.module)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextVersion = ((last?.version as number) ?? 0) + 1;
+
+  // Csak a definiált szegmenseket mentjük.
+  const def = getModuleDef(params.module);
+  const clean: PromptSegments = {};
+  for (const seg of def?.segments ?? []) {
+    clean[seg.id] = (params.segments[seg.id] ?? "").trim();
+  }
+
+  // Előbb a modul összes aktív sorát inaktiváljuk (egy aktív / modul).
+  await admin.from("ai_prompts").update({ is_active: false }).eq("module", params.module);
+
+  const { data, error } = await admin
+    .from("ai_prompts")
+    .insert({
+      module: params.module,
+      version: nextVersion,
+      name: params.name ?? null,
+      segments: clean,
+      is_active: true,
+      created_by: params.createdBy ?? null,
+    })
+    .select("id, version")
+    .single();
+  if (error) throw new Error(error.message);
+  return { id: data.id as string, version: data.version as number };
+}
+
+// Egy korábbi verzió újraaktiválása (a többi inaktiválása).
+export async function activateVersion(module: string, id: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("ai_prompts").update({ is_active: false }).eq("module", module);
+  const { error } = await admin
+    .from("ai_prompts")
+    .update({ is_active: true })
+    .eq("id", id)
+    .eq("module", module);
+  if (error) throw new Error(error.message);
+}
+
+// Vissza a kód-alapértelmezetthez: minden verzió inaktiválása a modulon.
+export async function resetToDefault(module: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("ai_prompts").update({ is_active: false }).eq("module", module);
+}

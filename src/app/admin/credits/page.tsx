@@ -26,6 +26,7 @@ export default async function AdminCreditsPage() {
         <h1 className="font-display text-3xl font-semibold">Admin — Kredit adása</h1>
         <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
           <a href="/admin/analytics">Analitika</a>
+          <a href="/admin/prompts">Promptok</a>
           <a href="/admin/users">Felhasználók</a>
           <a href="/admin/ideas">Ötletek</a>
           <a href="/dashboard">Dashboard</a>
