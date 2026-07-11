@@ -22,7 +22,20 @@ export default function LandPage() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setViewerOpen(false);
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [viewerOpen]);
 
   // Polling leállítása unmountkor.
   useEffect(() => {
@@ -181,9 +194,9 @@ export default function LandPage() {
 
       {resultUrl && (
         <div className="flex flex-wrap gap-3">
-          <a href={resultUrl} target="_blank" rel="noreferrer" className="twx-btn">
-            PDF megnyitása
-          </a>
+          <button type="button" onClick={() => setViewerOpen(true)} className="twx-btn">
+            PDF megtekintése
+          </button>
           <a
             href={toDownloadUrl(resultUrl)}
             className="rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
@@ -191,6 +204,58 @@ export default function LandPage() {
           >
             Letöltés
           </a>
+        </div>
+      )}
+
+      {/* PDF-nézegető modál (popup, nem külön lap) */}
+      {viewerOpen && resultUrl && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: "rgba(28,24,21,0.72)" }}
+          onClick={() => setViewerOpen(false)}
+        >
+          <div
+            className="mx-auto flex h-full w-full max-w-5xl flex-col p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 pb-3">
+              <h2 className="font-display text-lg font-semibold" style={{ color: "var(--twx-on-dark)" }}>
+                Telek értékbecslés
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={toDownloadUrl(resultUrl)}
+                  className="rounded-full px-4 py-2 text-sm font-medium"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                >
+                  Letöltés
+                </a>
+                <a
+                  href={resultUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full px-4 py-2 text-sm font-medium"
+                  style={{ border: "1px solid rgba(255,255,255,0.35)", color: "var(--twx-on-dark)" }}
+                >
+                  Új lapon
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setViewerOpen(false)}
+                  aria-label="Bezárás"
+                  className="rounded-full px-3 py-2 text-sm font-medium"
+                  style={{ border: "1px solid rgba(255,255,255,0.35)", color: "var(--twx-on-dark)" }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={resultUrl}
+              title="Telek értékbecslés PDF"
+              className="w-full flex-1 rounded-xl bg-white"
+            />
+          </div>
         </div>
       )}
     </main>
