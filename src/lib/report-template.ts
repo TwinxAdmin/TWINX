@@ -1,4 +1,4 @@
-// TWINX jelentés-PDF HTML sablon (Ingatlan + Telek értékbecslés).
+// TWINX jelentés-PDF HTML sablon (Ingatlan értékbecslés + Telek ellenőrzés).
 // Fix TWINX-arculat (korall akcent, sötét fejléc). A partner ezt NEM szabhatja.
 // A HTML-t a report-pdf.ts rendereli PDF-be (headless Chromium).
 

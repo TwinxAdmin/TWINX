@@ -23,7 +23,7 @@ const CATEGORIES: {
     desc: "Adatalapú értékbecslés, fotórealisztikus látványterv és prémium marketing videó — egy kategóriában.",
     modules: [
       "Ingatlan értékbecslés",
-      "Telek értékbecslés",
+      "Telek ellenőrzés",
       "Látványtervező",
       "Videó",
       "Hirdetéskészítő",

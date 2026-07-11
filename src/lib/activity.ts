@@ -8,7 +8,7 @@ type Json = Record<string, unknown> | null | undefined;
 
 const FEATURE_LABEL: Record<string, string> = {
   valuation: "Ingatlan értékbecslés",
-  "land-valuation": "Telek értékbecslés",
+  "land-valuation": "Telek ellenőrzés",
   visualization: "Látványterv",
   video: "Videó",
   flyer: "Hirdetés",
@@ -34,7 +34,7 @@ export function activityTitle(feature: string, input: Json): string {
   if (feature === "land-valuation") {
     const hely = [s(d.telepules), s(d.utca)].filter(Boolean).join(", ");
     const hrsz = s(d.hrsz) ? `hrsz ${s(d.hrsz)}` : "";
-    return [hely, hrsz].filter(Boolean).join(" · ") || "Telek értékbecslés";
+    return [hely, hrsz].filter(Boolean).join(" · ") || "Telek ellenőrzés";
   }
 
   if (feature === "visualization") {

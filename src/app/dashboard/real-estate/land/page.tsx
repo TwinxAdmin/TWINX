@@ -59,7 +59,7 @@ export default function LandPage() {
           if (pollRef.current) clearInterval(pollRef.current);
           setPolling(false);
           setResultUrl(data.url);
-          setMessage("Kész! A telek értékbecslés elkészült.");
+          setMessage("Kész! A telek ellenőrzés elkészült.");
         } else if (data.status === "failed") {
           if (pollRef.current) clearInterval(pollRef.current);
           setPolling(false);
@@ -102,7 +102,7 @@ export default function LandPage() {
         startPolling(data.jobId); // magas szint
       } else {
         setResultUrl(data.url); // normál szint kész
-        setMessage("Kész! A telek értékbecslés elkészült.");
+        setMessage("Kész! A telek ellenőrzés elkészült.");
       }
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
@@ -115,7 +115,7 @@ export default function LandPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="font-display text-3xl font-semibold">Telek értékbecslés</h1>
+      <h1 className="font-display text-3xl font-semibold">Telek ellenőrzés</h1>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         A telek beépíthetőségéről készül tömör, 1 oldalas jelentés (HÉSZ + TAK alapján).
         Minden mező kötelező.
@@ -185,7 +185,7 @@ export default function LandPage() {
             ? "Indítás…"
             : polling
               ? "Kutatás folyamatban…"
-              : `Telek értékbecslés indítása (${LAND_LEVELS[level].credits} kredit)`}
+              : `Telek ellenőrzés indítása (${LAND_LEVELS[level].credits} kredit)`}
         </button>
       </form>
 
@@ -220,7 +220,7 @@ export default function LandPage() {
           >
             <div className="flex items-center justify-between gap-3 pb-3">
               <h2 className="font-display text-lg font-semibold" style={{ color: "var(--twx-on-dark)" }}>
-                Telek értékbecslés
+                Telek ellenőrzés
               </h2>
               <div className="flex flex-wrap items-center gap-2">
                 <a
@@ -252,7 +252,7 @@ export default function LandPage() {
             </div>
             <iframe
               src={`${resultUrl}#view=FitH&toolbar=1&navpanes=0`}
-              title="Telek értékbecslés PDF"
+              title="Telek ellenőrzés PDF"
               className="w-full flex-1 rounded-xl bg-white"
             />
           </div>
