@@ -110,13 +110,17 @@ export default function RegisterPage() {
           {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
           {message && <p className="mt-3 text-sm text-green-700">{message}</p>}
 
-          <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-            vagy
-            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-          </div>
+          {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true" && (
+            <>
+              <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+                vagy
+                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+              </div>
 
-          <GoogleButton label="Regisztráció Google-fiókkal" />
+              <GoogleButton label="Regisztráció Google-fiókkal" />
+            </>
+          )}
 
           <a href="/login" className="mt-4 block text-sm underline" style={{ color: "var(--twx-coral)" }}>
             Van már fiókod? Belépés

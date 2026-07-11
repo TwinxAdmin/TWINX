@@ -59,15 +59,19 @@ export default function LoginPage() {
         <div className="twx-card p-7">
           <h1 className="font-display text-2xl font-semibold">Belépés</h1>
 
-          <div className="mt-5">
-            <GoogleButton label="Belépés Google-fiókkal" />
-          </div>
+          {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true" && (
+            <>
+              <div className="mt-5">
+                <GoogleButton label="Belépés Google-fiókkal" />
+              </div>
 
-          <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-            vagy e-maillel
-            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-          </div>
+              <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+                vagy e-maillel
+                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+              </div>
+            </>
+          )}
 
           <form onSubmit={onSubmit} noValidate className="space-y-4">
             <div>
