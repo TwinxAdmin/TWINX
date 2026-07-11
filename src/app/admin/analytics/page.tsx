@@ -3,8 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMetrics, getUserMetrics, getModuleMetrics } from "@/lib/metrics";
-import UserMetricsBrowser from "@/components/UserMetricsBrowser";
-import UsersModalTrigger from "@/components/UsersModalTrigger";
+import UserMetricsBlock from "@/components/UserMetricsBlock";
 
 export const runtime = "nodejs";
 
@@ -54,7 +53,6 @@ export default async function AdminAnalyticsPage({
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-semibold">Admin — Költségfigyelő</h1>
         <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-          <UsersModalTrigger />
           <a href="/admin/ideas">Ötletek</a>
           <a href="/admin/credits">Kredit</a>
           <a href="/dashboard">Dashboard</a>
@@ -173,14 +171,14 @@ export default async function AdminAnalyticsPage({
         </p>
       </section>
 
+      {/* Felhasználók blokk — a modul-figyelő alatt */}
+      <UserMetricsBlock users={users} hufPerUsd={hufPerUsd} />
+
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Megjegyzés: a bevétel csak azoknál a vásárlásoknál jelenik meg, ahol a fizetett
         összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `metrics.sql`-ben
         lévő visszatöltő sorral pótolható.
       </p>
-
-      {/* A "Felhasználók" navra kattintva helyben nyíló ablak */}
-      <UserMetricsBrowser users={users} hufPerUsd={hufPerUsd} showButton={false} />
       </div>
     </main>
   );

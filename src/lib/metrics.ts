@@ -30,6 +30,7 @@ export type UserMetric = {
   userId: string;
   email: string;
   role: string;
+  createdAt: string | null; // regisztráció (rendezéshez)
   uses: number; // összes generálás (usage_history)
   costUsd: number; // becsült API-önköltség
   revenueHuf: number; // tőle származó bevétel
@@ -43,7 +44,11 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
   // Regisztrált felhasználók (e-mail + id).
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const emailById = new Map<string, string>();
-  for (const u of list?.users ?? []) emailById.set(u.id, u.email ?? "—");
+  const createdById = new Map<string, string | null>();
+  for (const u of list?.users ?? []) {
+    emailById.set(u.id, u.email ?? "—");
+    createdById.set(u.id, u.created_at ?? null);
+  }
 
   const { data: profiles } = await admin.from("profiles").select("id, role");
   const roleById = new Map<string, string>((profiles ?? []).map((p) => [p.id as string, (p.role as string) ?? "user"]));
@@ -67,6 +72,7 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
         userId: id,
         email: emailById.get(id) ?? "—",
         role: roleById.get(id) ?? "user",
+        createdAt: createdById.get(id) ?? null,
         uses: 0,
         costUsd: 0,
         revenueHuf: 0,
