@@ -17,8 +17,9 @@ export async function finalizeLandReport(params: {
   input: LandInput;
   level: LandLevel;
   report: string;
+  creditsCharged?: number;
 }): Promise<string> {
-  const { admin, userId, serviceId, input, level, report } = params;
+  const { admin, userId, serviceId, input, level, report, creditsCharged = 0 } = params;
 
   // 1) PDF
   const pdfBytes = await generateReportPdf({
@@ -49,6 +50,7 @@ export async function finalizeLandReport(params: {
     feature_used: LAND_FEATURE,
     input_data: { ...input, level },
     output_file_url: pub.publicUrl,
+    credits_charged: creditsCharged,
   });
   if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
 

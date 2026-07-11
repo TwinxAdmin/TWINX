@@ -85,6 +85,7 @@ export async function GET(request: Request) {
       input: job.input_data as LandInput,
       level: job.level as LandLevel,
       report: result.content,
+      creditsCharged: (job.credits_charged as number) ?? 0,
     });
     await admin
       .from("land_jobs")

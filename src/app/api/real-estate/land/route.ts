@@ -88,6 +88,7 @@ export async function POST(request: Request) {
         input,
         level,
         report,
+        creditsCharged: charge.bypassed ? 0 : credits,
       });
       return NextResponse.json({ ok: true, url, report, charged: !charge.bypassed });
     } catch (err) {

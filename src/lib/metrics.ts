@@ -37,7 +37,7 @@ export type UserMetric = {
   features: { label: string; count: number }[]; // funkciónkénti bontás
 };
 
-export async function getUserMetrics(): Promise<{ users: UserMetric[]; hufPerUsd: number }> {
+export async function getUserMetrics(sinceIso?: string | null): Promise<{ users: UserMetric[]; hufPerUsd: number }> {
   const admin = createAdminClient();
 
   // Regisztrált felhasználók (e-mail + id).
@@ -48,11 +48,15 @@ export async function getUserMetrics(): Promise<{ users: UserMetric[]; hufPerUsd
   const { data: profiles } = await admin.from("profiles").select("id, role");
   const roleById = new Map<string, string>((profiles ?? []).map((p) => [p.id as string, (p.role as string) ?? "user"]));
 
-  const [{ data: uh }, { data: costs }, { data: purch }] = await Promise.all([
-    admin.from("usage_history").select("user_id, feature_used"),
-    admin.from("api_cost_logs").select("user_id, estimated_cost_usd"),
-    admin.from("credit_purchases").select("user_id, amount_huf, credits"),
-  ]);
+  let uhq = admin.from("usage_history").select("user_id, feature_used");
+  let cq = admin.from("api_cost_logs").select("user_id, estimated_cost_usd");
+  let pq = admin.from("credit_purchases").select("user_id, amount_huf, credits");
+  if (sinceIso) {
+    uhq = uhq.gte("created_at", sinceIso);
+    cq = cq.gte("created_at", sinceIso);
+    pq = pq.gte("created_at", sinceIso);
+  }
+  const [{ data: uh }, { data: costs }, { data: purch }] = await Promise.all([uhq, cq, pq]);
 
   const rows = new Map<string, UserMetric>();
   const featMap = new Map<string, Map<string, number>>();
@@ -109,13 +113,13 @@ export async function getUserMetrics(): Promise<{ users: UserMetric[]; hufPerUsd
   return { users, hufPerUsd: HUF_PER_USD };
 }
 
-export async function getMetrics(): Promise<Metrics> {
+export async function getMetrics(sinceIso?: string | null): Promise<Metrics> {
   const admin = createAdminClient();
 
   // Bevétel a vásárlásokból.
-  const { data: purchases } = await admin
-    .from("credit_purchases")
-    .select("amount_huf, credits");
+  let pq = admin.from("credit_purchases").select("amount_huf, credits");
+  if (sinceIso) pq = pq.gte("created_at", sinceIso);
+  const { data: purchases } = await pq;
   const revenueHuf = (purchases ?? []).reduce(
     (s, p) => s + (Number(p.amount_huf) || 0),
     0
@@ -126,9 +130,9 @@ export async function getMetrics(): Promise<Metrics> {
   );
 
   // Költség a napló-táblából.
-  const { data: costs } = await admin
-    .from("api_cost_logs")
-    .select("feature, service_name, units, estimated_cost_usd");
+  let cq = admin.from("api_cost_logs").select("feature, service_name, units, estimated_cost_usd");
+  if (sinceIso) cq = cq.gte("created_at", sinceIso);
+  const { data: costs } = await cq;
   const costUsd = (costs ?? []).reduce(
     (s, c) => s + (Number(c.estimated_cost_usd) || 0),
     0
@@ -164,4 +168,61 @@ export async function getMetrics(): Promise<Metrics> {
     hufPerUsd: HUF_PER_USD,
     byFeature,
   };
+}
+
+// --- Modul-figyelő -----------------------------------------------------
+export type ModuleMetric = {
+  feature: string;
+  label: string;
+  uses: number; // hány generálás (usage_history)
+  users: number; // hány különböző felhasználó
+  creditsUsed: number; // elhasznált kredit (usage_history.credits_charged)
+  costUsd: number; // becsült API-önköltség
+};
+
+export async function getModuleMetrics(
+  sinceIso?: string | null
+): Promise<{ modules: ModuleMetric[]; hufPerUsd: number }> {
+  const admin = createAdminClient();
+
+  let uq = admin.from("usage_history").select("feature_used, user_id, credits_charged");
+  let cq = admin.from("api_cost_logs").select("feature, estimated_cost_usd");
+  if (sinceIso) {
+    uq = uq.gte("created_at", sinceIso);
+    cq = cq.gte("created_at", sinceIso);
+  }
+  const [{ data: uh }, { data: costs }] = await Promise.all([uq, cq]);
+
+  const map = new Map<string, { uses: number; users: Set<string>; credits: number; costUsd: number }>();
+  const ensure = (f: string) => {
+    let e = map.get(f);
+    if (!e) {
+      e = { uses: 0, users: new Set<string>(), credits: 0, costUsd: 0 };
+      map.set(f, e);
+    }
+    return e;
+  };
+
+  for (const r of uh ?? []) {
+    const e = ensure(r.feature_used as string);
+    e.uses += 1;
+    if (r.user_id) e.users.add(r.user_id as string);
+    e.credits += Number(r.credits_charged) || 0;
+  }
+  for (const c of costs ?? []) {
+    ensure(c.feature as string).costUsd += Number(c.estimated_cost_usd) || 0;
+  }
+
+  const modules: ModuleMetric[] = [...map.entries()]
+    .map(([feature, e]) => ({
+      feature,
+      label: featureLabel(feature),
+      uses: e.uses,
+      users: e.users.size,
+      creditsUsed: e.credits,
+      costUsd: e.costUsd,
+    }))
+    .sort((a, b) => b.uses - a.uses);
+
+  return { modules, hufPerUsd: HUF_PER_USD };
 }

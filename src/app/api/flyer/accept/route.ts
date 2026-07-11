@@ -92,6 +92,7 @@ export async function POST(request: Request) {
       feature_used: FEATURE,
       input_data: { title: text.title, format: format.value, profile: profile.label },
       output_file_url: url,
+      credits_charged: charge && !charge.bypassed ? FLYER_CREDITS : 0,
     });
 
     return NextResponse.json({ ok: true, url, kind: format.kind, charged: charge ? !charge.bypassed : false });

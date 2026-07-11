@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       user_id: job.user_id,
       service_id: job.service_id,
       feature_used: FEATURE,
+      credits_charged: job.credits_charged ?? 0,
       input_data: {
         format: job.format,
         music_style: job.music_style,

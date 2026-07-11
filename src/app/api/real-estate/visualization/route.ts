@@ -145,6 +145,7 @@ export async function POST(request: Request) {
         rooms: results.map((r) => ({ ...r.config, output: r.url })),
       },
       output_file_url: results[0]?.url ?? null,
+      credits_charged: charge.bypassed ? 0 : 1,
     });
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
 

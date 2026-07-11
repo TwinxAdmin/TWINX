@@ -98,6 +98,7 @@ export async function POST(request: Request) {
       feature_used: FEATURE,
       input_data: input,
       output_file_url: pub.publicUrl,
+      credits_charged: charge.bypassed ? 0 : 1,
     });
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
 
