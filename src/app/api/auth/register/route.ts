@@ -3,7 +3,7 @@
 // A profiles rekordot a DB trigger (handle_new_user) hozza létre, 0 kredittel.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { validateAuthInput } from "@/lib/validation";
+import { validateRegisterInput } from "@/lib/validation";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -13,15 +13,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const { email, password } = (body ?? {}) as Record<string, string>;
+  const { name, email, password, passwordConfirm } = (body ?? {}) as Record<string, string>;
 
-  const { valid, errors } = validateAuthInput({ email, password });
+  const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm });
   if (!valid) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name.trim() } },
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

@@ -7,13 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 export default function GoogleButton({ label = "Folytatás Google-lel" }: { label?: string }) {
   const [loading, setLoading] = useState(false);
 
-  // A Google-belépés csak akkor jelenik meg, ha be van kapcsolva (env flag) ÉS
-  // a Supabase-ben be van állítva a Google provider. Alapból rejtve, hogy senki ne
-  // fusson a hibába. Bekapcsolás: NEXT_PUBLIC_ENABLE_GOOGLE_AUTH=true + redeploy.
-  if (process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH !== "true") {
-    return null;
-  }
-
   async function onClick() {
     setLoading(true);
     const supabase = createClient();

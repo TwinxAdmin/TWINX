@@ -4,14 +4,16 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { validateAuthInput } from "@/lib/validation";
+import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import Wordmark from "@/components/Wordmark";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export default function RegisterPage() {
     setMessage(null);
 
     // 1) Kliensoldali validáció
-    const result = validateAuthInput({ email, password });
+    const result = validateRegisterInput({ name, email, password, passwordConfirm });
     setErrors(result.errors);
     if (!result.valid) return;
 
@@ -33,7 +35,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password, passwordConfirm }),
       });
       const data = await res.json();
 
@@ -73,6 +75,22 @@ export default function RegisterPage() {
 
           <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
             <div>
+              <label htmlFor="name" className="block text-sm">Teljes név</label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="name"
+                placeholder="pl. Kovács Márk"
+              />
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-600">{errors.name}</p>
+              )}
+            </div>
+
+            <div>
               <label htmlFor="email" className="block text-sm">E-mail</label>
               <input
                 id="email"
@@ -102,6 +120,21 @@ export default function RegisterPage() {
               )}
             </div>
 
+            <div>
+              <label htmlFor="passwordConfirm" className="block text-sm">Jelszó megerősítése</label>
+              <input
+                id="passwordConfirm"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="new-password"
+              />
+              {errors.passwordConfirm && (
+                <p className="mt-1 text-xs text-red-600">{errors.passwordConfirm}</p>
+              )}
+            </div>
+
             <button type="submit" disabled={loading} className="twx-btn w-full">
               {loading ? "Regisztráció…" : "Regisztráció"}
             </button>
@@ -110,17 +143,13 @@ export default function RegisterPage() {
           {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
           {message && <p className="mt-3 text-sm text-green-700">{message}</p>}
 
-          {process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === "true" && (
-            <>
-              <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-                vagy
-                <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-              </div>
+          <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+            vagy
+            <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+          </div>
 
-              <GoogleButton label="Regisztráció Google-fiókkal" />
-            </>
-          )}
+          <GoogleButton label="Regisztráció Google-fiókkal" />
 
           <a href="/login" className="mt-4 block text-sm underline" style={{ color: "var(--twx-coral)" }}>
             Van már fiókod? Belépés
