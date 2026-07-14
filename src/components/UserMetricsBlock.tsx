@@ -16,6 +16,32 @@ export default function UserMetricsBlock({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
+  const [roleMap, setRoleMap] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function changeRole(userId: string, role: string) {
+    setBusyId(userId);
+    setNote(null);
+    try {
+      const res = await fetch("/api/admin/role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNote(data.error ?? "Hiba a szerepkör módosításakor.");
+        return;
+      }
+      setRoleMap((m) => ({ ...m, [userId]: role }));
+      setNote("Szerepkör frissítve.");
+    } catch {
+      setNote("Hálózati hiba.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   // Legutóbbi (regisztráció szerint csökkenő).
   const recent = useMemo(
@@ -41,6 +67,8 @@ export default function UserMetricsBlock({
         />
       </div>
 
+      {note && <p className="mt-2 text-xs" style={{ color: "var(--twx-coral)" }}>{note}</p>}
+
       <div className="mt-3 space-y-2">
         {list.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
@@ -54,9 +82,20 @@ export default function UserMetricsBlock({
             >
               <div className="min-w-0">
                 <p className="truncate font-medium">{u.email}</p>
-                {u.role !== "user" && (
-                  <span className="text-xs" style={{ color: "var(--twx-coral)" }}>{u.role}</span>
-                )}
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Szerepkör:</span>
+                  <select
+                    value={roleMap[u.userId] ?? u.role}
+                    disabled={busyId === u.userId}
+                    onChange={(e) => changeRole(u.userId, e.target.value)}
+                    className="twx-input h-7 py-0 text-xs"
+                    style={{ width: "auto", minWidth: "90px" }}
+                  >
+                    <option value="user">user</option>
+                    <option value="sales">sales</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </div>
                 <p className="mt-1 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                   {u.features.length
                     ? u.features.map((f) => `${f.label} ${f.count}`).join(" · ")
