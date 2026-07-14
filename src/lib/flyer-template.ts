@@ -186,9 +186,12 @@ export function buildFlyerHtml(opts: {
   .k-price .lab { font-size: ${px(15)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: ${muted}; }
   .k-price .val { font-size: ${px(50)}px; font-weight: 800; color: ${accent}; line-height: 1.05; }
   .k-price .val small { font-size: ${px(22)}px; }
-  .k-logo { background: ${accent}; color: ${onAccent}; border-radius: ${px(8)}px; padding: ${px(14)}px ${px(22)}px; display: flex; align-items: center; justify-content: center; min-width: ${px(200)}px; }
-  .k-logo img { max-height: ${px(92)}px; max-width: ${px(210)}px; object-fit: contain; }
-  .k-logo .co { font-size: ${px(22)}px; font-weight: 800; text-align: center; line-height: 1.15; }
+  .k-logo { display: flex; align-items: center; justify-content: flex-end; min-width: ${px(160)}px; }
+  .k-logo img { max-height: ${px(96)}px; max-width: ${px(220)}px; object-fit: contain; }
+  .k-logo .co { font-size: ${px(24)}px; font-weight: 800; text-align: right; line-height: 1.15; color: ${accent}; }
+  .k-top { }
+  .k-title { font-size: ${px(34)}px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; line-height: 1.05; }
+  .k-loc { display: inline-block; margin-top: ${px(8)}px; background: ${accent}; color: ${onAccent}; font-weight: 700; font-size: ${px(15)}px; padding: ${px(4)}px ${px(12)}px; border-radius: ${px(5)}px; }
   .k-hero { width: 100%; height: ${px(420)}px; background-size: cover; background-position: center; }
   .k-gal { display: grid; grid-template-columns: repeat(${Math.max(1, gal3.length)}, 1fr); gap: ${px(12)}px; }
   .k-gi { height: ${px(155)}px; background-size: cover; background-position: center; border: 1px solid ${line}; }
@@ -203,7 +206,7 @@ export function buildFlyerHtml(opts: {
   .k-desc p { font-size: ${px(14)}px; line-height: 1.55; margin-top: ${px(3)}px; }
   .k-agent { display: flex; flex-direction: column; align-items: center; text-align: center; }
   .k-agent .ph { width: ${px(150)}px; height: ${px(150)}px; border-radius: 50%; background-size: cover; background-position: center; border: ${px(4)}px solid ${accent}; }
-  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: ${px(6)}px ${px(16)}px; border-radius: ${px(4)}px; }
+  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: 0 ${px(16)}px; border-radius: ${px(4)}px; height: ${px(34)}px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
   .k-agent .ct { margin-top: ${px(10)}px; font-size: ${px(14)}px; line-height: 1.5; }
   .k-foot { background: ${accent}; color: ${onAccent}; text-align: center; font-size: ${px(16)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: ${px(12)}px; }
   .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
@@ -211,9 +214,13 @@ export function buildFlyerHtml(opts: {
 </style></head><body>
 <div class="flyer">
   <div class="frame">
+    <div class="k-top">
+      <div class="k-title">${esc(text.title || "Eladó ingatlan")}</div>
+      ${text.subtitle ? `<div class="k-loc">${esc(text.subtitle)}</div>` : ""}
+    </div>
     <div class="k-head">
       <div class="k-price">
-        ${price ? `<div class="lab">Kiinduló ár</div><div class="val">${esc(price)}<small> M Ft</small></div>` : `<div class="val" style="font-size:${px(30)}px">${esc(text.title || "Eladó ingatlan")}</div>`}
+        ${price ? `<div class="lab">Kiinduló ár</div><div class="val">${esc(price)}<small> M Ft</small></div>` : ""}
       </div>
       <div class="k-logo">${profile.logo_url ? `<img src="${esc(profile.logo_url)}"/>` : `<div class="co">${esc(profile.company || profile.display_name)}</div>`}</div>
     </div>
