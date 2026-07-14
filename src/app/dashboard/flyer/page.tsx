@@ -43,7 +43,8 @@ export default function FlyerPage() {
   // 4) Elrendezés + generálás
   const layout = "keys"; // egyetlen véglegesített elrendezés
   const [format, setFormat] = useState("poster");
-  const [mainUrl, setMainUrl] = useState<string | null>(null); // választott fő kép
+  const [imgOrder, setImgOrder] = useState<string[]>([]); // a képek sorrendje (0. = fő kép)
+  const [dragIdx, setDragIdx] = useState<number | null>(null); // épp húzott kép indexe
   const [sections, setSections] = useState({
     highlights: true,
     characteristics: true,
@@ -84,9 +85,32 @@ export default function FlyerPage() {
   );
   const dataItems = useMemo(() => library.filter((i) => i.data), [library]);
 
-  // Az összes kiválasztott kép (könyvtári + feltöltött) — ebből választható a fő kép.
+  // Az összes kiválasztott kép (könyvtári + feltöltött).
   const chosenImages = [...selectedImages, ...uploads.map((u) => u.url)];
-  const effectiveMain = mainUrl && chosenImages.includes(mainUrl) ? mainUrl : chosenImages[0];
+
+  // A sorrend-állapotot szinkronban tartjuk a kiválasztott képekkel:
+  // az új képek a végére kerülnek, a törölteket kivesszük, a meglévő sorrend marad.
+  useEffect(() => {
+    setImgOrder((prev) => {
+      const kept = prev.filter((u) => chosenImages.includes(u));
+      const added = chosenImages.filter((u) => !kept.includes(u));
+      const next = [...kept, ...added];
+      if (next.length === prev.length && next.every((u, i) => u === prev[i])) return prev;
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenImages.join("|")]);
+
+  // Húzás: a húzott képet a cél pozícióba tesszük (a 0. index a fő kép).
+  function moveImage(from: number, to: number) {
+    setImgOrder((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
 
   function toggleImage(url: string) {
     setSelectedImages((prev) => {
@@ -150,11 +174,8 @@ export default function FlyerPage() {
       font: profile.font,
       theme: profile.theme === "dark" ? "dark" : "light",
     };
-    let images = [...selectedImages, ...uploads.map((u) => u.url)];
-    // A választott fő kép kerüljön elsőnek (különben az első feltöltött lesz a főkép).
-    if (mainUrl && images.includes(mainUrl)) {
-      images = [mainUrl, ...images.filter((x) => x !== mainUrl)];
-    }
+    // A képek a felhasználó által beállított sorrendben (0. = fő/hero kép).
+    const images = imgOrder.length ? imgOrder : [...selectedImages, ...uploads.map((u) => u.url)];
     // Strukturált alapadatok az ikonos oszlophoz (Keys elrendezés).
     const keyFacts = {
       rooms: facts.rooms,
@@ -420,36 +441,64 @@ export default function FlyerPage() {
             </div>
           )}
 
-          {/* Fő kép választása — a nagy (hero) kép a hirdetésen. Alapból az első. */}
-          {chosenImages.length > 1 && (
+          {/* Fő kép + sorrend — húzd a képeket! A bal első (nagy) a fő kép, a többi galéria. */}
+          {imgOrder.length > 1 && (
             <div className="mb-4">
-              <p className="mb-2 text-sm font-medium">Fő kép (a nagy kép a hirdetésen)</p>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                {chosenImages.map((url) => {
-                  const isMain = url === effectiveMain;
+              <p className="mb-1 text-sm font-medium">Képek sorrendje</p>
+              <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Húzd a képeket az egérrel! A <b>bal első, nagy</b> kép lesz a <b>fő kép</b> a hirdetésen, a többi a galéria.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                {imgOrder.map((url, idx) => {
+                  const isMain = idx === 0;
                   return (
-                    <button
+                    <div
                       key={url}
-                      type="button"
-                      onClick={() => setMainUrl(url)}
-                      className="relative overflow-hidden rounded-xl transition-opacity"
-                      style={{ border: `2px solid ${isMain ? "var(--twx-coral)" : "var(--twx-line)"}` }}
+                      draggable
+                      onDragStart={() => setDragIdx(idx)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragIdx !== null) moveImage(dragIdx, idx);
+                        setDragIdx(null);
+                      }}
+                      onDragEnd={() => setDragIdx(null)}
+                      className="cursor-grab active:cursor-grabbing"
+                      style={{ opacity: dragIdx === idx ? 0.4 : 1 }}
                     >
-                      <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
-                      {isMain && (
-                        <span
-                          className="absolute inset-x-0 bottom-0 py-0.5 text-center text-[11px] font-semibold"
-                          style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                        >
-                          Fő kép
-                        </span>
-                      )}
-                    </button>
+                      <div
+                        className="mb-1 text-center text-[11px] font-bold uppercase tracking-wide"
+                        style={{ color: isMain ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}
+                      >
+                        {isMain ? "Főkép" : idx}
+                      </div>
+                      <div
+                        className="relative overflow-hidden rounded-xl"
+                        style={{
+                          width: isMain ? 132 : 92,
+                          border: `3px solid ${isMain ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                          boxShadow: isMain ? "0 4px 14px rgba(0,0,0,.18)" : "none",
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt=""
+                          draggable={false}
+                          className="aspect-[4/3] w-full object-cover"
+                        />
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
           )}
+
+          <div className="mt-5 mb-3 border-t pt-4" style={{ borderColor: "var(--twx-line)" }}>
+            <p className="text-sm font-medium">Galéria — korábbi munkák képei</p>
+            <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Kattints egy képre, hogy hozzáadd a hirdetéshez (max {MAX_FLYER_IMAGES}). A sorrendet fentebb állíthatod.
+            </p>
+          </div>
 
           {libraryImages.length === 0 ? (
             <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>

@@ -206,7 +206,7 @@ export function buildFlyerHtml(opts: {
   .k-desc p { font-size: ${px(14)}px; line-height: 1.55; margin-top: ${px(3)}px; }
   .k-agent { display: flex; flex-direction: column; align-items: center; text-align: center; }
   .k-agent .ph { width: ${px(150)}px; height: ${px(150)}px; border-radius: 50%; background-size: cover; background-position: center; border: ${px(4)}px solid ${accent}; }
-  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: 0 ${px(16)}px; border-radius: ${px(4)}px; height: ${px(34)}px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: 0 ${px(20)}px; border-radius: ${px(4)}px; height: ${px(40)}px; line-height: ${px(40)}px; text-align: center; display: inline-block; }
   .k-agent .ct { margin-top: ${px(10)}px; font-size: ${px(14)}px; line-height: 1.5; }
   .k-foot { background: ${accent}; color: ${onAccent}; text-align: center; font-size: ${px(16)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: ${px(12)}px; }
   .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
