@@ -89,8 +89,10 @@ export function buildFlyerHtml(opts: {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: ${w}px; height: ${h}px; }
   .flyer { position: relative; width: ${w}px; height: ${h}px; overflow: hidden; font-family: ${font.family}; color: #fff; background: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .fh { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .grad { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 44%, rgba(0,0,0,.85) 100%); }
+  .fh { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; }
+  .grad { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 40%, rgba(0,0,0,.86) 100%); }
+  .fgal { display: grid; grid-template-columns: repeat(${Math.min(3, Math.max(1, gallery.length))}, 1fr); gap: 8px; }
+  .fgi { height: ${isStory ? 150 : 92}px; border-radius: 12px; background-size: cover; background-position: center; background-repeat: no-repeat; border: 1px solid rgba(255,255,255,.35); }
   .fcontent { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: ${pad}px; z-index: 3; }
   .ftitle { font-size: ${titleSize}px; font-weight: 800; text-transform: uppercase; line-height: 1.02; letter-spacing: -0.5px; text-shadow: 0 2px 20px rgba(0,0,0,.55); max-width: 92%; }
   .fsub { display: inline-flex; align-items: center; height: 36px; margin-top: 14px; background: ${accent}; color: #1c1005; font-weight: 700; font-size: 18px; padding: 0 16px; border-radius: 8px; }
@@ -112,7 +114,7 @@ export function buildFlyerHtml(opts: {
   .wm span { font-size: 46px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: rgba(255,255,255,0.22); }
 </style></head><body>
 <div class="flyer">
-  ${hero ? `<img class="fh" src="${esc(hero)}"/>` : `<div class="fh" style="background:${bg}"></div>`}
+  ${hero ? `<div class="fh" style="background-image:url('${esc(hero)}')"></div>` : `<div class="fh" style="background:${bg}"></div>`}
   <div class="grad"></div>
   ${watermark ? `<div class="wm">${Array.from({ length: 6 }).map(() => `<span>ELŐNÉZET · TWINX</span>`).join("")}</div>` : ""}
   <div class="fcontent">
@@ -121,6 +123,7 @@ export function buildFlyerHtml(opts: {
       ${text.subtitle ? `<div class="fsub">${esc(text.subtitle)}</div>` : ""}
     </div>
     <div class="fbot">
+      ${sections.gallery && gallery.length ? `<div class="fgal">${gallery.slice(0, 3).map((g) => `<div class="fgi" style="background-image:url('${esc(g)}')"></div>`).join("")}</div>` : ""}
       ${text.price ? `<div class="fprice"><span class="lab">ÁRA</span><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div>` : ""}
       ${sections.highlights && text.highlights.length ? `<div class="fhl">${text.highlights.slice(0, 4).map((hl) => `<span>${esc(hl)}</span>`).join("")}</div>` : ""}
       <div class="ffoot">
