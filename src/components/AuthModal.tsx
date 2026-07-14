@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { validateAuthInput } from "@/lib/validation";
+import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 
 type Mode = "login" | "register";
@@ -16,8 +16,10 @@ export default function AuthModal() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,8 +43,10 @@ export default function AuthModal() {
       const detail = (e as CustomEvent).detail as { mode?: Mode } | undefined;
       setMode(detail?.mode ?? "login");
       reset();
+      setName("");
       setEmail("");
       setPassword("");
+      setPasswordConfirm("");
       setOpen(true);
     };
     window.addEventListener("open-auth", onOpen);
@@ -69,7 +73,7 @@ export default function AuthModal() {
     setMessage(null);
 
     if (mode === "register") {
-      const result = validateAuthInput({ email, password });
+      const result = validateRegisterInput({ name, email, password, passwordConfirm });
       setErrors(result.errors);
       if (!result.valid) return;
     } else if (!email || !password) {
@@ -82,7 +86,10 @@ export default function AuthModal() {
       const res = await fetch(mode === "login" ? "/api/auth/login" : "/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body:
+          mode === "login"
+            ? JSON.stringify({ email, password })
+            : JSON.stringify({ name, email, password, passwordConfirm }),
       });
       const data = await res.json();
 
@@ -143,6 +150,21 @@ export default function AuthModal() {
         </div>
 
         <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm">Teljes név</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="name"
+                placeholder="pl. Kovács Márk"
+              />
+              {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm">E-mail</label>
             <input
@@ -166,6 +188,20 @@ export default function AuthModal() {
             />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
           </div>
+
+          {!isLogin && (
+            <div>
+              <label className="block text-sm">Jelszó megerősítése</label>
+              <input
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="new-password"
+              />
+              {errors.passwordConfirm && <p className="mt-1 text-xs text-red-600">{errors.passwordConfirm}</p>}
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="twx-btn w-full">
             {loading ? "Egy pillanat…" : isLogin ? "Belépés" : "Regisztráció"}
