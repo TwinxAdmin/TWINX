@@ -83,7 +83,7 @@ export default function RegisterPage() {
                 onChange={(e) => setName(e.target.value)}
                 className="twx-input mt-1"
                 autoComplete="name"
-                placeholder="pl. Kovács Márk"
+                placeholder="pl. Nagy Anna"
               />
               {errors.name && (
                 <p className="mt-1 text-xs text-red-600">{errors.name}</p>
