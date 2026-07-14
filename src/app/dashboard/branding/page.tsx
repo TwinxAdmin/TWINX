@@ -9,6 +9,7 @@ import {
   type BrandingInput,
   type BrandingProfile,
 } from "@/lib/branding";
+import { compressImage } from "@/lib/image-compress";
 
 export default function BrandingPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -87,8 +88,12 @@ export default function BrandingPage() {
       const fd = new FormData();
       if (editing) fd.append("id", editing.id);
       Object.entries(values).forEach(([k, v]) => fd.append(k, String(v)));
-      if (logoFile) fd.append("logo", logoFile);
-      if (agentFile) fd.append("agent_photo", agentFile);
+      // Logó: SVG marad, egyéb raszter kicsinyítve (Vercel ~4,5 MB limit).
+      if (logoFile) {
+        fd.append("logo", logoFile.type.includes("svg") ? logoFile : await compressImage(logoFile, 800, 0.9));
+      }
+      // Ügynök-fotó: mindig kicsinyítve (portré).
+      if (agentFile) fd.append("agent_photo", await compressImage(agentFile, 800, 0.88));
 
       const res = await fetch("/api/branding", { method: "POST", body: fd });
       const data = await res.json();
