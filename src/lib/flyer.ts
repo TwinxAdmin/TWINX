@@ -22,11 +22,9 @@ export type FlyerFormat = {
   height: number;
 };
 
+// Egyelőre egyetlen elérhető formátum: álló poszter — normál.
 export const FLYER_FORMATS: FlyerFormat[] = [
   { value: "poster", label: "Álló poszter — normál", kind: "image", mode: "poster", width: 900, height: 1280 },
-  { value: "poster-hd", label: "Álló poszter — HD (nagy)", kind: "image", mode: "poster", width: 1200, height: 1700 },
-  { value: "square", label: "Négyzet 1:1 — Insta/FB poszt", kind: "image", mode: "frame", width: 1080, height: 1080 },
-  { value: "story", label: "Story 9:16 — Insta/FB story", kind: "image", mode: "frame", width: 1080, height: 1920 },
 ];
 
 // Választható TWINX elrendezések (a szín/betű/téma az arculatból jön).
