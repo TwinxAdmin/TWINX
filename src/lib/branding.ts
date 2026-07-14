@@ -14,12 +14,13 @@ export type BrandingProfile = {
   website: string;
   slogan: string;
   logo_url: string | null;
+  agent_photo_url: string | null; // az ügynök (partner) saját fotója
   accent_color: string;
   font: string;
   theme: ThemeMode;
 };
 
-export type BrandingInput = Omit<BrandingProfile, "id" | "logo_url">;
+export type BrandingInput = Omit<BrandingProfile, "id" | "logo_url" | "agent_photo_url">;
 
 export const EMPTY_BRANDING: BrandingInput = {
   label: "",

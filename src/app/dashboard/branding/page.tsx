@@ -17,6 +17,8 @@ export default function BrandingPage() {
   const [values, setValues] = useState<BrandingInput>({ ...EMPTY_BRANDING });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [agentFile, setAgentFile] = useState<File | null>(null);
+  const [agentPreview, setAgentPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -41,6 +43,8 @@ export default function BrandingPage() {
     setValues({ ...EMPTY_BRANDING });
     setLogoFile(null);
     setLogoPreview(null);
+    setAgentFile(null);
+    setAgentPreview(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -63,6 +67,8 @@ export default function BrandingPage() {
     });
     setLogoFile(null);
     setLogoPreview(null);
+    setAgentFile(null);
+    setAgentPreview(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -82,6 +88,7 @@ export default function BrandingPage() {
       if (editing) fd.append("id", editing.id);
       Object.entries(values).forEach(([k, v]) => fd.append(k, String(v)));
       if (logoFile) fd.append("logo", logoFile);
+      if (agentFile) fd.append("agent_photo", agentFile);
 
       const res = await fetch("/api/branding", { method: "POST", body: fd });
       const data = await res.json();
@@ -244,6 +251,46 @@ export default function BrandingPage() {
                 />
                 <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                   {logoFile ? logoFile.name : "PNG, JPG vagy SVG — átlátszó háttér ajánlott."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ügynök-fotó (a partner saját képe — a hirdetésen körképként jelenik meg) */}
+          <div>
+            <label className="block text-sm">Saját fotó (ügynök)</label>
+            <div className="mt-1 flex items-center gap-4">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
+              >
+                {agentPreview || editing?.agent_photo_url ? (
+                  <img src={agentPreview ?? editing?.agent_photo_url ?? ""} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-2xl" style={{ color: "var(--twx-line)" }}>☺</span>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="agent-input"
+                  className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                >
+                  {agentFile || editing?.agent_photo_url ? "Fotó cseréje" : "Fotó feltöltése"}
+                </label>
+                <input
+                  id="agent-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setAgentFile(f);
+                    setAgentPreview(f ? URL.createObjectURL(f) : null);
+                  }}
+                  className="hidden"
+                />
+                <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {agentFile ? agentFile.name : "Portré / arckép — a hirdetésen körben jelenik meg."}
                 </p>
               </div>
             </div>

@@ -70,11 +70,11 @@ export async function POST(request: Request) {
     }
   }
 
-  // Opcionális logó feltöltés.
-  let logoUrl: string | undefined;
-  const logo = form.get("logo");
-  if (logo && typeof logo !== "string" && (logo as File).size > 0) {
-    const file = logo as File;
+  // Feltöltés-segéd (logó / ügynök-fotó) — a reports bucketbe, publikus URL-lel.
+  async function uploadImage(field: string, label: string): Promise<string | undefined | { error: string }> {
+    const entry = form.get(field);
+    if (!entry || typeof entry === "string" || (entry as File).size === 0) return undefined;
+    const file = entry as File;
     const ext = file.type.includes("png")
       ? "png"
       : file.type.includes("webp")
@@ -83,17 +83,25 @@ export async function POST(request: Request) {
           ? "svg"
           : "jpg";
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const path = `branding/${user.id}/${randomUUID()}.${ext}`;
+    const path = `branding/${user!.id}/${randomUUID()}.${ext}`;
     const { error: upErr } = await admin.storage
       .from(BUCKET)
       .upload(path, bytes, { contentType: file.type || "image/png", upsert: false });
-    if (upErr) return NextResponse.json({ error: `Logó feltöltés hiba: ${upErr.message}` }, { status: 500 });
-    logoUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    if (upErr) return { error: `${label} feltöltés hiba: ${upErr.message}` };
+    return admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   }
+
+  const logoRes = await uploadImage("logo", "Logó");
+  if (logoRes && typeof logoRes === "object") return NextResponse.json({ error: logoRes.error }, { status: 500 });
+  const agentRes = await uploadImage("agent_photo", "Ügynök-fotó");
+  if (agentRes && typeof agentRes === "object") return NextResponse.json({ error: agentRes.error }, { status: 500 });
+  const logoUrl = logoRes as string | undefined;
+  const agentUrl = agentRes as string | undefined;
 
   if (id) {
     const patch: Record<string, unknown> = { ...fields };
     if (logoUrl) patch.logo_url = logoUrl;
+    if (agentUrl) patch.agent_photo_url = agentUrl;
     const { error } = await admin.from("branding_profiles").update(patch).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, id });
@@ -101,7 +109,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await admin
     .from("branding_profiles")
-    .insert({ ...fields, user_id: user.id, logo_url: logoUrl ?? null })
+    .insert({ ...fields, user_id: user.id, logo_url: logoUrl ?? null, agent_photo_url: agentUrl ?? null })
     .select("id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
