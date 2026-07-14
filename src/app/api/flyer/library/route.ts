@@ -43,7 +43,20 @@ export async function GET() {
     .limit(80);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows = (data ?? []) as HistoryRow[];
+  const allRows = (data ?? []) as HistoryRow[];
+
+  // A korábban ELKÉSZÜLT hirdetések (feature_used = "flyer") külön listába kerülnek,
+  // hogy NE keveredjenek a hirdetéshez felhasználható forrásképekkel.
+  const flyerRows = allRows.filter((r) => r.feature_used === "flyer");
+  const rows = allRows.filter((r) => r.feature_used !== "flyer");
+
+  const flyers = flyerRows
+    .filter((r) => isImage(r.output_file_url))
+    .map((r) => {
+      const d = (r.input_data ?? {}) as Record<string, unknown>;
+      const title = typeof d.title === "string" && d.title.trim() ? d.title.trim() : "Hirdetés";
+      return { id: r.id, title, url: r.output_file_url as string, createdAt: r.created_at };
+    });
 
   const items: LibraryItem[] = rows.map((r) => {
     const d = (r.input_data ?? {}) as Record<string, unknown>;
@@ -92,5 +105,5 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ items });
+  return NextResponse.json({ items, flyers });
 }
