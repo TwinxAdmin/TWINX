@@ -45,7 +45,8 @@ export default async function AdminCreditsPage() {
       </div>
       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Manuális kredit-jóváírás egy felhasználónak (pl. értékesítői / prezentációs
-        célra). A kreditek nem járnak le. Az Ingatlan modul egyenlegéhez írja jóvá.
+        célra). A kreditek nem járnak le, és a közös egyenlegre kerülnek — bármelyik
+        modulban felhasználhatók.
       </p>
       <AdminCreditForm users={users} />
       </div>
