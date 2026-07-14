@@ -53,15 +53,21 @@ export async function renderFlyerToBlob(
     await sleep(120);
 
     const target = (doc.querySelector(".flyer") as HTMLElement) || doc.body;
-    // A teljes tartalom kirajzolásához engedjük túlnyúlni (különben az alja levágódna).
+    // A hirdetést a SAJÁT tartalmi méretében rajzoljuk (nincs A4-kényszer / üres alsó rész):
+    // a min-height-ot kinullázzuk, a magasság a tartalomhoz igazodik.
     target.style.overflow = "visible";
+    target.style.minHeight = "0";
     target.style.height = "auto";
-    const naturalW = Math.max(target.scrollWidth, width);
-    const naturalH = Math.max(target.scrollHeight, height);
+    if (doc.body) { doc.body.style.height = "auto"; doc.body.style.overflow = "visible"; }
+    if (doc.documentElement) { doc.documentElement.style.height = "auto"; doc.documentElement.style.overflow = "visible"; }
+    await sleep(30);
+
+    const naturalW = target.offsetWidth || width;
+    const naturalH = target.offsetHeight || height;
 
     // @ts-ignore - a csomag a build során települ (package.json dependency)
     const html2canvas = (await import("html2canvas")).default;
-    const shot = await html2canvas(target, {
+    const canvas = await html2canvas(target, {
       useCORS: true,
       backgroundColor: "#ffffff",
       scale: 2,
@@ -71,32 +77,17 @@ export async function renderFlyerToBlob(
       windowHeight: naturalH,
     });
 
-    // Fit-to-page: a teljes hirdetést a formátum méretére skálázzuk (semmi ne vágódjon le),
-    // vízszintesen középre igazítva.
-    const s = 2;
-    const out = document.createElement("canvas");
-    out.width = width * s;
-    out.height = height * s;
-    const ctx = out.getContext("2d");
-    if (!ctx) throw new Error("Nem sikerült a kép összeállítása.");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, out.width, out.height);
-    const fit = Math.min(out.width / shot.width, out.height / shot.height);
-    const dw = shot.width * fit;
-    const dh = shot.height * fit;
-    ctx.drawImage(shot, (out.width - dw) / 2, 0, dw, dh);
-
     if (kind === "pdf") {
       // @ts-ignore - a csomag a build során települ (package.json dependency)
       const { jsPDF } = await import("jspdf");
-      const orientation = width >= height ? "landscape" : "portrait";
-      const pdf = new jsPDF({ orientation, unit: "px", format: [width, height] });
-      pdf.addImage(out.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, width, height);
+      const orientation = naturalW >= naturalH ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit: "px", format: [naturalW, naturalH] });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, naturalW, naturalH);
       return { blob: pdf.output("blob"), ext: "pdf", contentType: "application/pdf" };
     }
 
     const blob = await new Promise<Blob>((resolve, reject) =>
-      out.toBlob(
+      canvas.toBlob(
         (b: Blob | null) => (b ? resolve(b) : reject(new Error("A kép nem készült el."))),
         "image/png"
       )
