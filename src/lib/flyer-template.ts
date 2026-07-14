@@ -235,13 +235,8 @@ export function buildFlyerHtml(opts: {
       <div class="k-facts">
         ${rows.map(([ic, tx]) => `<div class="row"><span class="ic">${ic}</span><span class="tx">${esc(tx)}</span></div>`).join("")}
         ${
-          (sections.characteristics && text.characteristics.length) || extraBullets.length
-            ? `<div class="more">${[
-                ...(sections.characteristics ? text.characteristics.slice(0, 4) : []),
-                ...extraBullets,
-              ]
-                .map((c) => `<div>• ${esc(c)}</div>`)
-                .join("")}</div>`
+          extraBullets.length
+            ? `<div class="more">${extraBullets.map((c) => `<div>• ${esc(c)}</div>`).join("")}</div>`
             : ""
         }
       </div>
