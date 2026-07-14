@@ -21,6 +21,9 @@ export async function launchBrowser(): Promise<AnyBrowser> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const puppeteer: any = (coreMod as { default?: unknown }).default ?? coreMod;
 
+    // Serverless-ajánlás: grafikus mód kikapcsolása (kisebb lábnyom, kevesebb lib-függés).
+    if (typeof chromium.setGraphicsMode !== "undefined") chromium.setGraphicsMode = false;
+
     return puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
