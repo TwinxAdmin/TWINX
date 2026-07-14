@@ -44,6 +44,7 @@ export default function FlyerPage() {
   // 4) Elrendezés + generálás
   const [layout, setLayout] = useState("classic");
   const [format, setFormat] = useState("poster");
+  const [mainUrl, setMainUrl] = useState<string | null>(null); // választott fő kép
   const [sections, setSections] = useState({
     highlights: true,
     characteristics: true,
@@ -83,6 +84,10 @@ export default function FlyerPage() {
     [library]
   );
   const dataItems = useMemo(() => library.filter((i) => i.data), [library]);
+
+  // Az összes kiválasztott kép (könyvtári + feltöltött) — ebből választható a fő kép.
+  const chosenImages = [...selectedImages, ...uploads.map((u) => u.url)];
+  const effectiveMain = mainUrl && chosenImages.includes(mainUrl) ? mainUrl : chosenImages[0];
 
   function toggleImage(url: string) {
     setSelectedImages((prev) => {
@@ -145,7 +150,11 @@ export default function FlyerPage() {
       font: profile.font,
       theme: profile.theme === "dark" ? "dark" : "light",
     };
-    const images = [...selectedImages, ...uploads.map((u) => u.url)];
+    let images = [...selectedImages, ...uploads.map((u) => u.url)];
+    // A választott fő kép kerüljön elsőnek (különben az első feltöltött lesz a főkép).
+    if (mainUrl && images.includes(mainUrl)) {
+      images = [mainUrl, ...images.filter((x) => x !== mainUrl)];
+    }
     const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark });
     return { html, fmt };
   }
@@ -401,6 +410,37 @@ export default function FlyerPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Fő kép választása — a nagy (hero) kép a hirdetésen. Alapból az első. */}
+          {chosenImages.length > 1 && (
+            <div className="mb-4">
+              <p className="mb-2 text-sm font-medium">Fő kép (a nagy kép a hirdetésen)</p>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+                {chosenImages.map((url) => {
+                  const isMain = url === effectiveMain;
+                  return (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setMainUrl(url)}
+                      className="relative overflow-hidden rounded-xl transition-opacity"
+                      style={{ border: `2px solid ${isMain ? "var(--twx-coral)" : "var(--twx-line)"}` }}
+                    >
+                      <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
+                      {isMain && (
+                        <span
+                          className="absolute inset-x-0 bottom-0 py-0.5 text-center text-[11px] font-semibold"
+                          style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                        >
+                          Fő kép
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
