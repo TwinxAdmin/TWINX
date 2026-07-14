@@ -1,7 +1,8 @@
 // /admin/credits — Admin kézi kredit-adás egy felhasználónak (CSAK admin).
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import AdminCreditForm from "@/components/AdminCreditForm";
+import { createAdminClient } from "@/lib/supabase/admin";
+import AdminCreditForm, { type CreditUser } from "@/components/AdminCreditForm";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,16 @@ export default async function AdminCreditsPage() {
     .eq("id", user.id)
     .single();
   if (me?.role !== "admin") redirect("/dashboard");
+
+  // Felhasználók listája a legördülőhöz (e-mail + szerepkör).
+  const admin = createAdminClient();
+  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const { data: profs } = await admin.from("profiles").select("id, role");
+  const roleById = new Map<string, string>((profs ?? []).map((p) => [p.id as string, (p.role as string) ?? "user"]));
+  const users: CreditUser[] = (list?.users ?? [])
+    .filter((u) => u.email)
+    .map((u) => ({ id: u.id, email: u.email as string, role: roleById.get(u.id) ?? "user" }))
+    .sort((a, b) => a.email.localeCompare(b.email, "hu"));
 
   return (
     <main className="twx-page font-sans">
@@ -36,7 +47,7 @@ export default async function AdminCreditsPage() {
         Manuális kredit-jóváírás egy felhasználónak (pl. értékesítői / prezentációs
         célra). A kreditek nem járnak le. Az Ingatlan modul egyenlegéhez írja jóvá.
       </p>
-      <AdminCreditForm />
+      <AdminCreditForm users={users} />
       </div>
     </main>
   );

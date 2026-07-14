@@ -3,7 +3,11 @@
 
 import { useState, type FormEvent } from "react";
 
-export default function AdminCreditForm() {
+export type CreditUser = { id: string; email: string; role: string };
+
+const ROLE_LABEL: Record<string, string> = { admin: "admin", sales: "sales", user: "user" };
+
+export default function AdminCreditForm({ users = [] }: { users?: CreditUser[] }) {
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -45,6 +49,29 @@ export default function AdminCreditForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      {users.length > 0 && (
+        <div>
+          <label htmlFor="credit-select" className="block text-sm">
+            Válassz felhasználót (opcionális)
+          </label>
+          <select
+            id="credit-select"
+            value={users.some((u) => u.email === email) ? email : ""}
+            onChange={(e) => setEmail(e.target.value)}
+            className="twx-input mt-1"
+          >
+            <option value="">— válassz a listából —</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.email}>
+                {u.email} · {ROLE_LABEL[u.role] ?? u.role}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            A kiválasztott e-mail bekerül a lenti mezőbe — vagy írd be kézzel.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="credit-email" className="block text-sm">
