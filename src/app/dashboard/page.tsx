@@ -22,7 +22,19 @@ export default async function DashboardHome() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: wallet }, { data: history }] = await Promise.all([
+  const { data: me } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    : { data: null };
+  const role = (me?.role as string | undefined) ?? "user";
+  const isStaff = role === "admin" || role === "sales"; // prezentációs mód (nincs kreditlevonás)
+
+  // Időszakok a folyamat-számláláshoz (hét = hétfőtől, hónap = 1-jétől).
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const sinceMonday = (now.getDay() + 6) % 7;
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday).toISOString();
+
+  const [{ data: wallet }, { data: history }, weekRes, monthRes] = await Promise.all([
     user
       ? supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -31,32 +43,68 @@ export default async function DashboardHome() {
       .select("id, feature_used, input_data, output_file_url, created_at, services(name)")
       .order("created_at", { ascending: false })
       .limit(50),
+    isStaff
+      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).gte("created_at", startOfWeek)
+      : Promise.resolve({ count: 0 }),
+    isStaff
+      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth)
+      : Promise.resolve({ count: 0 }),
   ]);
 
   const balance = (wallet?.balance as number | undefined) ?? 0;
+  const weekCount = (weekRes as { count: number | null }).count ?? 0;
+  const monthCount = (monthRes as { count: number | null }).count ?? 0;
   const historyList = (history ?? []) as unknown as HistoryRow[];
 
   return (
     <main className="space-y-10">
       <h1 className="font-display text-4xl font-semibold">Portál Központ</h1>
 
-      {/* Közös egyenleg — bármelyik modulban elkölthető */}
+      {/* Fejléc-kártya: usernek egyenleg (csökken), staffnak folyamat-számláló (nő) */}
       <section
         className="flex flex-wrap items-center justify-between gap-4 rounded-2xl p-6"
         style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
       >
-        <div>
-          <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-            Egyenleged — bármelyik modulban felhasználható
-          </p>
-          <p className="font-display text-5xl font-semibold">{balance}</p>
-        </div>
-        <PricingTrigger
-          className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-          style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-        >
-          Egyenleg feltöltése
-        </PricingTrigger>
+        {isStaff ? (
+          <>
+            <div>
+              <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+                Prezentációs mód — a modulok kreditlevonás nélkül futnak (csak API-költség)
+              </p>
+              <div className="mt-2 flex flex-wrap gap-10">
+                <div>
+                  <p className="font-display text-5xl font-semibold">{weekCount}</p>
+                  <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>folyamat ezen a héten</p>
+                </div>
+                <div>
+                  <p className="font-display text-5xl font-semibold">{monthCount}</p>
+                  <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>folyamat ebben a hónapban</p>
+                </div>
+              </div>
+            </div>
+            <span
+              className="rounded-full px-3 py-1 text-xs font-medium"
+              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+            >
+              {role === "admin" ? "Admin" : "Sales"}
+            </span>
+          </>
+        ) : (
+          <>
+            <div>
+              <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+                Egyenleged — bármelyik modulban felhasználható
+              </p>
+              <p className="font-display text-5xl font-semibold">{balance}</p>
+            </div>
+            <PricingTrigger
+              className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+            >
+              Egyenleg feltöltése
+            </PricingTrigger>
+          </>
+        )}
       </section>
 
       {/* Kategóriák (App Store-szerű áttekintés) */}
