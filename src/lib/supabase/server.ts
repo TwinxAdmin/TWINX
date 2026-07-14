@@ -2,6 +2,7 @@
 // A Next.js 15-ben a cookies() aszinkron, ezért await kell.
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/env";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -9,8 +10,8 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {

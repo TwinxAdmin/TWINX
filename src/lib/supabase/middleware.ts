@@ -1,6 +1,7 @@
 // Session frissítése minden kérésnél + a /dashboard útvonalak védelme.
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase/env";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -9,15 +10,13 @@ export async function updateSession(request: NextRequest) {
 
   // Ha hiányzik a Supabase konfiguráció (pl. env nincs beállítva), NE dőljön el az
   // egész oldal — engedjük tovább a kérést (a védett oldalakat a szerver úgyis kezeli).
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseKey) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return supabaseResponse;
   }
 
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
