@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
+import { compressImage } from "@/lib/image-compress";
 import {
   MAX_FLYER_IMAGES,
   FLYER_TONES,
@@ -138,7 +139,9 @@ export default function FlyerPage() {
       const fd = new FormData();
       fd.append("payload", JSON.stringify({ profileId, format, layout, sections, text }));
       fd.append("libraryImages", JSON.stringify(selectedImages));
-      uploads.forEach((u) => fd.append("files", u.file));
+      // Feltöltés előtti kicsinyítés (Vercel ~4,5 MB kérés-limit).
+      const compressed = await Promise.all(uploads.map((u) => compressImage(u.file)));
+      compressed.forEach((f) => fd.append("files", f));
 
       const res = await fetch("/api/flyer/generate", { method: "POST", body: fd });
       const data = await res.json();

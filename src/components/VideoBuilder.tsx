@@ -10,6 +10,7 @@ import {
   MAX_VIDEO_IMAGES,
   creditForImages,
 } from "@/lib/video";
+import { compressImage } from "@/lib/image-compress";
 
 type Upload = { file: File; url: string };
 
@@ -88,7 +89,9 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
       fd.append("format", format);
       fd.append("musicStyle", musicStyle);
       fd.append("historyUrls", JSON.stringify([...selected]));
-      for (const u of uploads) fd.append("images", u.file);
+      // Feltöltés előtti kicsinyítés (Vercel ~4,5 MB kérés-limit).
+      const compressed = await Promise.all(uploads.map((u) => compressImage(u.file)));
+      for (const f of compressed) fd.append("images", f);
 
       const res = await fetch("/api/real-estate/video", { method: "POST", body: fd });
       const data = await res.json();

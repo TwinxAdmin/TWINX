@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
+import { compressImage } from "@/lib/image-compress";
 import {
   ROOM_TYPES,
   STYLE_OPTIONS,
@@ -117,8 +118,10 @@ export default function VisualizationPage() {
 
     setLoading(true);
     try {
+      // Feltöltés előtt kicsinyítjük a képeket (Vercel ~4,5 MB kérés-limit).
+      const compressed = await Promise.all(items.map((it) => compressImage(it.file)));
       const fd = new FormData();
-      for (const it of items) fd.append("images", it.file);
+      compressed.forEach((f) => fd.append("images", f));
       fd.append("configs", JSON.stringify(items.map((it) => it.config)));
 
       const res = await fetch("/api/real-estate/visualization", {
