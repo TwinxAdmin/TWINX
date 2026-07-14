@@ -5,7 +5,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
-import { compressImage } from "@/lib/image-compress";
+import { buildFlyerHtml, type FlyerProfileData } from "@/lib/flyer-template";
+import { renderFlyerToBlob } from "@/lib/flyer-client-render";
 import {
   MAX_FLYER_IMAGES,
   FLYER_TONES,
@@ -126,6 +127,30 @@ export default function FlyerPage() {
     setText((prev) => ({ ...prev, [key]: val }));
   }
 
+  // A hirdetés HTML-jét a böngészőben állítjuk össze (a feltöltött fotók helyi blobként).
+  function buildLocalFlyer(watermark: boolean) {
+    const profile = profiles.find((p) => p.id === profileId);
+    if (!profile) return null;
+    const fmt = FLYER_FORMATS.find((f) => f.value === format) ?? FLYER_FORMATS[0];
+    const profileData: FlyerProfileData = {
+      display_name: profile.display_name,
+      title: profile.title,
+      phone: profile.phone,
+      email: profile.email,
+      company: profile.company,
+      website: profile.website,
+      slogan: profile.slogan,
+      logo_url: profile.logo_url,
+      accent_color: profile.accent_color,
+      font: profile.font,
+      theme: profile.theme === "dark" ? "dark" : "light",
+    };
+    const images = [...selectedImages, ...uploads.map((u) => u.url)];
+    const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark });
+    return { html, fmt };
+  }
+
+  // Előnézet: teljesen böngészőoldali render (vízjeles, ingyenes, nincs szerver-Chromium).
   async function generateFlyer() {
     setFlyerError(null);
     setFinalUrl(null);
@@ -136,37 +161,44 @@ export default function FlyerPage() {
     }
     setFlyerLoading(true);
     try {
-      const fd = new FormData();
-      fd.append("payload", JSON.stringify({ profileId, format, layout, sections, text }));
-      fd.append("libraryImages", JSON.stringify(selectedImages));
-      // Feltöltés előtti kicsinyítés (Vercel ~4,5 MB kérés-limit).
-      const compressed = await Promise.all(uploads.map((u) => compressImage(u.file)));
-      compressed.forEach((f) => fd.append("files", f));
-
-      const res = await fetch("/api/flyer/generate", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setFlyerError(data.error ?? "Hiba az előnézet készítésekor.");
+      const built = buildLocalFlyer(true);
+      if (!built) {
+        setFlyerError("Válassz érvényes arculatot.");
         return;
       }
-      setPreview({ url: data.previewUrl, kind: data.kind, renderData: data.renderData });
-    } catch {
-      setFlyerError("Hálózati hiba. Próbáld újra.");
+      const { blob } = await renderFlyerToBlob(built.html, built.fmt.width, built.fmt.height, built.fmt.kind);
+      const url = URL.createObjectURL(blob);
+      setPreview({ url, kind: built.fmt.kind, renderData: {} });
+    } catch (e) {
+      setFlyerError("Nem sikerült az előnézet elkészítése. " + (e as Error).message);
     } finally {
       setFlyerLoading(false);
     }
   }
 
+  // Elfogadás: vízjel nélküli render a böngészőben, majd a kész képet feltöltjük + kredit.
   async function acceptFlyer() {
     if (!preview) return;
     setAcceptError(null);
     setAccepting(true);
     try {
-      const res = await fetch("/api/flyer/accept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preview.renderData),
-      });
+      const built = buildLocalFlyer(false);
+      if (!built) {
+        setAcceptError("Válassz érvényes arculatot.");
+        return;
+      }
+      const { blob, ext, contentType } = await renderFlyerToBlob(
+        built.html,
+        built.fmt.width,
+        built.fmt.height,
+        built.fmt.kind
+      );
+      const fd = new FormData();
+      fd.append("image", new File([blob], `flyer.${ext}`, { type: contentType }));
+      fd.append("profileId", profileId);
+      fd.append("format", format);
+      fd.append("title", text.title ?? "");
+      const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
         setAcceptError(data.error ?? "Hiba az elfogadáskor.");
@@ -174,8 +206,8 @@ export default function FlyerPage() {
       }
       setFinalUrl(data.url as string);
       setPreview(null);
-    } catch {
-      setAcceptError("Hálózati hiba. Próbáld újra.");
+    } catch (e) {
+      setAcceptError("Nem sikerült a mentés. " + (e as Error).message);
     } finally {
       setAccepting(false);
     }

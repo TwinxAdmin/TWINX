@@ -1,16 +1,14 @@
-// POST /api/flyer/accept — a hirdetés ELFOGADÁSA: 1 kredit levonása, tiszta (vízjel nélküli)
-// render, mentés + előzmény. A képek már URL-ek (a /generate feltöltötte). Hibánál visszatérít.
+// POST /api/flyer/accept — a hirdetés ELFOGADÁSA: 1 kredit levonása + a BÖNGÉSZŐBEN
+// már elkészített (vízjel nélküli) kép feltöltése + előzmény. A renderelés kliensoldali
+// (html2canvas), így nincs szükség szerver-Chromiumra. Hibánál a kredit visszajár.
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
-import { FLYER_FORMATS, FLYER_CREDITS, type FlyerText } from "@/lib/flyer";
-import { buildFlyerHtml, type FlyerSections, type FlyerProfileData } from "@/lib/flyer-template";
-import { renderFlyer } from "@/lib/flyer-render";
+import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // hirdetés renderelése (Chromium)
 const BUCKET = "reports";
 const FEATURE = "flyer";
 
@@ -21,28 +19,30 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: {
-    profileId?: string;
-    format?: string;
-    layout?: string;
-    sections?: FlyerSections;
-    text?: FlyerText;
-    images?: string[];
-  };
+  let form: FormData;
   try {
-    body = (await request.json()) as typeof body;
+    form = await request.formData();
   } catch {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const format = FLYER_FORMATS.find((f) => f.value === body.format) ?? FLYER_FORMATS[0];
-  const admin = createAdminClient();
+  const image = form.get("image");
+  if (!image || typeof image === "string" || (image as File).size === 0) {
+    return NextResponse.json({ error: "Hiányzó hirdetéskép." }, { status: 400 });
+  }
+  const file = image as File;
+  const profileId = String(form.get("profileId") ?? "");
+  const format = FLYER_FORMATS.find((f) => f.value === String(form.get("format") ?? "")) ?? FLYER_FORMATS[0];
+  const title = String(form.get("title") ?? "");
 
+  const admin = createAdminClient();
   const { data: service } = await admin.from("services").select("id").eq("slug", "real-estate").single();
+
+  // Az arculat a felhasználóé-e (címke az előzményhez).
   const { data: profile } = await admin
     .from("branding_profiles")
-    .select("*")
-    .eq("id", body.profileId ?? "")
+    .select("id, label, user_id")
+    .eq("id", profileId)
     .single();
   if (!profile || profile.user_id !== user.id) {
     return NextResponse.json({ error: "Válassz érvényes arculatot." }, { status: 400 });
@@ -55,32 +55,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const profileData: FlyerProfileData = {
-      display_name: profile.display_name,
-      title: profile.title,
-      phone: profile.phone,
-      email: profile.email,
-      company: profile.company,
-      website: profile.website,
-      slogan: profile.slogan,
-      logo_url: profile.logo_url,
-      accent_color: profile.accent_color,
-      font: profile.font,
-      theme: profile.theme === "dark" ? "dark" : "light",
-    };
-    const sections: FlyerSections = {
-      highlights: body.sections?.highlights ?? true,
-      characteristics: body.sections?.characteristics ?? true,
-      gallery: body.sections?.gallery ?? true,
-      infra: body.sections?.infra ?? true,
-      transport: body.sections?.transport ?? true,
-    };
-    const text: FlyerText = body.text ?? {
-      title: "", subtitle: "", price: "", highlights: [], characteristics: [], infra: "", transport: "",
-    };
-
-    const html = buildFlyerHtml({ format, profile: profileData, text, images: body.images ?? [], sections, layout: body.layout });
-    const { bytes, ext, contentType } = await renderFlyer(html, format);
+    const ext = file.type.includes("pdf") ? "pdf" : "png";
+    const contentType = file.type || (ext === "pdf" ? "application/pdf" : "image/png");
+    const bytes = new Uint8Array(await file.arrayBuffer());
 
     const path = `flyer/${user.id}/${randomUUID()}.${ext}`;
     const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType });
@@ -91,7 +68,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: service?.id ?? null,
       feature_used: FEATURE,
-      input_data: { title: text.title, format: format.value, profile: profile.label },
+      input_data: { title, format: format.value, profile: profile.label },
       output_file_url: url,
       credits_charged: charge && !charge.bypassed ? FLYER_CREDITS : 0,
     });

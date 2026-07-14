@@ -13,6 +13,8 @@
     "@sparticuz/chromium-min": "132.0.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "next": "15.3.6",
     "pdf-lib": "^1.17.1",
     "puppeteer": "^25.3.0",
