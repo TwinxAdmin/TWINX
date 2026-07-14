@@ -26,7 +26,8 @@ export default async function DashboardHome() {
     ? await supabase.from("profiles").select("role").eq("id", user.id).single()
     : { data: null };
   const role = (me?.role as string | undefined) ?? "user";
-  const isStaff = role === "admin" || role === "sales"; // prezentációs mód (nincs kreditlevonás)
+  const isAdmin = role === "admin"; // korlátlan, prezentációs mód (nincs kreditlevonás)
+  const isSales = role === "sales"; // az admin által biztosított keretet fogyasztja
 
   // Időszakok a folyamat-számláláshoz (hét = hétfőtől, hónap = 1-jétől).
   const now = new Date();
@@ -48,10 +49,10 @@ export default async function DashboardHome() {
       .eq("user_id", uid)
       .order("created_at", { ascending: false })
       .limit(50),
-    isStaff
+    isAdmin
       ? supabase.from("usage_history").select("id", { count: "exact", head: true }).eq("user_id", uid).gte("created_at", startOfWeek)
       : Promise.resolve({ count: 0 }),
-    isStaff
+    isAdmin
       ? supabase.from("usage_history").select("id", { count: "exact", head: true }).eq("user_id", uid).gte("created_at", startOfMonth)
       : Promise.resolve({ count: 0 }),
   ]);
@@ -70,7 +71,7 @@ export default async function DashboardHome() {
         className="flex flex-wrap items-center justify-between gap-4 rounded-2xl p-6"
         style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
       >
-        {isStaff ? (
+        {isAdmin ? (
           <>
             <div>
               <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
@@ -91,23 +92,34 @@ export default async function DashboardHome() {
               className="rounded-full px-3 py-1 text-xs font-medium"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
-              {role === "admin" ? "Admin" : "Sales"}
+              Admin
             </span>
           </>
         ) : (
           <>
             <div>
               <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-                Egyenleged — bármelyik modulban felhasználható
+                {isSales
+                  ? "Kereted — az admin által biztosított folyamatok (bármelyik modulban)"
+                  : "Egyenleged — bármelyik modulban felhasználható"}
               </p>
               <p className="font-display text-5xl font-semibold">{balance}</p>
             </div>
-            <PricingTrigger
-              className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-            >
-              Egyenleg feltöltése
-            </PricingTrigger>
+            {isSales ? (
+              <span
+                className="rounded-full px-3 py-1 text-xs font-medium"
+                style={{ background: "var(--twx-line)", color: "var(--twx-on-dark-muted)" }}
+              >
+                Sales · a keretet az admin tölti fel
+              </span>
+            ) : (
+              <PricingTrigger
+                className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              >
+                Egyenleg feltöltése
+              </PricingTrigger>
+            )}
           </>
         )}
       </section>

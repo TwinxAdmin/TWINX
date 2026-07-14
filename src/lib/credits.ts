@@ -1,7 +1,8 @@
 // Kredit levonás szerveroldali helper — KÖZÖS (globális) pénztárca.
 // Az egyenleg bármelyik modulban elkölthető (lásd wallet.sql).
-// Üzleti szabály (CLAUDE.md): az 'admin' és 'sales' szerepkör prezentációs célból
-// kreditlevonás NÉLKÜL használhatja az AI API-kat. Minden más szerepkörnél normál levonás.
+// Üzleti szabály: az 'admin' korlátlan (prezentációs mód, nincs levonás). A 'sales' viszont
+// FOGYASZTJA a keretet — az adminisztrátor adja neki a kreditet (/admin/credits), és ő is
+// tölti újra; így az admin korlátozni tudja a sales folyamatait. Minden más: normál levonás.
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ChargeResult =
@@ -15,14 +16,14 @@ export async function chargeCredit(params: {
   const { userId, amount = 1 } = params;
   const admin = createAdminClient();
 
-  // 1) Szerepkör ellenőrzés — admin / sales megkerüli a levonást.
+  // 1) Szerepkör ellenőrzés — CSAK az admin korlátlan (megkerüli a levonást).
   const { data: profile } = await admin
     .from("profiles")
     .select("role")
     .eq("id", userId)
     .single();
 
-  if (profile?.role === "admin" || profile?.role === "sales") {
+  if (profile?.role === "admin") {
     return { ok: true, bypassed: true };
   }
 
