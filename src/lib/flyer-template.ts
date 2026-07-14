@@ -191,7 +191,7 @@ export function buildFlyerHtml(opts: {
   .k-logo .co { font-size: ${px(24)}px; font-weight: 800; text-align: right; line-height: 1.15; color: ${accent}; }
   .k-top { }
   .k-title { font-size: ${px(34)}px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; line-height: 1.05; }
-  .k-loc { display: inline-block; margin-top: ${px(8)}px; background: ${accent}; color: ${onAccent}; font-weight: 700; font-size: ${px(15)}px; padding: ${px(4)}px ${px(12)}px; border-radius: ${px(5)}px; }
+  .k-loc { display: block; margin-top: ${px(6)}px; color: ${accent}; font-weight: 700; font-size: ${px(16)}px; }
   .k-hero { width: 100%; height: ${px(420)}px; background-size: cover; background-position: center; }
   .k-gal { display: grid; grid-template-columns: repeat(${Math.max(1, gal3.length)}, 1fr); gap: ${px(12)}px; }
   .k-gi { height: ${px(155)}px; background-size: cover; background-position: center; border: 1px solid ${line}; }
