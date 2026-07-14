@@ -126,6 +126,14 @@ export default function DashboardNav() {
             Hirdetés készítése
           </a>
           <a
+            href="/dashboard/flyer/history"
+            onClick={() => setOpen(null)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Korábbi hirdetések
+          </a>
+          <a
             href="/dashboard/branding"
             onClick={() => setOpen(null)}
             className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"

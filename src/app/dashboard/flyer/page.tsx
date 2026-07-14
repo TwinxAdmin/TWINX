@@ -23,7 +23,6 @@ export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [profileId, setProfileId] = useState<string>("");
   const [library, setLibrary] = useState<LibraryItem[]>([]);
-  const [flyers, setFlyers] = useState<{ id: string; title: string; url: string; createdAt: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -73,10 +72,7 @@ export default function FlyerPage() {
           setProfiles(p.profiles ?? []);
           if ((p.profiles ?? []).length) setProfileId(p.profiles[0].id);
         }
-        if (lRes.ok) {
-          setLibrary(l.items ?? []);
-          setFlyers(l.flyers ?? []);
-        }
+        if (lRes.ok) setLibrary(l.items ?? []);
       } finally {
         setLoading(false);
       }
@@ -256,11 +252,6 @@ export default function FlyerPage() {
       }
       setFinalUrl(data.url as string);
       setPreview(null);
-      // Az új hirdetés azonnal jelenjen meg a „Korábbi hirdetések" sávban.
-      fetch("/api/flyer/library")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((l) => l && setFlyers(l.flyers ?? []))
-        .catch(() => {});
     } catch (e) {
       setAcceptError("Nem sikerült a mentés. " + (e as Error).message);
     } finally {
@@ -301,37 +292,6 @@ export default function FlyerPage() {
           végső hirdetés-elrendezést a következő lépésben állítjuk be.
         </p>
       </div>
-
-      {/* Korábbi (elkészült) hirdetések — külön a forrásképektől */}
-      {flyers.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-display text-xl font-medium">Korábbi hirdetések</h2>
-          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            A korábban elfogadott hirdetéseid. Kattints a letöltéshez.
-          </p>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {flyers.map((f) => (
-              <a
-                key={f.id}
-                href={toDownloadUrl(f.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative flex-none overflow-hidden rounded-xl"
-                style={{ width: 132, border: "1px solid var(--twx-line)" }}
-                title={`${f.title} · ${new Date(f.createdAt).toLocaleDateString("hu-HU")}`}
-              >
-                <img src={f.url} alt={f.title} className="aspect-[3/4] w-full object-cover" />
-                <span
-                  className="absolute inset-x-0 bottom-0 truncate px-2 py-1 text-[11px] font-medium"
-                  style={{ background: "rgba(12,11,10,0.72)", color: "#fff" }}
-                >
-                  {f.title}
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* 1) Arculat-profil */}
       <section className="space-y-3">
