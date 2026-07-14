@@ -24,6 +24,8 @@ export type FlyerKeyFacts = {
   size?: string;
   propertyType?: string;
   condition?: string;
+  bathrooms?: string;
+  extras?: string[]; // szabad, kézzel megadott jellemzők — rákerülnek a hirdetésre
 };
 
 export type FlyerSections = {
@@ -169,11 +171,14 @@ export function buildFlyerHtml(opts: {
     const icoArea = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h4M4 15h4M9 4v4M15 4v4"/></svg>`;
     const icoHome = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`;
     const icoCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+    const icoBath = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-3z"/><path d="M6 12V6a2 2 0 0 1 2-2 2 2 0 0 1 2 2"/><path d="M9 5h2"/><path d="M6 19l-1 2M18 19l1 2"/></svg>`;
     const rows: Array<[string, string]> = [];
     if (facts.rooms) rows.push([icoBed, `${facts.rooms} szoba`]);
+    if (facts.bathrooms) rows.push([icoBath, `${facts.bathrooms} fürdőszoba`]);
     if (facts.size) rows.push([icoArea, facts.size]);
     if (facts.propertyType) rows.push([icoHome, facts.propertyType]);
     if (facts.condition) rows.push([icoCheck, facts.condition]);
+    const extraBullets = (facts.extras ?? []).filter((e) => e && e.trim());
     return `<!doctype html><html lang="hu"><head><meta charset="utf-8">
 <link rel="stylesheet" href="${font.link}">
 <style>
@@ -206,7 +211,7 @@ export function buildFlyerHtml(opts: {
   .k-desc p { font-size: ${px(14)}px; line-height: 1.55; margin-top: ${px(3)}px; }
   .k-agent { display: flex; flex-direction: column; align-items: center; text-align: center; }
   .k-agent .ph { width: ${px(150)}px; height: ${px(150)}px; border-radius: 50%; background-size: cover; background-position: center; border: ${px(4)}px solid ${accent}; }
-  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: 0 ${px(20)}px; border-radius: ${px(4)}px; height: ${px(40)}px; line-height: ${px(40)}px; text-align: center; display: inline-block; }
+  .k-agent .nm { margin-top: ${px(10)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: ${px(5)}px ${px(20)}px ${px(11)}px; border-radius: ${px(4)}px; line-height: 1; text-align: center; display: inline-block; }
   .k-agent .ct { margin-top: ${px(10)}px; font-size: ${px(14)}px; line-height: 1.5; }
   .k-foot { background: ${accent}; color: ${onAccent}; text-align: center; font-size: ${px(16)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: ${px(12)}px; }
   .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
@@ -229,7 +234,16 @@ export function buildFlyerHtml(opts: {
     <div class="k-cols">
       <div class="k-facts">
         ${rows.map(([ic, tx]) => `<div class="row"><span class="ic">${ic}</span><span class="tx">${esc(tx)}</span></div>`).join("")}
-        ${sections.characteristics && text.characteristics.length ? `<div class="more">${text.characteristics.slice(0, 4).map((c) => `<div>• ${esc(c)}</div>`).join("")}</div>` : ""}
+        ${
+          (sections.characteristics && text.characteristics.length) || extraBullets.length
+            ? `<div class="more">${[
+                ...(sections.characteristics ? text.characteristics.slice(0, 4) : []),
+                ...extraBullets,
+              ]
+                .map((c) => `<div>• ${esc(c)}</div>`)
+                .join("")}</div>`
+            : ""
+        }
       </div>
       <div class="k-div"></div>
       <div class="k-desc">

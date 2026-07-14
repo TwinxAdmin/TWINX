@@ -179,9 +179,11 @@ export default function FlyerPage() {
     // Strukturált alapadatok az ikonos oszlophoz (Keys elrendezés).
     const keyFacts = {
       rooms: facts.rooms,
+      bathrooms: facts.bathrooms,
       size: facts.size,
       propertyType: facts.propertyType,
       condition: facts.condition,
+      extras: [facts.custom1, facts.custom2].filter((s) => s && s.trim()),
     };
     const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark, facts: keyFacts });
     return { html, fmt };
@@ -587,8 +589,20 @@ export default function FlyerPage() {
               <input value={facts.rooms} onChange={(e) => setFact("rooms", e.target.value)} className="twx-input mt-1" placeholder="pl. 1 szoba" />
             </div>
             <div>
+              <label className="block text-sm">Fürdőszobák</label>
+              <input value={facts.bathrooms} onChange={(e) => setFact("bathrooms", e.target.value)} className="twx-input mt-1" placeholder="pl. 1 vagy 2" />
+            </div>
+            <div>
               <label className="block text-sm">Állapot</label>
               <input value={facts.condition} onChange={(e) => setFact("condition", e.target.value)} className="twx-input mt-1" placeholder="pl. felújított" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm">Egyedi jellemző 1 (rákerül a hirdetésre)</label>
+              <input value={facts.custom1} onChange={(e) => setFact("custom1", e.target.value)} className="twx-input mt-1" placeholder="pl. Hatalmas kert" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm">Egyedi jellemző 2 (rákerül a hirdetésre)</label>
+              <input value={facts.custom2} onChange={(e) => setFact("custom2", e.target.value)} className="twx-input mt-1" placeholder="pl. Panorámás terasz" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm">Egyéb tudnivaló (amit az AI tudjon)</label>

@@ -50,8 +50,11 @@ export type FlyerFacts = {
   propertyType: string;
   size: string;
   rooms: string;
+  bathrooms: string; // fürdőszobák száma
   condition: string;
   extra: string; // egyéb, amit az AI tudjon (pl. felújított fürdő, metró közel)
+  custom1: string; // szabad sor — rákerül a hirdetésre (pl. "Hatalmas kert")
+  custom2: string; // szabad sor — rákerül a hirdetésre
 };
 
 export const EMPTY_FACTS: FlyerFacts = {
@@ -60,8 +63,11 @@ export const EMPTY_FACTS: FlyerFacts = {
   propertyType: "",
   size: "",
   rooms: "",
+  bathrooms: "",
   condition: "",
   extra: "",
+  custom1: "",
+  custom2: "",
 };
 
 // Az AI által generált (és kézzel felülírható) hirdetés-szöveg.
@@ -98,8 +104,10 @@ export function flyerDataBlock(facts: Partial<FlyerFacts>, toneDesc: string): st
     `Típus: ${ffv(facts.propertyType) || "[nincs megadva]"}`,
     `Méret: ${ffv(facts.size) || "[nincs megadva]"}`,
     `Szobák: ${ffv(facts.rooms) || "[nincs megadva]"}`,
+    `Fürdőszobák: ${ffv(facts.bathrooms) || "[nincs megadva]"}`,
     `Állapot: ${ffv(facts.condition) || "[nincs megadva]"}`,
     `Egyéb: ${ffv(facts.extra) || "[nincs megadva]"}`,
+    `További kiemelt jellemzők: ${[ffv(facts.custom1), ffv(facts.custom2)].filter(Boolean).join("; ") || "[nincs megadva]"}`,
   ].join("\n");
   return `Hangnem: ${toneDesc}\n\nTények:\n${factLines}`;
 }
@@ -112,8 +120,10 @@ Elhelyezkedés: {elhelyezkedés}
 Típus: {típus}
 Méret: {méret}
 Szobák: {szobák}
+Fürdőszobák: {fürdőszobák}
 Állapot: {állapot}
-Egyéb: {egyéb}`;
+Egyéb: {egyéb}
+További kiemelt jellemzők: {custom1; custom2}`;
 
 export const FLYER_DEFAULT_SEGMENTS = {
   intro: `Ingatlanhirdetés szövegírója vagy. Írj magyar nyelvű hirdetésszöveget KIZÁRÓLAG az alábbi tények alapján. NE találj ki új adatot (címet, árat, méretet), amit nem adtak meg. Ügyelj a helyes magyar helyesírásra és az egybeírandó szavakra (pl. "újépítésű", "belvárosi", "kétszintes").`,
