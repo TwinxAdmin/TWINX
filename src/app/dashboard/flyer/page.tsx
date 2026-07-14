@@ -42,7 +42,7 @@ export default function FlyerPage() {
   const [genError, setGenError] = useState<string | null>(null);
 
   // 4) Elrendezés + generálás
-  const [layout, setLayout] = useState("classic");
+  const [layout, setLayout] = useState("keys");
   const [format, setFormat] = useState("poster");
   const [mainUrl, setMainUrl] = useState<string | null>(null); // választott fő kép
   const [sections, setSections] = useState({
@@ -146,6 +146,7 @@ export default function FlyerPage() {
       website: profile.website,
       slogan: profile.slogan,
       logo_url: profile.logo_url,
+      agent_photo_url: profile.agent_photo_url,
       accent_color: profile.accent_color,
       font: profile.font,
       theme: profile.theme === "dark" ? "dark" : "light",
@@ -155,7 +156,14 @@ export default function FlyerPage() {
     if (mainUrl && images.includes(mainUrl)) {
       images = [mainUrl, ...images.filter((x) => x !== mainUrl)];
     }
-    const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark });
+    // Strukturált alapadatok az ikonos oszlophoz (Keys elrendezés).
+    const keyFacts = {
+      rooms: facts.rooms,
+      size: facts.size,
+      propertyType: facts.propertyType,
+      condition: facts.condition,
+    };
+    const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark, facts: keyFacts });
     return { html, fmt };
   }
 

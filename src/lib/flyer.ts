@@ -32,6 +32,7 @@ export const FLYER_FORMATS: FlyerFormat[] = [
 // Választható TWINX elrendezések (a szín/betű/téma az arculatból jön).
 export type FlyerLayout = { value: string; label: string };
 export const FLYER_LAYOUTS: FlyerLayout[] = [
+  { value: "keys", label: "Ügynökös — ár + logó fent, ügynök-fotó, jellemzők ikonokkal" },
   { value: "classic", label: "Klasszikus — nagy fő kép + galéria sáv" },
   { value: "overlay", label: "Modern — címes fő kép (a szöveg a képen)" },
 ];

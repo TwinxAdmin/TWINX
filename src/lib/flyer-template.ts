@@ -12,9 +12,18 @@ export type FlyerProfileData = {
   website: string;
   slogan: string;
   logo_url: string | null;
+  agent_photo_url: string | null;
   accent_color: string;
   font: string;
   theme: "light" | "dark";
+};
+
+// Strukturált alapadatok az ikonos oszlophoz (Keys elrendezés).
+export type FlyerKeyFacts = {
+  rooms?: string;
+  size?: string;
+  propertyType?: string;
+  condition?: string;
 };
 
 export type FlyerSections = {
@@ -61,8 +70,10 @@ export function buildFlyerHtml(opts: {
   sections: FlyerSections;
   layout?: string;
   watermark?: boolean;
+  facts?: FlyerKeyFacts;
 }): string {
   const { format, profile, text, images, sections, watermark } = opts;
+  const facts = opts.facts ?? {};
   const isOverlay = opts.layout === "overlay";
   const accent = /^#[0-9a-fA-F]{6}$/.test(profile.accent_color) ? profile.accent_color : "#ef7a5a";
   const onAccent = contrastText(accent); // olvasható szöveg az accent dobozokon
@@ -143,6 +154,92 @@ export function buildFlyerHtml(opts: {
       </div>
     </div>
   </div>
+</div>
+</body></html>`;
+  }
+
+  // ---- KEYS elrendezés (a "The Keys" referencia szerint, magyarul) ----
+  if (opts.layout === "keys") {
+    const w = format.width;
+    const k = w / 900;
+    const px = (n: number) => Math.round(n * k);
+    const price = text.price ? priceNumber(text.price) : "";
+    const gal3 = gallery.slice(0, 3);
+    const icoBed = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6"/><path d="M3 18h18"/><path d="M7 10V7h6v3"/></svg>`;
+    const icoArea = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h4M4 15h4M9 4v4M15 4v4"/></svg>`;
+    const icoHome = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`;
+    const icoCheck = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
+    const rows: Array<[string, string]> = [];
+    if (facts.rooms) rows.push([icoBed, `${facts.rooms} szoba`]);
+    if (facts.size) rows.push([icoArea, facts.size]);
+    if (facts.propertyType) rows.push([icoHome, facts.propertyType]);
+    if (facts.condition) rows.push([icoCheck, facts.condition]);
+    return `<!doctype html><html lang="hu"><head><meta charset="utf-8">
+<link rel="stylesheet" href="${font.link}">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: ${w}px; }
+  .flyer { position: relative; width: ${w}px; background: ${bg}; color: ${ink}; font-family: ${font.family}; padding: ${px(14)}px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .frame { border: ${px(6)}px solid ${accent}; padding: ${px(22)}px; display: flex; flex-direction: column; gap: ${px(18)}px; }
+  .k-head { display: flex; align-items: stretch; justify-content: space-between; gap: ${px(16)}px; }
+  .k-price { display: flex; flex-direction: column; justify-content: center; }
+  .k-price .lab { font-size: ${px(15)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: ${muted}; }
+  .k-price .val { font-size: ${px(50)}px; font-weight: 800; color: ${accent}; line-height: 1.05; }
+  .k-price .val small { font-size: ${px(22)}px; }
+  .k-logo { background: ${accent}; color: ${onAccent}; border-radius: ${px(8)}px; padding: ${px(14)}px ${px(22)}px; display: flex; align-items: center; justify-content: center; min-width: ${px(200)}px; }
+  .k-logo img { max-height: ${px(92)}px; max-width: ${px(210)}px; object-fit: contain; }
+  .k-logo .co { font-size: ${px(22)}px; font-weight: 800; text-align: center; line-height: 1.15; }
+  .k-hero { width: 100%; height: ${px(420)}px; background-size: cover; background-position: center; }
+  .k-gal { display: grid; grid-template-columns: repeat(${Math.max(1, gal3.length)}, 1fr); gap: ${px(12)}px; }
+  .k-gi { height: ${px(155)}px; background-size: cover; background-position: center; border: 1px solid ${line}; }
+  .k-cols { display: grid; grid-template-columns: 1fr ${px(2)}px 1.05fr ${px(2)}px 0.9fr; gap: ${px(20)}px; align-items: start; }
+  .k-div { background: ${accent}; align-self: stretch; }
+  .row { display: flex; align-items: center; gap: ${px(12)}px; margin-bottom: ${px(14)}px; }
+  .row .ic { width: ${px(30)}px; height: ${px(30)}px; color: ${accent}; flex: none; }
+  .row .ic svg { width: 100%; height: 100%; display: block; }
+  .row .tx { font-size: ${px(15)}px; font-weight: 600; }
+  .more div { font-size: ${px(13)}px; color: ${muted}; margin-top: ${px(4)}px; }
+  .k-desc .lbl { font-size: ${px(13)}px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: ${accent}; margin-top: ${px(6)}px; }
+  .k-desc p { font-size: ${px(14)}px; line-height: 1.55; margin-top: ${px(3)}px; }
+  .k-agent { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .k-agent .ph { width: ${px(150)}px; height: ${px(150)}px; border-radius: 50%; background-size: cover; background-position: center; border: ${px(4)}px solid ${accent}; }
+  .k-agent .nm { margin-top: ${px(12)}px; background: ${accent}; color: ${onAccent}; font-weight: 800; font-size: ${px(18)}px; letter-spacing: .5px; text-transform: uppercase; padding: ${px(6)}px ${px(16)}px; border-radius: ${px(4)}px; }
+  .k-agent .ct { margin-top: ${px(10)}px; font-size: ${px(14)}px; line-height: 1.5; }
+  .k-foot { background: ${accent}; color: ${onAccent}; text-align: center; font-size: ${px(16)}px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: ${px(12)}px; }
+  .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
+  .wm span { font-size: ${px(46)}px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: ${dark ? "rgba(255,255,255,0.16)" : "rgba(28,24,21,0.13)"}; }
+</style></head><body>
+<div class="flyer">
+  <div class="frame">
+    <div class="k-head">
+      <div class="k-price">
+        ${price ? `<div class="lab">Kiinduló ár</div><div class="val">${esc(price)}<small> M Ft</small></div>` : `<div class="val" style="font-size:${px(30)}px">${esc(text.title || "Eladó ingatlan")}</div>`}
+      </div>
+      <div class="k-logo">${profile.logo_url ? `<img src="${esc(profile.logo_url)}"/>` : `<div class="co">${esc(profile.company || profile.display_name)}</div>`}</div>
+    </div>
+    ${hero ? `<div class="k-hero" style="background-image:url('${esc(hero)}')"></div>` : ""}
+    ${sections.gallery && gal3.length ? `<div class="k-gal">${gal3.map((g) => `<div class="k-gi" style="background-image:url('${esc(g)}')"></div>`).join("")}</div>` : ""}
+    <div class="k-cols">
+      <div class="k-facts">
+        ${rows.map(([ic, tx]) => `<div class="row"><span class="ic">${ic}</span><span class="tx">${esc(tx)}</span></div>`).join("")}
+        ${sections.characteristics && text.characteristics.length ? `<div class="more">${text.characteristics.slice(0, 4).map((c) => `<div>• ${esc(c)}</div>`).join("")}</div>` : ""}
+      </div>
+      <div class="k-div"></div>
+      <div class="k-desc">
+        ${sections.infra && text.infra ? `<div class="lbl">Infrastruktúra</div><p>${esc(text.infra)}</p>` : ""}
+        ${sections.transport && text.transport ? `<div class="lbl">Közlekedés</div><p>${esc(text.transport)}</p>` : ""}
+        ${!(text.infra || text.transport) && text.subtitle ? `<p>${esc(text.subtitle)}</p>` : ""}
+      </div>
+      <div class="k-div"></div>
+      <div class="k-agent">
+        ${profile.agent_photo_url ? `<div class="ph" style="background-image:url('${esc(profile.agent_photo_url)}')"></div>` : ""}
+        <div class="nm">${esc(profile.display_name)}</div>
+        <div class="ct">${profile.email ? esc(profile.email) : ""}${profile.email && profile.phone ? "<br>" : ""}${profile.phone ? esc(profile.phone) : ""}</div>
+      </div>
+    </div>
+    <div class="k-foot">${esc(profile.website || "www.twinx.hu")}</div>
+  </div>
+  ${watermark ? `<div class="wm">${Array.from({ length: 6 }).map(() => `<span>ELŐNÉZET · TWINX</span>`).join("")}</div>` : ""}
 </div>
 </body></html>`;
   }
