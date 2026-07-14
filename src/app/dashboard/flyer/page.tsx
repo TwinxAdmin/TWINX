@@ -11,7 +11,6 @@ import {
   MAX_FLYER_IMAGES,
   FLYER_TONES,
   FLYER_FORMATS,
-  FLYER_LAYOUTS,
   EMPTY_FACTS,
   EMPTY_TEXT,
   type FlyerFacts,
@@ -42,7 +41,7 @@ export default function FlyerPage() {
   const [genError, setGenError] = useState<string | null>(null);
 
   // 4) Elrendezés + generálás
-  const [layout, setLayout] = useState("keys");
+  const layout = "keys"; // egyetlen véglegesített elrendezés
   const [format, setFormat] = useState("poster");
   const [mainUrl, setMainUrl] = useState<string | null>(null); // választott fő kép
   const [sections, setSections] = useState({
@@ -622,14 +621,6 @@ export default function FlyerPage() {
         <h2 className="font-display text-xl font-medium">4. Elrendezés és formátum</h2>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm">Elrendezés (layout)</label>
-            <select value={layout} onChange={(e) => setLayout(e.target.value)} className="twx-input mt-1">
-              {FLYER_LAYOUTS.map((l) => (
-                <option key={l.value} value={l.value}>{l.label}</option>
-              ))}
-            </select>
-          </div>
           <div>
             <label className="block text-sm">Formátum</label>
             <select value={format} onChange={(e) => setFormat(e.target.value)} className="twx-input mt-1">
