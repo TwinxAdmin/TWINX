@@ -43,6 +43,16 @@ function priceNumber(raw: string): string {
   return m ? m[0] : String(raw ?? "").trim();
 }
 
+// Olvasható szövegszín egy háttérszínre (sötét háttéren fehér, világoson sötét).
+function contrastText(hex: string): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  return lum > 150 ? "#1c1005" : "#ffffff";
+}
+
 export function buildFlyerHtml(opts: {
   format: FlyerFormat;
   profile: FlyerProfileData;
@@ -55,6 +65,7 @@ export function buildFlyerHtml(opts: {
   const { format, profile, text, images, sections, watermark } = opts;
   const isOverlay = opts.layout === "overlay";
   const accent = /^#[0-9a-fA-F]{6}$/.test(profile.accent_color) ? profile.accent_color : "#ef7a5a";
+  const onAccent = contrastText(accent); // olvasható szöveg az accent dobozokon
   const font = FONT_MAP[profile.font] ?? FONT_MAP.inter;
   const dark = profile.theme === "dark";
 
@@ -95,7 +106,7 @@ export function buildFlyerHtml(opts: {
   .fgi { height: ${isStory ? 150 : 92}px; border-radius: 12px; background-size: cover; background-position: center; background-repeat: no-repeat; border: 1px solid rgba(255,255,255,.35); }
   .fcontent { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: ${pad}px; z-index: 3; }
   .ftitle { font-size: ${titleSize}px; font-weight: 800; text-transform: uppercase; line-height: 1.02; letter-spacing: -0.5px; text-shadow: 0 2px 20px rgba(0,0,0,.55); max-width: 92%; }
-  .fsub { display: inline-flex; align-items: center; height: 36px; margin-top: 14px; background: ${accent}; color: #1c1005; font-weight: 700; font-size: 18px; padding: 0 16px; border-radius: 8px; }
+  .fsub { display: inline-flex; align-items: center; height: 36px; margin-top: 14px; background: ${accent}; color: ${onAccent}; font-weight: 700; font-size: 18px; padding: 0 16px; border-radius: 8px; }
   .fbot { display: flex; flex-direction: column; gap: 18px; }
   .fprice { display: inline-flex; align-items: baseline; gap: 5px; }
   .fprice .lab { font-size: 14px; letter-spacing: 2px; opacity: .85; margin-right: 4px; align-self: center; }
@@ -153,23 +164,23 @@ export function buildFlyerHtml(opts: {
   .wm span { font-size: 48px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: ${dark ? "rgba(255,255,255,0.16)" : "rgba(28,24,21,0.13)"}; }
   .head { padding: 36px 44px 20px; }
   .title { font-size: 42px; font-weight: 800; line-height: 1.02; text-transform: uppercase; letter-spacing: -0.6px; }
-  .subtitle { display: inline-flex; align-items: center; height: 30px; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 16px; padding: 0 15px; border-radius: 6px; line-height: 1; }
+  .subtitle { display: inline-flex; align-items: center; height: 30px; margin-top: 12px; background: ${accent}; color: ${onAccent}; font-weight: 600; font-size: 16px; padding: 0 15px; border-radius: 6px; line-height: 1; }
   .hero-wrap { position: relative; padding: 0 40px; }
-  .hero { width: 100%; height: 360px; object-fit: cover; border-radius: 16px; display: block; }
+  .hero { width: 100%; height: 360px; background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 16px; }
   .price { position: absolute; right: 60px; bottom: -24px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 12px 26px; box-shadow: 0 12px 30px rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 128px; }
   .price small { font-size: 12px; color: ${muted}; letter-spacing: 1.5px; line-height: 1; }
-  .price .val { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin-top: 5px; }
+  .price .val { display: flex; width: 100%; align-items: baseline; justify-content: center; gap: 4px; margin-top: 5px; }
   .price .num, .price .mil { font-size: 36px; font-weight: 800; color: ${accent}; line-height: 1; }
   .price .ft { font-size: 16px; font-weight: 700; color: ${ink}; }
   /* Overlay elrendezés — címes fő kép */
   .hero-overlay { position: relative; }
-  .hero-full { width: 100%; height: 520px; object-fit: cover; display: block; }
+  .hero-full { width: 100%; height: 520px; background-size: cover; background-position: center; background-repeat: no-repeat; }
   .hero-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px; background: linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,0)); }
   .title-o { font-size: 46px; font-weight: 800; text-transform: uppercase; line-height: 1.0; color: #fff; }
-  .subtitle-o { display: inline-flex; align-items: center; height: 30px; margin-top: 12px; background: ${accent}; color: #1c1005; font-weight: 600; font-size: 16px; padding: 0 15px; border-radius: 6px; line-height: 1; }
+  .subtitle-o { display: inline-flex; align-items: center; height: 30px; margin-top: 12px; background: ${accent}; color: ${onAccent}; font-weight: 600; font-size: 16px; padding: 0 15px; border-radius: 6px; line-height: 1; }
   .price-o { position: absolute; right: 40px; top: 40px; background: ${card}; border: 2px solid ${accent}; border-radius: 16px; padding: 10px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 118px; }
   .price-o small { font-size: 11px; color: ${muted}; letter-spacing: 1px; line-height: 1; }
-  .price-o .val { display: flex; align-items: baseline; justify-content: center; gap: 5px; margin-top: 5px; }
+  .price-o .val { display: flex; width: 100%; align-items: baseline; justify-content: center; gap: 5px; margin-top: 5px; }
   .price-o .num, .price-o .mil { font-size: 32px; font-weight: 800; color: ${accent}; line-height: 1; }
   .price-o .ft { font-size: 14px; font-weight: 700; color: ${ink}; }
   .body { padding: ${isOverlay ? "30px 40px 18px" : "40px 40px 18px"}; display: flex; flex-direction: column; gap: 18px; }
@@ -180,7 +191,7 @@ export function buildFlyerHtml(opts: {
   ul.ch li { font-size: 13.5px; padding: 3px 0 3px 22px; position: relative; break-inside: avoid; }
   ul.ch li:before { content: "✓"; position: absolute; left: 0; color: ${accent}; font-weight: 800; }
   .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .gallery img { width: 100%; height: 155px; object-fit: cover; border-radius: 12px; }
+  .gallery .gi { width: 100%; height: 155px; background-size: cover; background-position: center; background-repeat: no-repeat; border-radius: 12px; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   .cols p { font-size: 13.5px; color: ${ink}; line-height: 1.5; }
   .foot { margin-top: auto; background: ${dark ? "#0c0b0a" : "#12100e"}; color: #f4efe7; padding: 22px 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -197,7 +208,7 @@ export function buildFlyerHtml(opts: {
   ${
     isOverlay && hero
       ? `<div class="hero-overlay">
-          <img class="hero-full" src="${esc(hero)}"/>
+          <div class="hero-full" style="background-image:url('${esc(hero)}')"></div>
           ${text.price ? `<div class="price-o"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""}
           <div class="hero-cap">
             <div class="title-o">${esc(text.title || "Eladó ingatlan")}</div>
@@ -210,7 +221,7 @@ export function buildFlyerHtml(opts: {
         </div>
         ${
           hero
-            ? `<div class="hero-wrap"><img class="hero" src="${esc(hero)}"/>${
+            ? `<div class="hero-wrap"><div class="hero" style="background-image:url('${esc(hero)}')"></div>${
                 text.price ? `<div class="price"><small>ÁRA</small><div class="val"><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div></div>` : ""
               }</div>`
             : ""
@@ -232,7 +243,7 @@ export function buildFlyerHtml(opts: {
     }
     ${
       sections.gallery && gallery.length
-        ? `<div class="gallery">${gallery.slice(0, 3).map((g) => `<img src="${esc(g)}"/>`).join("")}</div>`
+        ? `<div class="gallery">${gallery.slice(0, 3).map((g) => `<div class="gi" style="background-image:url('${esc(g)}')"></div>`).join("")}</div>`
         : ""
     }
     ${
