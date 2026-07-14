@@ -34,6 +34,10 @@ export default async function DashboardHome() {
   const sinceMonday = (now.getDay() + 6) % 7;
   const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday).toISOString();
 
+  // FONTOS: az admin RLS-ben minden sort lát, ezért mindenhol EXPLICIT a saját user-re szűrünk,
+  // hogy a személyes dashboard (előzmény + folyamat-számláló) tényleg a sajátot mutassa.
+  const uid = user?.id ?? "__none__";
+
   const [{ data: wallet }, { data: history }, weekRes, monthRes] = await Promise.all([
     user
       ? supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle()
@@ -41,13 +45,14 @@ export default async function DashboardHome() {
     supabase
       .from("usage_history")
       .select("id, feature_used, input_data, output_file_url, created_at, services(name)")
+      .eq("user_id", uid)
       .order("created_at", { ascending: false })
       .limit(50),
     isStaff
-      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).gte("created_at", startOfWeek)
+      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).eq("user_id", uid).gte("created_at", startOfWeek)
       : Promise.resolve({ count: 0 }),
     isStaff
-      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth)
+      ? supabase.from("usage_history").select("id", { count: "exact", head: true }).eq("user_id", uid).gte("created_at", startOfMonth)
       : Promise.resolve({ count: 0 }),
   ]);
 
