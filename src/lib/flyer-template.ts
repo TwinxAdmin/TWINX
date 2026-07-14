@@ -75,6 +75,64 @@ export function buildFlyerHtml(opts: {
     .filter(Boolean)
     .join('<span style="opacity:.4"> · </span>');
 
+  // ---- FRAME (social) elrendezés: négyzet / story — teljes képet kitöltő poszter ----
+  if (format.mode === "frame") {
+    const w = format.width;
+    const h = format.height;
+    const isStory = h / w > 1.4;
+    const pad = Math.round(w * 0.055);
+    const titleSize = isStory ? 58 : 46;
+    const priceSize = isStory ? 68 : 56;
+    return `<!doctype html><html lang="hu"><head><meta charset="utf-8">
+<link rel="stylesheet" href="${font.link}">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: ${w}px; height: ${h}px; }
+  .flyer { position: relative; width: ${w}px; height: ${h}px; overflow: hidden; font-family: ${font.family}; color: #fff; background: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fh { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .grad { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 44%, rgba(0,0,0,.85) 100%); }
+  .fcontent { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: ${pad}px; z-index: 3; }
+  .ftitle { font-size: ${titleSize}px; font-weight: 800; text-transform: uppercase; line-height: 1.02; letter-spacing: -0.5px; text-shadow: 0 2px 20px rgba(0,0,0,.55); max-width: 92%; }
+  .fsub { display: inline-flex; align-items: center; height: 36px; margin-top: 14px; background: ${accent}; color: #1c1005; font-weight: 700; font-size: 18px; padding: 0 16px; border-radius: 8px; }
+  .fbot { display: flex; flex-direction: column; gap: 18px; }
+  .fprice { display: inline-flex; align-items: baseline; gap: 5px; }
+  .fprice .lab { font-size: 14px; letter-spacing: 2px; opacity: .85; margin-right: 4px; align-self: center; }
+  .fprice .num, .fprice .mil { font-size: ${priceSize}px; font-weight: 800; color: ${accent}; line-height: 1; }
+  .fprice .ft { font-size: 22px; font-weight: 700; }
+  .fhl { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fhl span { display: inline-flex; align-items: center; height: 34px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 0 16px; font-size: 14px; font-weight: 600; }
+  .ffoot { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid rgba(255,255,255,.28); padding-top: 16px; }
+  .ffoot .who b { font-size: 20px; display: block; }
+  .ffoot .who .role { font-size: 13px; opacity: .85; }
+  .ffoot .who .contact { font-size: 13px; opacity: .92; margin-top: 3px; }
+  .ffoot .brand { text-align: right; }
+  .ffoot .brand img { max-height: 48px; max-width: 160px; object-fit: contain; }
+  .ffoot .brand .company { font-size: 15px; font-weight: 700; }
+  .wm { position: absolute; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: space-around; align-items: center; transform: rotate(-24deg) scale(1.5); pointer-events: none; }
+  .wm span { font-size: 46px; font-weight: 800; letter-spacing: 6px; white-space: nowrap; color: rgba(255,255,255,0.22); }
+</style></head><body>
+<div class="flyer">
+  ${hero ? `<img class="fh" src="${esc(hero)}"/>` : `<div class="fh" style="background:${bg}"></div>`}
+  <div class="grad"></div>
+  ${watermark ? `<div class="wm">${Array.from({ length: 6 }).map(() => `<span>ELŐNÉZET · TWINX</span>`).join("")}</div>` : ""}
+  <div class="fcontent">
+    <div class="ftop">
+      <div class="ftitle">${esc(text.title || "Eladó ingatlan")}</div>
+      ${text.subtitle ? `<div class="fsub">${esc(text.subtitle)}</div>` : ""}
+    </div>
+    <div class="fbot">
+      ${text.price ? `<div class="fprice"><span class="lab">ÁRA</span><span class="num">${esc(priceNumber(text.price))}</span><span class="mil">M</span><span class="ft">Ft</span></div>` : ""}
+      ${sections.highlights && text.highlights.length ? `<div class="fhl">${text.highlights.slice(0, 4).map((hl) => `<span>${esc(hl)}</span>`).join("")}</div>` : ""}
+      <div class="ffoot">
+        <div class="who"><b>${esc(profile.display_name)}</b>${profile.title ? `<div class="role">${esc(profile.title)}</div>` : ""}${contact ? `<div class="contact">${contact}</div>` : ""}</div>
+        <div class="brand">${profile.logo_url ? `<img src="${esc(profile.logo_url)}"/>` : profile.company ? `<div class="company">${esc(profile.company)}</div>` : ""}</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>`;
+  }
+
   return `<!doctype html><html lang="hu"><head><meta charset="utf-8">
 <link rel="stylesheet" href="${font.link}">
 <style>

@@ -43,7 +43,7 @@ export default function FlyerPage() {
 
   // 4) Elrendezés + generálás
   const [layout, setLayout] = useState("classic");
-  const [format, setFormat] = useState("a4");
+  const [format, setFormat] = useState("poster");
   const [sections, setSections] = useState({
     highlights: true,
     characteristics: true,
@@ -166,7 +166,13 @@ export default function FlyerPage() {
         setFlyerError("Válassz érvényes arculatot.");
         return;
       }
-      const { blob } = await renderFlyerToBlob(built.html, built.fmt.width, built.fmt.height, built.fmt.kind);
+      const { blob } = await renderFlyerToBlob(
+        built.html,
+        built.fmt.width,
+        built.fmt.height,
+        built.fmt.kind,
+        built.fmt.mode === "poster"
+      );
       const url = URL.createObjectURL(blob);
       setPreview({ url, kind: built.fmt.kind, renderData: {} });
     } catch (e) {
@@ -191,7 +197,8 @@ export default function FlyerPage() {
         built.html,
         built.fmt.width,
         built.fmt.height,
-        built.fmt.kind
+        built.fmt.kind,
+        built.fmt.mode === "poster"
       );
       const fd = new FormData();
       fd.append("image", new File([blob], `flyer.${ext}`, { type: contentType }));

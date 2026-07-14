@@ -9,7 +9,8 @@ export async function renderFlyerToBlob(
   html: string,
   width: number,
   height: number,
-  kind: Kind
+  kind: Kind,
+  fitToContent = true
 ): Promise<RenderedFlyer> {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
@@ -53,17 +54,20 @@ export async function renderFlyerToBlob(
     await sleep(120);
 
     const target = (doc.querySelector(".flyer") as HTMLElement) || doc.body;
-    // A hirdetést a SAJÁT tartalmi méretében rajzoljuk (nincs A4-kényszer / üres alsó rész):
-    // a min-height-ot kinullázzuk, a magasság a tartalomhoz igazodik.
-    target.style.overflow = "visible";
-    target.style.minHeight = "0";
-    target.style.height = "auto";
-    if (doc.body) { doc.body.style.height = "auto"; doc.body.style.overflow = "visible"; }
-    if (doc.documentElement) { doc.documentElement.style.height = "auto"; doc.documentElement.style.overflow = "visible"; }
-    await sleep(30);
-
-    const naturalW = target.offsetWidth || width;
-    const naturalH = target.offsetHeight || height;
+    let naturalW = width;
+    let naturalH = height;
+    if (fitToContent) {
+      // Álló poszter: a magasság a tartalomhoz igazodik (nincs üres alsó rész).
+      target.style.overflow = "visible";
+      target.style.minHeight = "0";
+      target.style.height = "auto";
+      if (doc.body) { doc.body.style.height = "auto"; doc.body.style.overflow = "visible"; }
+      if (doc.documentElement) { doc.documentElement.style.height = "auto"; doc.documentElement.style.overflow = "visible"; }
+      await sleep(30);
+      naturalW = target.offsetWidth || width;
+      naturalH = target.offsetHeight || height;
+    }
+    // frame (négyzet/story): fix méret, a kép kitölti — a natural marad width×height.
 
     // @ts-ignore - a csomag a build során települ (package.json dependency)
     const html2canvas = (await import("html2canvas")).default;

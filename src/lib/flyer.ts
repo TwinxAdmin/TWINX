@@ -15,16 +15,18 @@ export type FlyerFormat = {
   value: string;
   label: string;
   kind: "pdf" | "image";
+  // poster = a magasság a tartalomhoz igazodik (álló poszter);
+  // frame = fix méret, a kép kitölti a keretet (social formátumok).
+  mode: "poster" | "frame";
   width: number;
   height: number;
 };
 
 export const FLYER_FORMATS: FlyerFormat[] = [
-  { value: "a4", label: "A4 álló — PDF", kind: "pdf", width: 794, height: 1123 },
-  { value: "1:1", label: "Négyzet 1:1 — poszt", kind: "image", width: 1080, height: 1080 },
-  { value: "4:3", label: "4:3 — fekvő", kind: "image", width: 1200, height: 900 },
-  { value: "16:9", label: "16:9 — fekvő széles", kind: "image", width: 1280, height: 720 },
-  { value: "9:16", label: "9:16 — story", kind: "image", width: 1080, height: 1920 },
+  { value: "poster", label: "Álló poszter — normál", kind: "image", mode: "poster", width: 900, height: 1280 },
+  { value: "poster-hd", label: "Álló poszter — HD (nagy)", kind: "image", mode: "poster", width: 1200, height: 1700 },
+  { value: "square", label: "Négyzet 1:1 — Insta/FB poszt", kind: "image", mode: "frame", width: 1080, height: 1080 },
+  { value: "story", label: "Story 9:16 — Insta/FB story", kind: "image", mode: "frame", width: 1080, height: 1920 },
 ];
 
 // Választható TWINX elrendezések (a szín/betű/téma az arculatból jön).
