@@ -53,30 +53,50 @@ export async function renderFlyerToBlob(
     await sleep(120);
 
     const target = (doc.querySelector(".flyer") as HTMLElement) || doc.body;
+    // A teljes tartalom kirajzolásához engedjük túlnyúlni (különben az alja levágódna).
+    target.style.overflow = "visible";
+    target.style.height = "auto";
+    const naturalW = Math.max(target.scrollWidth, width);
+    const naturalH = Math.max(target.scrollHeight, height);
 
     // @ts-ignore - a csomag a build során települ (package.json dependency)
     const html2canvas = (await import("html2canvas")).default;
-    const canvas = await html2canvas(target, {
+    const shot = await html2canvas(target, {
       useCORS: true,
       backgroundColor: "#ffffff",
       scale: 2,
-      width,
-      height,
-      windowWidth: width,
-      windowHeight: height,
+      width: naturalW,
+      height: naturalH,
+      windowWidth: naturalW,
+      windowHeight: naturalH,
     });
+
+    // Fit-to-page: a teljes hirdetést a formátum méretére skálázzuk (semmi ne vágódjon le),
+    // vízszintesen középre igazítva.
+    const s = 2;
+    const out = document.createElement("canvas");
+    out.width = width * s;
+    out.height = height * s;
+    const ctx = out.getContext("2d");
+    if (!ctx) throw new Error("Nem sikerült a kép összeállítása.");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, out.width, out.height);
+    const fit = Math.min(out.width / shot.width, out.height / shot.height);
+    const dw = shot.width * fit;
+    const dh = shot.height * fit;
+    ctx.drawImage(shot, (out.width - dw) / 2, 0, dw, dh);
 
     if (kind === "pdf") {
       // @ts-ignore - a csomag a build során települ (package.json dependency)
       const { jsPDF } = await import("jspdf");
       const orientation = width >= height ? "landscape" : "portrait";
       const pdf = new jsPDF({ orientation, unit: "px", format: [width, height] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, width, height);
+      pdf.addImage(out.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, width, height);
       return { blob: pdf.output("blob"), ext: "pdf", contentType: "application/pdf" };
     }
 
     const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
+      out.toBlob(
         (b: Blob | null) => (b ? resolve(b) : reject(new Error("A kép nem készült el."))),
         "image/png"
       )
