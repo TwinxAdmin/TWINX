@@ -7,6 +7,7 @@ import AuthTrigger from "@/components/AuthTrigger";
 import PricingModal from "@/components/PricingModal";
 import PricingTrigger from "@/components/PricingTrigger";
 import Wordmark from "@/components/Wordmark";
+import HeroVideo from "@/components/HeroVideo";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
@@ -58,19 +59,9 @@ export default async function LandingPage() {
             Most kép (public/design/hero-bg.jpg) bronz overlay-jel + finom Ken Burns animációval.
             Videóra cseréléshez lásd a lenti kommentet. */}
         <div className="pointer-events-none absolute inset-0" aria-hidden style={{ isolation: "isolate" }}>
-          {/* Hero VIDEÓ (public/design/hero.mp4). A poszter a kép, amíg tölt / ha nem indul.
-              Vissza képre: cseréld a <video>-t egy <img src="/design/hero-bg.jpg" .../>-re. */}
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            poster="/design/hero-bg.jpg"
-            className="h-full w-full object-cover"
-            style={{ opacity: 0.72, filter: "contrast(1.08) saturate(1.05)" }}
-          >
-            <source src="/design/hero.mp4" type="video/mp4" />
-          </video>
+          {/* Hero VIDEÓ (public/design/hero.mp4) — kliens-komponens, megbízható auto-indítással.
+              A poszter a kép, amíg tölt / ha a böngésző blokkolja az autoplay-t. */}
+          <HeroVideo />
           {/* Bronz overlay — meleg gradiens blend módban (twinx ráhangolás) */}
           <div
             className="absolute inset-0"
