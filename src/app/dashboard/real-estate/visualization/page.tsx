@@ -2,6 +2,7 @@
 // Kép kiválasztása -> helység (kötelező) + opcionális változók. Kész-jelzés a kártyán.
 // Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
+import ModuleIntro from "@/components/ModuleIntro";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
@@ -146,11 +147,13 @@ export default function VisualizationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="font-display text-3xl font-semibold">Ingatlan Látványtervező</h1>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Tölts fel max. {MAX_IMAGES} képet. Kattints egy képre, add meg a helységet
-        (kötelező) és a kívánt módosításokat (opcionális). Egy ingatlan = 1 kredit.
-      </p>
+      <ModuleIntro
+        eyebrow="Ingatlan · Vizuál"
+        title="Ingatlan Látványtervező"
+        subtitle={`Üres vagy elavult szobákból fotórealisztikus, berendezett látványterv — hogy a vevő elképzelje a potenciált. Tölts fel max. ${MAX_IMAGES} képet, add meg a helységet, a többit az AI hozza. Egy ingatlan = 1 kredit.`}
+        icon="visualization"
+        chips={["Fotórealisztikus", "Bútorozás", "Helységenként"]}
+      />
 
       {/* Feltöltő zóna */}
       <div

@@ -1,6 +1,7 @@
 // Marketing videó builder (wireframe). Forrás: korábbi látványtervek VAGY feltöltés.
 // Formátum + zenei stílus + képszám-alapú kredit. Indítás -> job -> polling -> eredmény.
 "use client";
+import ModuleIntro from "@/components/ModuleIntro";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -148,11 +149,13 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
 
   return (
     <main className="mx-auto max-w-3xl space-y-5">
-      <h1 className="font-display text-3xl font-semibold">Marketing videó</h1>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Válassz {countLabel} képet (korábbi látványtervekből
-        vagy feltöltéssel), formátumot és zenei stílust. A kredit a képszámtól függ.
-      </p>
+      <ModuleIntro
+        eyebrow="Ingatlan · Videó"
+        title="Marketing videó"
+        subtitle={`Profi, zenés bemutató videó a feltöltött fotókból — az ingatlan pár másodpercben eladható a közösségi médiában. Válassz ${countLabel} képet, formátumot és zenei stílust. A kredit a képszámtól függ.`}
+        icon="video"
+        chips={["Fotókból", "Zenével", "Social-kész"]}
+      />
 
       {/* Korábbi látványtervek */}
       {historyImages.length > 0 && (

@@ -1,6 +1,7 @@
 // dashboard/real-estate/land — Telek értékbecslés.
 // Sorrend: űrlap validáció -> API. Normál = szinkron; Magas = async job + polling.
 "use client";
+import ModuleIntro from "@/components/ModuleIntro";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -115,11 +116,13 @@ export default function LandPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="font-display text-3xl font-semibold">Telek ellenőrzés</h1>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        A telek beépíthetőségéről készül tömör, 1 oldalas jelentés (HÉSZ + TAK alapján).
-        Minden mező kötelező.
-      </p>
+      <ModuleIntro
+        eyebrow="Ingatlan · Ellenőrzés"
+        title="Telek ellenőrzés"
+        subtitle="Tömör, 1 oldalas jelentés a telek beépíthetőségéről (HÉSZ + TAK alapján) — tudd meg gyorsan, mit lehet rá építeni. Minden mező kötelező."
+        icon="land"
+        chips={["Beépíthetőség", "Övezet", "1 oldalas jelentés"]}
+      />
 
       <form onSubmit={onSubmit} noValidate className="space-y-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

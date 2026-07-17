@@ -18,6 +18,7 @@ import {
   type LibraryItem,
 } from "@/lib/flyer";
 import { toDownloadUrl } from "@/lib/files";
+import ModuleIntro from "@/components/ModuleIntro";
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -285,13 +286,13 @@ export default function FlyerPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-semibold">Hirdetéskészítő</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Válaszd ki, kinek a nevében készül, és honnan jönnek a képek/adatok. A szöveget és a
-          végső hirdetés-elrendezést a következő lépésben állítjuk be.
-        </p>
-      </div>
+      <ModuleIntro
+        eyebrow="Ingatlan · Marketing"
+        title="Hirdetéskészítő"
+        subtitle="Percek alatt kész, márkázott ingatlanhirdetés a saját arculatoddal — profi elrendezés, AI-szöveg és a te képeid. Töltsd fel a fotókat, a többit ránk bízhatod."
+        icon="flyer"
+        chips={["Saját arculat", "AI-szöveg", "Letölthető poszter"]}
+      />
 
       {/* 1) Arculat-profil */}
       <section className="space-y-3">

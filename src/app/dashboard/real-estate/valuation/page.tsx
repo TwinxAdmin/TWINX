@@ -1,6 +1,7 @@
 // dashboard/real-estate/valuation — Ingatlan Értékbecslő (14 mezős, wireframe).
 // A partner bevált eszköze alapján. Sorrend: űrlap validáció -> API.
 "use client";
+import ModuleIntro from "@/components/ModuleIntro";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -79,11 +80,13 @@ export default function ValuationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
-      <h1 className="font-display text-3xl font-semibold">Ingatlan értékbecslés</h1>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Válaszd a listából a leggyakoribb értékeket, vagy írj be sajátot. A csillagos
-        (*) mezők kötelezők. Egy értékbecslés 1 kredit.
-      </p>
+      <ModuleIntro
+        eyebrow="Ingatlan · Elemzés"
+        title="Ingatlan értékbecslés"
+        subtitle="Adatalapú, védhető piaci ár percek alatt — a legfontosabb paraméterekből profi, ügyfélnek is átadható becslés. A csillagos (*) mezők kötelezők, egy becslés 1 kredit."
+        icon="valuation"
+        chips={["Adatalapú", "Percek alatt", "PDF-riport"]}
+      />
 
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
