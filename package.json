@@ -13,7 +13,7 @@
     "@sparticuz/chromium-min": "132.0.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
-    "framer-motion": "^11.15.0",
+    "framer-motion": "^11.18.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "next": "15.3.6",

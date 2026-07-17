@@ -8,6 +8,7 @@ import PricingModal from "@/components/PricingModal";
 import PricingTrigger from "@/components/PricingTrigger";
 import Wordmark from "@/components/Wordmark";
 import HeroVideo from "@/components/HeroVideo";
+import Reveal from "@/components/motion/Reveal";
 import { getApprovedIdeas } from "@/lib/ideas";
 
 export const runtime = "nodejs";
@@ -183,24 +184,26 @@ export default async function LandingPage() {
 
       {/* ===== KATEGÓRIÁK (világos) ===== */}
       <section id="kategoriak" className="mx-auto max-w-6xl px-6 py-24">
-        <p className="text-xs font-medium uppercase tracking-[0.25em]" style={{ color: "var(--twx-coral)" }}>
-          Kategóriák
-        </p>
-        <h2 className="font-display mt-3 text-4xl font-medium sm:text-5xl">
-          Kategorizált AI-eszközök, egy platformon.
-        </h2>
-        <p className="mt-4 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
-          Saját fejlesztésű AI-motorok — mindegyik egy-egy mindennapi üzleti folyamatot
-          automatizál. A kínálat folyamatosan bővül.
-        </p>
+        <Reveal>
+          <p className="text-xs font-medium uppercase tracking-[0.25em]" style={{ color: "var(--twx-coral)" }}>
+            Kategóriák
+          </p>
+          <h2 className="font-display mt-3 text-4xl font-medium sm:text-5xl">
+            Kategorizált AI-eszközök, egy platformon.
+          </h2>
+          <p className="mt-4 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
+            Saját fejlesztésű AI-motorok — mindegyik egy-egy mindennapi üzleti folyamatot
+            automatizál. A kínálat folyamatosan bővül.
+          </p>
+        </Reveal>
 
         <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          {CATEGORIES.map((c) => {
+          {CATEGORIES.map((c, i) => {
             const live = c.status === "Elérhető";
             return (
+              <Reveal key={c.title} delay={i * 0.1} className="h-full">
               <div
-                key={c.title}
-                className="flex flex-col rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_rgba(28,24,21,0.10)]"
+                className="flex h-full flex-col rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_rgba(28,24,21,0.10)]"
                 style={{
                   background: "var(--twx-cream-card)",
                   border: `1px solid ${live ? "var(--twx-coral)" : "var(--twx-line)"}`,
@@ -241,6 +244,7 @@ export default async function LandingPage() {
                   </span>
                 )}
               </div>
+              </Reveal>
             );
           })}
         </div>
