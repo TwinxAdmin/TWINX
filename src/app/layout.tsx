@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const sans = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+});
+
+// Karakteres display betű a címekhez (letisztult, teches).
+const display = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -20,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="hu">
-      <body className={`${sans.variable} antialiased`}>{children}</body>
+      <body className={`${sans.variable} ${display.variable} antialiased`}>{children}</body>
     </html>
   );
 }

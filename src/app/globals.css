@@ -1,10 +1,6 @@
 @import "tailwindcss";
-@import url("https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap");
 
 :root {
-  /* Fő cím betű — Clash Display (Juan Mora-vibe), törzs Inter */
-  --font-display: "Clash Display", var(--font-sans), sans-serif;
-
   /* TWINX paletta — sötét cinematic hero + világos editorial, korall akcent */
   --twx-dark: #12100e;
   --twx-dark-2: #0c0b0a;
@@ -30,7 +26,8 @@ body {
 }
 
 .font-display {
-  font-family: var(--font-display);
+  font-family: var(--font-display), "Space Grotesk", var(--font-sans), sans-serif;
+  letter-spacing: -0.01em;
 }
 
 /* Belső felület — közös elemek (világos krém + korall) */
