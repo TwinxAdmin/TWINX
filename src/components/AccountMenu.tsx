@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import AnimatedNumber from "@/components/motion/AnimatedNumber";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -69,7 +70,9 @@ export default function AccountMenu({
         >
           <div>
             <p className="text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>Egyenleg</p>
-            <p className="font-display text-lg font-semibold" style={{ color: "var(--twx-on-dark)" }}>{balance}</p>
+            <p className="font-display text-lg font-semibold" style={{ color: "var(--twx-on-dark)" }}>
+              <AnimatedNumber value={balance} animateOnMount />
+            </p>
           </div>
           <button
             type="button"

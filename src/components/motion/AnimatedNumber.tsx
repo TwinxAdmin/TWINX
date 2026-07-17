@@ -9,13 +9,14 @@ type Props = {
   value: number;
   className?: string;
   duration?: number; // ms
+  animateOnMount?: boolean; // betöltéskor 0-ról pörögjön fel
 };
 
-export default function AnimatedNumber({ value, className, duration = 800 }: Props) {
+export default function AnimatedNumber({ value, className, duration = 800, animateOnMount = false }: Props) {
   const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(value);
+  const [display, setDisplay] = useState(animateOnMount ? 0 : value);
   const [flash, setFlash] = useState<null | "up" | "down">(null);
-  const prev = useRef(value);
+  const prev = useRef(animateOnMount ? 0 : value);
   const raf = useRef<number | null>(null);
 
   useEffect(() => {

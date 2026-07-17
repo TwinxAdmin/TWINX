@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
 import PricingTrigger from "@/components/PricingTrigger";
+import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
 
 type HistoryRow = {
@@ -103,7 +104,9 @@ export default async function DashboardHome() {
                   ? "Kereted — az admin által biztosított folyamatok (bármelyik modulban)"
                   : "Egyenleged — bármelyik modulban felhasználható"}
               </p>
-              <p className="font-display text-5xl font-semibold">{balance}</p>
+              <p className="font-display text-5xl font-semibold">
+                <AnimatedNumber value={balance} animateOnMount />
+              </p>
             </div>
             {isSales ? (
               <span
