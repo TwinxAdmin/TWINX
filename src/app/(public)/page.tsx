@@ -55,19 +55,29 @@ export default async function LandingPage() {
         style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
       >
         {/* ===== MÉDIA-SLOT — ide teheted a saját hero-médiádat =====
-            Most kép (public/design/hero-bg.jpg). Videóra cseréléshez lásd a lenti kommentet. */}
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
+            Most kép (public/design/hero-bg.jpg) bronz overlay-jel + finom Ken Burns animációval.
+            Videóra cseréléshez lásd a lenti kommentet. */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden style={{ isolation: "isolate" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/design/hero-bg.jpg"
             alt=""
-            className="h-full w-full object-cover"
-            style={{ opacity: 0.55 }}
+            className="twx-kenburns h-full w-full object-cover"
+            style={{ opacity: 0.72, filter: "contrast(1.08) saturate(1.05)" }}
+          />
+          {/* Bronz overlay — meleg gradiens blend módban (twinx ráhangolás) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              mixBlendMode: "overlay",
+              opacity: 0.45,
+              background: "linear-gradient(120deg, #ef7a5a 0%, #7a3a1e 45%, #12100e 100%)",
+            }}
           />
           {/*
             VIDEÓHOZ cseréld a fenti <img>-et erre (tegyél be egy public/design/hero.mp4-et):
             <video autoPlay muted loop playsInline poster="/design/hero-bg.jpg"
-                   className="h-full w-full object-cover" style={{ opacity: 0.6 }}>
+                   className="twx-kenburns h-full w-full object-cover" style={{ opacity: 0.72 }}>
               <source src="/design/hero.mp4" type="video/mp4" />
             </video>
           */}

@@ -94,10 +94,15 @@ body {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes twx-kenburns {
+  from { transform: scale(1.03) translate(0, 0); }
+  to   { transform: scale(1.12) translate(-1.5%, -1.5%); }
+}
 .twx-orb { animation: twx-float 9s ease-in-out infinite; }
 .twx-orb-2 { animation: twx-float 12s ease-in-out infinite; }
 .twx-reveal { animation: twx-fade-up 0.8s ease both; }
+.twx-kenburns { animation: twx-kenburns 18s ease-in-out infinite alternate; transform-origin: 70% 40%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .twx-orb, .twx-orb-2, .twx-reveal { animation: none; }
+  .twx-orb, .twx-orb-2, .twx-reveal, .twx-kenburns { animation: none; }
 }
