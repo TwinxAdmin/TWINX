@@ -111,7 +111,7 @@ export default function MenuGeneratorPage() {
       }
       setMenu(data.menu as string);
       showToast(
-        data.charged ? "Menü elkészült — 1 kredit levonva." : "Menü elkészült.",
+        data.charged ? `Menü elkészült — ${data.credits} kredit levonva.` : "Menü elkészült.",
         "success"
       );
     } catch {
@@ -195,7 +195,7 @@ export default function MenuGeneratorPage() {
       <ModuleIntro
         eyebrow="Vendéglátás · Menü"
         title="Menü generátor"
-        subtitle="Állítsd be az időtávot, a tematikát és a profit-célt — az AI a saját kínálatodból rak össze egy vonzó menüsort, a haszonkulcsod szerint súlyozva. Egy generálás 1 kredit."
+        subtitle="Állítsd be az időtávot, a tematikát és a profit-célt — az AI a saját kínálatodból rak össze egy vonzó menüsort, a haszonkulcsod szerint súlyozva. Az ár naponta 1 kredit (pl. 3 napos menü = 3 kredit)."
         icon="menu"
         chips={["Napi / Heti", "Profit-cél", "A saját kínálatodból"]}
       />
@@ -480,7 +480,7 @@ export default function MenuGeneratorPage() {
           .
         </p>
         <button onClick={generate} disabled={loading} className="twx-btn">
-          {loading ? "Menü készül…" : "Menü generálása (1 kredit)"}
+          {loading ? "Menü készül…" : `Menü generálása (${days} kredit)`}
         </button>
       </div>
 

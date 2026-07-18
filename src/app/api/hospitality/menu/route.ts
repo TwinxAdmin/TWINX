@@ -15,6 +15,7 @@ import {
   PREFERRED_MARGINS,
   MENU_CREDITS,
   MENU_MIN_DISHES,
+  timeframeDays,
   categoryLabel,
   marginLabel,
 } from "@/lib/hospitality";
@@ -68,17 +69,20 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
+  // Ár: naponta MENU_CREDITS kredit (1 nap = 1 kredit, N nap = N kredit).
+  const credits = MENU_CREDITS * timeframeDays(String(timeframe));
+
   // 1) Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = await chargeCredit({ userId: user.id, amount: MENU_CREDITS });
+  const charge = await chargeCredit({ userId: user.id, amount: credits });
   if (!charge.ok) {
     return NextResponse.json(
-      { error: `Nincs elég egyenleg (${MENU_CREDITS} szükséges).` },
+      { error: `Nincs elég egyenleg (${credits} szükséges).` },
       { status: 402 }
     );
   }
   const refund = async () => {
-    if (!charge.bypassed && MENU_CREDITS > 0) {
-      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: MENU_CREDITS });
+    if (!charge.bypassed && credits > 0) {
+      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
     }
   };
 
@@ -136,7 +140,7 @@ export async function POST(request: Request) {
       feature_used: FEATURE,
       input_data: { timeframe, theme, goal, courses, targetPrice, variety, targetCount, targetProfit, dish_count: selected.length, day_plan: dayPlan, instruction },
       output_file_url: null,
-      credits_charged: charge.bypassed ? 0 : MENU_CREDITS,
+      credits_charged: charge.bypassed ? 0 : credits,
     });
 
     return NextResponse.json({
@@ -144,6 +148,7 @@ export async function POST(request: Request) {
       menu: menuText,
       dishCount: selected.length,
       charged: !charge.bypassed,
+      credits: charge.bypassed ? 0 : credits,
     });
   } catch (err) {
     await refund();
