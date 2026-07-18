@@ -20,7 +20,8 @@ export const PROFIT_MARGINS = [
 ] as const;
 export type ProfitMargin = (typeof PROFIT_MARGINS)[number]["value"];
 
-export function marginLabel(m: string): string {
+export function marginLabel(m: string | null | undefined): string {
+  if (!m) return "";
   return PROFIT_MARGINS.find((x) => x.value === m)?.label ?? m;
 }
 export function categoryLabel(c: string): string {
@@ -34,7 +35,7 @@ export type Dish = {
   description: string | null;
   category: DishCategory;
   cuisine_style: string | null;
-  profit_margin: ProfitMargin;
+  profit_margin: ProfitMargin | null;
   cost_price: number | null; // előkészítési / önköltségi ár
   sale_price: number | null; // eladási ár
   image_url: string | null;
@@ -71,7 +72,10 @@ export function validateDishInput(input: Partial<DishInput>): {
   if (!name) errors.name = "Az étel neve kötelező.";
   if (name.length > 120) errors.name = "Túl hosszú név (max 120).";
   if (!DISH_CATEGORIES.some((c) => c.value === input.category)) errors.category = "Válassz kategóriát.";
-  if (!PROFIT_MARGINS.some((m) => m.value === input.profit_margin)) errors.profit_margin = "Válassz profitmarzsot.";
+  if (!String(input.cuisine_style ?? "").trim()) errors.cuisine_style = "A konyhatípus megadása kötelező.";
+  // Profitmarzs opcionális: üres megengedett, de ha van, érvényes legyen.
+  const pm = String(input.profit_margin ?? "").trim();
+  if (pm && !PROFIT_MARGINS.some((m) => m.value === pm)) errors.profit_margin = "Érvénytelen profitmarzs.";
   for (const key of ["cost_price", "sale_price"] as const) {
     const raw = String(input[key] ?? "").trim();
     if (raw && (isNaN(Number(raw)) || Number(raw) < 0)) errors[key] = "Nem negatív szám legyen.";

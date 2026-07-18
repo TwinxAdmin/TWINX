@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       .from("restaurant_dishes")
       .select("name, description, category, cuisine_style, profit_margin")
       .eq("user_id", user.id)
-      .in("profit_margin", preferred);
+      .or(`profit_margin.in.(${preferred.join(",")}),profit_margin.is.null`);
     if (dishErr) throw new Error(dishErr.message);
 
     // Rangsor: a cél szerint preferált marzs kerül előre, majd max MAX_DISHES étel.

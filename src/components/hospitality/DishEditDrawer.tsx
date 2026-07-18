@@ -123,7 +123,7 @@ export default function DishEditDrawer({
               </select>
             </div>
             <div>
-              <label className="block text-sm">Konyha típusa</label>
+              <label className="block text-sm">Konyha típusa *</label>
               {cuisineMode === "list" ? (
                 <select
                   value={form.cuisine_style}
@@ -145,31 +145,41 @@ export default function DishEditDrawer({
                   </button>
                 </div>
               )}
-            </div>
-            <div>
-              <label className="block text-sm">Előkészítési ár (Ft)</label>
-              <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" />
-              {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
-            </div>
-            <div>
-              <label className="block text-sm">Eladási ár (Ft)</label>
-              <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" />
-              {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+              {errors.cuisine_style && <p className="mt-1 text-xs text-red-600">{errors.cuisine_style}</p>}
             </div>
           </div>
-          {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
-            <p className="text-sm" style={{ color: "var(--twx-coral)" }}>
-              Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
-            </p>
-          )}
-          <div>
-            <label className="block text-sm">Profitmarzs *</label>
-            <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
-              {PROFIT_MARGINS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
+
+          <fieldset className="rounded-xl p-4" style={{ border: "1px solid var(--twx-line)" }}>
+            <legend className="px-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
+              Árazás és profit — opcionális
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm">Előkészítési ár (Ft)</label>
+                <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" />
+                {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+              </div>
+              <div>
+                <label className="block text-sm">Eladási ár (Ft)</label>
+                <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" />
+                {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+              </div>
+            </div>
+            {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
+              <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
+                Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
+              </p>
+            )}
+            <div className="mt-3">
+              <label className="block text-sm">Profitmarzs</label>
+              <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
+                <option value="">— nincs megadva —</option>
+                {PROFIT_MARGINS.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          </fieldset>
 
           <div>
             <label className="block text-sm">Ételfotó</label>

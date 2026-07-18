@@ -20,7 +20,7 @@ import {
   type Dish,
 } from "@/lib/hospitality";
 
-const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "medium", cost_price: "", sale_price: "" };
+const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "" };
 
 export default function InventoryPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -144,7 +144,7 @@ export default function InventoryPage() {
             {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
           </div>
           <div>
-            <label className="block text-sm">Konyha típusa</label>
+            <label className="block text-sm">Konyha típusa *</label>
             {cuisineMode === "list" ? (
               <select
                 value={form.cuisine_style}
@@ -166,31 +166,41 @@ export default function InventoryPage() {
                 </button>
               </div>
             )}
+            {errors.cuisine_style && <p className="mt-1 text-xs text-red-600">{errors.cuisine_style}</p>}
           </div>
-          <div>
-            <label className="block text-sm">Előkészítési ár (Ft)</label>
-            <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 800" />
-            {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
-          </div>
-          <div>
-            <label className="block text-sm">Eladási ár (Ft)</label>
-            <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
-            {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
-          </div>
-          {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
-            <p className="text-sm sm:col-span-2" style={{ color: "var(--twx-coral)" }}>
-              Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
-            </p>
-          )}
-          <div className="sm:col-span-2">
-            <label className="block text-sm">Profitmarzs *</label>
-            <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
-              {PROFIT_MARGINS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-            {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
-          </div>
+
+          <fieldset className="rounded-xl p-4 sm:col-span-2" style={{ border: "1px solid var(--twx-line)" }}>
+            <legend className="px-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
+              Árazás és profit — opcionális
+            </legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm">Előkészítési ár (Ft)</label>
+                <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 800" />
+                {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+              </div>
+              <div>
+                <label className="block text-sm">Eladási ár (Ft)</label>
+                <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
+                {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+              </div>
+              {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
+                <p className="text-sm sm:col-span-2" style={{ color: "var(--twx-coral)" }}>
+                  Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
+                </p>
+              )}
+              <div className="sm:col-span-2">
+                <label className="block text-sm">Profitmarzs</label>
+                <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
+                  <option value="">— nincs megadva —</option>
+                  {PROFIT_MARGINS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
+              </div>
+            </div>
+          </fieldset>
         </div>
         <div>
           <label className="block text-sm">Ételfotó (opcionális)</label>
@@ -320,6 +330,11 @@ export default function InventoryPage() {
                   {inCat.map((d) => {
                     const active = editDish?.id === d.id;
                     const profit = dishProfit(d);
+                    const meta = [
+                      d.profit_margin ? `${marginLabel(d.profit_margin)} haszon` : null,
+                      d.cuisine_style || null,
+                      profit != null ? `+${formatHuf(profit)}/db` : null,
+                    ].filter(Boolean).join(" · ");
                     return (
                       <li key={d.id}>
                         <button
@@ -336,8 +351,7 @@ export default function InventoryPage() {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">{d.name}</span>
                             <span className="block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                              {marginLabel(d.profit_margin)} haszon{d.cuisine_style ? ` · ${d.cuisine_style}` : ""}
-                              {profit != null ? ` · +${formatHuf(profit)}/db` : ""}
+                              {meta || "—"}
                             </span>
                           </span>
                           <span style={{ color: active ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>›</span>

@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       description: input.description || null,
       category: input.category,
       cuisine_style: input.cuisine_style || null,
-      profit_margin: input.profit_margin,
+      profit_margin: input.profit_margin || null,
       cost_price: parsePrice(input.cost_price),
       sale_price: parsePrice(input.sale_price),
       image_url: imageUrl,
@@ -120,7 +120,7 @@ export async function PATCH(request: Request) {
     description: input.description || null,
     category: input.category,
     cuisine_style: input.cuisine_style || null,
-    profit_margin: input.profit_margin,
+    profit_margin: input.profit_margin || null,
     cost_price: parsePrice(input.cost_price),
     sale_price: parsePrice(input.sale_price),
   };
