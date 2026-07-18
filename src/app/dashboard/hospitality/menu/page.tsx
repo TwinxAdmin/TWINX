@@ -30,6 +30,7 @@ export default function MenuGeneratorPage() {
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   const [ingredientPlan, setIngredientPlan] = useState<Record<string, string>>({});
+  const [cuisineOpen, setCuisineOpen] = useState(false);
   const [ingredientOpen, setIngredientOpen] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -173,30 +174,58 @@ export default function MenuGeneratorPage() {
           />
         </div>
 
-        {/* Napokra bontott konyha-beosztás — több napos menünél */}
+        {/* Napi konyha-beosztás — külön összecsukható legördülő (több napos menünél) */}
         {days > 1 && (
-          <div>
-            <label className="block text-sm">Napi konyha-beosztás (opcionális)</label>
-            <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Add meg, melyik napon milyen konyha legyen — pl. 1. nap kínai, 2. nap fitness. Üresen hagyva az AI dönt.
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {planDays.map((d) => (
-                <div key={d.value} className="flex items-center gap-2">
-                  <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
-                  <select
-                    value={dayPlan[d.value] ?? ""}
-                    onChange={(e) => setDayPlan((p) => ({ ...p, [d.value]: e.target.value }))}
-                    className="twx-input"
-                  >
-                    <option value="">—</option>
-                    {cuisines.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
+          <div className="rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+            <button
+              type="button"
+              onClick={() => setCuisineOpen((o) => !o)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+            >
+              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
+                Napi konyha-beosztás — opcionális
+              </span>
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-full text-lg transition-transform duration-200"
+                style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: cuisineOpen ? "rotate(45deg)" : "none" }}
+              >
+                +
+              </span>
+            </button>
+            <AnimatePresence initial={false}>
+              {cuisineOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div className="px-4 pb-4">
+                    <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      Add meg, melyik napon milyen konyha legyen — pl. 1. nap kínai, 2. nap fitness. Üresen hagyva az AI dönt.
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {planDays.map((d) => (
+                        <div key={d.value} className="flex items-center gap-2">
+                          <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
+                          <select
+                            value={dayPlan[d.value] ?? ""}
+                            onChange={(e) => setDayPlan((p) => ({ ...p, [d.value]: e.target.value }))}
+                            className="twx-input"
+                          >
+                            <option value="">—</option>
+                            {cuisines.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
