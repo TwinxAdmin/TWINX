@@ -435,12 +435,12 @@ export default function MenuGeneratorPage() {
               >
                 <div className="px-4 pb-4">
                   <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    A bevétel/profit hangolásához. Add meg a napi célárat, és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
+                    A bevétel/profit hangolásához. Add meg <b>egy menü célárát</b> (mennyibe kerüljön egy napi menü a vendégnek), és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div>
-                      <label className="block text-sm">Célár (Ft / nap)</label>
-                      <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
+                      <label className="block text-sm">Egy menü célára (Ft)</label>
+                      <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500 / menü" />
                     </div>
                     <div>
                       <label className="block text-sm">Tervezett eladott menü (db)</label>
