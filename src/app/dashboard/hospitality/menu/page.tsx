@@ -15,6 +15,7 @@ import {
   COURSE_OPTIONS,
   VARIETY_OPTIONS,
   timeframeDays,
+  formatHuf,
 } from "@/lib/hospitality";
 
 export default function MenuGeneratorPage() {
@@ -34,7 +35,9 @@ export default function MenuGeneratorPage() {
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [editDay, setEditDay] = useState<string | null>(null);
   const [cuisines, setCuisines] = useState<string[]>([]);
-  const [dishesData, setDishesData] = useState<{ name: string; cuisine_style: string | null; category: string }[]>([]);
+  const [dishesData, setDishesData] = useState<
+    { name: string; cuisine_style: string | null; category: string; cost_price: number | null; sale_price: number | null }[]
+  >([]);
 
   // Fogás-slotok a Fogásszám szerint (a fogáshoz tartozó étel-kategóriákkal).
   const courseSlots: { key: string; label: string; cats: string[] }[] =
@@ -70,7 +73,9 @@ export default function MenuGeneratorPage() {
         const res = await fetch("/api/hospitality/dishes");
         const data = await res.json();
         if (res.ok) {
-          const list = (data.dishes ?? []) as { name: string; cuisine_style: string | null; category: string }[];
+          const list = (data.dishes ?? []) as {
+            name: string; cuisine_style: string | null; category: string; cost_price: number | null; sale_price: number | null;
+          }[];
           setDishesData(list);
           setDishCount(list.length);
           const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
@@ -131,6 +136,69 @@ export default function MenuGeneratorPage() {
     timeframe === "7"
       ? WEEK_DAYS.map((d) => ({ value: d.value, label: d.label }))
       : Array.from({ length: days }, (_, i) => ({ value: `nap${i + 1}`, label: `${i + 1}. nap` }));
+
+  // ---- Profit-figyelmeztetés (determinisztikus, generálás előtt) ----
+  const requiredPerMenu =
+    Number(targetCount) > 0 && Number(targetProfit) > 0 ? Number(targetProfit) / Number(targetCount) : 0;
+  const menuCourses = courses === "2" ? 2 : 3; // "" (nincs megkötve) és "3" -> 3 fogás becslés
+  const courseCatGroups: string[][] =
+    menuCourses === 2
+      ? [["eloetel", "leves"], ["foetel", "koret"]]
+      : [["eloetel", "leves"], ["foetel", "koret"], ["desszert"]];
+  const profitOf = (d: { cost_price: number | null; sale_price: number | null }) =>
+    d.cost_price != null && d.sale_price != null ? d.sale_price - d.cost_price : 0;
+
+  function bestDayProfit(dayValue: string): number {
+    const cuisine = (dayPlan[dayValue] ?? "").toLowerCase();
+    const pool = dishesData.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
+    const pinnedNames = new Set(Object.values(dishPlan[dayValue] || {}).filter(Boolean));
+    let total = 0;
+    for (const cats of courseCatGroups) {
+      const pinned = pool.find((d) => pinnedNames.has(d.name) && cats.includes(d.category));
+      let chosen = pinned;
+      if (!chosen) {
+        const cands = pool.filter((d) => cats.includes(d.category));
+        if (cands.length) chosen = cands.reduce((b, d) => (profitOf(d) > profitOf(b) ? d : b));
+      }
+      if (chosen) total += profitOf(chosen);
+    }
+    return total;
+  }
+
+  // Csere-javaslat a legkritikusabb rögzített ételre.
+  function swapSuggestion(dayValue: string): string | null {
+    const cuisine = (dayPlan[dayValue] ?? "").toLowerCase();
+    const pool = dishesData.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
+    const pinned = Object.values(dishPlan[dayValue] || {})
+      .filter(Boolean)
+      .map((name) => pool.find((d) => d.name === name))
+      .filter((d): d is (typeof dishesData)[number] => Boolean(d));
+    if (!pinned.length) return null;
+    const worst = pinned.reduce((a, b) => (profitOf(a) < profitOf(b) ? a : b));
+    const alts = pool.filter((d) => d.category === worst.category && d.name !== worst.name && profitOf(d) > profitOf(worst));
+    if (!alts.length) return null;
+    const best = alts.reduce((a, b) => (profitOf(a) > profitOf(b) ? a : b));
+    return `Cseréld a rögzített „${worst.name}" (${formatHuf(profitOf(worst))}/db) ételt erre: „${best.name}" (${formatHuf(profitOf(best))}/db, +${formatHuf(profitOf(best) - profitOf(worst))}).`;
+  }
+
+  const profitWarning = (() => {
+    if (requiredPerMenu <= 0) return null;
+    const per = planDays.map((d) => ({ d, best: bestDayProfit(d.value) }));
+    const infeasible = per.filter((x) => x.best < requiredPerMenu - 0.5);
+    if (!infeasible.length) return null;
+    const worst = infeasible.reduce((a, b) => (a.best < b.best ? a : b));
+    const avgBest = per.reduce((s, x) => s + x.best, 0) / per.length;
+    return {
+      required: requiredPerMenu,
+      worstLabel: worst.d.label,
+      worstBest: worst.best,
+      gap: requiredPerMenu - worst.best,
+      swap: swapSuggestion(worst.d.value),
+      achievableY: Math.max(0, avgBest * Number(targetCount)),
+      avgBest,
+      dayCount: infeasible.length,
+    };
+  })();
 
   return (
     <main className="mx-auto max-w-3xl space-y-6">
@@ -394,6 +462,24 @@ export default function MenuGeneratorPage() {
           </AnimatePresence>
         </div>
 
+        {profitWarning && (
+          <div className="rounded-xl p-4 text-sm" style={{ background: "rgba(239,122,90,0.08)", border: "1px solid var(--twx-coral)" }}>
+            <p className="font-medium" style={{ color: "var(--twx-coral)" }}>⚠ A profit-cél így valószínűleg nem jön ki</p>
+            <p className="mt-1" style={{ color: "var(--twx-ink)" }}>
+              Menünként ~<b>{formatHuf(profitWarning.required)}</b> darab-profit kellene, de <b>{profitWarning.dayCount}</b> napon
+              ez a legjobb esetben sem érhető el. Legkritikusabb: <b>{profitWarning.worstLabel}</b>{" "}
+              (max ~{formatHuf(profitWarning.worstBest)}, hiány −{formatHuf(profitWarning.gap)}).
+            </p>
+            {profitWarning.swap && (
+              <p className="mt-2" style={{ color: "var(--twx-ink)" }}>Javaslat: {profitWarning.swap}</p>
+            )}
+            <p className="mt-2" style={{ color: "var(--twx-ink-muted)" }}>
+              Vagy emelj árat pár ételen, vagy vedd lejjebb a célt: {Number(targetCount).toLocaleString("hu-HU")} menüből
+              reálisan ~<b>{formatHuf(profitWarning.achievableY)}</b> profit (menünként ~{formatHuf(profitWarning.avgBest)}).
+              Generálhatsz így is — a Twinx a lehető legjobb profitot hozza, de a cél nem garantált.
+            </p>
+          </div>
+        )}
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           Tipp: „Magas" profit-célnál a nagyobb haszonkulcsú ételek kerülnek előtérbe, de a menü
           változatos marad. {dishCount !== null && <>Jelenleg <b>{dishCount}</b> ételed van. </>}
