@@ -5,10 +5,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
-import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
+import { formatHuf, categoryLabel, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
   COST_FIELDS,
   EMPTY_COST_PROFILE,
@@ -242,25 +243,17 @@ function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: C
 }
 
 // =============================================================================
-// 2) Eladások rögzítése — kategória-mappák, eladott adag (tárol, számot nem mutat)
+// 2) Eladások rögzítése — kategória-kockák + felugró ablak; előzmény-kockák
 // =============================================================================
+type DishGroup = { cat: string; label: string; items: Dish[] };
+type ModalState = { start: string; end: string; view: string | null };
+
 function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]; onSaved: (s: SaleRow[]) => void }) {
-  const [start, setStart] = useState<string>(todayISO());
-  const [end, setEnd] = useState<string>(todayISO());
-  const [qty, setQty] = useState<Record<string, string>>({});
-  const [openCats, setOpenCats] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
+  const [entryStart, setEntryStart] = useState<string>(todayISO());
+  const [entryEnd, setEntryEnd] = useState<string>(todayISO());
+  const [modal, setModal] = useState<ModalState | null>(null);
 
-  // A kiválasztott (start,end)-hez tartozó rögzített adagok betöltése a mezőkbe.
-  useEffect(() => {
-    const map: Record<string, string> = {};
-    for (const r of sales) {
-      if (r.period_start === start && r.period_end === end) map[r.dish_id] = String(r.qty);
-    }
-    setQty(map);
-  }, [start, end, sales]);
-
-  const groups = useMemo(
+  const groups: DishGroup[] = useMemo(
     () =>
       DISH_CATEGORIES.map((c) => ({
         cat: c.value as string,
@@ -270,11 +263,14 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
     [priced]
   );
 
-  const qNum = (id: string) => Math.max(0, Math.floor(Number(qty[id]) || 0));
-  const toggleCat = (cat: string) =>
-    setOpenCats((s) => { const n = new Set(s); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+  // Egy (start,end)-hez mentett adagok kikeresése.
+  const savedQtyFor = (s: string, e: string): Record<string, number> => {
+    const m: Record<string, number> = {};
+    for (const r of sales) if (r.period_start === s && r.period_end === e) m[r.dish_id] = r.qty;
+    return m;
+  };
 
-  // Korábban rögzített időszakok listája (distinct start–end).
+  // Korábban rögzített időszakok (distinct start–end), legfrissebb elöl.
   const periods = useMemo(() => {
     const map = new Map<string, { start: string; end: string; qty: number; dishes: number }>();
     for (const r of sales) {
@@ -286,28 +282,11 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
     return [...map.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
   }, [sales]);
 
-  const save = async () => {
-    if (new Date(end).getTime() < new Date(start).getTime()) { showToast("A záró dátum nem lehet korábbi az indulónál.", "error"); return; }
-    setSaving(true);
-    try {
-      const entries = priced.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })).filter((e) => e.qty > 0);
-      const res = await fetch("/api/hospitality/sales", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start, end, entries }),
-      });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
-      // Helyi lista frissítése: az adott (start,end) sorai cserélődnek.
-      const others = sales.filter((r) => !(r.period_start === start && r.period_end === end));
-      const now: SaleRow[] = entries.map((e) => ({ dish_id: e.dish_id, period_start: start, period_end: end, qty: e.qty }));
-      onSaved([...now, ...others]);
-      showToast("Eladások rögzítve.", "success");
-    } catch {
-      showToast("Hálózati hiba. Próbáld újra.", "error");
-    } finally {
-      setSaving(false);
-    }
+  // A modal mentése után frissítjük a helyi sales-listát.
+  const applySaved = (s: string, e: string, entries: { dish_id: string; qty: number }[]) => {
+    const others = sales.filter((r) => !(r.period_start === s && r.period_end === e));
+    const now: SaleRow[] = entries.map((x) => ({ dish_id: x.dish_id, period_start: s, period_end: e, qty: x.qty }));
+    onSaved([...now, ...others]);
   };
 
   if (!priced.length) {
@@ -318,98 +297,240 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
     );
   }
 
-  const single = start === end;
+  const single = entryStart === entryEnd;
+  const entrySaved = savedQtyFor(entryStart, entryEnd);
+  const latest = periods[0];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Válaszd ki a <b>napot</b> (vagy egy időszakot), és a kategória-mappákban írd be, melyik ételből <b>hány adag</b>
-        fogyott. Csak elmentjük — a profitot itt nem mutatjuk. A kimutatást a <b>Riport</b> fülön kéred le, tetszőleges időszakra.
+        Válaszd ki a <b>napot</b> (vagy időszakot), majd egy kategória-kockára kattintva egy ablakban írd be, melyik
+        ételből <b>hány adag</b> fogyott. Csak elmentjük — a profitot a <b>Riport</b> fülön kéred le. Rögzíthetsz nap
+        végén vagy több nap után is; lentebb látod, mit vittél fel eddig.
       </div>
 
       {/* Dátum(ok) */}
       <div className="twx-card flex flex-wrap items-end gap-4 p-4">
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Nap / időszak kezdete</label>
-          <input type="date" value={start} max={end} onChange={(e) => setStart(e.target.value)}
+          <input type="date" value={entryStart} max={entryEnd} onChange={(e) => setEntryStart(e.target.value)}
             className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak vége</label>
-          <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
+          <input type="date" value={entryEnd} min={entryStart} onChange={(e) => setEntryEnd(e.target.value)}
             className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
         </div>
         <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          {single ? "Egy napra rögzítesz." : `${periodDays(start, end)} napos időszakra rögzítesz.`}
+          {single ? "Egy napra rögzítesz." : `${periodDays(entryStart, entryEnd)} napos időszakra rögzítesz.`}
         </div>
       </div>
 
-      {/* Kategória-mappák */}
-      <div className="space-y-2">
-        {groups.map((g) => {
-          const open = openCats.has(g.cat);
-          const entered = g.items.filter((d) => qNum(d.id) > 0).length;
-          return (
-            <div key={g.cat} className="twx-card overflow-hidden">
-              <button onClick={() => toggleCat(g.cat)} className="flex w-full items-center justify-between gap-3 p-3 text-left">
-                <span className="flex items-center gap-2">
-                  <span className="font-medium">{g.label}</span>
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
-                  {entered > 0 && (
-                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                      {entered} kitöltve
-                    </span>
-                  )}
-                </span>
-                <span style={{ color: "var(--twx-ink-muted)", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
-              </button>
-              {open && (
-                <div className="space-y-2 border-t p-3" style={{ borderColor: "var(--twx-line)" }}>
-                  {g.items.map((d) => (
-                    <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="min-w-0 font-medium">{d.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott adag</span>
-                        <div className="w-28"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <button
-        onClick={save}
-        disabled={saving}
-        className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-        style={{ background: "var(--twx-coral)" }}
-      >
-        {saving ? "Mentés…" : "Eladások rögzítése"}
-      </button>
-
-      {/* Korábban rögzített időszakok */}
-      {periods.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Rögzített időszakok</h3>
-          <div className="twx-card divide-y" style={{ borderColor: "var(--twx-line)" }}>
-            {periods.map((p) => (
+      {/* Kategória-kockák */}
+      <div>
+        <h3 className="mb-2 text-sm font-semibold">Kategóriák — kattints a rögzítéshez</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {groups.map((g) => {
+            const filled = g.items.filter((d) => (entrySaved[d.id] ?? 0) > 0).length;
+            return (
               <button
-                key={`${p.start}|${p.end}`}
-                onClick={() => { setStart(p.start); setEnd(p.end); }}
-                className="flex w-full items-center justify-between p-3 text-left text-sm hover:opacity-80"
+                key={g.cat}
+                onClick={() => setModal({ start: entryStart, end: entryEnd, view: g.cat })}
+                className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
               >
-                <span>{p.start === p.end ? p.start : `${p.start} – ${p.end}`}</span>
-                <span style={{ color: "var(--twx-ink-muted)" }}>{p.dishes} étel · {p.qty} adag</span>
+                <span className="font-display text-base font-medium">{g.label}</span>
+                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
+                {filled > 0 && (
+                  <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    {filled} rögzítve
+                  </span>
+                )}
               </button>
-            ))}
-          </div>
-          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Egy sorra kattintva betöltöd az adott időszakot szerkesztésre.</p>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* Előzmény-segítség: rögzített időszakok kockákban */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Eddigi rögzítéseid</h3>
+          {latest && (
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Legutóbb: {latest.start === latest.end ? latest.start : `${latest.start} – ${latest.end}`}
+            </span>
+          )}
+        </div>
+        {periods.length === 0 ? (
+          <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Még nincs rögzített eladásod. A fenti kategória-kockákkal kezdheted.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {periods.map((p) => (
+                <button
+                  key={`${p.start}|${p.end}`}
+                  onClick={() => setModal({ start: p.start, end: p.end, view: null })}
+                  className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
+                >
+                  <span className="font-display text-sm font-semibold">{p.start === p.end ? p.start : `${p.start} –`}</span>
+                  {p.start !== p.end && <span className="font-display text-sm font-semibold">{p.end}</span>}
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{p.dishes} étel · {p.qty} adag</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Egy kockára kattintva felugrik az adott időszak, és módosíthatod (hozzáadhatsz vagy elvehetsz).
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Felugró szerkesztő */}
+      <AnimatePresence>
+        {modal && (
+          <EntryEditorModal
+            key={`${modal.start}|${modal.end}`}
+            start={modal.start}
+            end={modal.end}
+            initialView={modal.view}
+            groups={groups}
+            priced={priced}
+            initialQty={savedQtyFor(modal.start, modal.end)}
+            onSaved={(entries) => applySaved(modal.start, modal.end, entries)}
+            onClose={() => setModal(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// Felugró ablak: egy (start,end) eladásainak szerkesztése kategóriánként.
+function EntryEditorModal({
+  start, end, initialView, groups, priced, initialQty, onSaved, onClose,
+}: {
+  start: string; end: string; initialView: string | null;
+  groups: DishGroup[]; priced: Dish[];
+  initialQty: Record<string, number>;
+  onSaved: (entries: { dish_id: string; qty: number }[]) => void;
+  onClose: () => void;
+}) {
+  const [qty, setQty] = useState<Record<string, string>>(() => {
+    const o: Record<string, string> = {};
+    for (const [id, q] of Object.entries(initialQty)) o[id] = String(q);
+    return o;
+  });
+  const [view, setView] = useState<string | null>(initialView);
+  const [saving, setSaving] = useState(false);
+
+  const qNum = (id: string) => Math.max(0, Math.floor(Number(qty[id]) || 0));
+  const totalDishes = priced.filter((d) => qNum(d.id) > 0).length;
+  const totalQty = priced.reduce((s, d) => s + qNum(d.id), 0);
+  const label = start === end ? start : `${start} – ${end}`;
+  const activeGroup = groups.find((g) => g.cat === view);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const entries = priced.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })).filter((e) => e.qty > 0);
+      const res = await fetch("/api/hospitality/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start, end, entries }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
+      onSaved(entries);
+      showToast("Eladások mentve.", "success");
+      onClose();
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(20,12,8,0.45)" }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
+        style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
+        initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 26 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fejléc */}
+        <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <div>
+            <div className="font-display text-lg font-semibold">Eladások rögzítése</div>
+            <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{label}</div>
+          </div>
+          <button onClick={onClose} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+        </div>
+
+        {/* Törzs */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {!activeGroup ? (
+            <>
+              <p className="mb-3 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Válassz kategóriát, és írd be az eladott adagokat.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {groups.map((g) => {
+                  const filled = g.items.filter((d) => qNum(d.id) > 0).length;
+                  return (
+                    <button key={g.cat} onClick={() => setView(g.cat)}
+                      className="flex flex-col gap-1 rounded-xl border p-3 text-left transition hover:shadow-sm"
+                      style={{ borderColor: "var(--twx-line)" }}>
+                      <span className="font-medium">{g.label}</span>
+                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
+                      {filled > 0 && (
+                        <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                          {filled} rögzítve
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setView(null)} className="mb-3 text-sm font-medium" style={{ color: "var(--twx-coral)" }}>‹ Kategóriák</button>
+              <h4 className="mb-2 font-display text-base font-medium">{categoryLabel(activeGroup.cat)}</h4>
+              <div className="space-y-2">
+                {activeGroup.items.map((d) => (
+                  <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="min-w-0 font-medium">{d.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott adag</span>
+                      <div className="w-24"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Lábléc */}
+        <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{totalDishes} étel · {totalQty} adag</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
+            <button onClick={save} disabled={saving}
+              className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+              {saving ? "Mentés…" : "Mentés és vissza"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
