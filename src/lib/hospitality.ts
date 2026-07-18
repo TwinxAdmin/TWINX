@@ -61,6 +61,32 @@ export function validateDishInput(input: Partial<DishInput>): {
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
+// --- Konyhatípusok (bővíthető alaplista; a partner sajátot is hozzáadhat) ---
+// A felhasználói felület ezt egyesíti a partner által korábban felvitt stílusokkal,
+// így a saját típusok is újra elérhetők lesznek.
+export const CUISINE_STYLES = [
+  "magyaros", "olasz", "francia", "spanyol", "görög", "mediterrán",
+  "kínai", "japán", "thai", "vietnámi", "koreai", "indiai",
+  "mexikói", "amerikai", "közel-keleti", "török",
+  "fúziós", "nemzetközi", "házias", "street food",
+  "tengeri / hal", "BBQ / grill", "fitness / könnyed", "vegetáriánus", "vegán",
+] as const;
+
+// A hét napjai a napokra bontott konyha-beosztáshoz (heti menü).
+export const WEEK_DAYS = [
+  { value: "hetfo", label: "Hétfő" },
+  { value: "kedd", label: "Kedd" },
+  { value: "szerda", label: "Szerda" },
+  { value: "csutortok", label: "Csütörtök" },
+  { value: "pentek", label: "Péntek" },
+  { value: "szombat", label: "Szombat" },
+  { value: "vasarnap", label: "Vasárnap" },
+] as const;
+export function dayLabel(v: string): string {
+  return WEEK_DAYS.find((d) => d.value === v)?.label ?? v;
+}
+export type DayPlanEntry = { day: string; cuisine: string };
+
 // --- Menü-generátor paraméterei ---
 export const TIMEFRAMES = [
   { value: "daily", label: "Napi menü" },
@@ -133,18 +159,31 @@ Feltétel: KIZÁRÓLAG az alábbi ételeket használhatod fel:
 
 // A zárolt adat-blokk összeállítása a tényleges paraméterekkel + szűrt étel-listával.
 export function composeMenuPrompt(
-  opts: { timeframe: Timeframe; theme: MenuTheme; goal: ProfitGoal; dishListText: string },
+  opts: {
+    timeframe: Timeframe;
+    theme: MenuTheme;
+    goal: ProfitGoal;
+    dishListText: string;
+    instruction?: string;
+    dayPlan?: DayPlanEntry[];
+  },
   segments: { intro?: string; task?: string }
 ): string {
   const intro = (segments.intro ?? MENU_DEFAULT_SEGMENTS.intro).trim();
   const task = (segments.task ?? MENU_DEFAULT_SEGMENTS.task).trim();
-  const dataBlock = [
+  const lines = [
     `Időtáv: ${timeframeLabel(opts.timeframe)}`,
     `Tematika: ${themeLabel(opts.theme)}`,
     `Profit-cél: ${PROFIT_GOALS.find((g) => g.value === opts.goal)?.label ?? opts.goal}`,
-    ``,
-    `Feltétel: KIZÁRÓLAG az alábbi ételeket használhatod fel:`,
-    opts.dishListText,
-  ].join("\n");
-  return `${intro}\n\n${dataBlock}\n\n${task}`;
+  ];
+  const plan = (opts.dayPlan ?? []).filter((p) => p.cuisine && p.cuisine.trim());
+  if (plan.length) {
+    lines.push(``, `Napi konyha-beosztás (ezt a napok szerint tartsd be):`);
+    for (const p of plan) lines.push(`- ${dayLabel(p.day)}: ${p.cuisine}`);
+  }
+  if (opts.instruction && opts.instruction.trim()) {
+    lines.push(``, `Egyedi instrukció a partnertől: ${opts.instruction.trim()}`);
+  }
+  lines.push(``, `Feltétel: KIZÁRÓLAG az alábbi ételeket használhatod fel:`, opts.dishListText);
+  return `${intro}\n\n${lines.join("\n")}\n\n${task}`;
 }

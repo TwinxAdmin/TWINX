@@ -43,6 +43,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Hiányzó vagy érvénytelen paraméter." }, { status: 422 });
   }
 
+  // Opcionális: szabad instrukció + napokra bontott konyha-beosztás.
+  const instruction = typeof body.instruction === "string" ? body.instruction.slice(0, 600) : "";
+  const dayPlan = Array.isArray(body.dayPlan)
+    ? (body.dayPlan as unknown[])
+        .map((e) => {
+          const o = (e ?? {}) as Record<string, unknown>;
+          return { day: String(o.day ?? "").trim(), cuisine: String(o.cuisine ?? "").trim().slice(0, 60) };
+        })
+        .filter((e) => e.day && e.cuisine)
+        .slice(0, 7)
+    : [];
+
   const admin = createAdminClient();
 
   // 1) Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
@@ -96,7 +108,7 @@ export async function POST(request: Request) {
       )
       .join("\n");
 
-    const prompt = await buildMenuPromptActive({ timeframe, theme, goal, dishListText });
+    const prompt = await buildMenuPromptActive({ timeframe, theme, goal, dishListText, instruction, dayPlan });
 
     // 4) Perplexity (szinkron) -> menü-szöveg
     const menuText = await runSonar(prompt, PERPLEXITY_MODEL);
@@ -106,7 +118,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { timeframe, theme, goal, dish_count: selected.length },
+      input_data: { timeframe, theme, goal, dish_count: selected.length, day_plan: dayPlan, instruction },
       output_file_url: null,
       credits_charged: charge.bypassed ? 0 : MENU_CREDITS,
     });

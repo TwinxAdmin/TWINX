@@ -2,17 +2,45 @@
 // a partner saját ételeiből (profit-cél szerint szűrve). Egy generálás 1 kredit.
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import { showToast } from "@/components/Toast";
-import { TIMEFRAMES, MENU_THEMES, PROFIT_GOALS } from "@/lib/hospitality";
+import {
+  TIMEFRAMES,
+  MENU_THEMES,
+  PROFIT_GOALS,
+  WEEK_DAYS,
+  CUISINE_STYLES,
+} from "@/lib/hospitality";
 
 export default function MenuGeneratorPage() {
   const [timeframe, setTimeframe] = useState("daily");
   const [theme, setTheme] = useState("valtozatos");
   const [goal, setGoal] = useState("medium");
+  const [instruction, setInstruction] = useState("");
+  const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
+  const [cuisines, setCuisines] = useState<string[]>([]);
+  const [dishCount, setDishCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [menu, setMenu] = useState<string | null>(null);
+
+  // A partner felvitt konyhatípusai (a napi választóhoz) + étel-szám.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/hospitality/dishes");
+        const data = await res.json();
+        if (res.ok) {
+          const list = (data.dishes ?? []) as { cuisine_style: string | null }[];
+          setDishCount(list.length);
+          const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
+          setCuisines(uniq.length ? uniq.sort((a, b) => a.localeCompare(b, "hu")) : [...CUISINE_STYLES]);
+        }
+      } catch {
+        setCuisines([...CUISINE_STYLES]);
+      }
+    })();
+  }, []);
 
   async function generate() {
     setLoading(true);
@@ -21,7 +49,15 @@ export default function MenuGeneratorPage() {
       const res = await fetch("/api/hospitality/menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timeframe, theme, goal }),
+        body: JSON.stringify({
+          timeframe,
+          theme,
+          goal,
+          instruction,
+          dayPlan: Object.entries(dayPlan)
+            .filter(([, cuisine]) => cuisine)
+            .map(([day, cuisine]) => ({ day, cuisine })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -77,9 +113,49 @@ export default function MenuGeneratorPage() {
             </select>
           </div>
         </div>
+        {/* Napokra bontott konyha-beosztás — csak heti menünél */}
+        {timeframe === "weekly" && (
+          <div>
+            <label className="block text-sm">Napi konyha-beosztás (opcionális)</label>
+            <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Add meg, melyik napon milyen konyha legyen — pl. hétfő kínai, kedd fitness. Üresen hagyva az AI dönt.
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {WEEK_DAYS.map((d) => (
+                <div key={d.value} className="flex items-center gap-2">
+                  <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
+                  <select
+                    value={dayPlan[d.value] ?? ""}
+                    onChange={(e) => setDayPlan((p) => ({ ...p, [d.value]: e.target.value }))}
+                    className="twx-input"
+                  >
+                    <option value="">—</option>
+                    {cuisines.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Szabad instrukció */}
+        <div>
+          <label className="block text-sm">Egyedi instrukció (opcionális)</label>
+          <textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            rows={2}
+            className="twx-input mt-1"
+            placeholder="pl. legyen minden nap egy vegán opció; a hétvége legyen prémium; kerüld a csípőset"
+          />
+        </div>
+
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           Tipp: „Magas" profit-célnál a nagyobb haszonkulcsú ételek kerülnek előtérbe, de a menü
-          változatos marad. Előbb vigyél fel elég ételt a{" "}
+          változatos marad. {dishCount !== null && <>Jelenleg <b>{dishCount}</b> ételed van. </>}
+          Vigyél fel eleget a{" "}
           <a href="/dashboard/hospitality/inventory" className="underline" style={{ color: "var(--twx-coral)" }}>
             Kínálat kezelőben
           </a>

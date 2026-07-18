@@ -9,6 +9,7 @@ import { showToast } from "@/components/Toast";
 import {
   DISH_CATEGORIES,
   PROFIT_MARGINS,
+  CUISINE_STYLES,
   categoryLabel,
   marginLabel,
   type Dish,
@@ -22,6 +23,12 @@ export default function InventoryPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cuisineMode, setCuisineMode] = useState<"list" | "custom">("list");
+
+  // Konyhatípusok: alaplista + a partner által korábban felvitt saját típusok.
+  const cuisineOptions = Array.from(
+    new Set<string>([...CUISINE_STYLES, ...dishes.map((d) => d.cuisine_style ?? "").filter(Boolean)])
+  ).sort((a, b) => a.localeCompare(b, "hu"));
 
   useEffect(() => {
     (async () => {
@@ -119,8 +126,45 @@ export default function InventoryPage() {
             {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-sm">Konyha stílusa</label>
-            <input value={form.cuisine_style} onChange={(e) => set("cuisine_style", e.target.value)} className="twx-input mt-1" placeholder="pl. magyaros, olasz, fúziós" />
+            <label className="block text-sm">Konyha típusa</label>
+            {cuisineMode === "list" ? (
+              <select
+                value={form.cuisine_style}
+                onChange={(e) => {
+                  if (e.target.value === "__add__") {
+                    setCuisineMode("custom");
+                    set("cuisine_style", "");
+                  } else {
+                    set("cuisine_style", e.target.value);
+                  }
+                }}
+                className="twx-input mt-1"
+              >
+                <option value="">— válassz —</option>
+                {cuisineOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+                <option value="__add__">+ Saját típus hozzáadása…</option>
+              </select>
+            ) : (
+              <div className="mt-1 flex gap-2">
+                <input
+                  value={form.cuisine_style}
+                  onChange={(e) => set("cuisine_style", e.target.value)}
+                  className="twx-input"
+                  placeholder="pl. libanoni, perui, baszk…"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setCuisineMode("list"); set("cuisine_style", ""); }}
+                  className="flex-none rounded-full px-3 text-sm"
+                  style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+                >
+                  Lista
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <button type="submit" disabled={saving} className="twx-btn">

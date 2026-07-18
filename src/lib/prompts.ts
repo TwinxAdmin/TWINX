@@ -36,6 +36,7 @@ import {
   type Timeframe,
   type MenuTheme,
   type ProfitGoal,
+  type DayPlanEntry,
 } from "@/lib/hospitality";
 
 export type PromptSegments = Record<string, string>;
@@ -275,6 +276,8 @@ export async function buildMenuPromptActive(opts: {
   theme: MenuTheme;
   goal: ProfitGoal;
   dishListText: string;
+  instruction?: string;
+  dayPlan?: DayPlanEntry[];
 }): Promise<string> {
   const segments = await getActiveSegments("menu_generator");
   return composeMenuPrompt(opts, segments);
