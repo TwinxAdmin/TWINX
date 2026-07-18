@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import DishEditDrawer from "@/components/hospitality/DishEditDrawer";
@@ -34,6 +34,7 @@ export default function InventoryPage() {
   const [dragOver, setDragOver] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [editDish, setEditDish] = useState<Dish | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   function pickImage(f: File | null) {
     if (f && !f.type.startsWith("image/")) {
@@ -122,8 +123,30 @@ export default function InventoryPage() {
       />
 
       {/* Új étel */}
-      <form onSubmit={addDish} className="twx-card space-y-3 p-5">
-        <h2 className="font-display text-lg font-medium">Új étel felvitele</h2>
+      <div className="twx-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setAddOpen((o) => !o)}
+          className="flex w-full items-center justify-between p-5 text-left"
+        >
+          <span className="font-display text-lg font-medium">Új étel felvitele</span>
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-full text-xl transition-transform duration-200"
+            style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: addOpen ? "rotate(45deg)" : "none" }}
+          >
+            +
+          </span>
+        </button>
+        <AnimatePresence initial={false}>
+          {addOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              style={{ overflow: "hidden" }}
+            >
+              <form onSubmit={addDish} className="space-y-3 px-5 pb-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="block text-sm">Étel neve *</label>
@@ -255,7 +278,11 @@ export default function InventoryPage() {
         <button type="submit" disabled={saving} className="twx-btn">
           {saving ? "Mentés…" : "Étel hozzáadása"}
         </button>
-      </form>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Ételeim — kategória-mappák */}
       <div className="space-y-3">
