@@ -82,6 +82,13 @@ const paths: Record<string, JSX.Element> = {
       <rect x="17" y="5" width="3" height="13" />
     </>
   ),
+  cost: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M14.5 8.5a3 3 0 0 0-2.5-1.2c-1.7 0-2.6.9-2.6 2 0 2.6 5.2 1.3 5.2 3.9 0 1.2-1 2-2.6 2a3 3 0 0 1-2.5-1.2" />
+      <path d="M12 6v1.3M12 16.7V18" />
+    </>
+  ),
 };
 
 export default function ModuleIcon({

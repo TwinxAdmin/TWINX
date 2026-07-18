@@ -38,6 +38,11 @@ import {
   type ProfitGoal,
   type DayPlanEntry,
 } from "@/lib/hospitality";
+import {
+  COSTING_DEFAULT_SEGMENTS,
+  COSTING_DATA_BLOCK_PREVIEW,
+  composeCostingPrompt,
+} from "@/lib/costing";
 
 export type PromptSegments = Record<string, string>;
 
@@ -172,6 +177,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
       },
     ],
   },
+  {
+    key: "cost_analysis",
+    label: "Önköltség & profit elemzés (vendéglátás)",
+    dataBlockPreview: COSTING_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A pénzügyi tanácsadó szerepe és az alapszabály (a számokat ne írja újra). Változó nem használható.",
+        default: COSTING_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet",
+        hint: "Az elemzés felépítése (összkép + ételbontás + megtérülési javaslat + teendők). Változó nem használható.",
+        default: COSTING_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
 ];
 
 export function getModuleDef(module: string): PromptModuleDef | undefined {
@@ -286,6 +311,11 @@ export async function buildMenuPromptActive(opts: {
 }): Promise<string> {
   const segments = await getActiveSegments("menu_generator");
   return composeMenuPrompt(opts, segments);
+}
+
+export async function buildCostingPromptActive(summaryText: string): Promise<string> {
+  const segments = await getActiveSegments("cost_analysis");
+  return composeCostingPrompt(summaryText, segments);
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------
