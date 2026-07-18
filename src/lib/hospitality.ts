@@ -124,10 +124,13 @@ export type DayPlanEntry = { day: string; cuisine?: string; ingredient?: string 
 
 // --- Menü-generátor paraméterei ---
 export const TIMEFRAMES = [
-  { value: "1", label: "Napi (1 nap)", days: 1 },
-  { value: "3", label: "3 napos", days: 3 },
-  { value: "5", label: "5 napos (hétköznap)", days: 5 },
-  { value: "7", label: "Heti (7 nap)", days: 7 },
+  { value: "1", label: "1 nap (napi)", days: 1 },
+  { value: "2", label: "2 nap", days: 2 },
+  { value: "3", label: "3 nap", days: 3 },
+  { value: "4", label: "4 nap", days: 4 },
+  { value: "5", label: "5 nap", days: 5 },
+  { value: "6", label: "6 nap", days: 6 },
+  { value: "7", label: "7 nap (heti)", days: 7 },
 ] as const;
 export type Timeframe = (typeof TIMEFRAMES)[number]["value"];
 export function timeframeDays(v: string): number {
