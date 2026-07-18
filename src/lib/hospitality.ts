@@ -120,7 +120,7 @@ export function dayLabel(v: string): string {
   const m = /^nap(\d+)$/.exec(v);
   return m ? `${m[1]}. nap` : v;
 }
-export type DayPlanEntry = { day: string; cuisine?: string; ingredient?: string };
+export type DayPlanEntry = { day: string; cuisine?: string; dish?: string };
 
 // --- Menü-generátor paraméterei ---
 export const TIMEFRAMES = [
@@ -273,17 +273,17 @@ export function composeMenuPrompt(
     );
   }
   const plan = (opts.dayPlan ?? []).filter(
-    (p) => (p.cuisine && p.cuisine.trim()) || (p.ingredient && p.ingredient.trim())
+    (p) => (p.cuisine && p.cuisine.trim()) || (p.dish && p.dish.trim())
   );
   if (plan.length) {
     lines.push(``, `Napi beosztás (ezt a napok szerint TARTSD BE):`);
     for (const p of plan) {
       const bits: string[] = [];
       if (p.cuisine && p.cuisine.trim()) bits.push(`konyha: ${p.cuisine.trim()}`);
-      if (p.ingredient && p.ingredient.trim()) bits.push(`fő alapanyag: ${p.ingredient.trim()}`);
+      if (p.dish && p.dish.trim()) bits.push(`kötelező étel: ${p.dish.trim()}`);
       lines.push(`- ${dayLabel(p.day)}: ${bits.join(", ")}`);
     }
-    lines.push(`(A fő alapanyaghoz olyan ételt válassz, amelynek az alapanyagai közt szerepel az adott alapanyag.)`);
+    lines.push(`(A „kötelező étel" pontosan azon a napon szerepeljen a menüben, ahogy megadták.)`);
   }
   if (opts.instruction && opts.instruction.trim()) {
     lines.push(``, `Egyedi instrukció a partnertől: ${opts.instruction.trim()}`);

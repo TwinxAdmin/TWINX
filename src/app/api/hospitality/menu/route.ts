@@ -52,10 +52,10 @@ export async function POST(request: Request) {
           return {
             day: String(o.day ?? "").trim(),
             cuisine: String(o.cuisine ?? "").trim().slice(0, 60),
-            ingredient: String(o.ingredient ?? "").trim().slice(0, 60),
+            dish: String(o.dish ?? "").trim().slice(0, 120),
           };
         })
-        .filter((e) => e.day && (e.cuisine || e.ingredient))
+        .filter((e) => e.day && (e.cuisine || e.dish))
         .slice(0, 7)
     : [];
   const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";

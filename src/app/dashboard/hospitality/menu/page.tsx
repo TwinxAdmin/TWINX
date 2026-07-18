@@ -29,23 +29,17 @@ export default function MenuGeneratorPage() {
   const [profitOpen, setProfitOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
-  const [ingredientPlan, setIngredientPlan] = useState<Record<string, string>>({});
+  const [dishPlan, setDishPlan] = useState<Record<string, string>>({});
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const [dishesData, setDishesData] = useState<{ cuisine_style: string | null; main_ingredients: string | null }[]>([]);
+  const [dishesData, setDishesData] = useState<{ name: string; cuisine_style: string | null }[]>([]);
 
-  // A kiválasztott konyhához tartozó alapanyagok (csak azok, amiket a partner
-  // az adott konyhájú ételeknél megadott). Üres konyhánál az összes alapanyag.
-  function ingredientsForCuisine(cuisine: string): string[] {
+  // A kiválasztott konyhához tartozó ételek nevei (üres konyhánál az összes étel).
+  function dishesForCuisine(cuisine: string): string[] {
     const src = cuisine
       ? dishesData.filter((d) => (d.cuisine_style ?? "").toLowerCase() === cuisine.toLowerCase())
       : dishesData;
-    const set = new Set<string>();
-    for (const d of src) {
-      (d.main_ingredients ?? "").split(",").map((s) => s.trim()).filter(Boolean).forEach((s) => set.add(s));
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "hu"));
+    return Array.from(new Set(src.map((d) => d.name).filter(Boolean))).sort((a, b) => a.localeCompare(b, "hu"));
   }
   const [dishCount, setDishCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,17 +52,11 @@ export default function MenuGeneratorPage() {
         const res = await fetch("/api/hospitality/dishes");
         const data = await res.json();
         if (res.ok) {
-          const list = (data.dishes ?? []) as { cuisine_style: string | null; main_ingredients: string | null }[];
+          const list = (data.dishes ?? []) as { name: string; cuisine_style: string | null }[];
           setDishesData(list);
           setDishCount(list.length);
           const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
           setCuisines(uniq.length ? uniq.sort((a, b) => a.localeCompare(b, "hu")) : [...CUISINE_STYLES]);
-          // Alapanyagok kigyűjtése (vesszővel elválasztott tag-ek az ételekből).
-          const ingSet = new Set<string>();
-          for (const d of list) {
-            (d.main_ingredients ?? "").split(",").map((s) => s.trim()).filter(Boolean).forEach((s) => ingSet.add(s));
-          }
-          setIngredients(Array.from(ingSet).sort((a, b) => a.localeCompare(b, "hu")));
         }
       } catch {
         setCuisines([...CUISINE_STYLES]);
@@ -93,9 +81,9 @@ export default function MenuGeneratorPage() {
           targetCount,
           targetProfit,
           instruction,
-          dayPlan: Array.from(new Set([...Object.keys(dayPlan), ...Object.keys(ingredientPlan)]))
-            .map((day) => ({ day, cuisine: dayPlan[day] || "", ingredient: ingredientPlan[day] || "" }))
-            .filter((e) => e.cuisine || e.ingredient),
+          dayPlan: Array.from(new Set([...Object.keys(dayPlan), ...Object.keys(dishPlan)]))
+            .map((day) => ({ day, cuisine: dayPlan[day] || "", dish: dishPlan[day] || "" }))
+            .filter((e) => e.cuisine || e.dish),
         }),
       });
       const data = await res.json();
@@ -217,21 +205,16 @@ export default function MenuGeneratorPage() {
                 >
                   <div className="px-4 pb-4">
                     <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      Naponként add meg a <b>konyhát</b> és/vagy a <b>fő alapanyagot</b> — pl. hétfő olasz + tészta. Üresen hagyva az AI dönt.
-                      {ingredients.length === 0 && (
-                        <> Alapanyag-választáshoz tölts ki „Fő alapanyagokat" a{" "}
-                          <a href="/dashboard/hospitality/inventory" className="underline" style={{ color: "var(--twx-coral)" }}>Kínálat kezelőben</a>.
-                        </>
-                      )}
+                      Naponként add meg a <b>konyhát</b> és/vagy egy <b>konkrét ételt</b> — pl. hétfő olasz + Spaghetti Carbonara. A konyha kiválasztásakor csak az adott konyhájú ételek jelennek meg. Üresen hagyva az AI dönt.
                     </p>
                     <div className="mb-1 hidden grid-cols-[3.5rem_1fr_1fr] gap-2 text-xs sm:grid" style={{ color: "var(--twx-ink-muted)" }}>
                       <span />
                       <span>Konyha</span>
-                      <span>Fő alapanyag</span>
+                      <span>Konkrét étel</span>
                     </div>
                     <div className="space-y-2">
                       {planDays.map((d) => {
-                        const dayIng = ingredientsForCuisine(dayPlan[d.value] ?? "");
+                        const dayDishes = dishesForCuisine(dayPlan[d.value] ?? "");
                         return (
                         <div key={d.value} className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-2">
                           <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
@@ -240,8 +223,8 @@ export default function MenuGeneratorPage() {
                             onChange={(e) => {
                               const c = e.target.value;
                               setDayPlan((p) => ({ ...p, [d.value]: c }));
-                              // Konyha váltásakor a napi alapanyag ürül (más konyha = más alapanyagok).
-                              setIngredientPlan((p) => ({ ...p, [d.value]: "" }));
+                              // Konyha váltásakor a napi konkrét étel ürül (más konyha = más ételek).
+                              setDishPlan((p) => ({ ...p, [d.value]: "" }));
                             }}
                             className="twx-input"
                           >
@@ -251,14 +234,14 @@ export default function MenuGeneratorPage() {
                             ))}
                           </select>
                           <select
-                            value={ingredientPlan[d.value] ?? ""}
-                            onChange={(e) => setIngredientPlan((p) => ({ ...p, [d.value]: e.target.value }))}
+                            value={dishPlan[d.value] ?? ""}
+                            onChange={(e) => setDishPlan((p) => ({ ...p, [d.value]: e.target.value }))}
                             className="twx-input"
-                            disabled={dayIng.length === 0}
+                            disabled={dayDishes.length === 0}
                           >
-                            <option value="">{dayIng.length === 0 ? "— nincs alapanyag —" : "— alapanyag —"}</option>
-                            {dayIng.map((ing) => (
-                              <option key={ing} value={ing}>{ing}</option>
+                            <option value="">{dayDishes.length === 0 ? "— nincs étel —" : "— étel —"}</option>
+                            {dayDishes.map((name) => (
+                              <option key={name} value={name}>{name}</option>
                             ))}
                           </select>
                         </div>
