@@ -16,6 +16,7 @@ export type CostProfile = {
   marketing: number;
   depreciation: number;
   bank_fees: number;
+  delivery_fees: number;
   other: number;
   extra_items: ExtraItem[];
 };
@@ -30,12 +31,13 @@ export const COST_FIELDS: { key: keyof Omit<CostProfile, "extra_items">; label: 
   { key: "marketing", label: "Marketing", hint: "Hirdetés, közösségi média, nyomtatás" },
   { key: "depreciation", label: "Eszköz-amortizáció", hint: "Gépek, berendezés havi értékcsökkenése" },
   { key: "bank_fees", label: "Bankköltség / kártyadíj", hint: "Számla- és kártyaelfogadási díjak" },
+  { key: "delivery_fees", label: "Kiszállítói jutalék (Wolt / Foodora)", hint: "A kiszállító cégek havi jutaléka / díja" },
   { key: "other", label: "Egyéb fix költség", hint: "Takarítás, előfizetések, engedélyek…" },
 ];
 
 export const EMPTY_COST_PROFILE: CostProfile = {
   rent: 0, wages: 0, utilities: 0, insurance: 0, accounting: 0,
-  marketing: 0, depreciation: 0, bank_fees: 0, other: 0, extra_items: [],
+  marketing: 0, depreciation: 0, bank_fees: 0, delivery_fees: 0, other: 0, extra_items: [],
 };
 
 // Havi összes fix költség (standard mezők + egyedi tételek).

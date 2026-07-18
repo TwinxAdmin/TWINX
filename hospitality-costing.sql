@@ -14,10 +14,15 @@ create table if not exists public.restaurant_cost_profile (
   marketing numeric not null default 0,     -- marketing
   depreciation numeric not null default 0,  -- eszköz-amortizáció
   bank_fees numeric not null default 0,     -- bankköltség / kártyadíj
+  delivery_fees numeric not null default 0, -- kiszállítói jutalék (Wolt / Foodora)
   other numeric not null default 0,         -- egyéb egyösszegű
   extra_items jsonb not null default '[]',  -- [{label, amount}] egyedi tételek
   updated_at timestamptz not null default now()
 );
+
+-- Ha a tábla már létezett, az új oszlopot külön is felvesszük (idempotens).
+alter table public.restaurant_cost_profile
+  add column if not exists delivery_fees numeric not null default 0;
 
 alter table public.restaurant_cost_profile enable row level security;
 

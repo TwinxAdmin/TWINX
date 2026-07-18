@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     // 1) Fix költség-profil -> havi összes rezsi.
     const { data: profileRow } = await admin
       .from("restaurant_cost_profile")
-      .select("rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, other, extra_items")
+      .select("rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, delivery_fees, other, extra_items")
       .eq("user_id", user.id)
       .maybeSingle();
     const overhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));

@@ -14,7 +14,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-const SELECT = "rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, other, extra_items, updated_at";
+const SELECT = "rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, delivery_fees, other, extra_items, updated_at";
 
 export async function GET() {
   const { supabase, user } = await requireUser();
