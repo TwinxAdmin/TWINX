@@ -343,7 +343,7 @@ function ProfileTab({
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyi időre</label>
             <select value={otDuration} onChange={(e) => setOtDuration(e.target.value)}
-              className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
+              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
               {OT_DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
