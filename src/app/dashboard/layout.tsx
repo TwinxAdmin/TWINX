@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import LogoutButton from "@/components/LogoutButton";
 import DashboardNav from "@/components/DashboardNav";
 import AccountMenu from "@/components/AccountMenu";
+import MobileNav from "@/components/MobileNav";
 import B2BModal from "@/components/B2BModal";
 import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
@@ -45,7 +46,7 @@ export default async function DashboardLayout({
           {isAdmin && (
             <a
               href="/admin/analytics"
-              className="rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
+              className="hidden rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-block"
               style={{ color: "var(--twx-on-dark-muted)" }}
             >
               Admin
@@ -53,15 +54,25 @@ export default async function DashboardLayout({
           )}
         </div>
 
-        {/* Közép: modulsáv */}
-        <div className="flex flex-1 justify-center">
+        {/* Közép: modulsáv (csak desktop) */}
+        <div className="hidden flex-1 justify-center md:flex">
           <DashboardNav />
         </div>
 
-        {/* Jobb: fiók-menü + kilépés */}
-        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+        {/* Jobb: fiók-menü + kilépés (csak desktop) */}
+        <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
           <AccountMenu email={user?.email ?? ""} role={me?.role ?? "user"} balance={balance} />
           <LogoutButton />
+        </div>
+
+        {/* Mobil: hamburger */}
+        <div className="ml-auto md:hidden">
+          <MobileNav
+            email={user?.email ?? ""}
+            role={me?.role ?? "user"}
+            balance={balance}
+            isAdmin={isAdmin}
+          />
         </div>
       </header>
       <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
