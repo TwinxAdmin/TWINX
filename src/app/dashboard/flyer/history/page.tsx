@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toDownloadUrl } from "@/lib/files";
+import ModuleIntro from "@/components/ModuleIntro";
 
 type FlyerHistoryItem = { id: string; title: string; url: string; createdAt: string };
 
@@ -51,12 +52,13 @@ export default function FlyerHistoryPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-semibold">Korábbi hirdetések</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Kattints egy hirdetésre a nézegetőhöz — ott lapozhatsz és letöltheted.
-        </p>
-      </div>
+      <ModuleIntro
+        eyebrow="Hirdetéskészítő · Archívum"
+        title="Korábbi hirdetések"
+        subtitle="Az összes elkészült hirdetésed egy helyen. Kattints egy hirdetésre a nézegetőhöz — ott lapozhatsz a nyilakkal és le is töltheted."
+        icon="history"
+        chips={["Nézegető", "Lapozás", "Letöltés"]}
+      />
 
       {loading ? (
         <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>

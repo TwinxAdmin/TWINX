@@ -1,5 +1,6 @@
 // dashboard/branding — Arculatok: több arculat-profil kezelése (céges, közös belépéshez is).
 "use client";
+import ModuleIntro from "@/components/ModuleIntro";
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -119,16 +120,18 @@ export default function BrandingPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-semibold">Arculatok</h1>
+      <ModuleIntro
+        eyebrow="Hirdetéskészítő · Arculat"
+        title="Arculatok"
+        subtitle="Hozd létre a saját (vagy kollégáid) arculatát — logó, szín, ügynök-fotó és elérhetőség. Hirdetés készítésekor ezek közül választasz, és minden automatikusan a helyére kerül."
+        icon="branding"
+        chips={["Logó & szín", "Ügynök-fotó", "Több profil"]}
+      />
+      <div className="flex justify-end">
         <button onClick={openNew} className="twx-btn">
           Új arculat
         </button>
       </div>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Több arculatot is létrehozhatsz (pl. külön minden kollégának). Hirdetés készítésekor
-        ezek közül választasz — a név, elérhetőség, logó és szín automatikusan bekerül.
-      </p>
 
       {loading ? (
         <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
