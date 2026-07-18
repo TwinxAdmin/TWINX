@@ -33,6 +33,20 @@ export default function MenuGeneratorPage() {
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
+  const [dishesData, setDishesData] = useState<{ cuisine_style: string | null; main_ingredients: string | null }[]>([]);
+
+  // A kiválasztott konyhához tartozó alapanyagok (csak azok, amiket a partner
+  // az adott konyhájú ételeknél megadott). Üres konyhánál az összes alapanyag.
+  function ingredientsForCuisine(cuisine: string): string[] {
+    const src = cuisine
+      ? dishesData.filter((d) => (d.cuisine_style ?? "").toLowerCase() === cuisine.toLowerCase())
+      : dishesData;
+    const set = new Set<string>();
+    for (const d of src) {
+      (d.main_ingredients ?? "").split(",").map((s) => s.trim()).filter(Boolean).forEach((s) => set.add(s));
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "hu"));
+  }
   const [dishCount, setDishCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [menu, setMenu] = useState<string | null>(null);
@@ -45,6 +59,7 @@ export default function MenuGeneratorPage() {
         const data = await res.json();
         if (res.ok) {
           const list = (data.dishes ?? []) as { cuisine_style: string | null; main_ingredients: string | null }[];
+          setDishesData(list);
           setDishCount(list.length);
           const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
           setCuisines(uniq.length ? uniq.sort((a, b) => a.localeCompare(b, "hu")) : [...CUISINE_STYLES]);
@@ -215,12 +230,19 @@ export default function MenuGeneratorPage() {
                       <span>Fő alapanyag</span>
                     </div>
                     <div className="space-y-2">
-                      {planDays.map((d) => (
+                      {planDays.map((d) => {
+                        const dayIng = ingredientsForCuisine(dayPlan[d.value] ?? "");
+                        return (
                         <div key={d.value} className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-2">
                           <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
                           <select
                             value={dayPlan[d.value] ?? ""}
-                            onChange={(e) => setDayPlan((p) => ({ ...p, [d.value]: e.target.value }))}
+                            onChange={(e) => {
+                              const c = e.target.value;
+                              setDayPlan((p) => ({ ...p, [d.value]: c }));
+                              // Konyha váltásakor a napi alapanyag ürül (más konyha = más alapanyagok).
+                              setIngredientPlan((p) => ({ ...p, [d.value]: "" }));
+                            }}
                             className="twx-input"
                           >
                             <option value="">— konyha —</option>
@@ -232,15 +254,16 @@ export default function MenuGeneratorPage() {
                             value={ingredientPlan[d.value] ?? ""}
                             onChange={(e) => setIngredientPlan((p) => ({ ...p, [d.value]: e.target.value }))}
                             className="twx-input"
-                            disabled={ingredients.length === 0}
+                            disabled={dayIng.length === 0}
                           >
-                            <option value="">— alapanyag —</option>
-                            {ingredients.map((ing) => (
+                            <option value="">{dayIng.length === 0 ? "— nincs alapanyag —" : "— alapanyag —"}</option>
+                            {dayIng.map((ing) => (
                               <option key={ing} value={ing}>{ing}</option>
                             ))}
                           </select>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </motion.div>

@@ -154,8 +154,8 @@ export default function InventoryPage() {
             {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-sm">Leírás / összetevők</label>
-            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. marhalábszár, burgonya, csipetke, füstölt paprika" />
+            <label className="block text-sm">Leírás (rövid, étlap-szerű)</label>
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. Tartalmas marhagulyás hagyományos recept szerint, friss csipetkével" />
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm">Fő alapanyagok (opcionális)</label>

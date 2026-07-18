@@ -111,8 +111,8 @@ export default function DishEditDrawer({
             {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
           </div>
           <div>
-            <label className="block text-sm">Leírás / összetevők</label>
-            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" />
+            <label className="block text-sm">Leírás (rövid, étlap-szerű)</label>
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. Tartalmas marhagulyás, friss csipetkével" />
           </div>
           <div>
             <label className="block text-sm">Fő alapanyagok (opcionális)</label>
