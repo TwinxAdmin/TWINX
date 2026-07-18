@@ -126,12 +126,36 @@ export type Timeframe = (typeof TIMEFRAMES)[number]["value"];
 
 export const MENU_THEMES = [
   { value: "valtozatos", label: "Változatos / Sokszínű" },
-  { value: "magyaros", label: "Magyaros hetek" },
+  { value: "magyaros", label: "Magyaros" },
+  { value: "olasz_het", label: "Olasz hét" },
+  { value: "azsiai_het", label: "Ázsiai hét" },
+  { value: "vegetarianus", label: "Vegetáriánus" },
+  { value: "vegan", label: "Vegán" },
+  { value: "glutenmentes", label: "Gluténmentes" },
+  { value: "lowcarb", label: "Low-carb / Keto" },
   { value: "fitness", label: "Fitness / Könnyed" },
+  { value: "business", label: "Business lunch (gyors, kiszámítható)" },
+  { value: "csaladi", label: "Családi / Gyerekbarát" },
+  { value: "brunch", label: "Brunch" },
   { value: "premium", label: "Prémium / Ünnepi" },
   { value: "szezonalis", label: "Szezonális" },
+  { value: "nyari_grill", label: "Nyári grill" },
+  { value: "oszi", label: "Őszi / Tökös" },
 ] as const;
 export type MenuTheme = (typeof MENU_THEMES)[number]["value"];
+
+// Fogásszám a napi menühöz.
+export const COURSE_OPTIONS = [
+  { value: "", label: "Nincs megkötve" },
+  { value: "2", label: "2 fogásos (leves/előétel + főétel)" },
+  { value: "3", label: "3 fogásos (előétel + főétel + desszert)" },
+] as const;
+
+// Változatosság foka.
+export const VARIETY_OPTIONS = [
+  { value: "normal", label: "Kiegyensúlyozott" },
+  { value: "high", label: "Erős — ne ismétlődjön a héten" },
+] as const;
 
 // Profit CÉL a menühöz (nem az egyes étel marzsa, hanem a menü egészének célja).
 export const PROFIT_GOALS = [
@@ -196,6 +220,9 @@ export function composeMenuPrompt(
     dishListText: string;
     instruction?: string;
     dayPlan?: DayPlanEntry[];
+    courses?: string;
+    targetPrice?: string;
+    variety?: string;
   },
   segments: { intro?: string; task?: string }
 ): string {
@@ -206,6 +233,16 @@ export function composeMenuPrompt(
     `Tematika: ${themeLabel(opts.theme)}`,
     `Profit-cél: ${PROFIT_GOALS.find((g) => g.value === opts.goal)?.label ?? opts.goal}`,
   ];
+  if (opts.courses === "2") lines.push(`Fogásszám: 2 fogásos (leves vagy előétel + főétel).`);
+  if (opts.courses === "3") lines.push(`Fogásszám: 3 fogásos (előétel + főétel + desszert).`);
+  if (opts.targetPrice && Number(opts.targetPrice) > 0) {
+    lines.push(
+      `Célár: a napi menü (fogások összege) lehetőleg maradjon ${Math.round(Number(opts.targetPrice)).toLocaleString("hu-HU")} Ft alatt az ételek eladási ára alapján.`
+    );
+  }
+  if (opts.variety === "high") {
+    lines.push(`Változatosság: KERÜLD, hogy ugyanaz a fogás vagy fő alapanyag kétszer szerepeljen a héten.`);
+  }
   const plan = (opts.dayPlan ?? []).filter((p) => p.cuisine && p.cuisine.trim());
   if (plan.length) {
     lines.push(``, `Napi konyha-beosztás (ezt a napok szerint tartsd be):`);

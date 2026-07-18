@@ -11,12 +11,17 @@ import {
   PROFIT_GOALS,
   WEEK_DAYS,
   CUISINE_STYLES,
+  COURSE_OPTIONS,
+  VARIETY_OPTIONS,
 } from "@/lib/hospitality";
 
 export default function MenuGeneratorPage() {
   const [timeframe, setTimeframe] = useState("daily");
   const [theme, setTheme] = useState("valtozatos");
   const [goal, setGoal] = useState("medium");
+  const [courses, setCourses] = useState("");
+  const [targetPrice, setTargetPrice] = useState("");
+  const [variety, setVariety] = useState("normal");
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   const [cuisines, setCuisines] = useState<string[]>([]);
@@ -53,6 +58,9 @@ export default function MenuGeneratorPage() {
           timeframe,
           theme,
           goal,
+          courses,
+          targetPrice,
+          variety,
           instruction,
           dayPlan: Object.entries(dayPlan)
             .filter(([, cuisine]) => cuisine)
@@ -109,6 +117,26 @@ export default function MenuGeneratorPage() {
             <select value={goal} onChange={(e) => setGoal(e.target.value)} className="twx-input mt-1">
               {PROFIT_GOALS.map((g) => (
                 <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm">Fogásszám</label>
+            <select value={courses} onChange={(e) => setCourses(e.target.value)} className="twx-input mt-1">
+              {COURSE_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm">Célár (Ft / nap)</label>
+            <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500 (opcionális)" />
+          </div>
+          <div>
+            <label className="block text-sm">Változatosság</label>
+            <select value={variety} onChange={(e) => setVariety(e.target.value)} className="twx-input mt-1">
+              {VARIETY_OPTIONS.map((v) => (
+                <option key={v.value} value={v.value}>{v.label}</option>
               ))}
             </select>
           </div>

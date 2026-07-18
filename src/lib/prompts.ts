@@ -278,6 +278,9 @@ export async function buildMenuPromptActive(opts: {
   dishListText: string;
   instruction?: string;
   dayPlan?: DayPlanEntry[];
+  courses?: string;
+  targetPrice?: string;
+  variety?: string;
 }): Promise<string> {
   const segments = await getActiveSegments("menu_generator");
   return composeMenuPrompt(opts, segments);

@@ -54,6 +54,9 @@ export async function POST(request: Request) {
         .filter((e) => e.day && e.cuisine)
         .slice(0, 7)
     : [];
+  const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";
+  const targetPrice = body.targetPrice != null && String(body.targetPrice).trim() ? String(body.targetPrice).trim() : "";
+  const variety = body.variety === "high" ? "high" : "normal";
 
   const admin = createAdminClient();
 
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
     const preferred = PREFERRED_MARGINS[goal];
     const { data: dishes, error: dishErr } = await admin
       .from("restaurant_dishes")
-      .select("name, description, category, cuisine_style, profit_margin")
+      .select("name, description, category, cuisine_style, profit_margin, cost_price, sale_price")
       .eq("user_id", user.id)
       .or(`profit_margin.in.(${preferred.join(",")}),profit_margin.is.null`);
     if (dishErr) throw new Error(dishErr.message);
@@ -100,15 +103,18 @@ export async function POST(request: Request) {
 
     // 3) Prompt: admin-szerkeszthető sablon + a szűrt étel-lista befűzése.
     const dishListText = selected
-      .map(
-        (d) =>
-          `- ${d.name} (${categoryLabel(d.category)}, ${marginLabel(d.profit_margin)} haszon${
-            d.cuisine_style ? `, ${d.cuisine_style}` : ""
-          })${d.description ? ` — ${d.description}` : ""}`
-      )
+      .map((d) => {
+        const parts = [categoryLabel(d.category)];
+        if (d.cuisine_style) parts.push(d.cuisine_style);
+        if (d.profit_margin) parts.push(`${marginLabel(d.profit_margin)} haszon`);
+        if (d.sale_price != null) parts.push(`ár: ${Math.round(d.sale_price)} Ft`);
+        return `- ${d.name} (${parts.join(", ")})${d.description ? ` — ${d.description}` : ""}`;
+      })
       .join("\n");
 
-    const prompt = await buildMenuPromptActive({ timeframe, theme, goal, dishListText, instruction, dayPlan });
+    const prompt = await buildMenuPromptActive({
+      timeframe, theme, goal, dishListText, instruction, dayPlan, courses, targetPrice, variety,
+    });
 
     // 4) Perplexity (szinkron) -> menü-szöveg
     const menuText = await runSonar(prompt, PERPLEXITY_MODEL);
@@ -118,7 +124,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { timeframe, theme, goal, dish_count: selected.length, day_plan: dayPlan, instruction },
+      input_data: { timeframe, theme, goal, courses, targetPrice, variety, dish_count: selected.length, day_plan: dayPlan, instruction },
       output_file_url: null,
       credits_charged: charge.bypassed ? 0 : MENU_CREDITS,
     });
