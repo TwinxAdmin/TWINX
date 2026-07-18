@@ -85,6 +85,66 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, dish: data });
 }
 
+export async function PATCH(request: Request) {
+  const { supabase, user } = await requireUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
+  }
+
+  const id = String(form.get("id") ?? "");
+  if (!id) return NextResponse.json({ error: "Hiányzó azonosító." }, { status: 400 });
+
+  const input = {
+    name: String(form.get("name") ?? "").trim(),
+    description: String(form.get("description") ?? "").trim(),
+    category: String(form.get("category") ?? ""),
+    cuisine_style: String(form.get("cuisine_style") ?? "").trim(),
+    profit_margin: String(form.get("profit_margin") ?? ""),
+  };
+  const { valid, errors } = validateDishInput(input);
+  if (!valid) return NextResponse.json({ errors }, { status: 422 });
+
+  const patch: Record<string, unknown> = {
+    name: input.name,
+    description: input.description || null,
+    category: input.category,
+    cuisine_style: input.cuisine_style || null,
+    profit_margin: input.profit_margin,
+  };
+
+  // Kép: új feltöltés felülírja; a "remove_image=1" törli; egyébként marad a régi.
+  const entry = form.get("image");
+  if (entry && typeof entry !== "string" && (entry as File).size > 0) {
+    const file = entry as File;
+    const ext = file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
+    const admin = createAdminClient();
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = `dishes/${user.id}/${randomUUID()}.${ext}`;
+    const { error: upErr } = await admin.storage
+      .from(BUCKET)
+      .upload(path, bytes, { contentType: file.type || "image/jpeg", upsert: false });
+    if (upErr) return NextResponse.json({ error: `Kép feltöltés hiba: ${upErr.message}` }, { status: 500 });
+    patch.image_url = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  } else if (String(form.get("remove_image") ?? "") === "1") {
+    patch.image_url = null;
+  }
+
+  const { data, error } = await supabase
+    .from("restaurant_dishes")
+    .update(patch)
+    .eq("id", id)
+    .select("id, name, description, category, cuisine_style, profit_margin, image_url, created_at")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Nincs ilyen étel." }, { status: 404 });
+  return NextResponse.json({ ok: true, dish: data });
+}
+
 export async function DELETE(request: Request) {
   const { supabase, user } = await requireUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });

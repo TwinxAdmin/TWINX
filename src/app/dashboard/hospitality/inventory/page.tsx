@@ -27,7 +27,9 @@ export default function InventoryPage() {
   const [cuisineMode, setCuisineMode] = useState<"list" | "custom">("list");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageAction, setImageAction] = useState<"keep" | "new" | "remove">("keep");
   const [dragOver, setDragOver] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   function pickImage(f: File | null) {
     if (f && !f.type.startsWith("image/")) {
@@ -36,6 +38,34 @@ export default function InventoryPage() {
     }
     setImageFile(f);
     setImagePreview(f ? URL.createObjectURL(f) : null);
+    setImageAction(f ? "new" : "remove");
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm({ ...EMPTY });
+    setImageFile(null);
+    setImagePreview(null);
+    setImageAction("keep");
+    setCuisineMode("list");
+    setErrors({});
+  }
+
+  function startEdit(d: Dish) {
+    setEditingId(d.id);
+    setForm({
+      name: d.name,
+      description: d.description ?? "",
+      category: d.category,
+      cuisine_style: d.cuisine_style ?? "",
+      profit_margin: d.profit_margin,
+    });
+    setImageFile(null);
+    setImagePreview(d.image_url ?? null);
+    setImageAction("keep");
+    setCuisineMode(d.cuisine_style && !CUISINE_STYLES.includes(d.cuisine_style as never) ? "custom" : "list");
+    setErrors({});
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // Konyhatípusok: alaplista + a partner által korábban felvitt saját típusok.
@@ -59,7 +89,7 @@ export default function InventoryPage() {
     setForm((f) => ({ ...f, [key]: val }));
   }
 
-  async function addDish(e: FormEvent) {
+  async function saveDish(e: FormEvent) {
     e.preventDefault();
     setErrors({});
     setSaving(true);
@@ -67,20 +97,29 @@ export default function InventoryPage() {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (imageFile) fd.append("image", await compressImage(imageFile, 1400, 0.82));
+      else if (editingId && imageAction === "remove") fd.append("remove_image", "1");
 
-      const res = await fetch("/api/hospitality/dishes", { method: "POST", body: fd });
+      let res: Response;
+      if (editingId) {
+        fd.append("id", editingId);
+        res = await fetch("/api/hospitality/dishes", { method: "PATCH", body: fd });
+      } else {
+        res = await fetch("/api/hospitality/dishes", { method: "POST", body: fd });
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
         showToast(data.error ?? "Nem sikerült menteni.", "error");
         return;
       }
-      setDishes((prev) => [data.dish, ...prev]);
-      setForm({ ...EMPTY });
-      setImageFile(null);
-      setImagePreview(null);
-      setCuisineMode("list");
-      showToast("Étel hozzáadva.", "success");
+      if (editingId) {
+        setDishes((prev) => prev.map((x) => (x.id === editingId ? data.dish : x)));
+        showToast("Étel módosítva.", "success");
+      } else {
+        setDishes((prev) => [data.dish, ...prev]);
+        showToast("Étel hozzáadva.", "success");
+      }
+      resetForm();
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
     } finally {
@@ -111,8 +150,17 @@ export default function InventoryPage() {
       />
 
       {/* Új étel */}
-      <form onSubmit={addDish} className="twx-card space-y-3 p-5">
-        <h2 className="font-display text-lg font-medium">Új étel felvitele</h2>
+      <form onSubmit={saveDish} className="twx-card space-y-3 p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-medium">
+            {editingId ? "Étel szerkesztése" : "Új étel felvitele"}
+          </h2>
+          {editingId && (
+            <button type="button" onClick={resetForm} className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              Mégse
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="block text-sm">Étel neve *</label>
@@ -234,7 +282,7 @@ export default function InventoryPage() {
         </div>
 
         <button type="submit" disabled={saving} className="twx-btn">
-          {saving ? "Mentés…" : "Étel hozzáadása"}
+          {saving ? "Mentés…" : editingId ? "Módosítások mentése" : "Étel hozzáadása"}
         </button>
       </form>
 
@@ -278,14 +326,22 @@ export default function InventoryPage() {
                     <p className="mt-1 truncate text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.description}</p>
                   )}
                 </div>
-                <button
-                  onClick={() => removeDish(d.id)}
-                  aria-label="Törlés"
-                  className="flex-none rounded-full px-3 py-1 text-sm"
-                  style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
-                >
-                  Törlés
-                </button>
+                <div className="flex flex-none gap-2">
+                  <button
+                    onClick={() => startEdit(d)}
+                    className="rounded-full px-3 py-1 text-sm"
+                    style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
+                  >
+                    Szerkesztés
+                  </button>
+                  <button
+                    onClick={() => removeDish(d.id)}
+                    className="rounded-full px-3 py-1 text-sm"
+                    style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+                  >
+                    Törlés
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
