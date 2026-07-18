@@ -31,7 +31,6 @@ export default function MenuGeneratorPage() {
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   const [ingredientPlan, setIngredientPlan] = useState<Record<string, string>>({});
   const [cuisineOpen, setCuisineOpen] = useState(false);
-  const [ingredientOpen, setIngredientOpen] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [dishCount, setDishCount] = useState<number | null>(null);
@@ -183,7 +182,7 @@ export default function MenuGeneratorPage() {
               className="flex w-full items-center justify-between px-4 py-3 text-left"
             >
               <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
-                Napi konyha-beosztás — opcionális
+                Napi beosztás — opcionális
               </span>
               <span
                 className="flex h-7 w-7 items-center justify-center rounded-full text-lg transition-transform duration-200"
@@ -202,91 +201,47 @@ export default function MenuGeneratorPage() {
                   style={{ overflow: "hidden" }}
                 >
                   <div className="px-4 pb-4">
-                    <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      Add meg, melyik napon milyen konyha legyen — pl. 1. nap kínai, 2. nap fitness. Üresen hagyva az AI dönt.
+                    <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      Naponként add meg a <b>konyhát</b> és/vagy a <b>fő alapanyagot</b> — pl. hétfő olasz + tészta. Üresen hagyva az AI dönt.
+                      {ingredients.length === 0 && (
+                        <> Alapanyag-választáshoz tölts ki „Fő alapanyagokat" a{" "}
+                          <a href="/dashboard/hospitality/inventory" className="underline" style={{ color: "var(--twx-coral)" }}>Kínálat kezelőben</a>.
+                        </>
+                      )}
                     </p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="mb-1 hidden grid-cols-[3.5rem_1fr_1fr] gap-2 text-xs sm:grid" style={{ color: "var(--twx-ink-muted)" }}>
+                      <span />
+                      <span>Konyha</span>
+                      <span>Fő alapanyag</span>
+                    </div>
+                    <div className="space-y-2">
                       {planDays.map((d) => (
-                        <div key={d.value} className="flex items-center gap-2">
-                          <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
+                        <div key={d.value} className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-2">
+                          <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
                           <select
                             value={dayPlan[d.value] ?? ""}
                             onChange={(e) => setDayPlan((p) => ({ ...p, [d.value]: e.target.value }))}
                             className="twx-input"
                           >
-                            <option value="">—</option>
+                            <option value="">— konyha —</option>
                             {cuisines.map((c) => (
                               <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={ingredientPlan[d.value] ?? ""}
+                            onChange={(e) => setIngredientPlan((p) => ({ ...p, [d.value]: e.target.value }))}
+                            className="twx-input"
+                            disabled={ingredients.length === 0}
+                          >
+                            <option value="">— alapanyag —</option>
+                            {ingredients.map((ing) => (
+                              <option key={ing} value={ing}>{ing}</option>
                             ))}
                           </select>
                         </div>
                       ))}
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Napi alapanyag-terv — külön összecsukható legördülő (több napos menünél) */}
-        {days > 1 && (
-          <div className="rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
-            <button
-              type="button"
-              onClick={() => setIngredientOpen((o) => !o)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
-            >
-              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
-                Napi alapanyag-terv — opcionális
-              </span>
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-full text-lg transition-transform duration-200"
-                style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: ingredientOpen ? "rotate(45deg)" : "none" }}
-              >
-                +
-              </span>
-            </button>
-            <AnimatePresence initial={false}>
-              {ingredientOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ overflow: "hidden" }}
-                >
-                  <div className="px-4 pb-4">
-                    {ingredients.length === 0 ? (
-                      <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                        Adj meg „Fő alapanyagokat" az ételeknél a{" "}
-                        <a href="/dashboard/hospitality/inventory" className="underline" style={{ color: "var(--twx-coral)" }}>Kínálat kezelőben</a>
-                        , hogy itt naponként választható legyen (pl. 1. nap krumpli, 2. nap tészta).
-                      </p>
-                    ) : (
-                      <>
-                        <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          Rendeld hozzá, melyik napon melyik fő alapanyag legyen. Üresen hagyva az AI dönt.
-                        </p>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {planDays.map((d) => (
-                            <div key={d.value} className="flex items-center gap-2">
-                              <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
-                              <select
-                                value={ingredientPlan[d.value] ?? ""}
-                                onChange={(e) => setIngredientPlan((p) => ({ ...p, [d.value]: e.target.value }))}
-                                className="twx-input"
-                              >
-                                <option value="">—</option>
-                                {ingredients.map((ing) => (
-                                  <option key={ing} value={ing}>{ing}</option>
-                                ))}
-                              </select>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </div>
                 </motion.div>
               )}
