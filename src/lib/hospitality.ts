@@ -38,6 +38,7 @@ export type Dish = {
   profit_margin: ProfitMargin | null;
   cost_price: number | null; // előkészítési / önköltségi ár
   sale_price: number | null; // eladási ár
+  main_ingredients: string | null; // vesszővel elválasztott fő alapanyagok
   image_url: string | null;
   created_at: string;
 };
@@ -61,6 +62,7 @@ export type DishInput = {
   profit_margin: string;
   cost_price: string;
   sale_price: string;
+  main_ingredients: string;
 };
 
 export function validateDishInput(input: Partial<DishInput>): {
@@ -113,9 +115,12 @@ export const WEEK_DAYS = [
   { value: "vasarnap", label: "Vasárnap" },
 ] as const;
 export function dayLabel(v: string): string {
-  return WEEK_DAYS.find((d) => d.value === v)?.label ?? v;
+  const wd = WEEK_DAYS.find((d) => d.value === v);
+  if (wd) return wd.label;
+  const m = /^nap(\d+)$/.exec(v);
+  return m ? `${m[1]}. nap` : v;
 }
-export type DayPlanEntry = { day: string; cuisine: string };
+export type DayPlanEntry = { day: string; cuisine?: string; ingredient?: string };
 
 // --- Menü-generátor paraméterei ---
 export const TIMEFRAMES = [
@@ -264,10 +269,18 @@ export function composeMenuPrompt(
         `részesítsd előnyben a magasabb darab-profitú ételeket, de a tematikát és a változatosságot is tartva.`
     );
   }
-  const plan = (opts.dayPlan ?? []).filter((p) => p.cuisine && p.cuisine.trim());
+  const plan = (opts.dayPlan ?? []).filter(
+    (p) => (p.cuisine && p.cuisine.trim()) || (p.ingredient && p.ingredient.trim())
+  );
   if (plan.length) {
-    lines.push(``, `Napi konyha-beosztás (ezt a napok szerint tartsd be):`);
-    for (const p of plan) lines.push(`- ${dayLabel(p.day)}: ${p.cuisine}`);
+    lines.push(``, `Napi beosztás (ezt a napok szerint TARTSD BE):`);
+    for (const p of plan) {
+      const bits: string[] = [];
+      if (p.cuisine && p.cuisine.trim()) bits.push(`konyha: ${p.cuisine.trim()}`);
+      if (p.ingredient && p.ingredient.trim()) bits.push(`fő alapanyag: ${p.ingredient.trim()}`);
+      lines.push(`- ${dayLabel(p.day)}: ${bits.join(", ")}`);
+    }
+    lines.push(`(A fő alapanyaghoz olyan ételt válassz, amelynek az alapanyagai közt szerepel az adott alapanyag.)`);
   }
   if (opts.instruction && opts.instruction.trim()) {
     lines.push(``, `Egyedi instrukció a partnertől: ${opts.instruction.trim()}`);

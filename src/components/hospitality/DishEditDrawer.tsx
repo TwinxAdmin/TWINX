@@ -30,6 +30,7 @@ export default function DishEditDrawer({
     profit_margin: dish.profit_margin as string,
     cost_price: dish.cost_price != null ? String(dish.cost_price) : "",
     sale_price: dish.sale_price != null ? String(dish.sale_price) : "",
+    main_ingredients: dish.main_ingredients ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -112,6 +113,10 @@ export default function DishEditDrawer({
           <div>
             <label className="block text-sm">Leírás / összetevők</label>
             <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" />
+          </div>
+          <div>
+            <label className="block text-sm">Fő alapanyagok (opcionális)</label>
+            <input value={form.main_ingredients} onChange={(e) => set("main_ingredients", e.target.value)} className="twx-input mt-1" placeholder="pl. burgonya, marhahús (vesszővel)" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

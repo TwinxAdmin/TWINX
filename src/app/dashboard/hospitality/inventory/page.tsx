@@ -20,7 +20,7 @@ import {
   type Dish,
 } from "@/lib/hospitality";
 
-const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "" };
+const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "", main_ingredients: "" };
 
 export default function InventoryPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -156,6 +156,13 @@ export default function InventoryPage() {
           <div className="sm:col-span-2">
             <label className="block text-sm">Leírás / összetevők</label>
             <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. marhalábszár, burgonya, csipetke, füstölt paprika" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-sm">Fő alapanyagok (opcionális)</label>
+            <input value={form.main_ingredients} onChange={(e) => set("main_ingredients", e.target.value)} className="twx-input mt-1" placeholder="pl. burgonya, marhahús, paprika (vesszővel)" />
+            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Ezekből tud a rendszer alapanyag szerint menüt összeállítani (pl. „2 nap krumpli, 3 nap tészta").
+            </p>
           </div>
           <div>
             <label className="block text-sm">Kategória *</label>

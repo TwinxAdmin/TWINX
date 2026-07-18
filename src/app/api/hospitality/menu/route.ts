@@ -49,9 +49,13 @@ export async function POST(request: Request) {
     ? (body.dayPlan as unknown[])
         .map((e) => {
           const o = (e ?? {}) as Record<string, unknown>;
-          return { day: String(o.day ?? "").trim(), cuisine: String(o.cuisine ?? "").trim().slice(0, 60) };
+          return {
+            day: String(o.day ?? "").trim(),
+            cuisine: String(o.cuisine ?? "").trim().slice(0, 60),
+            ingredient: String(o.ingredient ?? "").trim().slice(0, 60),
+          };
         })
-        .filter((e) => e.day && e.cuisine)
+        .filter((e) => e.day && (e.cuisine || e.ingredient))
         .slice(0, 7)
     : [];
   const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";
@@ -81,7 +85,7 @@ export async function POST(request: Request) {
     const preferred = PREFERRED_MARGINS[goal];
     const { data: dishes, error: dishErr } = await admin
       .from("restaurant_dishes")
-      .select("name, description, category, cuisine_style, profit_margin, cost_price, sale_price")
+      .select("name, description, category, cuisine_style, profit_margin, cost_price, sale_price, main_ingredients")
       .eq("user_id", user.id)
       .or(`profit_margin.in.(${preferred.join(",")}),profit_margin.is.null`);
     if (dishErr) throw new Error(dishErr.message);
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
         if (d.profit_margin) parts.push(`${marginLabel(d.profit_margin)} haszon`);
         if (d.sale_price != null) parts.push(`ár: ${Math.round(d.sale_price)} Ft`);
         if (d.cost_price != null && d.sale_price != null) parts.push(`darab-profit: ${Math.round(d.sale_price - d.cost_price)} Ft`);
+        if (d.main_ingredients) parts.push(`alapanyagok: ${d.main_ingredients}`);
         return `- ${d.name} (${parts.join(", ")})${d.description ? ` — ${d.description}` : ""}`;
       })
       .join("\n");
