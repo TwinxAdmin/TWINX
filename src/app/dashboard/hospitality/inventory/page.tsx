@@ -27,6 +27,16 @@ export default function InventoryPage() {
   const [cuisineMode, setCuisineMode] = useState<"list" | "custom">("list");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  function pickImage(f: File | null) {
+    if (f && !f.type.startsWith("image/")) {
+      showToast("Csak képfájlt tölthetsz fel.", "error");
+      return;
+    }
+    setImageFile(f);
+    setImagePreview(f ? URL.createObjectURL(f) : null);
+  }
 
   // Konyhatípusok: alaplista + a partner által korábban felvitt saját típusok.
   const cuisineOptions = Array.from(
@@ -178,38 +188,49 @@ export default function InventoryPage() {
           <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             A feltöltött kép ehhez az ételhez tartozik — később ebből dolgozik a menü dizájn.
           </p>
-          <div className="flex items-center gap-3">
-            {imagePreview && (
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); pickImage(e.dataTransfer.files?.[0] ?? null); }}
+            className="flex cursor-pointer items-center gap-4 rounded-xl p-4 transition-colors"
+            style={{
+              border: `1.5px dashed ${dragOver ? "var(--twx-coral)" : "var(--twx-line)"}`,
+              background: dragOver ? "rgba(239,122,90,0.06)" : "transparent",
+            }}
+          >
+            {imagePreview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imagePreview} alt="" className="h-16 w-16 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+              <img src={imagePreview} alt="" className="h-16 w-16 flex-none rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+            ) : (
+              <span className="flex h-16 w-16 flex-none items-center justify-center rounded-lg" style={{ background: "rgba(239,122,90,0.10)", color: "var(--twx-coral)" }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="16" rx="2" /><path d="m3 15 4-4 4 4 3-3 7 6" /><circle cx="8.5" cy="9" r="1.5" />
+                </svg>
+              </span>
             )}
-            <label
-              className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium"
-              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+            <div className="min-w-0">
+              <span className="block text-sm font-medium" style={{ color: "var(--twx-ink)" }}>
+                {imagePreview ? "Kép kiválasztva — kattints másikért" : "Húzd ide a képet, vagy kattints a tallózáshoz"}
+              </span>
+              <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>PNG, JPG vagy WEBP</span>
+            </div>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => pickImage(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {imagePreview && (
+            <button
+              type="button"
+              onClick={() => pickImage(null)}
+              className="mt-2 text-sm"
+              style={{ color: "var(--twx-ink-muted)" }}
             >
-              {imagePreview ? "Másik kép" : "Kép választása"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  setImageFile(f);
-                  setImagePreview(f ? URL.createObjectURL(f) : null);
-                }}
-              />
-            </label>
-            {imagePreview && (
-              <button
-                type="button"
-                onClick={() => { setImageFile(null); setImagePreview(null); }}
-                className="text-sm"
-                style={{ color: "var(--twx-ink-muted)" }}
-              >
-                Törlés
-              </button>
-            )}
-          </div>
+              Kép eltávolítása
+            </button>
+          )}
         </div>
 
         <button type="submit" disabled={saving} className="twx-btn">
