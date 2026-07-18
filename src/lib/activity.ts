@@ -12,6 +12,7 @@ const FEATURE_LABEL: Record<string, string> = {
   visualization: "Látványterv",
   video: "Videó",
   flyer: "Hirdetés",
+  menu_generator: "Menü generátor",
 };
 
 export function featureLabel(feature: string): string {
