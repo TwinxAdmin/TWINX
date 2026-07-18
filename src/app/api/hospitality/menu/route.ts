@@ -52,10 +52,12 @@ export async function POST(request: Request) {
           return {
             day: String(o.day ?? "").trim(),
             cuisine: String(o.cuisine ?? "").trim().slice(0, 60),
-            dish: String(o.dish ?? "").trim().slice(0, 120),
+            dishes: Array.isArray(o.dishes)
+              ? (o.dishes as unknown[]).map((x) => String(x ?? "").trim().slice(0, 120)).filter(Boolean).slice(0, 4)
+              : [],
           };
         })
-        .filter((e) => e.day && (e.cuisine || e.dish))
+        .filter((e) => e.day && (e.cuisine || e.dishes.length))
         .slice(0, 7)
     : [];
   const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";

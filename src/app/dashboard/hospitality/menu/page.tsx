@@ -29,16 +29,33 @@ export default function MenuGeneratorPage() {
   const [profitOpen, setProfitOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
-  const [dishPlan, setDishPlan] = useState<Record<string, string>>({});
+  // day -> (course-kulcs -> étel neve)
+  const [dishPlan, setDishPlan] = useState<Record<string, Record<string, string>>>({});
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
-  const [dishesData, setDishesData] = useState<{ name: string; cuisine_style: string | null }[]>([]);
+  const [dishesData, setDishesData] = useState<{ name: string; cuisine_style: string | null; category: string }[]>([]);
 
-  // A kiválasztott konyhához tartozó ételek nevei (üres konyhánál az összes étel).
-  function dishesForCuisine(cuisine: string): string[] {
-    const src = cuisine
+  // Fogás-slotok a Fogásszám szerint (a fogáshoz tartozó étel-kategóriákkal).
+  const courseSlots: { key: string; label: string; cats: string[] }[] =
+    courses === "3"
+      ? [
+          { key: "eloetel", label: "Előétel", cats: ["eloetel", "leves"] },
+          { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+          { key: "desszert", label: "Desszert", cats: ["desszert"] },
+        ]
+      : courses === "2"
+        ? [
+            { key: "eloetel", label: "Előétel / Leves", cats: ["eloetel", "leves"] },
+            { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+          ]
+        : [{ key: "etel", label: "Konkrét étel", cats: [] }];
+
+  // A kiválasztott konyhához (és fogás-kategóriákhoz) tartozó ételek nevei.
+  function dishOptions(cuisine: string, cats: string[]): string[] {
+    let src = cuisine
       ? dishesData.filter((d) => (d.cuisine_style ?? "").toLowerCase() === cuisine.toLowerCase())
       : dishesData;
+    if (cats.length) src = src.filter((d) => cats.includes(d.category));
     return Array.from(new Set(src.map((d) => d.name).filter(Boolean))).sort((a, b) => a.localeCompare(b, "hu"));
   }
   const [dishCount, setDishCount] = useState<number | null>(null);
@@ -52,7 +69,7 @@ export default function MenuGeneratorPage() {
         const res = await fetch("/api/hospitality/dishes");
         const data = await res.json();
         if (res.ok) {
-          const list = (data.dishes ?? []) as { name: string; cuisine_style: string | null }[];
+          const list = (data.dishes ?? []) as { name: string; cuisine_style: string | null; category: string }[];
           setDishesData(list);
           setDishCount(list.length);
           const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
@@ -82,8 +99,12 @@ export default function MenuGeneratorPage() {
           targetProfit,
           instruction,
           dayPlan: Array.from(new Set([...Object.keys(dayPlan), ...Object.keys(dishPlan)]))
-            .map((day) => ({ day, cuisine: dayPlan[day] || "", dish: dishPlan[day] || "" }))
-            .filter((e) => e.cuisine || e.dish),
+            .map((day) => ({
+              day,
+              cuisine: dayPlan[day] || "",
+              dishes: Object.values(dishPlan[day] || {}).filter(Boolean),
+            }))
+            .filter((e) => e.cuisine || e.dishes.length),
         }),
       });
       const data = await res.json();
@@ -205,46 +226,50 @@ export default function MenuGeneratorPage() {
                 >
                   <div className="px-4 pb-4">
                     <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      Naponként add meg a <b>konyhát</b> és/vagy egy <b>konkrét ételt</b> — pl. hétfő olasz + Spaghetti Carbonara. A konyha kiválasztásakor csak az adott konyhájú ételek jelennek meg. Üresen hagyva az AI dönt.
+                      Naponként add meg a <b>konyhát</b>, majd fogásonként egy <b>konkrét ételt</b> (a konyha kiválasztásakor csak az adott konyhájú ételek jelennek meg). Amit üresen hagysz, azt a <b>Twinx</b> tölti fel. A fogások számát a fenti „Fogásszám" adja.
                     </p>
-                    <div className="mb-1 hidden grid-cols-[3.5rem_1fr_1fr] gap-2 text-xs sm:grid" style={{ color: "var(--twx-ink-muted)" }}>
-                      <span />
-                      <span>Konyha</span>
-                      <span>Konkrét étel</span>
-                    </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {planDays.map((d) => {
-                        const dayDishes = dishesForCuisine(dayPlan[d.value] ?? "");
+                        const cuisine = dayPlan[d.value] ?? "";
                         return (
-                        <div key={d.value} className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-2">
-                          <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
-                          <select
-                            value={dayPlan[d.value] ?? ""}
-                            onChange={(e) => {
-                              const c = e.target.value;
-                              setDayPlan((p) => ({ ...p, [d.value]: c }));
-                              // Konyha váltásakor a napi konkrét étel ürül (más konyha = más ételek).
-                              setDishPlan((p) => ({ ...p, [d.value]: "" }));
-                            }}
-                            className="twx-input"
-                          >
-                            <option value="">— konyha —</option>
-                            {cuisines.map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
-                          <select
-                            value={dishPlan[d.value] ?? ""}
-                            onChange={(e) => setDishPlan((p) => ({ ...p, [d.value]: e.target.value }))}
-                            className="twx-input"
-                            disabled={dayDishes.length === 0}
-                          >
-                            <option value="">{dayDishes.length === 0 ? "— nincs étel —" : "— étel —"}</option>
-                            {dayDishes.map((name) => (
-                              <option key={name} value={name}>{name}</option>
-                            ))}
-                          </select>
-                        </div>
+                          <div key={d.value} className="rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className="w-16 flex-none text-sm font-medium">{d.label}</span>
+                              <select
+                                value={cuisine}
+                                onChange={(e) => {
+                                  const c = e.target.value;
+                                  setDayPlan((p) => ({ ...p, [d.value]: c }));
+                                  setDishPlan((p) => ({ ...p, [d.value]: {} })); // konyha váltás -> ételek ürülnek
+                                }}
+                                className="twx-input"
+                              >
+                                <option value="">— konyha (opcionális) —</option>
+                                {cuisines.map((c) => (<option key={c} value={c}>{c}</option>))}
+                              </select>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              {courseSlots.map((slot) => {
+                                const opts = dishOptions(cuisine, slot.cats);
+                                return (
+                                  <div key={slot.key}>
+                                    <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>{slot.label}</label>
+                                    <select
+                                      value={dishPlan[d.value]?.[slot.key] ?? ""}
+                                      onChange={(e) =>
+                                        setDishPlan((p) => ({ ...p, [d.value]: { ...(p[d.value] || {}), [slot.key]: e.target.value } }))
+                                      }
+                                      className="twx-input mt-1"
+                                      disabled={opts.length === 0}
+                                    >
+                                      <option value="">{opts.length === 0 ? "— nincs —" : "— Twinx dönt —"}</option>
+                                      {opts.map((name) => (<option key={name} value={name}>{name}</option>))}
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
