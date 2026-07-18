@@ -32,6 +32,7 @@ export default function MenuGeneratorPage() {
   // day -> (course-kulcs -> étel neve)
   const [dishPlan, setDishPlan] = useState<Record<string, Record<string, string>>>({});
   const [cuisineOpen, setCuisineOpen] = useState(false);
+  const [editDay, setEditDay] = useState<string | null>(null);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [dishesData, setDishesData] = useState<{ name: string; cuisine_style: string | null; category: string }[]>([]);
 
@@ -226,50 +227,29 @@ export default function MenuGeneratorPage() {
                 >
                   <div className="px-4 pb-4">
                     <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      Naponként add meg a <b>konyhát</b>, majd fogásonként egy <b>konkrét ételt</b> (a konyha kiválasztásakor csak az adott konyhájú ételek jelennek meg). Amit üresen hagysz, azt a <b>Twinx</b> tölti fel. A fogások számát a fenti „Fogásszám" adja.
+                      Kattints egy napra — a felugró ablakban add meg a <b>konyhát</b> és fogásonként a <b>konkrét ételt</b>. Amit üresen hagysz, azt a <b>Twinx</b> tölti fel.
                     </p>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                       {planDays.map((d) => {
                         const cuisine = dayPlan[d.value] ?? "";
+                        const chosen = Object.values(dishPlan[d.value] || {}).filter(Boolean).length;
+                        const configured = Boolean(cuisine) || chosen > 0;
                         return (
-                          <div key={d.value} className="rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
-                            <div className="mb-2 flex items-center gap-2">
-                              <span className="w-16 flex-none text-sm font-medium">{d.label}</span>
-                              <select
-                                value={cuisine}
-                                onChange={(e) => {
-                                  const c = e.target.value;
-                                  setDayPlan((p) => ({ ...p, [d.value]: c }));
-                                  setDishPlan((p) => ({ ...p, [d.value]: {} })); // konyha váltás -> ételek ürülnek
-                                }}
-                                className="twx-input"
-                              >
-                                <option value="">— konyha (opcionális) —</option>
-                                {cuisines.map((c) => (<option key={c} value={c}>{c}</option>))}
-                              </select>
-                            </div>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                              {courseSlots.map((slot) => {
-                                const opts = dishOptions(cuisine, slot.cats);
-                                return (
-                                  <div key={slot.key}>
-                                    <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>{slot.label}</label>
-                                    <select
-                                      value={dishPlan[d.value]?.[slot.key] ?? ""}
-                                      onChange={(e) =>
-                                        setDishPlan((p) => ({ ...p, [d.value]: { ...(p[d.value] || {}), [slot.key]: e.target.value } }))
-                                      }
-                                      className="twx-input mt-1"
-                                      disabled={opts.length === 0}
-                                    >
-                                      <option value="">{opts.length === 0 ? "— nincs —" : "— Twinx dönt —"}</option>
-                                      {opts.map((name) => (<option key={name} value={name}>{name}</option>))}
-                                    </select>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <button
+                            key={d.value}
+                            type="button"
+                            onClick={() => setEditDay(d.value)}
+                            className="rounded-xl p-3 text-left transition-all hover:-translate-y-0.5"
+                            style={{
+                              border: `1px solid ${configured ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                              background: configured ? "rgba(239,122,90,0.06)" : "transparent",
+                            }}
+                          >
+                            <span className="block text-sm font-medium">{d.label}</span>
+                            <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                              {[cuisine || null, chosen ? `${chosen} étel` : null].filter(Boolean).join(" · ") || "Twinx dönt"}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
@@ -279,6 +259,85 @@ export default function MenuGeneratorPage() {
             </AnimatePresence>
           </div>
         )}
+
+        {/* Napi beosztás szerkesztő — felugró ablak */}
+        <AnimatePresence>
+          {editDay && (() => {
+            const d = planDays.find((x) => x.value === editDay);
+            if (!d) return null;
+            const cuisine = dayPlan[d.value] ?? "";
+            return (
+              <motion.div
+                key="daymodal"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setEditDay(null)}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                style={{ background: "rgba(12,11,10,0.6)" }}
+              >
+                <motion.div
+                  onClick={(e) => e.stopPropagation()}
+                  initial={{ scale: 0.94, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.96, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  className="twx-card w-full max-w-md p-5"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-display text-lg font-medium">{d.label} — beosztás</h3>
+                    <button
+                      type="button"
+                      onClick={() => setEditDay(null)}
+                      aria-label="Bezárás"
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
+                      style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <label className="block text-sm">Konyha (opcionális)</label>
+                  <select
+                    value={cuisine}
+                    onChange={(e) => {
+                      const c = e.target.value;
+                      setDayPlan((p) => ({ ...p, [d.value]: c }));
+                      setDishPlan((p) => ({ ...p, [d.value]: {} }));
+                    }}
+                    className="twx-input mt-1"
+                  >
+                    <option value="">— konyha —</option>
+                    {cuisines.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  </select>
+                  <div className="mt-3 space-y-3">
+                    {courseSlots.map((slot) => {
+                      const opts = dishOptions(cuisine, slot.cats);
+                      return (
+                        <div key={slot.key}>
+                          <label className="block text-sm">{slot.label}</label>
+                          <select
+                            value={dishPlan[d.value]?.[slot.key] ?? ""}
+                            onChange={(e) =>
+                              setDishPlan((p) => ({ ...p, [d.value]: { ...(p[d.value] || {}), [slot.key]: e.target.value } }))
+                            }
+                            className="twx-input mt-1"
+                            disabled={opts.length === 0}
+                          >
+                            <option value="">{opts.length === 0 ? "— nincs elérhető étel —" : "— Twinx dönt —"}</option>
+                            {opts.map((name) => (<option key={name} value={name}>{name}</option>))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button type="button" onClick={() => setEditDay(null)} className="twx-btn mt-4 w-full">
+                    Kész
+                  </button>
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
 
         {/* Profit-terv — összecsukható (később több opcióval bővíthető) */}
         <div className="rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
