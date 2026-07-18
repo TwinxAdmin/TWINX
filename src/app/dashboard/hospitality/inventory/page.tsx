@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
+import { compressImage } from "@/lib/image-compress";
 import {
   DISH_CATEGORIES,
   PROFIT_MARGINS,
@@ -24,6 +25,8 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cuisineMode, setCuisineMode] = useState<"list" | "custom">("list");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Konyhatípusok: alaplista + a partner által korábban felvitt saját típusok.
   const cuisineOptions = Array.from(
@@ -51,11 +54,11 @@ export default function InventoryPage() {
     setErrors({});
     setSaving(true);
     try {
-      const res = await fetch("/api/hospitality/dishes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const fd = new FormData();
+      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+      if (imageFile) fd.append("image", await compressImage(imageFile, 1400, 0.82));
+
+      const res = await fetch("/api/hospitality/dishes", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
@@ -64,6 +67,9 @@ export default function InventoryPage() {
       }
       setDishes((prev) => [data.dish, ...prev]);
       setForm({ ...EMPTY });
+      setImageFile(null);
+      setImagePreview(null);
+      setCuisineMode("list");
       showToast("Étel hozzáadva.", "success");
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
@@ -167,6 +173,45 @@ export default function InventoryPage() {
             )}
           </div>
         </div>
+        <div>
+          <label className="block text-sm">Ételfotó (opcionális)</label>
+          <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            A feltöltött kép ehhez az ételhez tartozik — később ebből dolgozik a menü dizájn.
+          </p>
+          <div className="flex items-center gap-3">
+            {imagePreview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imagePreview} alt="" className="h-16 w-16 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+            )}
+            <label
+              className="cursor-pointer rounded-full px-4 py-2 text-sm font-medium"
+              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+            >
+              {imagePreview ? "Másik kép" : "Kép választása"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setImageFile(f);
+                  setImagePreview(f ? URL.createObjectURL(f) : null);
+                }}
+              />
+            </label>
+            {imagePreview && (
+              <button
+                type="button"
+                onClick={() => { setImageFile(null); setImagePreview(null); }}
+                className="text-sm"
+                style={{ color: "var(--twx-ink-muted)" }}
+              >
+                Törlés
+              </button>
+            )}
+          </div>
+        </div>
+
         <button type="submit" disabled={saving} className="twx-btn">
           {saving ? "Mentés…" : "Étel hozzáadása"}
         </button>
@@ -190,8 +235,12 @@ export default function InventoryPage() {
         ) : (
           <ul className="space-y-2">
             {dishes.map((d) => (
-              <li key={d.id} className="twx-card flex items-start justify-between gap-3 p-4">
-                <div className="min-w-0">
+              <li key={d.id} className="twx-card flex items-start gap-3 p-4">
+                {d.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={d.image_url} alt="" className="h-14 w-14 flex-none rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                )}
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{d.name}</span>
                     <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>

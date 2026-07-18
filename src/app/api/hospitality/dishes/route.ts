@@ -2,10 +2,13 @@
 // GET: saját ételek listája. POST: új étel. DELETE (?id=): saját étel törlése.
 // Az RLS garantálja, hogy mindenki csak a saját sorait érje el.
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validateDishInput } from "@/lib/hospitality";
 
 export const runtime = "nodejs";
+const BUCKET = "reports";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -31,23 +34,39 @@ export async function POST(request: Request) {
   const { supabase, user } = await requireUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: Record<string, unknown>;
+  let form: FormData;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    form = await request.formData();
   } catch {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
   const input = {
-    name: String(body.name ?? "").trim(),
-    description: String(body.description ?? "").trim(),
-    category: String(body.category ?? ""),
-    cuisine_style: String(body.cuisine_style ?? "").trim(),
-    profit_margin: String(body.profit_margin ?? ""),
+    name: String(form.get("name") ?? "").trim(),
+    description: String(form.get("description") ?? "").trim(),
+    category: String(form.get("category") ?? ""),
+    cuisine_style: String(form.get("cuisine_style") ?? "").trim(),
+    profit_margin: String(form.get("profit_margin") ?? ""),
   };
 
   const { valid, errors } = validateDishInput(input);
   if (!valid) return NextResponse.json({ errors }, { status: 422 });
+
+  // Opcionális ételfotó -> Storage (reports bucket), publikus URL az ételhez.
+  let imageUrl: string | null = null;
+  const entry = form.get("image");
+  if (entry && typeof entry !== "string" && (entry as File).size > 0) {
+    const file = entry as File;
+    const ext = file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
+    const admin = createAdminClient();
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const path = `dishes/${user.id}/${randomUUID()}.${ext}`;
+    const { error: upErr } = await admin.storage
+      .from(BUCKET)
+      .upload(path, bytes, { contentType: file.type || "image/jpeg", upsert: false });
+    if (upErr) return NextResponse.json({ error: `Kép feltöltés hiba: ${upErr.message}` }, { status: 500 });
+    imageUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
 
   const { data, error } = await supabase
     .from("restaurant_dishes")
@@ -58,6 +77,7 @@ export async function POST(request: Request) {
       category: input.category,
       cuisine_style: input.cuisine_style || null,
       profit_margin: input.profit_margin,
+      image_url: imageUrl,
     })
     .select("id, name, description, category, cuisine_style, profit_margin, image_url, created_at")
     .single();
