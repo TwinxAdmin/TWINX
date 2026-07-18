@@ -101,7 +101,18 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
     const monthlyOverhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));
-    const overhead = proratedOverhead(monthlyOverhead, days);
+    const proratedFix = proratedOverhead(monthlyOverhead, days);
+
+    // Egyszeri kiadások, amelyek dátuma az időszakba esik -> teljes összegük hozzáadódik.
+    const { data: otRows } = await admin
+      .from("restaurant_one_time_costs")
+      .select("amount")
+      .eq("user_id", user.id)
+      .gte("spent_on", start)
+      .lte("spent_on", end);
+    const oneTimeTotal = (otRows ?? []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+    const overhead = proratedFix + oneTimeTotal;
 
     // 2) A kiválasztott ételek árai a DB-ből (csak árazott ételek).
     const { data: dishRows, error: dishErr } = await admin
@@ -135,7 +146,7 @@ export async function POST(request: Request) {
     const periodLabel = `${start} – ${end} (${days} nap)`;
 
     // 4) AI-javaslat (a számokat készen kapja).
-    const prompt = await buildCostingPromptActive(costingSummaryText(result, periodLabel));
+    const prompt = await buildCostingPromptActive(costingSummaryText(result, periodLabel, oneTimeTotal));
     let narrative = "";
     try {
       narrative = await runSonar(prompt, PERPLEXITY_MODEL);
@@ -147,7 +158,7 @@ export async function POST(request: Request) {
     //    PDF-hiba nem bukatja a riportot; a számok + AI-szöveg akkor is mennek.
     let pdfUrl: string | null = null;
     try {
-      const bytes = await generateCostingPdf({ result, narrative, period: periodLabel });
+      const bytes = await generateCostingPdf({ result, narrative, period: periodLabel, oneTimeTotal });
       const path = `costing/${user.id}/${randomUUID()}.pdf`;
       const { error: upErr } = await admin.storage
         .from(BUCKET)
@@ -162,7 +173,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { start, end, days, monthly_overhead: monthlyOverhead, overhead, dish_count: inputs.length },
+      input_data: { start, end, days, monthly_overhead: monthlyOverhead, one_time_total: oneTimeTotal, overhead, dish_count: inputs.length },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });

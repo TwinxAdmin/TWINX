@@ -121,8 +121,9 @@ export async function generateCostingPdf(params: {
   result: CostingResult;
   narrative: string;
   period?: string;
+  oneTimeTotal?: number;
 }): Promise<Uint8Array> {
-  const { result, narrative, period } = params;
+  const { result, narrative, period, oneTimeTotal } = params;
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(await loadFontBytes());
@@ -186,7 +187,8 @@ export async function generateCostingPdf(params: {
   );
   y -= 14;
   write(
-    `Rezsi-allokáció: ${alloc}    ·    Időszakra jutó fix költség: ${huf(t.overhead)}`,
+    `Rezsi-allokáció: ${alloc}    ·    Időszaki költség: ${huf(t.overhead)}` +
+      (oneTimeTotal && oneTimeTotal > 0 ? `  (ebből egyszeri: ${huf(oneTimeTotal)})` : ""),
     margin, y, 9.5, C.muted
   );
   y -= 24;

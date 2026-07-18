@@ -169,6 +169,16 @@ export function computeCosting(
   };
 }
 
+// --- Egyszeri (nem havi) kiadások -------------------------------------------
+export type OneTimeCost = { id: string; label: string; amount: number; spent_on: string };
+
+// Az adott [start,end] intervallumba eső egyszeri kiadások összege (YYYY-MM-DD összevetés).
+export function oneTimeInRange(costs: OneTimeCost[], start: string, end: string): number {
+  return costs
+    .filter((c) => c.spent_on >= start && c.spent_on <= end)
+    .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+}
+
 // --- Időszak-kezelés --------------------------------------------------------
 // Napok száma két dátum között (inclusive). Hibás/fordított tartomány = 0.
 export function periodDays(startISO: string, endISO: string): number {
@@ -185,11 +195,14 @@ export function proratedOverhead(monthly: number, days: number): number {
 }
 
 // Rövid, ember által olvasható összefoglaló a promptba (AI-javaslathoz).
-export function costingSummaryText(r: CostingResult, periodLabel?: string): string {
+export function costingSummaryText(r: CostingResult, periodLabel?: string, oneTimeTotal?: number): string {
   const lines: string[] = [];
   if (periodLabel) lines.push(`Vizsgált időszak: ${periodLabel}.`);
+  if (oneTimeTotal && oneTimeTotal > 0) {
+    lines.push(`Ebből egyszeri (nem havi) kiadás az időszakban: ${formatHuf(oneTimeTotal)}.`);
+  }
   lines.push(
-    `Időszakra jutó fix költség (rezsi): ${formatHuf(r.totals.overhead)}. ` +
+    `Időszakra jutó fix költség (rezsi + egyszeri): ${formatHuf(r.totals.overhead)}. ` +
       `Időszaki árbevétel: ${formatHuf(r.totals.revenue)}. ` +
       `Alapanyagköltség: ${formatHuf(r.totals.ingredientCost)}. ` +
       `Étterem időszaki valós profit (árbevétel − alapanyag − rezsi): ${formatHuf(r.totals.netProfit)}.`

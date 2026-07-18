@@ -17,8 +17,10 @@ import {
   toAmount,
   periodDays,
   proratedOverhead,
+  oneTimeInRange,
   type CostProfile,
   type CostingResult,
+  type OneTimeCost,
 } from "@/lib/costing";
 
 type Tab = "profile" | "sales" | "report";
@@ -31,22 +33,26 @@ export default function CostingPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [profile, setProfile] = useState<CostProfile>(EMPTY_COST_PROFILE);
   const [sales, setSales] = useState<SaleRow[]>([]);
+  const [oneTime, setOneTime] = useState<OneTimeCost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [dRes, pRes, sRes] = await Promise.all([
+        const [dRes, pRes, sRes, oRes] = await Promise.all([
           fetch("/api/hospitality/dishes"),
           fetch("/api/hospitality/cost-profile"),
           fetch("/api/hospitality/sales"),
+          fetch("/api/hospitality/onetime"),
         ]);
         const d = await dRes.json();
         const p = await pRes.json();
         const s = await sRes.json();
+        const o = await oRes.json();
         if (dRes.ok) setDishes(d.dishes ?? []);
         if (pRes.ok && p.profile) setProfile(p.profile);
         if (sRes.ok) setSales(s.sales ?? []);
+        if (oRes.ok) setOneTime(o.costs ?? []);
       } finally {
         setLoading(false);
       }
@@ -98,11 +104,11 @@ export default function CostingPage() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
         </div>
       ) : tab === "profile" ? (
-        <ProfileTab profile={profile} onSaved={setProfile} />
+        <ProfileTab profile={profile} onSaved={setProfile} oneTime={oneTime} onOneTimeChange={setOneTime} />
       ) : tab === "sales" ? (
         <SalesTab priced={priced} sales={sales} onSaved={setSales} />
       ) : (
-        <ReportTab priced={priced} sales={sales} overhead={overhead} />
+        <ReportTab priced={priced} sales={sales} overhead={overhead} oneTime={oneTime} />
       )}
     </main>
   );
@@ -127,7 +133,12 @@ function NumField({
 // =============================================================================
 // 1) Étteremszintű költség-profil
 // =============================================================================
-function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: CostProfile) => void }) {
+function ProfileTab({
+  profile, onSaved, oneTime, onOneTimeChange,
+}: {
+  profile: CostProfile; onSaved: (p: CostProfile) => void;
+  oneTime: OneTimeCost[]; onOneTimeChange: (c: OneTimeCost[]) => void;
+}) {
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const f of COST_FIELDS) o[f.key] = profile[f.key] ? String(profile[f.key]) : "";
@@ -138,9 +149,44 @@ function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: C
   );
   const [saving, setSaving] = useState(false);
 
+  // Egyszeri kiadás felvitele.
+  const [otLabel, setOtLabel] = useState("");
+  const [otAmount, setOtAmount] = useState("");
+  const [otDate, setOtDate] = useState(todayISO());
+  const [otBusy, setOtBusy] = useState(false);
+
   const total =
     COST_FIELDS.reduce((s, f) => s + toAmount(vals[f.key]), 0) +
     extra.reduce((s, e) => s + toAmount(e.amount), 0);
+
+  const addOneTime = async () => {
+    if (!otLabel.trim()) { showToast("Add meg a kiadás megnevezését.", "error"); return; }
+    if (toAmount(otAmount) <= 0) { showToast("Az összeg legyen pozitív.", "error"); return; }
+    setOtBusy(true);
+    try {
+      const res = await fetch("/api/hospitality/onetime", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: otLabel.trim(), amount: toAmount(otAmount), spent_on: otDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
+      onOneTimeChange([data.cost, ...oneTime]);
+      setOtLabel(""); setOtAmount("");
+      showToast("Egyszeri kiadás hozzáadva.", "success");
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setOtBusy(false);
+    }
+  };
+
+  const removeOneTime = async (id: string) => {
+    const prev = oneTime;
+    onOneTimeChange(oneTime.filter((c) => c.id !== id));
+    const res = await fetch(`/api/hospitality/onetime?id=${id}`, { method: "DELETE" });
+    if (!res.ok) { onOneTimeChange(prev); showToast("Törlés sikertelen.", "error"); }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -238,6 +284,55 @@ function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: C
       >
         {saving ? "Mentés…" : "Költség-profil mentése"}
       </button>
+
+      {/* Egyszeri (nem havi) kiadások */}
+      <div className="space-y-3 border-t pt-5" style={{ borderColor: "var(--twx-line)" }}>
+        <div>
+          <h3 className="font-display text-lg font-medium">Egyszeri kiadások</h3>
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Nem havi, alkalmi kiadások dátummal (pl. új sütő). A riport csak arra az időszakra számolja
+            költségként, amelybe a <b>dátum</b> beleesik — így reálisabb az adott időszak profitja. Ingyenes.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[180px] flex-1">
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megnevezés</label>
+            <input value={otLabel} onChange={(e) => setOtLabel(e.target.value)} placeholder="pl. új sütő"
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          </div>
+          <div className="w-32">
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Összeg (Ft)</label>
+            <div className="mt-1"><NumField value={otAmount} onChange={setOtAmount} /></div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Dátum</label>
+            <input type="date" value={otDate} onChange={(e) => setOtDate(e.target.value)}
+              className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          </div>
+          <button onClick={addOneTime} disabled={otBusy}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+            {otBusy ? "…" : "Hozzáadás"}
+          </button>
+        </div>
+
+        {oneTime.length > 0 && (
+          <div className="twx-card divide-y" style={{ borderColor: "var(--twx-line)" }}>
+            {oneTime.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span className="min-w-0">
+                  <span className="font-medium">{c.label}</span>{" "}
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {c.spent_on}</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <b>{formatHuf(c.amount)}</b>
+                  <button onClick={() => removeOneTime(c.id)} className="text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Törlés">×</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -537,7 +632,7 @@ function EntryEditorModal({
 // =============================================================================
 // 3) Riport — tetszőleges időszakra, a tárolt eladásokból (kredites + PDF)
 // =============================================================================
-function ReportTab({ priced, sales, overhead }: { priced: Dish[]; sales: SaleRow[]; overhead: number }) {
+function ReportTab({ priced, sales, overhead, oneTime }: { priced: Dish[]; sales: SaleRow[]; overhead: number; oneTime: OneTimeCost[] }) {
   const today = todayISO();
   const [start, setStart] = useState<string>(today.slice(0, 8) + "01");
   const [end, setEnd] = useState<string>(today);
@@ -547,7 +642,8 @@ function ReportTab({ priced, sales, overhead }: { priced: Dish[]; sales: SaleRow
   const [running, setRunning] = useState(false);
 
   const days = periodDays(start, end);
-  const periodOverhead = proratedOverhead(overhead, days);
+  const oneTimeSum = oneTimeInRange(oneTime, start, end);
+  const periodOverhead = proratedOverhead(overhead, days) + oneTimeSum;
 
   // A tárolt eladások az időszakon belül (ugyanaz a szabály, mint a backendben).
   const inRange = useMemo(
@@ -616,7 +712,7 @@ function ReportTab({ priced, sales, overhead }: { priced: Dish[]; sales: SaleRow
         </div>
         <div className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
           {days > 0 ? (
-            <>{days} nap · <b style={{ color: "var(--twx-ink)" }}>{dishCount}</b> étel, <b style={{ color: "var(--twx-ink)" }}>{totalQty}</b> adag rögzítve · időszaki rezsi {formatHuf(periodOverhead)}</>
+            <>{days} nap · <b style={{ color: "var(--twx-ink)" }}>{dishCount}</b> étel, <b style={{ color: "var(--twx-ink)" }}>{totalQty}</b> adag rögzítve · időszaki költség {formatHuf(periodOverhead)}{oneTimeSum > 0 ? ` (ebből egyszeri ${formatHuf(oneTimeSum)})` : ""}</>
           ) : (
             <span style={{ color: "#b5372f" }}>A záró dátum nem lehet korábbi az indulónál.</span>
           )}
