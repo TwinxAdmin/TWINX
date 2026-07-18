@@ -13,11 +13,13 @@ export default function DishEditDrawer({
   cuisineOptions,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   dish: Dish;
   cuisineOptions: string[];
   onClose: () => void;
   onSaved: (d: Dish) => void;
+  onDeleted: (id: string) => void;
 }) {
   const reduce = useReducedMotion();
   const [form, setForm] = useState({
@@ -78,23 +80,14 @@ export default function DishEditDrawer({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[60] flex justify-end"
-      style={{ background: "rgba(12,11,10,0.5)" }}
+    <motion.aside
+      initial={{ x: reduce ? 0 : "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: reduce ? 0 : "100%" }}
+      transition={{ type: "spring", stiffness: 380, damping: 40 }}
+      className="pointer-events-auto fixed right-0 top-0 z-[60] h-full w-[92vw] max-w-md overflow-y-auto p-6"
+      style={{ background: "var(--twx-cream)", color: "var(--twx-ink)", boxShadow: "-24px 0 60px rgba(0,0,0,0.22)" }}
     >
-      <motion.aside
-        onClick={(e) => e.stopPropagation()}
-        initial={{ x: reduce ? 0 : "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: reduce ? 0 : "100%" }}
-        transition={{ type: "spring", stiffness: 380, damping: 40 }}
-        className="h-full w-[92vw] max-w-md overflow-y-auto p-6"
-        style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}
-      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-medium">Étel szerkesztése</h2>
           <button
@@ -188,11 +181,20 @@ export default function DishEditDrawer({
             )}
           </div>
 
-          <button type="submit" disabled={saving} className="twx-btn w-full">
-            {saving ? "Mentés…" : "Mentés"}
-          </button>
+          <div className="flex gap-2 pt-1">
+            <button type="submit" disabled={saving} className="twx-btn flex-1">
+              {saving ? "Mentés…" : "Mentés"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleted(dish.id)}
+              className="rounded-full px-4 py-2 text-sm"
+              style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+            >
+              Törlés
+            </button>
+          </div>
         </form>
       </motion.aside>
-    </motion.div>
   );
 }

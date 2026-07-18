@@ -31,7 +31,6 @@ export default function InventoryPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const [detailDish, setDetailDish] = useState<Dish | null>(null);
   const [editDish, setEditDish] = useState<Dish | null>(null);
 
   function pickImage(f: File | null) {
@@ -266,7 +265,7 @@ export default function InventoryPage() {
               return (
                 <button
                   key={c.value}
-                  onClick={() => { setOpenCategory(c.value); setDetailDish(null); }}
+                  onClick={() => { setOpenCategory(c.value); setEditDish(null); }}
                   className="twx-card flex flex-col items-start gap-2 p-4 text-left transition-all hover:-translate-y-0.5"
                 >
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)" }}>
@@ -288,23 +287,22 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Kategória felugró ablak */}
+      {/* Kategória felugró ablak — a lista végig látszik, egy ételre kattintva
+          a jobboldali panel nyílik (nem tűnik el a többi étel). */}
       {openCategory && (
         <div
-          onClick={() => { setOpenCategory(null); setDetailDish(null); }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => { setOpenCategory(null); setEditDish(null); }}
+          className={`fixed inset-0 z-50 flex items-center p-4 ${editDish ? "justify-start" : "justify-center"}`}
           style={{ background: "rgba(12,11,10,0.6)" }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="twx-card max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"
+            className="twx-card max-h-[85vh] w-full max-w-md overflow-y-auto p-5"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="font-display text-lg font-medium">
-                {detailDish ? detailDish.name : categoryLabel(openCategory)}
-              </h3>
+              <h3 className="font-display text-lg font-medium">{categoryLabel(openCategory)}</h3>
               <button
-                onClick={() => { setOpenCategory(null); setDetailDish(null); }}
+                onClick={() => { setOpenCategory(null); setEditDish(null); }}
                 aria-label="Bezárás"
                 className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
                 style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
@@ -313,57 +311,20 @@ export default function InventoryPage() {
               </button>
             </div>
 
-            {detailDish ? (
-              <div className="space-y-3">
-                <button onClick={() => setDetailDish(null)} className="text-sm" style={{ color: "var(--twx-coral)" }}>
-                  ‹ Vissza a listához
-                </button>
-                {detailDish.image_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={detailDish.image_url} alt="" className="w-full rounded-xl object-cover" style={{ maxHeight: 240, border: "1px solid var(--twx-line)" }} />
-                )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                    {categoryLabel(detailDish.category)}
-                  </span>
-                  <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                    {marginLabel(detailDish.profit_margin)} haszon
-                  </span>
-                  {detailDish.cuisine_style && (
-                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {detailDish.cuisine_style}</span>
-                  )}
-                </div>
-                {detailDish.description && (
-                  <p className="text-sm" style={{ color: "var(--twx-ink)" }}>{detailDish.description}</p>
-                )}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => { setEditDish(detailDish); setOpenCategory(null); setDetailDish(null); }}
-                    className="twx-btn"
-                  >
-                    Szerkesztés
-                  </button>
-                  <button
-                    onClick={() => { removeDish(detailDish.id); setDetailDish(null); }}
-                    className="rounded-full px-4 py-2 text-sm"
-                    style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
-                  >
-                    Törlés
-                  </button>
-                </div>
-              </div>
-            ) : (
-              (() => {
-                const inCat = dishes.filter((d) => d.category === openCategory);
-                return inCat.length === 0 ? (
-                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs étel ebben a kategóriában.</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {inCat.map((d) => (
+            {(() => {
+              const inCat = dishes.filter((d) => d.category === openCategory);
+              return inCat.length === 0 ? (
+                <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs étel ebben a kategóriában.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {inCat.map((d) => {
+                    const active = editDish?.id === d.id;
+                    return (
                       <li key={d.id}>
                         <button
-                          onClick={() => setDetailDish(d)}
+                          onClick={() => setEditDish(d)}
                           className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-black/[0.03]"
+                          style={active ? { background: "rgba(239,122,90,0.10)", boxShadow: "inset 0 0 0 1px var(--twx-coral)" } : undefined}
                         >
                           {d.image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -377,27 +338,32 @@ export default function InventoryPage() {
                               {marginLabel(d.profit_margin)} haszon{d.cuisine_style ? ` · ${d.cuisine_style}` : ""}
                             </span>
                           </span>
-                          <span style={{ color: "var(--twx-ink-muted)" }}>›</span>
+                          <span style={{ color: active ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>›</span>
                         </button>
                       </li>
-                    ))}
-                  </ul>
-                );
-              })()
-            )}
+                    );
+                  })}
+                </ul>
+              );
+            })()}
           </div>
         </div>
       )}
 
-      {/* Szerkesztő panel (oldalt beúszó) */}
+      {/* Szerkesztő panel (oldalt beúszó) — a mentés után nyitva marad, mehetsz másik ételre */}
       <AnimatePresence>
         {editDish && (
           <DishEditDrawer
+            key={editDish.id}
             dish={editDish}
             cuisineOptions={cuisineOptions}
             onClose={() => setEditDish(null)}
             onSaved={(updated) => {
               setDishes((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+              setEditDish(updated); // nyitva marad a frissített adatokkal
+            }}
+            onDeleted={(id) => {
+              removeDish(id);
               setEditDish(null);
             }}
           />
