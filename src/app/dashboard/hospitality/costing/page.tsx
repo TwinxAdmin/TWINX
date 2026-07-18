@@ -242,6 +242,7 @@ function CalcTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
   const [method, setMethod] = useState<AllocationMethod>("revenue");
   const [report, setReport] = useState<CostingResult | null>(null);
   const [narrative, setNarrative] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
   const toggle = (id: string) => {
@@ -282,6 +283,7 @@ function CalcTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
       if (!res.ok) { showToast(data.error ?? "A riport lekérése sikertelen.", "error"); return; }
       setReport(data.result);
       setNarrative(data.narrative ?? "");
+      setPdfUrl(data.pdf_url ?? null);
       showToast(data.charged ? `${data.credits} kredit levonva.` : "Riport kész (ingyenes hozzáférés).", "success");
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
@@ -356,14 +358,32 @@ function CalcTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
       {/* Élő előnézet */}
       {preview && <ResultView result={preview} />}
 
-      <button
-        onClick={runReport}
-        disabled={running || sel.size === 0}
-        className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-        style={{ background: "var(--twx-coral)" }}
-      >
-        {running ? "Riport készül…" : "Riport lekérése (1 kredit)"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={runReport}
+          disabled={running || sel.size === 0}
+          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          style={{ background: "var(--twx-coral)" }}
+        >
+          {running ? "Riport készül…" : "Riport lekérése (1 kredit)"}
+        </button>
+        {pdfUrl && (
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+            style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+            PDF letöltése
+          </a>
+        )}
+      </div>
 
       {narrative && (
         <div className="twx-card p-5">
