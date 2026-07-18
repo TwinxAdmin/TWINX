@@ -21,7 +21,6 @@ import {
   COSTING_CREDITS,
   COSTING_MIN_DISHES,
   type CostingDishInput,
-  type AllocationMethod,
 } from "@/lib/costing";
 
 export const runtime = "nodejs";
@@ -44,9 +43,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const method: AllocationMethod = body.method === "unit" ? "unit" : "revenue";
-
-  // Vizsgált időszak (induló + záró dátum). Ebből arányosítjuk a havi rezsit.
+  // Vizsgált időszak (induló + záró dátum). Ebből arányosítjuk a havi rezsit,
+  // és ebbe az intervallumba eső, KORÁBBAN RÖGZÍTETT eladásokból aggregálunk.
   const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s).getTime());
   const start = String(body.start ?? "").trim();
   const end = String(body.end ?? "").trim();
@@ -58,22 +56,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A záró dátum nem lehet korábbi az induló dátumnál." }, { status: 422 });
   }
 
-  // A bevitt ételek: {dish_id, qty}. A forgalmat innen vesszük, az árakat a DB-ből.
+  const admin = createAdminClient();
+
+  // A rögzített eladások az időszakon belül (period_start >= start ÉS period_end <= end),
+  // ételenként összegezve. Így 2 napra és 2 hónapra is ugyanabból az adatból megy a riport.
+  const { data: saleRows, error: saleErr } = await admin
+    .from("dish_sales")
+    .select("dish_id, qty")
+    .eq("user_id", user.id)
+    .gte("period_start", start)
+    .lte("period_end", end);
+  if (saleErr) return NextResponse.json({ error: saleErr.message }, { status: 500 });
+
   const qtyById = new Map<string, number>();
-  if (Array.isArray(body.dishes)) {
-    for (const e of body.dishes as unknown[]) {
-      const o = (e ?? {}) as Record<string, unknown>;
-      const id = String(o.dish_id ?? "").trim();
-      const qty = Math.max(0, Math.floor(Number(o.qty ?? o.monthly_qty) || 0));
-      if (id) qtyById.set(id, qty);
-    }
+  for (const r of saleRows ?? []) {
+    const id = String(r.dish_id);
+    qtyById.set(id, (qtyById.get(id) ?? 0) + (Number(r.qty) || 0));
   }
   const ids = [...qtyById.keys()].slice(0, MAX_DISHES);
   if (ids.length < COSTING_MIN_DISHES) {
-    return NextResponse.json({ error: "Válassz legalább egy ételt a kalkulációhoz." }, { status: 422 });
+    return NextResponse.json(
+      { error: "Ebben az időszakban nincs rögzített eladás. Előbb vidd fel az eladott adagokat az Eladások fülön." },
+      { status: 422 }
+    );
   }
-
-  const admin = createAdminClient();
 
   // Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
   const credits = COSTING_CREDITS;
@@ -124,8 +130,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Determinisztikus számítás (az időszakra arányosított rezsivel).
-    const result = computeCosting(inputs, overhead, method);
+    // 3) Determinisztikus számítás (árbevétel-arányos rezsi-allokáció, időszakra arányosítva).
+    const result = computeCosting(inputs, overhead, "revenue");
     const periodLabel = `${start} – ${end} (${days} nap)`;
 
     // 4) AI-javaslat (a számokat készen kapja).
@@ -156,7 +162,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { method, start, end, days, monthly_overhead: monthlyOverhead, overhead, dish_count: inputs.length },
+      input_data: { start, end, days, monthly_overhead: monthlyOverhead, overhead, dish_count: inputs.length },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });

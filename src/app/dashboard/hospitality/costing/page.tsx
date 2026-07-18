@@ -1,46 +1,51 @@
 // dashboard/hospitality/costing — Önköltség & profit modul.
-// Két fül: (1) Étteremszintű fix költség-profil, (2) Profit kalkulátor: egy induló–záró
-// időszakra, kategória-mappákba rendezett ételekkel (beírod az eladott adagot) számolja
-// a valós profitot. A bevitel ingyen; a teljes riport (AI + PDF) kredites.
+// Három fül: (1) Étteremszintű fix költség-profil; (2) Eladások — a partner időszakonként/
+// naponta rögzíti az eladott adagokat (tárolódik, számot NEM mutat); (3) Riport — egy
+// tetszőleges időszakra a TÁROLT eladásokból kér le kredites, PDF-es kimutatást.
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
-import { categoryLabel, formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
+import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
   COST_FIELDS,
   EMPTY_COST_PROFILE,
   costProfileTotal,
-  computeCosting,
   toAmount,
   periodDays,
   proratedOverhead,
   type CostProfile,
   type CostingResult,
-  type AllocationMethod,
 } from "@/lib/costing";
 
-type Tab = "profile" | "profit";
+type Tab = "profile" | "sales" | "report";
+type SaleRow = { dish_id: string; period_start: string; period_end: string; qty: number };
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function CostingPage() {
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>("sales");
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [profile, setProfile] = useState<CostProfile>(EMPTY_COST_PROFILE);
+  const [sales, setSales] = useState<SaleRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [dRes, pRes] = await Promise.all([
+        const [dRes, pRes, sRes] = await Promise.all([
           fetch("/api/hospitality/dishes"),
           fetch("/api/hospitality/cost-profile"),
+          fetch("/api/hospitality/sales"),
         ]);
         const d = await dRes.json();
         const p = await pRes.json();
+        const s = await sRes.json();
         if (dRes.ok) setDishes(d.dishes ?? []);
         if (pRes.ok && p.profile) setProfile(p.profile);
+        if (sRes.ok) setSales(s.sales ?? []);
       } finally {
         setLoading(false);
       }
@@ -55,7 +60,8 @@ export default function CostingPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "profile", label: "Étteremszintű költség" },
-    { key: "profit", label: "Profit kalkulátor" },
+    { key: "sales", label: "Eladások" },
+    { key: "report", label: "Riport" },
   ];
 
   return (
@@ -63,9 +69,9 @@ export default function CostingPage() {
       <ModuleIntro
         eyebrow="Vendéglátás · Önköltség"
         title="Önköltség & profit"
-        subtitle="Kiszámolja egy étel valódi előállítási költségét: az alapanyag mellé rávetíti a fix költségeket (bérlet, bérek, rezsi…) a forgalom szerint. A Profit kalkulátorban egy időszakra beírod, miből mennyi fogyott, és látod a valós profitot. A bevitel ingyenes, a teljes riport kredites."
+        subtitle="Rögzítsd az eladott adagokat naponta vagy időszakonként — a rendszer eltárolja. Bármikor lekérhetsz egy tetszőleges időszakra szóló profit-kimutatást, ami az alapanyagok mellé a fix költségeket (bérlet, bérek, rezsi…) is rávetíti. A rögzítés ingyenes, a riport kredites és letölthető PDF."
         icon="cost"
-        chips={["Teljes önköltség", "Időszaki profit", "PDF riport"]}
+        chips={["Eladások rögzítése", "Időszaki riport", "PDF"]}
       />
 
       {/* Fülek */}
@@ -92,8 +98,10 @@ export default function CostingPage() {
         </div>
       ) : tab === "profile" ? (
         <ProfileTab profile={profile} onSaved={setProfile} />
+      ) : tab === "sales" ? (
+        <SalesTab priced={priced} sales={sales} onSaved={setSales} />
       ) : (
-        <ProfitTab priced={priced} overhead={overhead} />
+        <ReportTab priced={priced} sales={sales} overhead={overhead} />
       )}
     </main>
   );
@@ -162,8 +170,8 @@ function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: C
     <div className="space-y-4">
       <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         Add meg az étterem <b>havi</b> fix költségeit. Ezekből számoljuk ki, mennyi rezsi jut egy-egy
-        ételre a forgalma szerint (a Profit kalkulátor a választott időszakra arányosítja). Elég egyszer
-        beállítani; bármikor frissíthető, és a mentés ingyenes.
+        ételre a forgalma szerint (a riport a választott időszakra arányosítja). Elég egyszer beállítani;
+        bármikor frissíthető, és a mentés ingyenes.
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -234,23 +242,24 @@ function ProfileTab({ profile, onSaved }: { profile: CostProfile; onSaved: (p: C
 }
 
 // =============================================================================
-// 2) Profit kalkulátor — időszak + kategória-mappák + kredites riport
+// 2) Eladások rögzítése — kategória-mappák, eladott adag (tárol, számot nem mutat)
 // =============================================================================
-function ProfitTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [start, setStart] = useState<string>(today.slice(0, 8) + "01");
-  const [end, setEnd] = useState<string>(today);
+function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]; onSaved: (s: SaleRow[]) => void }) {
+  const [start, setStart] = useState<string>(todayISO());
+  const [end, setEnd] = useState<string>(todayISO());
   const [qty, setQty] = useState<Record<string, string>>({});
-  const [method, setMethod] = useState<AllocationMethod>("revenue");
   const [openCats, setOpenCats] = useState<Set<string>>(new Set());
-  const [narrative, setNarrative] = useState("");
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const days = periodDays(start, end);
-  const periodOverhead = proratedOverhead(overhead, days);
+  // A kiválasztott (start,end)-hez tartozó rögzített adagok betöltése a mezőkbe.
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    for (const r of sales) {
+      if (r.period_start === start && r.period_end === end) map[r.dish_id] = String(r.qty);
+    }
+    setQty(map);
+  }, [start, end, sales]);
 
-  // Ételek kategória-mappákba rendezve (csak a nem üres kategóriák).
   const groups = useMemo(
     () =>
       DISH_CATEGORIES.map((c) => ({
@@ -262,45 +271,185 @@ function ProfitTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
   );
 
   const qNum = (id: string) => Math.max(0, Math.floor(Number(qty[id]) || 0));
-  const enteredInCat = (items: Dish[]) => items.filter((d) => qNum(d.id) > 0).length;
-
-  // Ingyenes, élő előnézet (kliensoldali számítás az időszakra).
-  const preview = useMemo(() => {
-    const inputs = priced
-      .filter((d) => qNum(d.id) > 0)
-      .map((d) => ({
-        dish_id: d.id, name: d.name, category: d.category,
-        cost_price: d.cost_price as number, sale_price: d.sale_price as number,
-        monthly_qty: qNum(d.id),
-      }));
-    if (!inputs.length || days <= 0) return null;
-    return computeCosting(inputs, periodOverhead, method);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priced, qty, periodOverhead, method, days]);
-
   const toggleCat = (cat: string) =>
-    setOpenCats((s) => {
-      const n = new Set(s);
-      if (n.has(cat)) n.delete(cat); else n.add(cat);
-      return n;
-    });
+    setOpenCats((s) => { const n = new Set(s); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+
+  // Korábban rögzített időszakok listája (distinct start–end).
+  const periods = useMemo(() => {
+    const map = new Map<string, { start: string; end: string; qty: number; dishes: number }>();
+    for (const r of sales) {
+      const k = `${r.period_start}|${r.period_end}`;
+      const e = map.get(k) ?? { start: r.period_start, end: r.period_end, qty: 0, dishes: 0 };
+      e.qty += r.qty; e.dishes += 1;
+      map.set(k, e);
+    }
+    return [...map.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
+  }, [sales]);
+
+  const save = async () => {
+    if (new Date(end).getTime() < new Date(start).getTime()) { showToast("A záró dátum nem lehet korábbi az indulónál.", "error"); return; }
+    setSaving(true);
+    try {
+      const entries = priced.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })).filter((e) => e.qty > 0);
+      const res = await fetch("/api/hospitality/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start, end, entries }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
+      // Helyi lista frissítése: az adott (start,end) sorai cserélődnek.
+      const others = sales.filter((r) => !(r.period_start === start && r.period_end === end));
+      const now: SaleRow[] = entries.map((e) => ({ dish_id: e.dish_id, period_start: start, period_end: end, qty: e.qty }));
+      onSaved([...now, ...others]);
+      showToast("Eladások rögzítve.", "success");
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!priced.length) {
+    return (
+      <div className="twx-card p-5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        Nincs árazott ételed. Adj meg előkészítési + eladási árat a Kínálat kezelőben, majd itt rögzítheted az eladásokat.
+      </div>
+    );
+  }
+
+  const single = start === end;
+
+  return (
+    <div className="space-y-4">
+      <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        Válaszd ki a <b>napot</b> (vagy egy időszakot), és a kategória-mappákban írd be, melyik ételből <b>hány adag</b>
+        fogyott. Csak elmentjük — a profitot itt nem mutatjuk. A kimutatást a <b>Riport</b> fülön kéred le, tetszőleges időszakra.
+      </div>
+
+      {/* Dátum(ok) */}
+      <div className="twx-card flex flex-wrap items-end gap-4 p-4">
+        <div>
+          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Nap / időszak kezdete</label>
+          <input type="date" value={start} max={end} onChange={(e) => setStart(e.target.value)}
+            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak vége</label>
+          <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
+            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+        </div>
+        <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          {single ? "Egy napra rögzítesz." : `${periodDays(start, end)} napos időszakra rögzítesz.`}
+        </div>
+      </div>
+
+      {/* Kategória-mappák */}
+      <div className="space-y-2">
+        {groups.map((g) => {
+          const open = openCats.has(g.cat);
+          const entered = g.items.filter((d) => qNum(d.id) > 0).length;
+          return (
+            <div key={g.cat} className="twx-card overflow-hidden">
+              <button onClick={() => toggleCat(g.cat)} className="flex w-full items-center justify-between gap-3 p-3 text-left">
+                <span className="flex items-center gap-2">
+                  <span className="font-medium">{g.label}</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
+                  {entered > 0 && (
+                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                      {entered} kitöltve
+                    </span>
+                  )}
+                </span>
+                <span style={{ color: "var(--twx-ink-muted)", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
+              </button>
+              {open && (
+                <div className="space-y-2 border-t p-3" style={{ borderColor: "var(--twx-line)" }}>
+                  {g.items.map((d) => (
+                    <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="min-w-0 font-medium">{d.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott adag</span>
+                        <div className="w-28"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        style={{ background: "var(--twx-coral)" }}
+      >
+        {saving ? "Mentés…" : "Eladások rögzítése"}
+      </button>
+
+      {/* Korábban rögzített időszakok */}
+      {periods.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Rögzített időszakok</h3>
+          <div className="twx-card divide-y" style={{ borderColor: "var(--twx-line)" }}>
+            {periods.map((p) => (
+              <button
+                key={`${p.start}|${p.end}`}
+                onClick={() => { setStart(p.start); setEnd(p.end); }}
+                className="flex w-full items-center justify-between p-3 text-left text-sm hover:opacity-80"
+              >
+                <span>{p.start === p.end ? p.start : `${p.start} – ${p.end}`}</span>
+                <span style={{ color: "var(--twx-ink-muted)" }}>{p.dishes} étel · {p.qty} adag</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Egy sorra kattintva betöltöd az adott időszakot szerkesztésre.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// 3) Riport — tetszőleges időszakra, a tárolt eladásokból (kredites + PDF)
+// =============================================================================
+function ReportTab({ priced, sales, overhead }: { priced: Dish[]; sales: SaleRow[]; overhead: number }) {
+  const today = todayISO();
+  const [start, setStart] = useState<string>(today.slice(0, 8) + "01");
+  const [end, setEnd] = useState<string>(today);
+  const [result, setResult] = useState<CostingResult | null>(null);
+  const [narrative, setNarrative] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const days = periodDays(start, end);
+  const periodOverhead = proratedOverhead(overhead, days);
+
+  // A tárolt eladások az időszakon belül (ugyanaz a szabály, mint a backendben).
+  const inRange = useMemo(
+    () => sales.filter((r) => r.period_start >= start && r.period_end <= end && days > 0),
+    [sales, start, end, days]
+  );
+  const totalQty = inRange.reduce((s, r) => s + r.qty, 0);
+  const dishCount = new Set(inRange.map((r) => r.dish_id)).size;
 
   const runReport = async () => {
-    const chosen = priced.filter((d) => qNum(d.id) > 0);
-    if (!chosen.length) { showToast("Írd be legalább egy ételnél az eladott adagot.", "error"); return; }
     if (days <= 0) { showToast("A záró dátum nem lehet korábbi az indulónál.", "error"); return; }
+    if (!inRange.length) { showToast("Ebben az időszakban nincs rögzített eladás.", "error"); return; }
     setRunning(true);
+    setResult(null); setNarrative(""); setPdfUrl(null);
     try {
       const res = await fetch("/api/hospitality/costing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          method, start, end,
-          dishes: chosen.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })),
-        }),
+        body: JSON.stringify({ start, end }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "A riport lekérése sikertelen.", "error"); return; }
+      setResult(data.result);
       setNarrative(data.narrative ?? "");
       setPdfUrl(data.pdf_url ?? null);
       showToast(data.charged ? `${data.credits} kredit levonva.` : "Riport kész (ingyenes hozzáférés).", "success");
@@ -314,25 +463,22 @@ function ProfitTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
   if (!priced.length) {
     return (
       <div className="twx-card p-5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Nincs árazott ételed. Adj meg előkészítési + eladási árat a Kínálat kezelőben, majd itt kiszámoljuk a valós profitot.
+        Nincs árazott ételed. Előbb vigyél fel ételeket árakkal, és rögzíts eladásokat.
       </div>
     );
   }
-
-  const enteredTotal = priced.filter((d) => qNum(d.id) > 0).length;
 
   return (
     <div className="space-y-4">
       {overhead === 0 && (
         <div className="twx-card p-3 text-xs" style={{ color: "#b5372f" }}>
-          Még nincs havi fix költség megadva az „Étteremszintű költség" fülön — a rezsi-allokáció addig 0. Add meg a fix költségeket a valós önköltséghez.
+          Még nincs havi fix költség megadva az „Étteremszintű költség" fülön — a rezsi-allokáció addig 0.
         </div>
       )}
 
       <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Válaszd ki az <b>időszakot</b>, majd a kategória-mappákban írd be, melyik ételből <b>hány adag</b> fogyott
-        ebben az időszakban. A számok itt ingyen frissülnek; a <b>„Riport lekérése"</b> ad teljes, AI-elemzéssel és
-        letölthető PDF-fel ellátott elemzést.
+        Válaszd ki az <b>időszakot</b>, és lekérünk egy teljes kimutatást az abban rögzített eladásokból: ételenkénti
+        valós profit, teljes önköltség (alapanyag + rávetített rezsi), és letölthető PDF.
       </div>
 
       {/* Időszak */}
@@ -349,105 +495,45 @@ function ProfitTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
         </div>
         <div className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
           {days > 0 ? (
-            <>Időszak: <b style={{ color: "var(--twx-ink)" }}>{days} nap</b> · időszaki rezsi: <b style={{ color: "var(--twx-ink)" }}>{formatHuf(periodOverhead)}</b></>
+            <>{days} nap · <b style={{ color: "var(--twx-ink)" }}>{dishCount}</b> étel, <b style={{ color: "var(--twx-ink)" }}>{totalQty}</b> adag rögzítve · időszaki rezsi {formatHuf(periodOverhead)}</>
           ) : (
             <span style={{ color: "#b5372f" }}>A záró dátum nem lehet korábbi az indulónál.</span>
           )}
         </div>
       </div>
 
-      {/* Allokáció */}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span style={{ color: "var(--twx-ink-muted)" }}>Rezsi szétosztása:</span>
-        {([["revenue", "Árbevétel-arányos"], ["unit", "Darab-arányos"]] as const).map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => setMethod(v)}
-            className="rounded-full px-3 py-1 text-xs font-medium"
-            style={method === v ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
-          >
-            {l}
-          </button>
-        ))}
-        {enteredTotal > 0 && (
-          <span className="ml-auto text-xs" style={{ color: "var(--twx-ink-muted)" }}>{enteredTotal} ételnél van adag megadva</span>
-        )}
-      </div>
+      <button
+        onClick={runReport}
+        disabled={running || days <= 0 || !inRange.length}
+        className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        style={{ background: "var(--twx-coral)" }}
+      >
+        {running ? "Riport készül…" : "Riport lekérése (1 kredit)"}
+      </button>
+      {days > 0 && !inRange.length && (
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Ebben az időszakban nincs rögzített eladás — előbb rögzíts az „Eladások" fülön.</p>
+      )}
 
-      {/* Kategória-mappák */}
-      <div className="space-y-2">
-        {groups.map((g) => {
-          const open = openCats.has(g.cat);
-          const entered = enteredInCat(g.items);
-          return (
-            <div key={g.cat} className="twx-card overflow-hidden">
-              <button
-                onClick={() => toggleCat(g.cat)}
-                className="flex w-full items-center justify-between gap-3 p-3 text-left"
+      {result && (
+        <>
+          <ResultView result={result} />
+          <div className="flex flex-wrap items-center gap-3">
+            {pdfUrl && (
+              <a
+                href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
               >
-                <span className="flex items-center gap-2">
-                  <span className="font-medium">{g.label}</span>
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
-                  {entered > 0 && (
-                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                      {entered} kitöltve
-                    </span>
-                  )}
-                </span>
-                <span style={{ color: "var(--twx-ink-muted)", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
-              </button>
-              {open && (
-                <div className="space-y-2 border-t p-3" style={{ borderColor: "var(--twx-line)" }}>
-                  {g.items.map((d) => (
-                    <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="min-w-0">
-                        <span className="font-medium">{d.name}</span>{" "}
-                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          · ár {formatHuf(d.sale_price as number)} · alapanyag {formatHuf(d.cost_price as number)}
-                        </span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott adag</span>
-                        <div className="w-28"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Élő előnézet */}
-      {preview && <ResultView result={preview} />}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={runReport}
-          disabled={running || enteredTotal === 0 || days <= 0}
-          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: "var(--twx-coral)" }}
-        >
-          {running ? "Riport készül…" : "Riport lekérése (1 kredit)"}
-        </button>
-        {pdfUrl && (
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
-            style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
-              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-            </svg>
-            PDF letöltése
-          </a>
-        )}
-      </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+                  <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                </svg>
+                PDF letöltése
+              </a>
+            )}
+          </div>
+        </>
+      )}
 
       {narrative && (
         <div className="twx-card p-5">
@@ -459,7 +545,7 @@ function ProfitTab({ priced, overhead }: { priced: Dish[]; overhead: number }) {
   );
 }
 
-// Számított eredmény megjelenítése (előnézethez és riporthoz is).
+// Számított eredmény megjelenítése (a riporthoz).
 function ResultView({ result }: { result: CostingResult }) {
   const t = result.totals;
   return (
