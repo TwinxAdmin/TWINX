@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import { showToast } from "@/components/Toast";
 import {
@@ -24,6 +25,7 @@ export default function MenuGeneratorPage() {
   const [variety, setVariety] = useState("normal");
   const [targetCount, setTargetCount] = useState("");
   const [targetProfit, setTargetProfit] = useState("");
+  const [profitOpen, setProfitOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   const [cuisines, setCuisines] = useState<string[]>([]);
@@ -142,34 +144,17 @@ export default function MenuGeneratorPage() {
           </div>
         </div>
 
-        {/* Profit-terv — bevétel/profit koordináció az ételek darab-profitjából */}
-        <fieldset className="rounded-xl p-4" style={{ border: "1px solid var(--twx-line)" }}>
-          <legend className="px-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
-            Profit-terv — opcionális
-          </legend>
-          <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            A bevétel/profit hangolásához. Add meg a napi célárat, és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm">Célár (Ft / nap)</label>
-              <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
-            </div>
-            <div>
-              <label className="block text-sm">Tervezett eladott menü (db)</label>
-              <input type="number" min={0} value={targetCount} onChange={(e) => setTargetCount(e.target.value)} className="twx-input mt-1" placeholder="pl. 100" />
-            </div>
-            <div>
-              <label className="block text-sm">Cél össz-profit (Ft)</label>
-              <input type="number" min={0} value={targetProfit} onChange={(e) => setTargetProfit(e.target.value)} className="twx-input mt-1" placeholder="pl. 200000" />
-            </div>
-          </div>
-          {Number(targetCount) > 0 && Number(targetProfit) > 0 && (
-            <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
-              Ehhez menünként kb. <b>{Math.round(Number(targetProfit) / Number(targetCount)).toLocaleString("hu-HU")} Ft</b> darab-profit szükséges — az AI ehhez igazítja a válogatást.
-            </p>
-          )}
-        </fieldset>
+        {/* Szabad instrukció */}
+        <div>
+          <label className="block text-sm">Egyedi instrukció (opcionális)</label>
+          <textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            rows={2}
+            className="twx-input mt-1"
+            placeholder="pl. legyen minden nap egy vegán opció; a hétvége legyen prémium; kerüld a csípőset"
+          />
+        </div>
 
         {/* Napokra bontott konyha-beosztás — csak heti menünél */}
         {timeframe === "weekly" && (
@@ -198,16 +183,59 @@ export default function MenuGeneratorPage() {
           </div>
         )}
 
-        {/* Szabad instrukció */}
-        <div>
-          <label className="block text-sm">Egyedi instrukció (opcionális)</label>
-          <textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            rows={2}
-            className="twx-input mt-1"
-            placeholder="pl. legyen minden nap egy vegán opció; a hétvége legyen prémium; kerüld a csípőset"
-          />
+        {/* Profit-terv — összecsukható (később több opcióval bővíthető) */}
+        <div className="rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+          <button
+            type="button"
+            onClick={() => setProfitOpen((o) => !o)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left"
+          >
+            <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
+              Profit-terv — opcionális
+            </span>
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-full text-lg transition-transform duration-200"
+              style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: profitOpen ? "rotate(45deg)" : "none" }}
+            >
+              +
+            </span>
+          </button>
+          <AnimatePresence initial={false}>
+            {profitOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="px-4 pb-4">
+                  <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    A bevétel/profit hangolásához. Add meg a napi célárat, és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-sm">Célár (Ft / nap)</label>
+                      <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Tervezett eladott menü (db)</label>
+                      <input type="number" min={0} value={targetCount} onChange={(e) => setTargetCount(e.target.value)} className="twx-input mt-1" placeholder="pl. 100" />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Cél össz-profit (Ft)</label>
+                      <input type="number" min={0} value={targetProfit} onChange={(e) => setTargetProfit(e.target.value)} className="twx-input mt-1" placeholder="pl. 200000" />
+                    </div>
+                  </div>
+                  {Number(targetCount) > 0 && Number(targetProfit) > 0 && (
+                    <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
+                      Ehhez menünként kb. <b>{Math.round(Number(targetProfit) / Number(targetCount)).toLocaleString("hu-HU")} Ft</b> darab-profit szükséges — az AI ehhez igazítja a válogatást.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
