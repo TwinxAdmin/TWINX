@@ -144,13 +144,28 @@ export default function InventoryPage() {
             {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
           </div>
           <div>
-            <label className="block text-sm">Profitmarzs *</label>
-            <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
-              {PROFIT_MARGINS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-            {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
+            <label className="block text-sm">Konyha típusa</label>
+            {cuisineMode === "list" ? (
+              <select
+                value={form.cuisine_style}
+                onChange={(e) => {
+                  if (e.target.value === "__add__") { setCuisineMode("custom"); set("cuisine_style", ""); }
+                  else set("cuisine_style", e.target.value);
+                }}
+                className="twx-input mt-1"
+              >
+                <option value="">— válassz —</option>
+                {cuisineOptions.map((c) => (<option key={c} value={c}>{c}</option>))}
+                <option value="__add__">+ Saját típus hozzáadása…</option>
+              </select>
+            ) : (
+              <div className="mt-1 flex gap-2">
+                <input value={form.cuisine_style} onChange={(e) => set("cuisine_style", e.target.value)} className="twx-input" placeholder="pl. libanoni, perui…" autoFocus />
+                <button type="button" onClick={() => { setCuisineMode("list"); set("cuisine_style", ""); }} className="flex-none rounded-full px-3 text-sm" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                  Lista
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm">Előkészítési ár (Ft)</label>
@@ -168,45 +183,13 @@ export default function InventoryPage() {
             </p>
           )}
           <div className="sm:col-span-2">
-            <label className="block text-sm">Konyha típusa</label>
-            {cuisineMode === "list" ? (
-              <select
-                value={form.cuisine_style}
-                onChange={(e) => {
-                  if (e.target.value === "__add__") {
-                    setCuisineMode("custom");
-                    set("cuisine_style", "");
-                  } else {
-                    set("cuisine_style", e.target.value);
-                  }
-                }}
-                className="twx-input mt-1"
-              >
-                <option value="">— válassz —</option>
-                {cuisineOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                <option value="__add__">+ Saját típus hozzáadása…</option>
-              </select>
-            ) : (
-              <div className="mt-1 flex gap-2">
-                <input
-                  value={form.cuisine_style}
-                  onChange={(e) => set("cuisine_style", e.target.value)}
-                  className="twx-input"
-                  placeholder="pl. libanoni, perui, baszk…"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => { setCuisineMode("list"); set("cuisine_style", ""); }}
-                  className="flex-none rounded-full px-3 text-sm"
-                  style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
-                >
-                  Lista
-                </button>
-              </div>
-            )}
+            <label className="block text-sm">Profitmarzs *</label>
+            <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
+              {PROFIT_MARGINS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
           </div>
         </div>
         <div>
@@ -309,7 +292,7 @@ export default function InventoryPage() {
       {openCategory && (
         <div
           onClick={() => { setOpenCategory(null); setEditDish(null); }}
-          className={`fixed inset-0 z-50 flex items-center p-4 ${editDish ? "justify-start" : "justify-center"}`}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(12,11,10,0.6)" }}
         >
           <div
