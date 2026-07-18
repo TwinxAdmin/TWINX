@@ -35,9 +35,10 @@ const CATEGORIES: {
     ],
   },
   {
-    title: "Adatelemzés & Automatizáció",
-    status: "Hamarosan",
-    desc: "Workflow-segédek és elemző motorok a repetitív, szakértelmet igénylő feladatokra.",
+    title: "Vendéglátás",
+    status: "Elérhető",
+    desc: "AI-alapú napi/heti menü a saját kínálatodból — a profitcélod és a tematikád szerint. Éttermeknek, kávézóknak.",
+    modules: ["Kínálat kezelő", "Menü generátor"],
   },
   {
     title: "Média & Tartalomgyártás",

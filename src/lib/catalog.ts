@@ -31,11 +31,15 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
-    slug: "data",
-    label: "Adatelemzés",
-    status: "soon",
-    blurb: "Automatizált adatelemzés és riportok.",
-    modules: [],
+    slug: "hospitality",
+    label: "Vendéglátás",
+    status: "available",
+    blurb:
+      "Okos eszközök éttermeknek és kávézóknak: a saját kínálatodból AI-alapú napi/heti menü, a profitcélod és a tematikád szerint — hogy gyorsabban, jövedelmezőbben állíts össze étlapot.",
+    modules: [
+      { label: "Kínálat kezelő", href: "/dashboard/hospitality/inventory", icon: "inventory", desc: "A saját étlap-adatbázisod" },
+      { label: "Menü generátor", href: "/dashboard/hospitality/menu", icon: "menu", desc: "AI napi/heti menü a kínálatodból" },
+    ],
   },
   {
     slug: "media",

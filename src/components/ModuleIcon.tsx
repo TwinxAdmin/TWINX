@@ -60,6 +60,20 @@ const paths: Record<string, JSX.Element> = {
       <path d="M12 5v14M5 12h14" />
     </>
   ),
+  inventory: (
+    <>
+      <path d="M3 7h18M3 12h18M3 17h18" />
+      <circle cx="7" cy="7" r="0.6" />
+      <circle cx="7" cy="12" r="0.6" />
+      <circle cx="7" cy="17" r="0.6" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M6 3h9a3 3 0 0 1 3 3v15l-3-2-3 2-3-2-3 2V6a3 3 0 0 1 3-3Z" />
+      <path d="M9 8h6M9 12h6" />
+    </>
+  ),
 };
 
 export default function ModuleIcon({
