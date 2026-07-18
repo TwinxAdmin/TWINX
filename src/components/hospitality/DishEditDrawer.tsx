@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
-import { DISH_CATEGORIES, PROFIT_MARGINS, CUISINE_STYLES, type Dish } from "@/lib/hospitality";
+import { DISH_CATEGORIES, PROFIT_MARGINS, CUISINE_STYLES, formatHuf, type Dish } from "@/lib/hospitality";
 
 export default function DishEditDrawer({
   dish,
@@ -28,6 +28,8 @@ export default function DishEditDrawer({
     category: dish.category as string,
     cuisine_style: dish.cuisine_style ?? "",
     profit_margin: dish.profit_margin as string,
+    cost_price: dish.cost_price != null ? String(dish.cost_price) : "",
+    sale_price: dish.sale_price != null ? String(dish.sale_price) : "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -128,7 +130,22 @@ export default function DishEditDrawer({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm">Előkészítési ár (Ft)</label>
+              <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" />
+              {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+            </div>
+            <div>
+              <label className="block text-sm">Eladási ár (Ft)</label>
+              <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" />
+              {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+            </div>
           </div>
+          {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
+            <p className="text-sm" style={{ color: "var(--twx-coral)" }}>
+              Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
+            </p>
+          )}
           <div>
             <label className="block text-sm">Konyha típusa</label>
             {cuisineMode === "list" ? (

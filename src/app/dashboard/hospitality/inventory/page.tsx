@@ -15,10 +15,12 @@ import {
   CUISINE_STYLES,
   categoryLabel,
   marginLabel,
+  dishProfit,
+  formatHuf,
   type Dish,
 } from "@/lib/hospitality";
 
-const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "medium" };
+const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "medium", cost_price: "", sale_price: "" };
 
 export default function InventoryPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -150,6 +152,21 @@ export default function InventoryPage() {
             </select>
             {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
           </div>
+          <div>
+            <label className="block text-sm">Előkészítési ár (Ft)</label>
+            <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 800" />
+            {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+          </div>
+          <div>
+            <label className="block text-sm">Eladási ár (Ft)</label>
+            <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
+            {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+          </div>
+          {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
+            <p className="text-sm sm:col-span-2" style={{ color: "var(--twx-coral)" }}>
+              Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
+            </p>
+          )}
           <div className="sm:col-span-2">
             <label className="block text-sm">Konyha típusa</label>
             {cuisineMode === "list" ? (
@@ -319,6 +336,7 @@ export default function InventoryPage() {
                 <ul className="space-y-1">
                   {inCat.map((d) => {
                     const active = editDish?.id === d.id;
+                    const profit = dishProfit(d);
                     return (
                       <li key={d.id}>
                         <button
@@ -336,6 +354,7 @@ export default function InventoryPage() {
                             <span className="block truncate font-medium">{d.name}</span>
                             <span className="block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                               {marginLabel(d.profit_margin)} haszon{d.cuisine_style ? ` · ${d.cuisine_style}` : ""}
+                              {profit != null ? ` · +${formatHuf(profit)}/db` : ""}
                             </span>
                           </span>
                           <span style={{ color: active ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>›</span>

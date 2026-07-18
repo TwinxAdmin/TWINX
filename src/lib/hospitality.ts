@@ -35,9 +35,21 @@ export type Dish = {
   category: DishCategory;
   cuisine_style: string | null;
   profit_margin: ProfitMargin;
+  cost_price: number | null; // előkészítési / önköltségi ár
+  sale_price: number | null; // eladási ár
   image_url: string | null;
   created_at: string;
 };
+
+// Darabonkénti profit (eladási − önköltség), ha mindkettő megvan.
+export function dishProfit(d: { cost_price: number | null; sale_price: number | null }): number | null {
+  if (d.cost_price == null || d.sale_price == null) return null;
+  return d.sale_price - d.cost_price;
+}
+
+export function formatHuf(n: number): string {
+  return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
+}
 
 // --- Étel felvitele (input + validáció) ---
 export type DishInput = {
@@ -46,6 +58,8 @@ export type DishInput = {
   category: string;
   cuisine_style: string;
   profit_margin: string;
+  cost_price: string;
+  sale_price: string;
 };
 
 export function validateDishInput(input: Partial<DishInput>): {
@@ -58,7 +72,19 @@ export function validateDishInput(input: Partial<DishInput>): {
   if (name.length > 120) errors.name = "Túl hosszú név (max 120).";
   if (!DISH_CATEGORIES.some((c) => c.value === input.category)) errors.category = "Válassz kategóriát.";
   if (!PROFIT_MARGINS.some((m) => m.value === input.profit_margin)) errors.profit_margin = "Válassz profitmarzsot.";
+  for (const key of ["cost_price", "sale_price"] as const) {
+    const raw = String(input[key] ?? "").trim();
+    if (raw && (isNaN(Number(raw)) || Number(raw) < 0)) errors[key] = "Nem negatív szám legyen.";
+  }
   return { valid: Object.keys(errors).length === 0, errors };
+}
+
+// Ár-string -> number|null (üres = null).
+export function parsePrice(raw: unknown): number | null {
+  const s = String(raw ?? "").trim().replace(",", ".");
+  if (!s) return null;
+  const n = Number(s);
+  return isNaN(n) || n < 0 ? null : n;
 }
 
 // --- Konyhatípusok (bővíthető alaplista; a partner sajátot is hozzáadhat) ---

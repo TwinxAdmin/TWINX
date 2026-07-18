@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateDishInput } from "@/lib/hospitality";
+import { validateDishInput, parsePrice } from "@/lib/hospitality";
 
 export const runtime = "nodejs";
 const BUCKET = "reports";
@@ -24,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("restaurant_dishes")
-    .select("id, name, description, category, cuisine_style, profit_margin, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, image_url, created_at")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ dishes: data ?? [] });
@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     category: String(form.get("category") ?? ""),
     cuisine_style: String(form.get("cuisine_style") ?? "").trim(),
     profit_margin: String(form.get("profit_margin") ?? ""),
+    cost_price: String(form.get("cost_price") ?? ""),
+    sale_price: String(form.get("sale_price") ?? ""),
   };
 
   const { valid, errors } = validateDishInput(input);
@@ -77,9 +79,11 @@ export async function POST(request: Request) {
       category: input.category,
       cuisine_style: input.cuisine_style || null,
       profit_margin: input.profit_margin,
+      cost_price: parsePrice(input.cost_price),
+      sale_price: parsePrice(input.sale_price),
       image_url: imageUrl,
     })
-    .select("id, name, description, category, cuisine_style, profit_margin, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, image_url, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, dish: data });
@@ -105,6 +109,8 @@ export async function PATCH(request: Request) {
     category: String(form.get("category") ?? ""),
     cuisine_style: String(form.get("cuisine_style") ?? "").trim(),
     profit_margin: String(form.get("profit_margin") ?? ""),
+    cost_price: String(form.get("cost_price") ?? ""),
+    sale_price: String(form.get("sale_price") ?? ""),
   };
   const { valid, errors } = validateDishInput(input);
   if (!valid) return NextResponse.json({ errors }, { status: 422 });
@@ -115,6 +121,8 @@ export async function PATCH(request: Request) {
     category: input.category,
     cuisine_style: input.cuisine_style || null,
     profit_margin: input.profit_margin,
+    cost_price: parsePrice(input.cost_price),
+    sale_price: parsePrice(input.sale_price),
   };
 
   // Kép: új feltöltés felülírja; a "remove_image=1" törli; egyébként marad a régi.
@@ -138,7 +146,7 @@ export async function PATCH(request: Request) {
     .from("restaurant_dishes")
     .update(patch)
     .eq("id", id)
-    .select("id, name, description, category, cuisine_style, profit_margin, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, image_url, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Nincs ilyen étel." }, { status: 404 });
