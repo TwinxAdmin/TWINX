@@ -18,9 +18,11 @@ import {
   costingSummaryText,
   periodDays,
   proratedOverhead,
+  oneTimeInRange,
   COSTING_CREDITS,
   COSTING_MIN_DISHES,
   type CostingDishInput,
+  type OneTimeCost,
 } from "@/lib/costing";
 
 export const runtime = "nodejs";
@@ -103,14 +105,15 @@ export async function POST(request: Request) {
     const monthlyOverhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));
     const proratedFix = proratedOverhead(monthlyOverhead, days);
 
-    // Egyszeri kiadások, amelyek dátuma az időszakba esik -> teljes összegük hozzáadódik.
+    // Egyszeri kiadások: azok, amelyek időszaka (period_start..period_end) átfed a riporttal;
+    // az átfedő napok arányában (arányos elosztás) számítjuk be.
     const { data: otRows } = await admin
       .from("restaurant_one_time_costs")
-      .select("amount")
+      .select("id, label, amount, period_start, period_end")
       .eq("user_id", user.id)
-      .gte("spent_on", start)
-      .lte("spent_on", end);
-    const oneTimeTotal = (otRows ?? []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      .lte("period_start", end)
+      .gte("period_end", start);
+    const oneTimeTotal = oneTimeInRange((otRows ?? []) as OneTimeCost[], start, end);
 
     const overhead = proratedFix + oneTimeTotal;
 

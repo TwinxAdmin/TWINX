@@ -170,13 +170,23 @@ export function computeCosting(
 }
 
 // --- Egyszeri (nem havi) kiadások -------------------------------------------
-export type OneTimeCost = { id: string; label: string; amount: number; spent_on: string };
+// Egy egyszeri kiadás egy SAJÁT időszakra (period_start..period_end) vonatkozik, és
+// arányosan (naponta egyenlően) oszlik el rajta. A riport csak az átfedő napok arányát számolja.
+export type OneTimeCost = { id: string; label: string; amount: number; period_start: string; period_end: string };
 
-// Az adott [start,end] intervallumba eső egyszeri kiadások összege (YYYY-MM-DD összevetés).
+// Egy egyszeri kiadás [start,end] riport-időszakra jutó (arányos) része.
+export function oneTimeShare(c: OneTimeCost, start: string, end: string): number {
+  const total = periodDays(c.period_start, c.period_end);
+  if (total <= 0) return 0;
+  const oStart = c.period_start > start ? c.period_start : start;
+  const oEnd = c.period_end < end ? c.period_end : end;
+  const overlap = periodDays(oStart, oEnd); // 0, ha nincs átfedés
+  return ((Number(c.amount) || 0) * overlap) / total;
+}
+
+// Az adott [start,end] riport-időszakra jutó egyszeri kiadások összege (arányosan).
 export function oneTimeInRange(costs: OneTimeCost[], start: string, end: string): number {
-  return costs
-    .filter((c) => c.spent_on >= start && c.spent_on <= end)
-    .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  return costs.reduce((s, c) => s + oneTimeShare(c, start, end), 0);
 }
 
 // --- Időszak-kezelés --------------------------------------------------------

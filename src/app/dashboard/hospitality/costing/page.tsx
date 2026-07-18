@@ -28,6 +28,26 @@ type SaleRow = { dish_id: string; period_start: string; period_end: string; qty:
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+// UTC-biztos dátumeltolás YYYY-MM-DD stringen.
+function isoAdd(iso: string, opts: { months?: number; days?: number }): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (opts.months) dt.setUTCMonth(dt.getUTCMonth() + opts.months);
+  if (opts.days) dt.setUTCDate(dt.getUTCDate() + opts.days);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Egyszeri kiadás időtartam-presetek (a kezdő dátumtól a záró dátumot számolják).
+const OT_DURATIONS: { value: string; label: string; end: (start: string) => string | null }[] = [
+  { value: "1d", label: "1 nap", end: (s) => s },
+  { value: "1w", label: "1 hét", end: (s) => isoAdd(s, { days: 6 }) },
+  { value: "1m", label: "1 hónap", end: (s) => isoAdd(s, { months: 1, days: -1 }) },
+  { value: "3m", label: "3 hónap", end: (s) => isoAdd(s, { months: 3, days: -1 }) },
+  { value: "6m", label: "6 hónap", end: (s) => isoAdd(s, { months: 6, days: -1 }) },
+  { value: "12m", label: "12 hónap", end: (s) => isoAdd(s, { months: 12, days: -1 }) },
+  { value: "custom", label: "Egyedi", end: () => null },
+];
+
 export default function CostingPage() {
   const [tab, setTab] = useState<Tab>("sales");
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -149,11 +169,19 @@ function ProfileTab({
   );
   const [saving, setSaving] = useState(false);
 
-  // Egyszeri kiadás felvitele.
+  // Egyszeri kiadás felvitele (kezdő dátum + időtartam → záró dátum).
   const [otLabel, setOtLabel] = useState("");
   const [otAmount, setOtAmount] = useState("");
-  const [otDate, setOtDate] = useState(todayISO());
+  const [otStart, setOtStart] = useState(todayISO());
+  const [otDuration, setOtDuration] = useState("3m");
+  const [otEnd, setOtEnd] = useState(todayISO()); // csak "custom" esetén
   const [otBusy, setOtBusy] = useState(false);
+
+  const otComputedEnd = () => {
+    const preset = OT_DURATIONS.find((d) => d.value === otDuration);
+    if (!preset) return otStart;
+    return preset.value === "custom" ? otEnd : (preset.end(otStart) ?? otStart);
+  };
 
   const total =
     COST_FIELDS.reduce((s, f) => s + toAmount(vals[f.key]), 0) +
@@ -162,12 +190,14 @@ function ProfileTab({
   const addOneTime = async () => {
     if (!otLabel.trim()) { showToast("Add meg a kiadás megnevezését.", "error"); return; }
     if (toAmount(otAmount) <= 0) { showToast("Az összeg legyen pozitív.", "error"); return; }
+    const period_end = otComputedEnd();
+    if (new Date(period_end).getTime() < new Date(otStart).getTime()) { showToast("A záró dátum nem lehet korábbi a kezdőnél.", "error"); return; }
     setOtBusy(true);
     try {
       const res = await fetch("/api/hospitality/onetime", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: otLabel.trim(), amount: toAmount(otAmount), spent_on: otDate }),
+        body: JSON.stringify({ label: otLabel.trim(), amount: toAmount(otAmount), period_start: otStart, period_end }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
@@ -290,31 +320,48 @@ function ProfileTab({
         <div>
           <h3 className="font-display text-lg font-medium">Egyszeri kiadások</h3>
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Nem havi, alkalmi kiadások dátummal (pl. új sütő). A riport csak arra az időszakra számolja
-            költségként, amelybe a <b>dátum</b> beleesik — így reálisabb az adott időszak profitja. Ingyenes.
+            Nem havi, alkalmi kiadások (pl. új sütő). Add meg, <b>mikortól</b> és <b>mennyi időre</b> vonatkozzon — a
+            rendszer az időszakra egyenletesen elosztja, és a riport csak az átfedő napok arányát számolja. Ingyenes.
           </p>
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[180px] flex-1">
+          <div className="min-w-[160px] flex-1">
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megnevezés</label>
             <input value={otLabel} onChange={(e) => setOtLabel(e.target.value)} placeholder="pl. új sütő"
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
           </div>
-          <div className="w-32">
+          <div className="w-28">
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Összeg (Ft)</label>
             <div className="mt-1"><NumField value={otAmount} onChange={setOtAmount} /></div>
           </div>
           <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Dátum</label>
-            <input type="date" value={otDate} onChange={(e) => setOtDate(e.target.value)}
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mikortól</label>
+            <input type="date" value={otStart} onChange={(e) => setOtStart(e.target.value)}
               className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
           </div>
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyi időre</label>
+            <select value={otDuration} onChange={(e) => setOtDuration(e.target.value)}
+              className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
+              {OT_DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          </div>
+          {otDuration === "custom" && (
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Meddig</label>
+              <input type="date" value={otEnd} min={otStart} onChange={(e) => setOtEnd(e.target.value)}
+                className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+            </div>
+          )}
           <button onClick={addOneTime} disabled={otBusy}
             className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
             {otBusy ? "…" : "Hozzáadás"}
           </button>
         </div>
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Vonatkozó időszak: <b style={{ color: "var(--twx-ink)" }}>{otStart} – {otComputedEnd()}</b>
+        </p>
 
         {oneTime.length > 0 && (
           <div className="twx-card divide-y" style={{ borderColor: "var(--twx-line)" }}>
@@ -322,7 +369,9 @@ function ProfileTab({
               <div key={c.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                 <span className="min-w-0">
                   <span className="font-medium">{c.label}</span>{" "}
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {c.spent_on}</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    · {c.period_start === c.period_end ? c.period_start : `${c.period_start} – ${c.period_end}`}
+                  </span>
                 </span>
                 <span className="flex items-center gap-3">
                   <b>{formatHuf(c.amount)}</b>

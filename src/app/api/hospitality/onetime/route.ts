@@ -15,7 +15,7 @@ async function requireUser() {
 }
 
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s).getTime());
-const SELECT = "id, label, amount, spent_on";
+const SELECT = "id, label, amount, period_start, period_end";
 
 export async function GET() {
   const { supabase, user } = await requireUser();
@@ -24,7 +24,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("restaurant_one_time_costs")
     .select(SELECT)
-    .order("spent_on", { ascending: false });
+    .order("period_start", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ costs: data ?? [] });
 }
@@ -42,14 +42,18 @@ export async function POST(request: Request) {
 
   const label = String(body.label ?? "").trim().slice(0, 120);
   const amount = toAmount(body.amount);
-  const spent_on = String(body.spent_on ?? "").trim();
+  const period_start = String(body.period_start ?? "").trim();
+  const period_end = String(body.period_end ?? "").trim();
   if (!label) return NextResponse.json({ error: "Add meg a kiadás megnevezését." }, { status: 422 });
   if (amount <= 0) return NextResponse.json({ error: "Az összeg legyen pozitív." }, { status: 422 });
-  if (!isDate(spent_on)) return NextResponse.json({ error: "Hibás dátum." }, { status: 422 });
+  if (!isDate(period_start) || !isDate(period_end)) return NextResponse.json({ error: "Hibás dátum." }, { status: 422 });
+  if (new Date(period_end).getTime() < new Date(period_start).getTime()) {
+    return NextResponse.json({ error: "A záró dátum nem lehet korábbi a kezdőnél." }, { status: 422 });
+  }
 
   const { data, error } = await supabase
     .from("restaurant_one_time_costs")
-    .insert({ user_id: user.id, label, amount, spent_on })
+    .insert({ user_id: user.id, label, amount, period_start, period_end })
     .select(SELECT)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
