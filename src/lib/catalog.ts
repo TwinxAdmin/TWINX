@@ -39,6 +39,7 @@ export const CATEGORIES: Category[] = [
     modules: [
       { label: "Kínálat kezelő", href: "/dashboard/hospitality/inventory", icon: "inventory", desc: "A saját étlap-adatbázisod" },
       { label: "Menü generátor", href: "/dashboard/hospitality/menu", icon: "menu", desc: "AI napi/heti menü a kínálatodból" },
+      { label: "Árazás elemző", href: "/dashboard/hospitality/pricing", icon: "pricing", desc: "Haszonkulcs-elemzés és ár-javaslatok" },
     ],
   },
   {
