@@ -169,25 +169,41 @@ export function computeCosting(
   };
 }
 
+// --- Időszak-kezelés --------------------------------------------------------
+// Napok száma két dátum között (inclusive). Hibás/fordított tartomány = 0.
+export function periodDays(startISO: string, endISO: string): number {
+  const a = new Date(startISO).getTime();
+  const b = new Date(endISO).getTime();
+  if (isNaN(a) || isNaN(b) || b < a) return 0;
+  return Math.round((b - a) / 86_400_000) + 1;
+}
+
+// A havi fix költség adott hosszúságú időszakra vetítve (arányosan).
+export function proratedOverhead(monthly: number, days: number): number {
+  if (days <= 0) return 0;
+  return (monthly * 12 * days) / 365;
+}
+
 // Rövid, ember által olvasható összefoglaló a promptba (AI-javaslathoz).
-export function costingSummaryText(r: CostingResult): string {
+export function costingSummaryText(r: CostingResult, periodLabel?: string): string {
   const lines: string[] = [];
+  if (periodLabel) lines.push(`Vizsgált időszak: ${periodLabel}.`);
   lines.push(
-    `Havi fix költség (rezsi összesen): ${formatHuf(r.totals.overhead)}. ` +
-      `Összes havi árbevétel: ${formatHuf(r.totals.revenue)}. ` +
+    `Időszakra jutó fix költség (rezsi): ${formatHuf(r.totals.overhead)}. ` +
+      `Időszaki árbevétel: ${formatHuf(r.totals.revenue)}. ` +
       `Alapanyagköltség: ${formatHuf(r.totals.ingredientCost)}. ` +
-      `Étterem havi valós profit (árbevétel − alapanyag − rezsi): ${formatHuf(r.totals.netProfit)}.`
+      `Étterem időszaki valós profit (árbevétel − alapanyag − rezsi): ${formatHuf(r.totals.netProfit)}.`
   );
   lines.push(
     `Rezsi-allokáció módszere: ${r.method === "revenue" ? "árbevétel-arányos" : "darab-arányos"}.`
   );
-  lines.push(``, `Ételenkénti bontás (havi ${"{qty}"} db → teljes önköltség/adag → valós darab-profit → havi profit):`);
+  lines.push(``, `Ételenkénti bontás:`);
   for (const d of r.dishes) {
     lines.push(
-      `- ${d.name}: ${d.monthly_qty} db/hó, eladási ár ${formatHuf(d.sale_price)}, ` +
+      `- ${d.name}: ${d.monthly_qty} db az időszakban, eladási ár ${formatHuf(d.sale_price)}, ` +
         `alapanyag ${formatHuf(d.cost_price)}/adag, rá jutó rezsi ${formatHuf(d.overheadPerUnit)}/adag, ` +
         `teljes önköltség ${formatHuf(d.fullUnitCost)}/adag, valós darab-profit ${formatHuf(d.unitProfit)} ` +
-        `(${Math.round(d.unitMarginPct)}% árrés), havi profit ${formatHuf(d.monthlyProfit)}, ` +
+        `(${Math.round(d.unitMarginPct)}% árrés), időszaki profit ${formatHuf(d.monthlyProfit)}, ` +
         `fedezeti darabszám ${d.breakevenQty} db.`
     );
   }
@@ -203,8 +219,8 @@ export const COSTING_MIN_DISHES = 1;
 
 // --- AI prompt (admin-szerkeszthető szegmensek) -----------------------------
 export const COSTING_DEFAULT_SEGMENTS = {
-  intro: `Te egy tapasztalt vendéglátóipari pénzügyi tanácsadó vagy. A feladatod, hogy a megadott étterem-adatokból (havi fix költségek és az ételek önköltsége, ára, várható forgalma) érthető, gyakorlatias elemzést és javaslatot adj a tulajdonosnak. A számok készen megkapod — NE számolj újra, hanem értelmezd őket.`,
-  task: `Írj tömör, tagolt elemzést magyarul: (1) egy mondatos összkép az étterem havi profitjáról; (2) mely ételek a legjövedelmezőbbek és melyek visznek veszteséget a rájuk jutó rezsivel együtt; (3) ételre lebontott, konkrét javaslat a megtérülés javítására (ár emelése, alapanyag-önköltség csökkentése, vagy forgalom növelése — számszerű célértékkel, ahol lehet); (4) egy záró, priorizált teendőlista 3-5 ponttal. Legyél konkrét és a megadott számokra hivatkozz.`,
+  intro: `Te egy tapasztalt vendéglátóipari pénzügyi tanácsadó vagy. A feladatod, hogy a megadott étterem-adatokból (a fix költségek az adott időszakra vetítve, valamint az ételek önköltsége, ára és az időszakban eladott mennyisége) érthető, gyakorlatias elemzést és javaslatot adj a tulajdonosnak. A számokat készen megkapod — NE számolj újra, hanem értelmezd őket.`,
+  task: `Írj tömör, tagolt elemzést magyarul: (1) egy mondatos összkép az étterem időszaki profitjáról; (2) mely ételek a legjövedelmezőbbek és melyek visznek veszteséget a rájuk jutó rezsivel együtt; (3) ételre lebontott, konkrét javaslat a megtérülés javítására (ár emelése, alapanyag-önköltség csökkentése, vagy forgalom növelése — számszerű célértékkel, ahol lehet); (4) egy záró, priorizált teendőlista 3-5 ponttal. Legyél konkrét és a megadott számokra hivatkozz.`,
 };
 
 export const COSTING_DATA_BLOCK_PREVIEW = `Étterem havi adatok és számított önköltségek:

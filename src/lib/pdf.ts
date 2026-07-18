@@ -120,8 +120,9 @@ const num = (n: number) => Math.round(n).toLocaleString("hu-HU");
 export async function generateCostingPdf(params: {
   result: CostingResult;
   narrative: string;
+  period?: string;
 }): Promise<Uint8Array> {
-  const { result, narrative } = params;
+  const { result, narrative, period } = params;
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(await loadFontBytes());
@@ -178,18 +179,24 @@ export async function generateCostingPdf(params: {
 
   // --- meta sor ---
   const t = result.totals;
+  const alloc = result.method === "revenue" ? "árbevétel-arányos" : "darab-arányos";
   write(
-    `Rezsi-allokáció: ${result.method === "revenue" ? "árbevétel-arányos" : "darab-arányos"}    ·    Havi fix költség: ${huf(t.overhead)}`,
+    period ? `Időszak: ${period}` : `Rezsi-allokáció: ${alloc}`,
+    margin, y, 9.5, C.muted
+  );
+  y -= 14;
+  write(
+    `Rezsi-allokáció: ${alloc}    ·    Időszakra jutó fix költség: ${huf(t.overhead)}`,
     margin, y, 9.5, C.muted
   );
   y -= 24;
 
   // --- KPI kártyák ---
   const kpis: { label: string; value: string; highlight?: boolean; neg?: boolean }[] = [
-    { label: "Havi árbevétel", value: huf(t.revenue) },
+    { label: "Időszaki árbevétel", value: huf(t.revenue) },
     { label: "Alapanyagköltség", value: huf(t.ingredientCost) },
     { label: "Rávetített rezsi", value: huf(t.coveredOverhead) },
-    { label: "Étterem havi profit", value: huf(t.netProfit), highlight: true, neg: t.netProfit < 0 },
+    { label: "Étterem időszaki profit", value: huf(t.netProfit), highlight: true, neg: t.netProfit < 0 },
   ];
   const gap = 10;
   const cardW = (contentW - gap * 3) / 4;
@@ -223,11 +230,11 @@ export async function generateCostingPdf(params: {
   // --- táblázat oszlopok ---
   const cols: { key: string; w: number; align: "left" | "right"; h: string }[] = [
     { key: "name", w: 150, align: "left", h: "Étel" },
-    { key: "qty", w: 40, align: "right", h: "db/hó" },
-    { key: "unit", w: 80, align: "right", h: "Önktg/adag" },
-    { key: "profit", w: 80, align: "right", h: "Profit/adag" },
+    { key: "qty", w: 44, align: "right", h: "eladott" },
+    { key: "unit", w: 78, align: "right", h: "Önktg/adag" },
+    { key: "profit", w: 78, align: "right", h: "Profit/adag" },
     { key: "margin", w: 45, align: "right", h: "Árrés" },
-    { key: "monthly", w: 64, align: "right", h: "Havi profit" },
+    { key: "monthly", w: 64, align: "right", h: "Időszaki" },
     { key: "be", w: 40, align: "right", h: "Fed." },
   ];
   const colX = (idx: number) => margin + cols.slice(0, idx).reduce((s, c) => s + c.w, 0);

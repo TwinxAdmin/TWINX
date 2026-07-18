@@ -16,6 +16,8 @@ import {
   costProfileTotal,
   computeCosting,
   costingSummaryText,
+  periodDays,
+  proratedOverhead,
   COSTING_CREDITS,
   COSTING_MIN_DISHES,
   type CostingDishInput,
@@ -43,13 +45,26 @@ export async function POST(request: Request) {
   }
 
   const method: AllocationMethod = body.method === "unit" ? "unit" : "revenue";
-  // A bevitt ételek: {dish_id, monthly_qty}. A forgalmat innen vesszük, az árakat a DB-ből.
+
+  // Vizsgált időszak (induló + záró dátum). Ebből arányosítjuk a havi rezsit.
+  const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s).getTime());
+  const start = String(body.start ?? "").trim();
+  const end = String(body.end ?? "").trim();
+  if (!isDate(start) || !isDate(end)) {
+    return NextResponse.json({ error: "Hiányzó vagy hibás időszak (induló/záró dátum)." }, { status: 422 });
+  }
+  const days = periodDays(start, end);
+  if (days <= 0) {
+    return NextResponse.json({ error: "A záró dátum nem lehet korábbi az induló dátumnál." }, { status: 422 });
+  }
+
+  // A bevitt ételek: {dish_id, qty}. A forgalmat innen vesszük, az árakat a DB-ből.
   const qtyById = new Map<string, number>();
   if (Array.isArray(body.dishes)) {
     for (const e of body.dishes as unknown[]) {
       const o = (e ?? {}) as Record<string, unknown>;
       const id = String(o.dish_id ?? "").trim();
-      const qty = Math.max(0, Math.floor(Number(o.monthly_qty) || 0));
+      const qty = Math.max(0, Math.floor(Number(o.qty ?? o.monthly_qty) || 0));
       if (id) qtyById.set(id, qty);
     }
   }
@@ -73,13 +88,14 @@ export async function POST(request: Request) {
   };
 
   try {
-    // 1) Fix költség-profil -> havi összes rezsi.
+    // 1) Fix költség-profil -> havi összes rezsi -> az időszakra arányosítva.
     const { data: profileRow } = await admin
       .from("restaurant_cost_profile")
       .select("rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, delivery_fees, other, extra_items")
       .eq("user_id", user.id)
       .maybeSingle();
-    const overhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));
+    const monthlyOverhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));
+    const overhead = proratedOverhead(monthlyOverhead, days);
 
     // 2) A kiválasztott ételek árai a DB-ből (csak árazott ételek).
     const { data: dishRows, error: dishErr } = await admin
@@ -108,11 +124,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Determinisztikus számítás.
+    // 3) Determinisztikus számítás (az időszakra arányosított rezsivel).
     const result = computeCosting(inputs, overhead, method);
+    const periodLabel = `${start} – ${end} (${days} nap)`;
 
     // 4) AI-javaslat (a számokat készen kapja).
-    const prompt = await buildCostingPromptActive(costingSummaryText(result));
+    const prompt = await buildCostingPromptActive(costingSummaryText(result, periodLabel));
     let narrative = "";
     try {
       narrative = await runSonar(prompt, PERPLEXITY_MODEL);
@@ -124,7 +141,7 @@ export async function POST(request: Request) {
     //    PDF-hiba nem bukatja a riportot; a számok + AI-szöveg akkor is mennek.
     let pdfUrl: string | null = null;
     try {
-      const bytes = await generateCostingPdf({ result, narrative });
+      const bytes = await generateCostingPdf({ result, narrative, period: periodLabel });
       const path = `costing/${user.id}/${randomUUID()}.pdf`;
       const { error: upErr } = await admin.storage
         .from(BUCKET)
@@ -139,7 +156,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { method, overhead, dish_count: inputs.length },
+      input_data: { method, start, end, days, monthly_overhead: monthlyOverhead, overhead, dish_count: inputs.length },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });
