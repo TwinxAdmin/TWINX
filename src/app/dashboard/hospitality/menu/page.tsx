@@ -14,10 +14,11 @@ import {
   CUISINE_STYLES,
   COURSE_OPTIONS,
   VARIETY_OPTIONS,
+  timeframeDays,
 } from "@/lib/hospitality";
 
 export default function MenuGeneratorPage() {
-  const [timeframe, setTimeframe] = useState("daily");
+  const [timeframe, setTimeframe] = useState("1");
   const [theme, setTheme] = useState("valtozatos");
   const [goal, setGoal] = useState("medium");
   const [courses, setCourses] = useState("");
@@ -90,6 +91,13 @@ export default function MenuGeneratorPage() {
     }
   }
 
+  // A napi konyha-beosztáshoz: 7 napnál a hét napjai, egyébként „1. nap, 2. nap…".
+  const days = timeframeDays(timeframe);
+  const planDays: { value: string; label: string }[] =
+    timeframe === "7"
+      ? WEEK_DAYS.map((d) => ({ value: d.value, label: d.label }))
+      : Array.from({ length: days }, (_, i) => ({ value: `nap${i + 1}`, label: `${i + 1}. nap` }));
+
   return (
     <main className="mx-auto max-w-3xl space-y-6">
       <ModuleIntro
@@ -156,15 +164,15 @@ export default function MenuGeneratorPage() {
           />
         </div>
 
-        {/* Napokra bontott konyha-beosztás — csak heti menünél */}
-        {timeframe === "weekly" && (
+        {/* Napokra bontott konyha-beosztás — több napos menünél */}
+        {days > 1 && (
           <div>
             <label className="block text-sm">Napi konyha-beosztás (opcionális)</label>
             <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Add meg, melyik napon milyen konyha legyen — pl. hétfő kínai, kedd fitness. Üresen hagyva az AI dönt.
+              Add meg, melyik napon milyen konyha legyen — pl. 1. nap kínai, 2. nap fitness. Üresen hagyva az AI dönt.
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {WEEK_DAYS.map((d) => (
+              {planDays.map((d) => (
                 <div key={d.value} className="flex items-center gap-2">
                   <span className="w-20 flex-none text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</span>
                   <select

@@ -119,10 +119,15 @@ export type DayPlanEntry = { day: string; cuisine: string };
 
 // --- Menü-generátor paraméterei ---
 export const TIMEFRAMES = [
-  { value: "daily", label: "Napi menü" },
-  { value: "weekly", label: "Heti menü" },
+  { value: "1", label: "Napi (1 nap)", days: 1 },
+  { value: "3", label: "3 napos", days: 3 },
+  { value: "5", label: "5 napos (hétköznap)", days: 5 },
+  { value: "7", label: "Heti (7 nap)", days: 7 },
 ] as const;
 export type Timeframe = (typeof TIMEFRAMES)[number]["value"];
+export function timeframeDays(v: string): number {
+  return TIMEFRAMES.find((t) => t.value === v)?.days ?? 1;
+}
 
 export const MENU_THEMES = [
   { value: "valtozatos", label: "Változatos / Sokszínű" },
@@ -201,7 +206,7 @@ export const MENU_MIN_DISHES = 5;
 // NEM lehet behelyettesítő változó.
 export const MENU_DEFAULT_SEGMENTS = {
   intro: `Te egy profi éttermi séf és marketing szakértő vagy. A feladatod, hogy a megadott éttermi adatbázisból összeállíts egy vonzó, jól felépített menüsort a partner céljai szerint. Kizárólag a lentebb listázott ételeket használhatod fel — NE találj ki új fogást, és ne módosítsd az ételek nevét.`,
-  task: `Írj először egy rövid, étvágygerjesztő, vendégcsalogató bevezetőt a menühöz, amely a megadott tematika hangulatát idézi. Ezután logikusan felépítve tálald a kiválasztott ételeket: NAPI menünél fogásokra (előétel/leves → főétel → desszert), HETI menünél napokra bontva. Törekedj változatosságra és arányos kínálatra. A stílus legyen elegáns és eladás-ösztönző. Magyarul, jól tagoltan válaszolj.`,
+  task: `Írj először egy rövid, étvágygerjesztő, vendégcsalogató bevezetőt a menühöz, amely a megadott tematika hangulatát idézi. Ezután a fent megadott bontás szerint tálald a kiválasztott ételeket: 1 napos menünél fogásokra (előétel/leves → főétel → desszert), több napos menünél napokra bontva, minden naphoz a fogásokkal. Törekedj változatosságra és arányos kínálatra. A stílus legyen elegáns és eladás-ösztönző. Magyarul, jól tagoltan válaszolj.`,
 };
 
 export const MENU_DATA_BLOCK_PREVIEW = `Időtáv: {időtáv}
@@ -230,8 +235,12 @@ export function composeMenuPrompt(
 ): string {
   const intro = (segments.intro ?? MENU_DEFAULT_SEGMENTS.intro).trim();
   const task = (segments.task ?? MENU_DEFAULT_SEGMENTS.task).trim();
+  const days = timeframeDays(opts.timeframe);
   const lines = [
-    `Időtáv: ${timeframeLabel(opts.timeframe)}`,
+    `Időtáv: ${days} napra szóló menü.`,
+    days === 1
+      ? `Bontás: egyetlen napi menü, fogásokra bontva (előétel/leves → főétel → desszert).`
+      : `Bontás: ${days} külön napra bontva (1. nap, 2. nap, …), minden naphoz a fogásokkal.`,
     `Tematika: ${themeLabel(opts.theme)}`,
     `Profit-cél: ${PROFIT_GOALS.find((g) => g.value === opts.goal)?.label ?? opts.goal}`,
   ];
