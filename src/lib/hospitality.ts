@@ -79,8 +79,9 @@ export function validateDishInput(input: Partial<DishInput>): {
   const pm = String(input.profit_margin ?? "").trim();
   if (pm && !PROFIT_MARGINS.some((m) => m.value === pm)) errors.profit_margin = "Érvénytelen profitmarzs.";
   for (const key of ["cost_price", "sale_price"] as const) {
-    const raw = String(input[key] ?? "").trim();
-    if (raw && (isNaN(Number(raw)) || Number(raw) < 0)) errors[key] = "Nem negatív szám legyen.";
+    const raw = String(input[key] ?? "").trim().replace(",", ".");
+    if (!raw) errors[key] = "Az ár megadása kötelező.";
+    else if (isNaN(Number(raw)) || Number(raw) < 0) errors[key] = "Nem negatív szám legyen.";
   }
   return { valid: Object.keys(errors).length === 0, errors };
 }

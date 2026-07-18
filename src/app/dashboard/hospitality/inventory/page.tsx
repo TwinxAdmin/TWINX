@@ -201,16 +201,22 @@ export default function InventoryPage() {
 
           <fieldset className="rounded-xl p-4 sm:col-span-2" style={{ border: "1px solid var(--twx-line)" }}>
             <legend className="px-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
-              Árazás és profit — opcionális
+              Árazás és profit
             </legend>
+            <div
+              className="mb-3 rounded-lg p-3 text-xs"
+              style={{ background: "rgba(239,122,90,0.08)", border: "1px solid rgba(239,122,90,0.25)", color: "var(--twx-ink)" }}
+            >
+              <b>Miért kötelező az ár?</b> Az előkészítési és eladási árból számolja a rendszer az étel <b>darab-profitját</b>, és ez alapján tud a menü-generátor <b>profit-tervet</b> készíteni (pl. „X menü eladásából Y profit"). Ezek nélkül a profit-alapú összeállítás nem működne pontosan.
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-sm">Előkészítési ár (Ft)</label>
+                <label className="block text-sm">Előkészítési ár (Ft) *</label>
                 <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 800" />
                 {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
               </div>
               <div>
-                <label className="block text-sm">Eladási ár (Ft)</label>
+                <label className="block text-sm">Eladási ár (Ft) *</label>
                 <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
                 {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
               </div>
@@ -220,7 +226,7 @@ export default function InventoryPage() {
                 </p>
               )}
               <div className="sm:col-span-2">
-                <label className="block text-sm">Profitmarzs</label>
+                <label className="block text-sm">Profitmarzs (opcionális)</label>
                 <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
                   <option value="">— nincs megadva —</option>
                   {PROFIT_MARGINS.map((m) => (
