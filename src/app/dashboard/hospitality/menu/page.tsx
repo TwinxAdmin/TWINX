@@ -173,8 +173,8 @@ export default function MenuGeneratorPage() {
           />
         </div>
 
-        {/* Napi konyha-beosztás — külön összecsukható legördülő (több napos menünél) */}
-        {days > 1 && (
+        {/* Napi beosztás — összecsukható legördülő (naponként konyha + fő alapanyag), 1 naptól */}
+        {days >= 1 && (
           <div className="rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
             <button
               type="button"
