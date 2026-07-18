@@ -57,6 +57,8 @@ export async function POST(request: Request) {
   const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";
   const targetPrice = body.targetPrice != null && String(body.targetPrice).trim() ? String(body.targetPrice).trim() : "";
   const variety = body.variety === "high" ? "high" : "normal";
+  const targetCount = body.targetCount != null && String(body.targetCount).trim() ? String(body.targetCount).trim() : "";
+  const targetProfit = body.targetProfit != null && String(body.targetProfit).trim() ? String(body.targetProfit).trim() : "";
 
   const admin = createAdminClient();
 
@@ -108,12 +110,13 @@ export async function POST(request: Request) {
         if (d.cuisine_style) parts.push(d.cuisine_style);
         if (d.profit_margin) parts.push(`${marginLabel(d.profit_margin)} haszon`);
         if (d.sale_price != null) parts.push(`ár: ${Math.round(d.sale_price)} Ft`);
+        if (d.cost_price != null && d.sale_price != null) parts.push(`darab-profit: ${Math.round(d.sale_price - d.cost_price)} Ft`);
         return `- ${d.name} (${parts.join(", ")})${d.description ? ` — ${d.description}` : ""}`;
       })
       .join("\n");
 
     const prompt = await buildMenuPromptActive({
-      timeframe, theme, goal, dishListText, instruction, dayPlan, courses, targetPrice, variety,
+      timeframe, theme, goal, dishListText, instruction, dayPlan, courses, targetPrice, variety, targetCount, targetProfit,
     });
 
     // 4) Perplexity (szinkron) -> menü-szöveg
@@ -124,7 +127,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { timeframe, theme, goal, courses, targetPrice, variety, dish_count: selected.length, day_plan: dayPlan, instruction },
+      input_data: { timeframe, theme, goal, courses, targetPrice, variety, targetCount, targetProfit, dish_count: selected.length, day_plan: dayPlan, instruction },
       output_file_url: null,
       credits_charged: charge.bypassed ? 0 : MENU_CREDITS,
     });

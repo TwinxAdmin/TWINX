@@ -22,6 +22,8 @@ export default function MenuGeneratorPage() {
   const [courses, setCourses] = useState("");
   const [targetPrice, setTargetPrice] = useState("");
   const [variety, setVariety] = useState("normal");
+  const [targetCount, setTargetCount] = useState("");
+  const [targetProfit, setTargetProfit] = useState("");
   const [instruction, setInstruction] = useState("");
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   const [cuisines, setCuisines] = useState<string[]>([]);
@@ -61,6 +63,8 @@ export default function MenuGeneratorPage() {
           courses,
           targetPrice,
           variety,
+          targetCount,
+          targetProfit,
           instruction,
           dayPlan: Object.entries(dayPlan)
             .filter(([, cuisine]) => cuisine)
@@ -129,10 +133,6 @@ export default function MenuGeneratorPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm">Célár (Ft / nap)</label>
-            <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500 (opcionális)" />
-          </div>
-          <div>
             <label className="block text-sm">Változatosság</label>
             <select value={variety} onChange={(e) => setVariety(e.target.value)} className="twx-input mt-1">
               {VARIETY_OPTIONS.map((v) => (
@@ -141,6 +141,36 @@ export default function MenuGeneratorPage() {
             </select>
           </div>
         </div>
+
+        {/* Profit-terv — bevétel/profit koordináció az ételek darab-profitjából */}
+        <fieldset className="rounded-xl p-4" style={{ border: "1px solid var(--twx-line)" }}>
+          <legend className="px-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
+            Profit-terv — opcionális
+          </legend>
+          <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            A bevétel/profit hangolásához. Add meg a napi célárat, és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm">Célár (Ft / nap)</label>
+              <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500" />
+            </div>
+            <div>
+              <label className="block text-sm">Tervezett eladott menü (db)</label>
+              <input type="number" min={0} value={targetCount} onChange={(e) => setTargetCount(e.target.value)} className="twx-input mt-1" placeholder="pl. 100" />
+            </div>
+            <div>
+              <label className="block text-sm">Cél össz-profit (Ft)</label>
+              <input type="number" min={0} value={targetProfit} onChange={(e) => setTargetProfit(e.target.value)} className="twx-input mt-1" placeholder="pl. 200000" />
+            </div>
+          </div>
+          {Number(targetCount) > 0 && Number(targetProfit) > 0 && (
+            <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
+              Ehhez menünként kb. <b>{Math.round(Number(targetProfit) / Number(targetCount)).toLocaleString("hu-HU")} Ft</b> darab-profit szükséges — az AI ehhez igazítja a válogatást.
+            </p>
+          )}
+        </fieldset>
+
         {/* Napokra bontott konyha-beosztás — csak heti menünél */}
         {timeframe === "weekly" && (
           <div>

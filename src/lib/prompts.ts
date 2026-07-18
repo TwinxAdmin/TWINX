@@ -281,6 +281,8 @@ export async function buildMenuPromptActive(opts: {
   courses?: string;
   targetPrice?: string;
   variety?: string;
+  targetCount?: string;
+  targetProfit?: string;
 }): Promise<string> {
   const segments = await getActiveSegments("menu_generator");
   return composeMenuPrompt(opts, segments);

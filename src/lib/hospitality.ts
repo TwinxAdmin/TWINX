@@ -223,6 +223,8 @@ export function composeMenuPrompt(
     courses?: string;
     targetPrice?: string;
     variety?: string;
+    targetCount?: string; // tervezett eladott menü (db)
+    targetProfit?: string; // cél össz-profit (Ft)
   },
   segments: { intro?: string; task?: string }
 ): string {
@@ -242,6 +244,16 @@ export function composeMenuPrompt(
   }
   if (opts.variety === "high") {
     lines.push(`Változatosság: KERÜLD, hogy ugyanaz a fogás vagy fő alapanyag kétszer szerepeljen a héten.`);
+  }
+  const tCount = Number(opts.targetCount);
+  const tProfit = Number(opts.targetProfit);
+  if (tCount > 0 && tProfit > 0) {
+    const perMenu = Math.round(tProfit / tCount);
+    lines.push(
+      `Profit-terv: a partner ${tCount.toLocaleString("hu-HU")} menü eladásából összesen ${tProfit.toLocaleString("hu-HU")} Ft profitot céloz. ` +
+        `Ezért állítsd össze úgy a napi menüket, hogy egy menü darab-profitja (az ételek eladási ára MÍNUSZ előkészítési ára összege) érje el a ~${perMenu.toLocaleString("hu-HU")} Ft-ot; ` +
+        `részesítsd előnyben a magasabb darab-profitú ételeket, de a tematikát és a változatosságot is tartva.`
+    );
   }
   const plan = (opts.dayPlan ?? []).filter((p) => p.cuisine && p.cuisine.trim());
   if (plan.length) {
