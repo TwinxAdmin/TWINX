@@ -30,6 +30,8 @@ export default function InventoryPage() {
   const [imageAction, setImageAction] = useState<"keep" | "new" | "remove">("keep");
   const [dragOver, setDragOver] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [detailDish, setDetailDish] = useState<Dish | null>(null);
 
   function pickImage(f: File | null) {
     if (f && !f.type.startsWith("image/")) {
@@ -286,7 +288,7 @@ export default function InventoryPage() {
         </button>
       </form>
 
-      {/* Étel-lista */}
+      {/* Ételeim — kategória-mappák */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-medium">Ételeim</h2>
@@ -294,59 +296,138 @@ export default function InventoryPage() {
         </div>
 
         {loading ? (
-          <div className="space-y-2">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-          </div>
-        ) : dishes.length === 0 ? (
-          <div className="twx-card p-5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Még nincs ételed. Vidd fel az elsőt fentebb — utána generálhatsz belőle menüt.
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
           </div>
         ) : (
-          <ul className="space-y-2">
-            {dishes.map((d) => (
-              <li key={d.id} className="twx-card flex items-start gap-3 p-4">
-                {d.image_url && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {DISH_CATEGORIES.map((c) => {
+              const count = dishes.filter((d) => d.category === c.value).length;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => { setOpenCategory(c.value); setDetailDish(null); }}
+                  className="twx-card flex flex-col items-start gap-2 p-4 text-left transition-all hover:-translate-y-0.5"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+                    </svg>
+                  </span>
+                  <span className="font-medium">{c.label}</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{count} étel</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!loading && dishes.length === 0 && (
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Még nincs ételed. Vidd fel az elsőt fentebb — a rendszer a kategóriájának megfelelő mappába rendezi.
+          </p>
+        )}
+      </div>
+
+      {/* Kategória felugró ablak */}
+      {openCategory && (
+        <div
+          onClick={() => { setOpenCategory(null); setDetailDish(null); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(12,11,10,0.6)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="twx-card max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="font-display text-lg font-medium">
+                {detailDish ? detailDish.name : categoryLabel(openCategory)}
+              </h3>
+              <button
+                onClick={() => { setOpenCategory(null); setDetailDish(null); }}
+                aria-label="Bezárás"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
+                style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+              >
+                ×
+              </button>
+            </div>
+
+            {detailDish ? (
+              <div className="space-y-3">
+                <button onClick={() => setDetailDish(null)} className="text-sm" style={{ color: "var(--twx-coral)" }}>
+                  ‹ Vissza a listához
+                </button>
+                {detailDish.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.image_url} alt="" className="h-14 w-14 flex-none rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                  <img src={detailDish.image_url} alt="" className="w-full rounded-xl object-cover" style={{ maxHeight: 240, border: "1px solid var(--twx-line)" }} />
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{d.name}</span>
-                    <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                      {categoryLabel(d.category)}
-                    </span>
-                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                      {marginLabel(d.profit_margin)} haszon
-                    </span>
-                    {d.cuisine_style && (
-                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {d.cuisine_style}</span>
-                    )}
-                  </div>
-                  {d.description && (
-                    <p className="mt-1 truncate text-sm" style={{ color: "var(--twx-ink-muted)" }}>{d.description}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                    {categoryLabel(detailDish.category)}
+                  </span>
+                  <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    {marginLabel(detailDish.profit_margin)} haszon
+                  </span>
+                  {detailDish.cuisine_style && (
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {detailDish.cuisine_style}</span>
                   )}
                 </div>
-                <div className="flex flex-none gap-2">
+                {detailDish.description && (
+                  <p className="text-sm" style={{ color: "var(--twx-ink)" }}>{detailDish.description}</p>
+                )}
+                <div className="flex gap-2 pt-2">
                   <button
-                    onClick={() => startEdit(d)}
-                    className="rounded-full px-3 py-1 text-sm"
-                    style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
+                    onClick={() => { startEdit(detailDish); setOpenCategory(null); setDetailDish(null); }}
+                    className="twx-btn"
                   >
                     Szerkesztés
                   </button>
                   <button
-                    onClick={() => removeDish(d.id)}
-                    className="rounded-full px-3 py-1 text-sm"
+                    onClick={() => { removeDish(detailDish.id); setDetailDish(null); }}
+                    className="rounded-full px-4 py-2 text-sm"
                     style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
                   >
                     Törlés
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              </div>
+            ) : (
+              (() => {
+                const inCat = dishes.filter((d) => d.category === openCategory);
+                return inCat.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs étel ebben a kategóriában.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {inCat.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          onClick={() => setDetailDish(d)}
+                          className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-black/[0.03]"
+                        >
+                          {d.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={d.image_url} alt="" className="h-11 w-11 flex-none rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                          ) : (
+                            <span className="h-11 w-11 flex-none rounded-lg" style={{ background: "var(--twx-line)" }} />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{d.name}</span>
+                            <span className="block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                              {marginLabel(d.profit_margin)} haszon{d.cuisine_style ? ` · ${d.cuisine_style}` : ""}
+                            </span>
+                          </span>
+                          <span style={{ color: "var(--twx-ink-muted)" }}>›</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
