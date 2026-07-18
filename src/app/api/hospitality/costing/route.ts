@@ -10,8 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildCostingPromptActive } from "@/lib/prompts";
-import { generateValuationPdf } from "@/lib/pdf";
-import { formatHuf } from "@/lib/hospitality";
+import { generateCostingPdf } from "@/lib/pdf";
 import {
   normalizeCostProfile,
   costProfileTotal,
@@ -19,7 +18,6 @@ import {
   costingSummaryText,
   COSTING_CREDITS,
   COSTING_MIN_DISHES,
-  type CostingResult,
   type CostingDishInput,
   type AllocationMethod,
 } from "@/lib/costing";
@@ -29,35 +27,6 @@ export const maxDuration = 60;
 const FEATURE = "cost_analysis";
 const MAX_DISHES = 40;
 const BUCKET = "reports";
-
-// A PDF-riport törzsének felépítése (olvasható, tagolt szöveg).
-function buildPdfBody(result: CostingResult, narrative: string): string {
-  const t = result.totals;
-  const lines: string[] = [];
-  lines.push("ÖSSZEGZÉS");
-  lines.push(`Havi árbevétel: ${formatHuf(t.revenue)}`);
-  lines.push(`Alapanyagköltség: ${formatHuf(t.ingredientCost)}`);
-  lines.push(`Rávetített rezsi (havi fix költség): ${formatHuf(t.overhead)}`);
-  lines.push(`Étterem havi valós profit: ${formatHuf(t.netProfit)}`);
-  lines.push(`Rezsi-allokáció: ${result.method === "revenue" ? "árbevétel-arányos" : "darab-arányos"}`);
-  lines.push("");
-  lines.push("ÉTELENKÉNTI BONTÁS");
-  for (const d of result.dishes) {
-    lines.push("");
-    lines.push(d.name);
-    lines.push(`  Havi darab: ${d.monthly_qty} db  |  Eladási ár: ${formatHuf(d.sale_price)}/adag`);
-    lines.push(`  Teljes önköltség: ${formatHuf(d.fullUnitCost)}/adag (alapanyag ${formatHuf(d.cost_price)} + rezsi ${formatHuf(d.overheadPerUnit)})`);
-    lines.push(`  Valós darab-profit: ${formatHuf(d.unitProfit)} (${Math.round(d.unitMarginPct)}% árrés)`);
-    lines.push(`  Havi profit: ${formatHuf(d.monthlyProfit)}  |  Fedezeti darabszám: ${d.breakevenQty} db`);
-  }
-  if (narrative.trim()) {
-    lines.push("");
-    lines.push("AI-ELEMZÉS ÉS JAVASLATOK");
-    lines.push("");
-    lines.push(narrative.trim());
-  }
-  return lines.join("\n");
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -155,15 +124,7 @@ export async function POST(request: Request) {
     //    PDF-hiba nem bukatja a riportot; a számok + AI-szöveg akkor is mennek.
     let pdfUrl: string | null = null;
     try {
-      const bytes = await generateValuationPdf({
-        title: "Önköltség & profit riport",
-        meta: [
-          `Készült: ${new Date().toLocaleDateString("hu-HU")}`,
-          `Rezsi-allokáció: ${method === "revenue" ? "árbevétel-arányos" : "darab-arányos"}`,
-          `Havi fix költség: ${formatHuf(overhead)}`,
-        ],
-        body: buildPdfBody(result, narrative),
-      });
+      const bytes = await generateCostingPdf({ result, narrative });
       const path = `costing/${user.id}/${randomUUID()}.pdf`;
       const { error: upErr } = await admin.storage
         .from(BUCKET)
