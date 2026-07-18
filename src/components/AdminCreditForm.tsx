@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { showToast } from "@/components/Toast";
 
 export type CreditUser = { id: string; email: string; role: string };
 
@@ -35,9 +36,11 @@ export default function AdminCreditForm({ users = [] }: { users?: CreditUser[] }
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Hiba a jóváírás során.");
+        showToast(data.error ?? "Hiba a jóváírás során.", "error");
         return;
       }
       setMessage(`${amt} kredit jóváírva: ${email.trim()}`);
+      showToast(`${amt} kredit jóváírva: ${email.trim()}`, "success");
       setEmail("");
       setAmount("");
     } catch {

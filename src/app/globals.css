@@ -95,6 +95,23 @@ body {
   from { transform: scale(1.03) translate(0, 0); }
   to   { transform: scale(1.12) translate(-1.5%, -1.5%); }
 }
+@keyframes twx-shimmer {
+  100% { transform: translateX(100%); }
+}
+.twx-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--twx-line);
+  min-height: 1em;
+}
+.twx-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: twx-shimmer 1.5s infinite;
+}
 .twx-orb { animation: twx-float 9s ease-in-out infinite; }
 .twx-orb-2 { animation: twx-float 12s ease-in-out infinite; }
 .twx-reveal { animation: twx-fade-up 0.8s ease both; }
@@ -102,4 +119,5 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .twx-orb, .twx-orb-2, .twx-reveal, .twx-kenburns { animation: none; }
+  .twx-skeleton::after { animation: none; }
 }

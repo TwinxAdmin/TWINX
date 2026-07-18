@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import ToastProvider from "@/components/Toast";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -27,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="hu">
-      <body className={`${sans.variable} ${display.variable} antialiased`}>{children}</body>
+      <body className={`${sans.variable} ${display.variable} antialiased`}>
+        {children}
+        <ToastProvider />
+      </body>
     </html>
   );
 }

@@ -256,12 +256,12 @@ export default async function LandingPage() {
       {/* ===== CTA sáv (sötét) ===== */}
       <section style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-6 py-20 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <Reveal>
             <h2 className="font-display text-4xl font-medium">Kezdd el még ma.</h2>
             <p className="mt-3 text-base" style={{ color: "var(--twx-on-dark-muted)" }}>
               Fizess csak azért, amit használsz — havidíjak nélkül.
             </p>
-          </div>
+          </Reveal>
           <PricingTrigger
             className="rounded-full px-7 py-3 text-sm font-medium"
             style={{ background: "var(--twx-coral)", color: "#1c1005" }}
@@ -273,19 +273,21 @@ export default async function LandingPage() {
 
       {/* ===== ÖTLETLÁDA (világos) ===== */}
       <section className="mx-auto max-w-6xl px-6 py-24">
-        <span
-          className="inline-block rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-[0.2em]"
-          style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-        >
-          Ötletláda
-        </span>
-        <h2 className="font-display mt-4 text-4xl font-semibold sm:text-6xl">
-          Milyen AI-eszközt építsünk legközelebb?
-        </h2>
-        <p className="mt-4 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
-          Van egy jó ötleted egy új célalkalmazáshoz vagy kategóriához? Küldd be — a
-          jóváhagyott ötletek itt jelennek meg.
-        </p>
+        <Reveal>
+          <span
+            className="inline-block rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-[0.2em]"
+            style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+          >
+            Ötletláda
+          </span>
+          <h2 className="font-display mt-4 text-4xl font-semibold sm:text-6xl">
+            Milyen AI-eszközt építsünk legközelebb?
+          </h2>
+          <p className="mt-4 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
+            Van egy jó ötleted egy új célalkalmazáshoz vagy kategóriához? Küldd be — a
+            jóváhagyott ötletek itt jelennek meg.
+          </p>
+        </Reveal>
 
         <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2">
           <div
@@ -323,19 +325,21 @@ export default async function LandingPage() {
 
       {/* ===== B2B (világos) ===== */}
       <section id="egyedi" className="mx-auto max-w-6xl px-6 pb-24">
-        <div
-          className="rounded-2xl p-8"
-          style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
-        >
-          <p className="text-xs font-medium uppercase tracking-[0.25em]" style={{ color: "var(--twx-coral)" }}>
-            Egyedi fejlesztés
-          </p>
-          <h2 className="font-display mt-3 text-3xl font-medium">Saját AI-motorra van szükségetek?</h2>
-          <p className="mb-6 mt-3 max-w-2xl text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Írjátok meg az igényt, és felépítjük a saját, privát AI-célalkalmazásotokat.
-          </p>
-          <B2BForm />
-        </div>
+        <Reveal>
+          <div
+            className="rounded-2xl p-8"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+          >
+            <p className="text-xs font-medium uppercase tracking-[0.25em]" style={{ color: "var(--twx-coral)" }}>
+              Egyedi fejlesztés
+            </p>
+            <h2 className="font-display mt-3 text-3xl font-medium">Saját AI-motorra van szükségetek?</h2>
+            <p className="mb-6 mt-3 max-w-2xl text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              Írjátok meg az igényt, és felépítjük a saját, privát AI-célalkalmazásotokat.
+            </p>
+            <B2BForm />
+          </div>
+        </Reveal>
       </section>
 
       {/* ===== FOOTER (sötét, nagy wordmark) ===== */}
