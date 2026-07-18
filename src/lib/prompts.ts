@@ -29,6 +29,14 @@ import {
   type FlyerFacts,
 } from "@/lib/flyer";
 import { VIDEO_DEFAULT_PROMPT } from "@/lib/luma";
+import {
+  MENU_DEFAULT_SEGMENTS,
+  MENU_DATA_BLOCK_PREVIEW,
+  composeMenuPrompt,
+  type Timeframe,
+  type MenuTheme,
+  type ProfitGoal,
+} from "@/lib/hospitality";
 
 export type PromptSegments = Record<string, string>;
 
@@ -143,6 +151,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
       },
     ],
   },
+  {
+    key: "menu_generator",
+    label: "Menü generátor (vendéglátás)",
+    dataBlockPreview: MENU_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A séf/marketing szerep és az alapszabály (csak a listás ételek). Változó nem használható.",
+        default: MENU_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet",
+        hint: "A menü felépítése és stílusa (bevezető + fogásokra/napokra bontás). Változó nem használható.",
+        default: MENU_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
 ];
 
 export function getModuleDef(module: string): PromptModuleDef | undefined {
@@ -240,6 +268,16 @@ export async function buildFlyerCopyPromptActive(
 export async function getVideoPromptActive(): Promise<string> {
   const segments = await getActiveSegments("video");
   return (segments.prompt ?? VIDEO_DEFAULT_PROMPT).trim();
+}
+
+export async function buildMenuPromptActive(opts: {
+  timeframe: Timeframe;
+  theme: MenuTheme;
+  goal: ProfitGoal;
+  dishListText: string;
+}): Promise<string> {
+  const segments = await getActiveSegments("menu_generator");
+  return composeMenuPrompt(opts, segments);
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------

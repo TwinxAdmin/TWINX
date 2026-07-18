@@ -115,3 +115,36 @@ export const MENU_CREDITS = Number(process.env.MENU_CREDITS ?? 1);
 
 // Minimum ennyi étel kell értelmes menühöz (különben visszatérítés + hibaüzenet).
 export const MENU_MIN_DISHES = 5;
+
+// --- AI prompt: admin által szerkeszthető szegmensek (intro + task) ---------
+// A zárolt adat-blokk (paraméterek + szűrt étel-lista) kódból jön; a szegmensekben
+// NEM lehet behelyettesítő változó.
+export const MENU_DEFAULT_SEGMENTS = {
+  intro: `Te egy profi éttermi séf és marketing szakértő vagy. A feladatod, hogy a megadott éttermi adatbázisból összeállíts egy vonzó, jól felépített menüsort a partner céljai szerint. Kizárólag a lentebb listázott ételeket használhatod fel — NE találj ki új fogást, és ne módosítsd az ételek nevét.`,
+  task: `Írj először egy rövid, étvágygerjesztő, vendégcsalogató bevezetőt a menühöz, amely a megadott tematika hangulatát idézi. Ezután logikusan felépítve tálald a kiválasztott ételeket: NAPI menünél fogásokra (előétel/leves → főétel → desszert), HETI menünél napokra bontva. Törekedj változatosságra és arányos kínálatra. A stílus legyen elegáns és eladás-ösztönző. Magyarul, jól tagoltan válaszolj.`,
+};
+
+export const MENU_DATA_BLOCK_PREVIEW = `Időtáv: {időtáv}
+Tematika: {tematika}
+Profit-cél: {profit-cél}
+
+Feltétel: KIZÁRÓLAG az alábbi ételeket használhatod fel:
+{profit alapján szűrt étel-lista}`;
+
+// A zárolt adat-blokk összeállítása a tényleges paraméterekkel + szűrt étel-listával.
+export function composeMenuPrompt(
+  opts: { timeframe: Timeframe; theme: MenuTheme; goal: ProfitGoal; dishListText: string },
+  segments: { intro?: string; task?: string }
+): string {
+  const intro = (segments.intro ?? MENU_DEFAULT_SEGMENTS.intro).trim();
+  const task = (segments.task ?? MENU_DEFAULT_SEGMENTS.task).trim();
+  const dataBlock = [
+    `Időtáv: ${timeframeLabel(opts.timeframe)}`,
+    `Tematika: ${themeLabel(opts.theme)}`,
+    `Profit-cél: ${PROFIT_GOALS.find((g) => g.value === opts.goal)?.label ?? opts.goal}`,
+    ``,
+    `Feltétel: KIZÁRÓLAG az alábbi ételeket használhatod fel:`,
+    opts.dishListText,
+  ].join("\n");
+  return `${intro}\n\n${dataBlock}\n\n${task}`;
+}
