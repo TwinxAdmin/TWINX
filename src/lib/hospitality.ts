@@ -158,12 +158,56 @@ export const MENU_THEMES = [
 ] as const;
 export type MenuTheme = (typeof MENU_THEMES)[number]["value"];
 
-// Fogásszám a napi menühöz.
-export const COURSE_OPTIONS = [
-  { value: "", label: "Nincs megkötve" },
-  { value: "2", label: "2 fogásos (leves/előétel + főétel)" },
-  { value: "3", label: "3 fogásos (előétel + főétel + desszert)" },
-] as const;
+// Fogás-struktúrák a napi menühöz — konkrét fogás-összeállítással (nem csak szám).
+export type CourseSlot = { key: string; label: string; cats: string[] };
+export const COURSE_STRUCTURES: { value: string; label: string; slots: CourseSlot[] }[] = [
+  { value: "", label: "Nincs megkötve — a Twinx dönt", slots: [] },
+  {
+    value: "leves_fo",
+    label: "2 fogás — Leves + Főétel",
+    slots: [
+      { key: "leves", label: "Leves", cats: ["leves"] },
+      { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+    ],
+  },
+  {
+    value: "elo_fo",
+    label: "2 fogás — Előétel + Főétel",
+    slots: [
+      { key: "eloetel", label: "Előétel", cats: ["eloetel"] },
+      { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+    ],
+  },
+  {
+    value: "fo_desszert",
+    label: "2 fogás — Főétel + Desszert",
+    slots: [
+      { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+      { key: "desszert", label: "Desszert", cats: ["desszert"] },
+    ],
+  },
+  {
+    value: "elo_fo_desszert",
+    label: "3 fogás — Előétel + Főétel + Desszert",
+    slots: [
+      { key: "eloetel", label: "Előétel", cats: ["eloetel"] },
+      { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+      { key: "desszert", label: "Desszert", cats: ["desszert"] },
+    ],
+  },
+  {
+    value: "leves_fo_desszert",
+    label: "3 fogás — Leves + Főétel + Desszert",
+    slots: [
+      { key: "leves", label: "Leves", cats: ["leves"] },
+      { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
+      { key: "desszert", label: "Desszert", cats: ["desszert"] },
+    ],
+  },
+];
+export function courseStructure(value: string) {
+  return COURSE_STRUCTURES.find((c) => c.value === value) ?? COURSE_STRUCTURES[0];
+}
 
 // Változatosság foka.
 export const VARIETY_OPTIONS = [
@@ -253,8 +297,10 @@ export function composeMenuPrompt(
     `Tematika: ${themeLabel(opts.theme)}`,
     `Profit-cél: ${PROFIT_GOALS.find((g) => g.value === opts.goal)?.label ?? opts.goal}`,
   ];
-  if (opts.courses === "2") lines.push(`Fogásszám: 2 fogásos (leves vagy előétel + főétel).`);
-  if (opts.courses === "3") lines.push(`Fogásszám: 3 fogásos (előétel + főétel + desszert).`);
+  const struct = courseStructure(opts.courses ?? "");
+  if (struct.slots.length) {
+    lines.push(`Fogások (PONTOSAN ezek, ebben a sorrendben, minden napra): ${struct.slots.map((s) => s.label).join(" + ")}.`);
+  }
   if (opts.targetPrice && Number(opts.targetPrice) > 0) {
     lines.push(
       `Célár: a napi menü (fogások összege) lehetőleg maradjon ${Math.round(Number(opts.targetPrice)).toLocaleString("hu-HU")} Ft alatt az ételek eladási ára alapján.`

@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         .filter((e) => e.day && (e.cuisine || e.dishes.length))
         .slice(0, 7)
     : [];
-  const courses = ["2", "3"].includes(String(body.courses ?? "")) ? String(body.courses) : "";
+  const courses = typeof body.courses === "string" ? body.courses.slice(0, 40) : "";
   const targetPrice = body.targetPrice != null && String(body.targetPrice).trim() ? String(body.targetPrice).trim() : "";
   const variety = body.variety === "high" ? "high" : "normal";
   const targetCount = body.targetCount != null && String(body.targetCount).trim() ? String(body.targetCount).trim() : "";

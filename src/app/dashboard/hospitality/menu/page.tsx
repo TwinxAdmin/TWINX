@@ -12,7 +12,8 @@ import {
   PROFIT_GOALS,
   WEEK_DAYS,
   CUISINE_STYLES,
-  COURSE_OPTIONS,
+  COURSE_STRUCTURES,
+  courseStructure,
   VARIETY_OPTIONS,
   timeframeDays,
   formatHuf,
@@ -39,20 +40,10 @@ export default function MenuGeneratorPage() {
     { name: string; cuisine_style: string | null; category: string; cost_price: number | null; sale_price: number | null }[]
   >([]);
 
-  // Fogás-slotok a Fogásszám szerint (a fogáshoz tartozó étel-kategóriákkal).
+  // Fogás-slotok a választott struktúra szerint (fogáshoz tartozó étel-kategóriákkal).
+  const struct = courseStructure(courses);
   const courseSlots: { key: string; label: string; cats: string[] }[] =
-    courses === "3"
-      ? [
-          { key: "eloetel", label: "Előétel", cats: ["eloetel", "leves"] },
-          { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
-          { key: "desszert", label: "Desszert", cats: ["desszert"] },
-        ]
-      : courses === "2"
-        ? [
-            { key: "eloetel", label: "Előétel / Leves", cats: ["eloetel", "leves"] },
-            { key: "foetel", label: "Főétel", cats: ["foetel", "koret"] },
-          ]
-        : [{ key: "etel", label: "Konkrét étel", cats: [] }];
+    struct.slots.length ? struct.slots : [{ key: "etel", label: "Konkrét étel", cats: [] }];
 
   // A kiválasztott konyhához (és fogás-kategóriákhoz) tartozó ételek nevei.
   function dishOptions(cuisine: string, cats: string[]): string[] {
@@ -140,11 +131,10 @@ export default function MenuGeneratorPage() {
   // ---- Profit-figyelmeztetés (determinisztikus, generálás előtt) ----
   const requiredPerMenu =
     Number(targetCount) > 0 && Number(targetProfit) > 0 ? Number(targetProfit) / Number(targetCount) : 0;
-  const menuCourses = courses === "2" ? 2 : 3; // "" (nincs megkötve) és "3" -> 3 fogás becslés
-  const courseCatGroups: string[][] =
-    menuCourses === 2
-      ? [["eloetel", "leves"], ["foetel", "koret"]]
-      : [["eloetel", "leves"], ["foetel", "koret"], ["desszert"]];
+  // Profit-becslés fogás-csoportjai: a struktúra szerint; „nincs megkötve"-nél 3 fogás feltételezés.
+  const courseCatGroups: string[][] = struct.slots.length
+    ? struct.slots.map((s) => s.cats)
+    : [["eloetel", "leves"], ["foetel", "koret"], ["desszert"]];
   const profitOf = (d: { cost_price: number | null; sale_price: number | null }) =>
     d.cost_price != null && d.sale_price != null ? d.sale_price - d.cost_price : 0;
 
@@ -237,9 +227,9 @@ export default function MenuGeneratorPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm">Fogásszám</label>
+            <label className="block text-sm">Fogások</label>
             <select value={courses} onChange={(e) => setCourses(e.target.value)} className="twx-input mt-1">
-              {COURSE_OPTIONS.map((c) => (
+              {COURSE_STRUCTURES.map((c) => (
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
