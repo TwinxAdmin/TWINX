@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { formatHuf } from "@/lib/hospitality";
 import {
-  ENTRY_UNITS, DEFAULT_ENTRY_UNIT, itemCost, recipeCost, unitLabel,
+  ENTRY_UNITS, DEFAULT_ENTRY_UNIT, INGREDIENT_CATEGORIES, itemCost, recipeCost, unitLabel,
   type Ingredient, type RecipeItem,
 } from "@/lib/recipes";
 
@@ -109,8 +109,14 @@ export default function RecipeCalculator({
                       className="box-border h-[38px] min-w-[150px] flex-1 rounded-lg border px-3 py-2 text-sm"
                       style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
                     >
-                      {ingredients.map((i) => (
-                        <option key={i.id} value={i.id}>{i.name} ({formatHuf(i.unit_price)}/{unitLabel(i.unit)})</option>
+                      {INGREDIENT_CATEGORIES.filter((c) => ingredients.some((i) => (i.category ?? "egyeb") === c.value)).map((c) => (
+                        <optgroup key={c.value} label={c.label}>
+                          {ingredients
+                            .filter((i) => (i.category ?? "egyeb") === c.value)
+                            .map((i) => (
+                              <option key={i.id} value={i.id}>{i.name} ({formatHuf(i.unit_price)}/{unitLabel(i.unit)})</option>
+                            ))}
+                        </optgroup>
                       ))}
                     </select>
                     <input

@@ -1,17 +1,20 @@
 // dashboard/hospitality/ingredients — Alapanyagok & receptek.
-// (1) Alapanyag-árlista: mennyiért szerzi be a partner az alapanyagokat.
-// (2) Ételek recept-önköltsége: amelyik ételhez van recept, ott kiszámoljuk az adagonkénti
-//     alapanyagköltséget, és jelezzük, ha eltér az ételnél tárolt ártól.
+// (1) Alapanyagok kategória-kockákban (zöldség, hús, tejtermék…): a kockára kattintva
+//     felugró ablakban lehet tételeket hozzáadni/szerkeszteni, nyilakkal lépkedve a
+//     kategóriák között.
+// (2) Ételek kategória-kockákban (előétel, leves…): lenyílva látszanak az ételek a
+//     recept szerinti adagonkénti alapanyagköltséggel.
 // FONTOS: itt csak az ALAPANYAG számít — rezsi, bér és minden más költség kimarad.
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
-import { formatHuf, categoryLabel, type Dish } from "@/lib/hospitality";
+import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
-  INGREDIENT_UNITS, recipeCost, unitLabel,
+  INGREDIENT_UNITS, INGREDIENT_CATEGORIES, ingredientCategoryLabel, recipeCost, unitLabel,
   type Ingredient, type IngredientUnit,
 } from "@/lib/recipes";
 
@@ -22,13 +25,8 @@ export default function IngredientsPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Új alapanyag űrlap
-  const [name, setName] = useState("");
-  const [unit, setUnit] = useState<IngredientUnit>("kg");
-  const [price, setPrice] = useState("");
-  const [waste, setWaste] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [openCat, setOpenCat] = useState<string | null>(null);     // alapanyag-kategória (modal)
+  const [openDishCat, setOpenDishCat] = useState<string | null>(null); // étel-kategória (lenyíló)
 
   useEffect(() => {
     (async () => {
@@ -50,63 +48,30 @@ export default function IngredientsPage() {
     })();
   }, []);
 
-  const add = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/hospitality/ingredients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, unit, unit_price: price, waste_pct: waste }),
-      });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
-      setIngredients((s) => [...s, data.ingredient].sort((a, b) => a.name.localeCompare(b.name, "hu")));
-      setName(""); setPrice(""); setWaste("");
-      showToast("Alapanyag hozzáadva.", "success");
-    } catch {
-      showToast("Hálózati hiba. Próbáld újra.", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const update = async (ing: Ingredient) => {
-    const res = await fetch("/api/hospitality/ingredients", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ing),
-    });
-    const data = await res.json();
-    if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return false; }
-    setIngredients((s) => s.map((x) => (x.id === ing.id ? data.ingredient : x)));
-    showToast("Módosítva.", "success");
-    return true;
-  };
-
-  const remove = async (id: string) => {
-    const prev = ingredients;
-    setIngredients((s) => s.filter((x) => x.id !== id));
-    const res = await fetch(`/api/hospitality/ingredients?id=${id}`, { method: "DELETE" });
-    if (!res.ok) { setIngredients(prev); showToast("Törlés sikertelen.", "error"); }
-  };
-
-  // Ételek, amelyekhez van recept — a számított adagonkénti alapanyagköltséggel.
-  const dishCosts = useMemo(() => {
+  // Recept-költség ételenként.
+  const costByDish = useMemo(() => {
     const byDish = new Map<string, RecipeRow[]>();
     for (const r of recipes) {
       const arr = byDish.get(r.dish_id) ?? [];
       arr.push(r);
       byDish.set(r.dish_id, arr);
     }
-    return dishes
-      .filter((d) => byDish.has(d.id))
-      .map((d) => {
-        const items = byDish.get(d.id) ?? [];
-        const cost = recipeCost(items, ingredients);
-        return { dish: d, items: items.length, cost };
-      })
-      .sort((a, b) => b.cost - a.cost);
-  }, [dishes, recipes, ingredients]);
+    const out = new Map<string, { cost: number; items: number }>();
+    for (const [dishId, items] of byDish) {
+      out.set(dishId, { cost: recipeCost(items, ingredients), items: items.length });
+    }
+    return out;
+  }, [recipes, ingredients]);
+
+  const dishGroups = useMemo(
+    () =>
+      DISH_CATEGORIES.map((c) => ({
+        cat: c.value as string,
+        label: c.label,
+        items: dishes.filter((d) => d.category === c.value),
+      })).filter((g) => g.items.length),
+    [dishes]
+  );
 
   return (
     <main className="mx-auto max-w-3xl space-y-6">
@@ -122,192 +87,350 @@ export default function IngredientsPage() {
         <div className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}</div>
       ) : (
         <>
-          {/* --- Új alapanyag --- */}
-          <section className="space-y-3">
+          {/* ================= ALAPANYAG-KATEGÓRIÁK ================= */}
+          <section className="space-y-2">
             <div>
-              <h2 className="font-display text-lg font-medium">Alapanyag-árlista</h2>
+              <h2 className="font-display text-lg font-medium">Alapanyagok</h2>
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Az árat mindig az alap-egységre add meg (pl. <b>marhalábszár — 4 200 Ft/kg</b>). A hulladék% a
-                tisztításkor elvesző részt pótolja, hogy ne becsüljük alá a költséget.
+                Kattints egy kategóriára, és vedd fel a beszerzési árakat. Az árat mindig az alap-egységre add meg
+                (pl. <b>marhalábszár — 4 200 Ft/kg</b>); a hulladék% a tisztításkor elvesző részt pótolja.
               </p>
             </div>
 
-            <div className="twx-card flex flex-wrap items-end gap-2 p-4">
-              <div className="min-w-[160px] flex-1">
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megnevezés</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="pl. marhalábszár"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Egység</label>
-                <select value={unit} onChange={(e) => setUnit(e.target.value as IngredientUnit)}
-                  className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
-                  {INGREDIENT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-                </select>
-              </div>
-              <div className="w-32">
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Ár / {unitLabel(unit)}</label>
-                <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="pl. 4200"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-              </div>
-              <div className="w-24">
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hulladék %</label>
-                <input inputMode="numeric" value={waste} onChange={(e) => setWaste(e.target.value)} placeholder="0"
-                  className="mt-1 w-full rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-              </div>
-              <button onClick={add} disabled={busy}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-                {busy ? "…" : "Hozzáadás"}
-              </button>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {INGREDIENT_CATEGORIES.map((c) => {
+                const count = ingredients.filter((i) => (i.category ?? "egyeb") === c.value).length;
+                return (
+                  <button
+                    key={c.value}
+                    onClick={() => setOpenCat(c.value)}
+                    className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
+                  >
+                    <span className="font-display text-base font-medium">{c.label}</span>
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {count > 0 ? `${count} alapanyag` : "még üres"}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
-            {ingredients.length > 0 ? (
-              <div className="twx-card divide-y" style={{ borderColor: "var(--twx-line)" }}>
-                {ingredients.map((ing) => (
-                  <IngredientRow key={ing.id} ing={ing} onSave={update} onRemove={remove} />
-                ))}
-              </div>
-            ) : (
-              <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Még nincs alapanyagod. Vidd fel azokat, amikből a leggyakrabban főzöl — utána az ételeknél két kattintással kiszámolható az önköltség.
-              </div>
-            )}
           </section>
 
-          {/* --- Ételek recept-önköltsége --- */}
+          {/* ================= ÉTEL-KATEGÓRIÁK ================= */}
           <section className="space-y-2">
             <div>
               <h2 className="font-display text-lg font-medium">Ételek recept-önköltsége</h2>
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Azok az ételek, amelyekhez már felvittél receptet. Ha az alapanyag ára változik, itt azonnal látod,
-                mely ételek önköltsége mozdult el a tárolt árhoz képest.
+                Kattints egy kategóriára, és látod az ételeket a recept szerinti adag-költséggel. Ha az alapanyag ára
+                változik, itt azonnal látszik, mely ételek önköltsége mozdult el a tárolt árhoz képest.
               </p>
             </div>
 
-            {dishCosts.length ? (
-              <div className="twx-card overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
-                      <th className="p-3 font-medium">Étel</th>
-                      <th className="p-3 text-right font-medium">Recept szerint</th>
-                      <th className="p-3 text-right font-medium">Étlapnál tárolt</th>
-                      <th className="p-3 text-right font-medium">Menünél tárolt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dishCosts.map(({ dish, cost, items }) => {
-                      const diffE = dish.cost_price != null ? cost - dish.cost_price : null;
-                      const diffM = dish.menu_cost_price != null ? cost - dish.menu_cost_price : null;
-                      return (
-                        <tr key={dish.id} style={{ borderTop: "1px solid var(--twx-line)" }}>
-                          <td className="p-3">
-                            <span className="font-medium">{dish.name}</span>{" "}
-                            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>· {categoryLabel(dish.category)} · {items} alapanyag</span>
-                          </td>
-                          <td className="p-3 text-right font-medium">{formatHuf(cost)}</td>
-                          <td className="p-3 text-right">
-                            {dish.cost_price != null ? (
-                              <>
-                                {formatHuf(dish.cost_price)}
-                                {diffE != null && Math.abs(diffE) >= 1 && (
-                                  <span className="ml-1 text-xs" style={{ color: diffE > 0 ? "#b5372f" : "#2f7a4f" }}>
-                                    ({diffE > 0 ? "+" : ""}{formatHuf(diffE)})
-                                  </span>
-                                )}
-                              </>
-                            ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
-                          </td>
-                          <td className="p-3 text-right">
-                            {dish.menu_cost_price != null ? (
-                              <>
-                                {formatHuf(dish.menu_cost_price)}
-                                {diffM != null && Math.abs(diffM) >= 1 && (
-                                  <span className="ml-1 text-xs" style={{ color: diffM > 0 ? "#b5372f" : "#2f7a4f" }}>
-                                    ({diffM > 0 ? "+" : ""}{formatHuf(diffM)})
-                                  </span>
-                                )}
-                              </>
-                            ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {dishGroups.length ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {dishGroups.map((g) => {
+                    const withRecipe = g.items.filter((d) => costByDish.has(d.id)).length;
+                    const active = openDishCat === g.cat;
+                    return (
+                      <button
+                        key={g.cat}
+                        onClick={() => setOpenDishCat(active ? null : g.cat)}
+                        className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
+                        style={active ? { borderColor: "var(--twx-coral)" } : undefined}
+                      >
+                        <span className="font-display text-base font-medium">{g.label}</span>
+                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                          {g.items.length} étel{withRecipe > 0 ? ` · ${withRecipe} recepttel` : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence initial={false}>
+                  {openDishCat && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="twx-card overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
+                              <th className="p-3 font-medium">Étel</th>
+                              <th className="p-3 text-right font-medium">Recept szerint</th>
+                              <th className="p-3 text-right font-medium">Étlapnál tárolt</th>
+                              <th className="p-3 text-right font-medium">Menünél tárolt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(dishGroups.find((g) => g.cat === openDishCat)?.items ?? []).map((dish) => {
+                              const rc = costByDish.get(dish.id);
+                              const diffE = rc && dish.cost_price != null ? rc.cost - dish.cost_price : null;
+                              const diffM = rc && dish.menu_cost_price != null ? rc.cost - dish.menu_cost_price : null;
+                              return (
+                                <tr key={dish.id} style={{ borderTop: "1px solid var(--twx-line)" }}>
+                                  <td className="p-3">
+                                    <span className="font-medium">{dish.name}</span>
+                                    {rc ? (
+                                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}> · {rc.items} alapanyag</span>
+                                    ) : (
+                                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}> · nincs recept</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-right font-medium">
+                                    {rc ? formatHuf(rc.cost) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {dish.cost_price != null ? (
+                                      <>
+                                        {formatHuf(dish.cost_price)}
+                                        {diffE != null && Math.abs(diffE) >= 1 && (
+                                          <span className="ml-1 text-xs" style={{ color: diffE > 0 ? "#b5372f" : "#2f7a4f" }}>
+                                            ({diffE > 0 ? "+" : ""}{formatHuf(diffE)})
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {dish.menu_cost_price != null ? (
+                                      <>
+                                        {formatHuf(dish.menu_cost_price)}
+                                        {diffM != null && Math.abs(diffM) >= 1 && (
+                                          <span className="ml-1 text-xs" style={{ color: diffM > 0 ? "#b5372f" : "#2f7a4f" }}>
+                                            ({diffM > 0 ? "+" : ""}{formatHuf(diffM)})
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                        A zárójeles érték az eltérés a tárolt árhoz képest. Pirosan: a recept drágább, mint amivel az étel
+                        el van mentve. Receptet a Kínálat kezelőben, az étel árazásánál tudsz felvinni.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Még egyik ételhez sincs recept. A Kínálat kezelőben az étel árazásánál kattints a
-                „Nem tudod fejből? Számoljuk ki" linkre.
+                Még nincs ételed. Vidd fel őket a Kínálat kezelőben, és ott az árazásnál használhatod a recept-kalkulátort.
               </div>
             )}
-            <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              A zárójeles érték azt mutatja, mennyivel tér el a recept szerinti önköltség a tárolt ártól. Pirosan: a
-              recept drágább, mint amivel az étel el van mentve.
-            </p>
           </section>
         </>
       )}
+
+      {/* Alapanyag-kategória szerkesztő ablak */}
+      <AnimatePresence>
+        {openCat && (
+          <CategoryModal
+            key={openCat}
+            category={openCat}
+            ingredients={ingredients}
+            onChange={setIngredients}
+            onNavigate={(cat) => setOpenCat(cat)}
+            onClose={() => setOpenCat(null)}
+          />
+        )}
+      </AnimatePresence>
     </main>
   );
 }
 
-// Egy alapanyag sor — kattintásra szerkeszthető.
-function IngredientRow({
-  ing, onSave, onRemove,
-}: { ing: Ingredient; onSave: (i: Ingredient) => Promise<boolean>; onRemove: (id: string) => void }) {
-  const [edit, setEdit] = useState(false);
-  const [name, setName] = useState(ing.name);
-  const [unit, setUnit] = useState<IngredientUnit>(ing.unit);
-  const [price, setPrice] = useState(String(ing.unit_price ?? ""));
-  const [waste, setWaste] = useState(String(ing.waste_pct ?? 0));
+// =============================================================================
+// Felugró ablak: egy alapanyag-kategória tételeinek szerkesztése
+// =============================================================================
+type Row = { id?: string; name: string; unit: IngredientUnit; unit_price: string; waste_pct: string };
+
+function CategoryModal({
+  category, ingredients, onChange, onNavigate, onClose,
+}: {
+  category: string;
+  ingredients: Ingredient[];
+  onChange: (all: Ingredient[]) => void;
+  onNavigate: (cat: string) => void;
+  onClose: () => void;
+}) {
+  const idx = INGREDIENT_CATEGORIES.findIndex((c) => c.value === category);
+  const prev = INGREDIENT_CATEGORIES[(idx - 1 + INGREDIENT_CATEGORIES.length) % INGREDIENT_CATEGORIES.length];
+  const next = INGREDIENT_CATEGORIES[(idx + 1) % INGREDIENT_CATEGORIES.length];
+
+  const [rows, setRows] = useState<Row[]>(() =>
+    ingredients
+      .filter((i) => (i.category ?? "egyeb") === category)
+      .map((i) => ({ id: i.id, name: i.name, unit: i.unit, unit_price: String(i.unit_price ?? ""), waste_pct: String(i.waste_pct ?? 0) }))
+  );
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
-    setSaving(true);
-    const ok = await onSave({ id: ing.id, name, unit, unit_price: Number(price) || 0, waste_pct: Number(waste) || 0 });
-    setSaving(false);
-    if (ok) setEdit(false);
+  const setRow = (i: number, patch: Partial<Row>) =>
+    setRows((s) => s.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  const addRow = () => setRows((s) => [...s, { name: "", unit: "kg", unit_price: "", waste_pct: "" }]);
+
+  const removeRow = async (i: number) => {
+    const row = rows[i];
+    setRows((s) => s.filter((_, j) => j !== i));
+    if (row.id) {
+      const res = await fetch(`/api/hospitality/ingredients?id=${row.id}`, { method: "DELETE" });
+      if (res.ok) onChange(ingredients.filter((x) => x.id !== row.id));
+      else showToast("Törlés sikertelen.", "error");
+    }
   };
 
-  if (!edit) {
-    return (
-      <div className="flex items-center justify-between gap-3 p-3 text-sm">
-        <span className="min-w-0">
-          <span className="font-medium">{ing.name}</span>{" "}
-          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            · {formatHuf(ing.unit_price)}/{unitLabel(ing.unit)}
-            {ing.waste_pct > 0 ? ` · ${ing.waste_pct}% hulladék` : ""}
-          </span>
-        </span>
-        <span className="flex flex-none items-center gap-2">
-          <button onClick={() => setEdit(true)} className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>Szerkesztés</button>
-          <button onClick={() => onRemove(ing.id)} className="text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Törlés">×</button>
-        </span>
-      </div>
-    );
-  }
+  // Új sorok mentése (POST) + a módosultak frissítése (PATCH).
+  const save = async (): Promise<boolean> => {
+    setSaving(true);
+    try {
+      let all = [...ingredients];
+      for (const r of rows) {
+        if (!r.name.trim()) continue;
+        const payload = {
+          name: r.name.trim(), unit: r.unit,
+          unit_price: r.unit_price, waste_pct: r.waste_pct || 0, category,
+        };
+        if (r.id) {
+          const orig = ingredients.find((x) => x.id === r.id);
+          const unchanged =
+            orig && orig.name === payload.name && orig.unit === r.unit &&
+            String(orig.unit_price) === String(Number(r.unit_price) || 0) &&
+            String(orig.waste_pct) === String(Number(r.waste_pct) || 0);
+          if (unchanged) continue;
+          const res = await fetch("/api/hospitality/ingredients", {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: r.id, ...payload }),
+          });
+          const data = await res.json();
+          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return false; }
+          all = all.map((x) => (x.id === r.id ? data.ingredient : x));
+        } else {
+          const res = await fetch("/api/hospitality/ingredients", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return false; }
+          all = [...all, data.ingredient];
+        }
+      }
+      onChange(all.sort((a, b) => a.name.localeCompare(b.name, "hu")));
+      return true;
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Kategóriaváltás előtt mentünk, hogy ne vesszen el a bevitt adat.
+  const goTo = async (cat: string) => {
+    const ok = await save();
+    if (ok) onNavigate(cat);
+  };
 
   return (
-    <div className="flex flex-wrap items-end gap-2 p-3">
-      <div className="min-w-[140px] flex-1">
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-      </div>
-      <select value={unit} onChange={(e) => setUnit(e.target.value as IngredientUnit)}
-        className="box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
-        {INGREDIENT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-      </select>
-      <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)}
-        className="w-28 rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-      <input inputMode="numeric" value={waste} onChange={(e) => setWaste(e.target.value)}
-        className="w-20 rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
-      <button onClick={save} disabled={saving}
-        className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-        {saving ? "…" : "Mentés"}
-      </button>
-      <button onClick={() => setEdit(false)} className="rounded-xl px-3 py-2 text-sm" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Mégse</button>
-    </div>
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(20,12,8,0.45)" }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+        style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
+        initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 26 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fejléc nyilakkal */}
+        <div className="flex items-center justify-between gap-3 border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <button onClick={() => goTo(prev.value)} className="rounded-lg px-2 py-1 text-lg" style={{ color: "var(--twx-coral)" }} title={prev.label}>‹</button>
+          <div className="text-center">
+            <div className="font-display text-lg font-semibold">{ingredientCategoryLabel(category)}</div>
+            <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{rows.length} tétel · nyilakkal válthatsz kategóriát</div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => goTo(next.value)} className="rounded-lg px-2 py-1 text-lg" style={{ color: "var(--twx-coral)" }} title={next.label}>›</button>
+            <button onClick={onClose} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+          </div>
+        </div>
+
+        {/* Sorok */}
+        <div className="flex-1 space-y-2 overflow-y-auto p-4">
+          {rows.length === 0 && (
+            <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              Ebben a kategóriában még nincs alapanyag. Add hozzá az elsőt lentebb.
+            </p>
+          )}
+          {rows.map((r, i) => (
+            <div key={r.id ?? `new-${i}`} className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[150px] flex-1">
+                <input
+                  value={r.name} onChange={(e) => setRow(i, { name: e.target.value })}
+                  placeholder="pl. marhalábszár"
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                />
+              </div>
+              <select
+                value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value as IngredientUnit })}
+                className="box-border h-[38px] rounded-lg border px-2 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+              >
+                {INGREDIENT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+              <div className="w-28">
+                <input
+                  inputMode="numeric" value={r.unit_price} onChange={(e) => setRow(i, { unit_price: e.target.value })}
+                  placeholder={`Ft/${unitLabel(r.unit)}`}
+                  className="w-full rounded-lg border px-3 py-2 text-right text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                />
+              </div>
+              <div className="w-20">
+                <input
+                  inputMode="numeric" value={r.waste_pct} onChange={(e) => setRow(i, { waste_pct: e.target.value })}
+                  placeholder="hull.%"
+                  className="w-full rounded-lg border px-3 py-2 text-right text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                />
+              </div>
+              <button onClick={() => removeRow(i)} className="text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Törlés">×</button>
+            </div>
+          ))}
+          <button onClick={addRow} className="text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
+            + Alapanyag hozzáadása
+          </button>
+        </div>
+
+        {/* Lábléc */}
+        <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Az ár az alap-egységre értendő (kg / liter / darab).</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
+            <button
+              onClick={async () => { const ok = await save(); if (ok) { showToast("Alapanyagok mentve.", "success"); onClose(); } }}
+              disabled={saving}
+              className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "var(--twx-coral)" }}
+            >
+              {saving ? "Mentés…" : "Mentés és vissza"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

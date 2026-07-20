@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { validateIngredient } from "@/lib/recipes";
 
 export const runtime = "nodejs";
-const SELECT = "id, name, unit, unit_price, waste_pct";
+const SELECT = "id, name, unit, unit_price, waste_pct, category";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       unit: String(body.unit),
       unit_price: num(body.unit_price),
       waste_pct: Math.min(90, num(body.waste_pct)),
+      category: String(body.category ?? "egyeb").slice(0, 30),
     })
     .select(SELECT)
     .single();
@@ -87,6 +88,7 @@ export async function PATCH(request: Request) {
       unit: String(body.unit),
       unit_price: num(body.unit_price),
       waste_pct: Math.min(90, num(body.waste_pct)),
+      category: String(body.category ?? "egyeb").slice(0, 30),
     })
     .eq("id", id)
     .select(SELECT)

@@ -25,7 +25,12 @@ begin
   end if;
 end $$;
 
+-- Kategória (zöldség, hús, tejtermék…) — a felületen kategória-kockákba rendezve.
+alter table public.restaurant_ingredients
+  add column if not exists category text not null default 'egyeb';
+
 create index if not exists ingredients_user_idx on public.restaurant_ingredients (user_id);
+create index if not exists ingredients_user_cat_idx on public.restaurant_ingredients (user_id, category);
 
 alter table public.restaurant_ingredients enable row level security;
 

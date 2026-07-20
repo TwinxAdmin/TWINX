@@ -40,6 +40,26 @@ export function unitLabel(u: string): string {
   return INGREDIENT_UNITS.find((x) => x.value === u)?.label ?? u;
 }
 
+// --- Alapanyag-kategóriák (a felületen kockákba rendezve) -------------------
+export const INGREDIENT_CATEGORIES = [
+  { value: "zoldseg", label: "Zöldség" },
+  { value: "gyumolcs", label: "Gyümölcs" },
+  { value: "hus", label: "Hús" },
+  { value: "hal", label: "Hal & tenger gyümölcsei" },
+  { value: "tejtermek", label: "Tejtermék & tojás" },
+  { value: "pekaru", label: "Pékáru & liszt" },
+  { value: "szaraz", label: "Száraz áru (rizs, tészta)" },
+  { value: "fuszer", label: "Fűszer & alaplé" },
+  { value: "olaj", label: "Olaj & zsiradék" },
+  { value: "ital", label: "Ital & alkohol" },
+  { value: "egyeb", label: "Egyéb" },
+] as const;
+export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number]["value"];
+
+export function ingredientCategoryLabel(v: string): string {
+  return INGREDIENT_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+}
+
 // --- Típusok ---------------------------------------------------------------
 export type Ingredient = {
   id: string;
@@ -47,6 +67,7 @@ export type Ingredient = {
   unit: IngredientUnit;
   unit_price: number; // Ft / alap-egység
   waste_pct: number;  // tisztítási/hulladék veszteség (%)
+  category: string;   // lásd INGREDIENT_CATEGORIES
 };
 
 export type RecipeItem = {
