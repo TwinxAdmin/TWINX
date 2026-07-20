@@ -6,6 +6,7 @@
 // --- Alap-egységek (az árlistában ebben adja meg az árat) -------------------
 export const INGREDIENT_UNITS = [
   { value: "kg", label: "kg" },
+  { value: "dkg", label: "dkg" },
   { value: "l", label: "liter" },
   { value: "db", label: "darab" },
 ] as const;
@@ -19,6 +20,12 @@ export const ENTRY_UNITS: Record<IngredientUnit, { value: string; label: string;
     { value: "dkg", label: "dkg", factor: 1 / 100 },
     { value: "kg", label: "kg", factor: 1 },
   ],
+  // Ha az ár dekagrammra van megadva (jellemzően fűszereknél), ehhez viszonyítunk.
+  dkg: [
+    { value: "g", label: "g", factor: 1 / 10 },
+    { value: "dkg", label: "dkg", factor: 1 },
+    { value: "kg", label: "kg", factor: 100 },
+  ],
   l: [
     { value: "ml", label: "ml", factor: 1 / 1000 },
     { value: "dl", label: "dl", factor: 1 / 10 },
@@ -28,7 +35,7 @@ export const ENTRY_UNITS: Record<IngredientUnit, { value: string; label: string;
 };
 
 // Alapértelmezett bevitt egység egy alap-egységhez (amit a legtöbben használnak).
-export const DEFAULT_ENTRY_UNIT: Record<IngredientUnit, string> = { kg: "dkg", l: "dl", db: "db" };
+export const DEFAULT_ENTRY_UNIT: Record<IngredientUnit, string> = { kg: "dkg", dkg: "dkg", l: "dl", db: "db" };
 
 // Egy mennyiség átváltása alap-egységre (kg / l / db).
 export function toBaseAmount(quantity: number, entryUnit: string, base: IngredientUnit): number {
@@ -43,18 +50,21 @@ export function unitLabel(u: string): string {
 // --- Alapanyag-kategóriák (a felületen kockákba rendezve) -------------------
 // Minden kategóriához oda illő PÉLDA (a beviteli mező súgójához) és a jellemzően
 // használt alap-egység, hogy ne kelljen mindig átállítani.
+// A `units` listán CSAK az adott kategóriában értelmes egységek szerepelnek, és mindig
+// a LEGGYAKORIBB áll az élen — az lesz az alapértelmezett. (Zöldségnél nincs liter;
+// dkg csak a fűszereknél, mert krumplit senki nem dekagrammban vásárol.)
 export const INGREDIENT_CATEGORIES = [
-  { value: "zoldseg", label: "Zöldség", example: "pl. burgonya", unit: "kg" },
-  { value: "gyumolcs", label: "Gyümölcs", example: "pl. alma", unit: "kg" },
-  { value: "hus", label: "Hús", example: "pl. marhalábszár", unit: "kg" },
-  { value: "hal", label: "Hal & tenger gyümölcsei", example: "pl. lazacfilé", unit: "kg" },
-  { value: "tejtermek", label: "Tejtermék & tojás", example: "pl. tejföl", unit: "l" },
-  { value: "pekaru", label: "Pékáru & liszt", example: "pl. finomliszt", unit: "kg" },
-  { value: "szaraz", label: "Száraz áru (rizs, tészta)", example: "pl. rizs", unit: "kg" },
-  { value: "fuszer", label: "Fűszer & alaplé", example: "pl. őrölt paprika", unit: "kg" },
-  { value: "olaj", label: "Olaj & zsiradék", example: "pl. napraforgó olaj", unit: "l" },
-  { value: "ital", label: "Ital & alkohol", example: "pl. ásványvíz", unit: "l" },
-  { value: "egyeb", label: "Egyéb", example: "pl. szalvéta", unit: "db" },
+  { value: "zoldseg", label: "Zöldség", example: "pl. burgonya", units: ["kg", "db"] },
+  { value: "gyumolcs", label: "Gyümölcs", example: "pl. alma", units: ["kg", "db"] },
+  { value: "hus", label: "Hús", example: "pl. marhalábszár", units: ["kg", "db"] },
+  { value: "hal", label: "Hal & tenger gyümölcsei", example: "pl. lazacfilé", units: ["kg", "db"] },
+  { value: "tejtermek", label: "Tejtermék & tojás", example: "pl. tejföl", units: ["l", "kg", "db"] },
+  { value: "pekaru", label: "Pékáru & liszt", example: "pl. finomliszt", units: ["kg", "db"] },
+  { value: "szaraz", label: "Száraz áru (rizs, tészta)", example: "pl. rizs", units: ["kg", "db"] },
+  { value: "fuszer", label: "Fűszer & alaplé", example: "pl. őrölt paprika", units: ["kg", "dkg", "l"] },
+  { value: "olaj", label: "Olaj & zsiradék", example: "pl. napraforgó olaj", units: ["l", "kg"] },
+  { value: "ital", label: "Ital & alkohol", example: "pl. ásványvíz", units: ["l", "db"] },
+  { value: "egyeb", label: "Egyéb", example: "pl. szalvéta", units: ["db", "kg", "l"] },
 ] as const;
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number]["value"];
 
@@ -67,9 +77,15 @@ export function ingredientCategoryExample(v: string): string {
   return INGREDIENT_CATEGORIES.find((c) => c.value === v)?.example ?? "pl. alapanyag neve";
 }
 
-// A kategóriában jellemző alap-egység (új sor felvitelekor ez az alapértelmezett).
+// Az adott kategóriában felkínált egységek (az első a legáltalánosabb).
+export function ingredientCategoryUnits(v: string): IngredientUnit[] {
+  const c = INGREDIENT_CATEGORIES.find((x) => x.value === v);
+  return [...(c?.units ?? ["kg", "l", "db"])] as IngredientUnit[];
+}
+
+// A kategória alapértelmezett egysége = a lista első (leggyakoribb) eleme.
 export function ingredientCategoryUnit(v: string): IngredientUnit {
-  return (INGREDIENT_CATEGORIES.find((c) => c.value === v)?.unit ?? "kg") as IngredientUnit;
+  return ingredientCategoryUnits(v)[0];
 }
 
 // --- Típusok ---------------------------------------------------------------

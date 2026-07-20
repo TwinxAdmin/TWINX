@@ -17,13 +17,10 @@ create table if not exists public.restaurant_ingredients (
   unique (user_id, name)
 );
 
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname = 'ingredients_unit_check') then
-    alter table public.restaurant_ingredients
-      add constraint ingredients_unit_check check (unit in ('kg', 'l', 'db'));
-  end if;
-end $$;
+-- Megengedett alap-egységek (a dkg főleg fűszereknél hasznos).
+alter table public.restaurant_ingredients drop constraint if exists ingredients_unit_check;
+alter table public.restaurant_ingredients
+  add constraint ingredients_unit_check check (unit in ('kg', 'dkg', 'l', 'db'));
 
 -- Kategória (zöldség, hús, tejtermék…) — a felületen kategória-kockákba rendezve.
 alter table public.restaurant_ingredients

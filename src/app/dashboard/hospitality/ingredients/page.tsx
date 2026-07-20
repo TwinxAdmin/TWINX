@@ -14,8 +14,8 @@ import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
 import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
-  INGREDIENT_UNITS, INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
-  ingredientCategoryUnit, recipeCost, unitLabel,
+  INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
+  ingredientCategoryUnit, ingredientCategoryUnits, recipeCost, unitLabel,
   type Ingredient, type IngredientUnit,
 } from "@/lib/recipes";
 
@@ -471,7 +471,11 @@ function CategoryModal({
                 className="box-border h-[38px] rounded-lg border px-2 py-2 text-sm"
                 style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
               >
-                {INGREDIENT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                {/* Csak a kategóriában értelmes egységek — plusz a sor jelenlegi értéke,
+                    hogy egy korábban máshogy rögzített tétel se essen ki a listából. */}
+                {Array.from(new Set([...ingredientCategoryUnits(category), r.unit])).map((u) => (
+                  <option key={u} value={u}>{unitLabel(u)}</option>
+                ))}
               </select>
               <div className="w-28">
                 <input
