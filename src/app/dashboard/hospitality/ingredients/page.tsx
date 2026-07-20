@@ -27,6 +27,36 @@ export default function IngredientsPage() {
   const [loading, setLoading] = useState(true);
   const [openCat, setOpenCat] = useState<string | null>(null);     // alapanyag-kategória (modal)
   const [openDishCat, setOpenDishCat] = useState<string | null>(null); // étel-kategória (lenyíló)
+  const [applying, setApplying] = useState(false);
+
+  // A recept szerinti önköltség beírása az étel tárolt árába (a szerver újraszámolja).
+  // A tárolt ár CSAK így változik — az áremelés a partner döntése marad.
+  const applyCost = async (dishIds: string[], target: "etlap" | "menu") => {
+    if (!dishIds.length) return;
+    setApplying(true);
+    try {
+      const res = await fetch("/api/hospitality/recipes/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dish_ids: dishIds, target }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "A frissítés nem sikerült.", "error"); return; }
+      const map = new Map<string, number>((data.updated ?? []).map((u: { dish_id: string; cost: number }) => [u.dish_id, u.cost]));
+      setDishes((prev) =>
+        prev.map((d) =>
+          map.has(d.id)
+            ? { ...d, [target === "menu" ? "menu_cost_price" : "cost_price"]: map.get(d.id) as number }
+            : d
+        )
+      );
+      showToast(`${map.size} étel ${target === "menu" ? "menü-költsége" : "étlap-ára"} frissítve.`, "success");
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setApplying(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -62,6 +92,16 @@ export default function IngredientsPage() {
     }
     return out;
   }, [recipes, ingredients]);
+
+  // Azok az ételek, ahol a tárolt étlap-ár eltér a recept szerinti önköltségtől.
+  const staleEtlap = useMemo(
+    () =>
+      dishes.filter((d) => {
+        const rc = costByDish.get(d.id);
+        return rc && d.cost_price != null && Math.abs(rc.cost - d.cost_price) >= 1;
+      }),
+    [dishes, costByDish]
+  );
 
   const dishGroups = useMemo(
     () =>
@@ -122,9 +162,26 @@ export default function IngredientsPage() {
               <h2 className="font-display text-lg font-medium">Ételek recept-önköltsége</h2>
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Kattints egy kategóriára, és látod az ételeket a recept szerinti adag-költséggel. Ha az alapanyag ára
-                változik, itt azonnal látszik, mely ételek önköltsége mozdult el a tárolt árhoz képest.
+                változik, itt azonnal látszik, mely ételek önköltsége mozdult el a tárolt árhoz képest. A tárolt ár csak
+                akkor változik, ha te frissíted — az eladási ár emelése továbbra is a te döntésed.
               </p>
             </div>
+
+            {staleEtlap.length > 0 && (
+              <div className="twx-card flex flex-wrap items-center justify-between gap-3 p-4">
+                <span className="text-sm">
+                  <b>{staleEtlap.length}</b> ételnél eltér a recept szerinti önköltség a tárolt étlap-ártól.
+                </span>
+                <button
+                  onClick={() => applyCost(staleEtlap.map((d) => d.id), "etlap")}
+                  disabled={applying}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: "var(--twx-coral)" }}
+                >
+                  {applying ? "Frissítés…" : "Összes étlap-ár frissítése"}
+                </button>
+              </div>
+            )}
 
             {dishGroups.length ? (
               <div className="space-y-3">
@@ -190,11 +247,22 @@ export default function IngredientsPage() {
                                       <>
                                         {formatHuf(dish.cost_price)}
                                         {diffE != null && Math.abs(diffE) >= 1 && (
-                                          <span className="ml-1 text-xs" style={{ color: diffE > 0 ? "#b5372f" : "#2f7a4f" }}>
-                                            ({diffE > 0 ? "+" : ""}{formatHuf(diffE)})
-                                          </span>
+                                          <>
+                                            <span className="ml-1 text-xs" style={{ color: diffE > 0 ? "#b5372f" : "#2f7a4f" }}>
+                                              ({diffE > 0 ? "+" : ""}{formatHuf(diffE)})
+                                            </span>
+                                            <button onClick={() => applyCost([dish.id], "etlap")} disabled={applying}
+                                              className="ml-2 text-xs font-medium underline disabled:opacity-50" style={{ color: "var(--twx-coral)" }}>
+                                              frissít
+                                            </button>
+                                          </>
                                         )}
                                       </>
+                                    ) : rc ? (
+                                      <button onClick={() => applyCost([dish.id], "etlap")} disabled={applying}
+                                        className="text-xs font-medium underline disabled:opacity-50" style={{ color: "var(--twx-coral)" }}>
+                                        beírom
+                                      </button>
                                     ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
                                   </td>
                                   <td className="p-3 text-right">
@@ -202,11 +270,22 @@ export default function IngredientsPage() {
                                       <>
                                         {formatHuf(dish.menu_cost_price)}
                                         {diffM != null && Math.abs(diffM) >= 1 && (
-                                          <span className="ml-1 text-xs" style={{ color: diffM > 0 ? "#b5372f" : "#2f7a4f" }}>
-                                            ({diffM > 0 ? "+" : ""}{formatHuf(diffM)})
-                                          </span>
+                                          <>
+                                            <span className="ml-1 text-xs" style={{ color: diffM > 0 ? "#b5372f" : "#2f7a4f" }}>
+                                              ({diffM > 0 ? "+" : ""}{formatHuf(diffM)})
+                                            </span>
+                                            <button onClick={() => applyCost([dish.id], "menu")} disabled={applying}
+                                              className="ml-2 text-xs font-medium underline disabled:opacity-50" style={{ color: "var(--twx-coral)" }}>
+                                              frissít
+                                            </button>
+                                          </>
                                         )}
                                       </>
+                                    ) : rc ? (
+                                      <button onClick={() => applyCost([dish.id], "menu")} disabled={applying}
+                                        className="text-xs font-medium underline disabled:opacity-50" style={{ color: "var(--twx-coral)" }}>
+                                        beírom
+                                      </button>
                                     ) : <span style={{ color: "var(--twx-ink-muted)" }}>—</span>}
                                   </td>
                                 </tr>

@@ -86,8 +86,15 @@ export default function CostingPage() {
   }, []);
 
   const overhead = costProfileTotal(profile);
+  // Étlaposan árazott ételek (van eladási áruk) — a Riport/Profit-terv ezekkel dolgozik.
   const priced = useMemo(
     () => dishes.filter((d) => d.cost_price != null && d.sale_price != null),
+    [dishes]
+  );
+  // Rögzíthető ételek: étlapos áruk VAGY menü-költségük van. Az Eladások fül ezt használja,
+  // különben egy csak-menüs étel (pl. menübe főzött leves) sehol nem lenne rögzíthető.
+  const sellable = useMemo(
+    () => dishes.filter((d) => (d.cost_price != null && d.sale_price != null) || d.menu_cost_price != null),
     [dishes]
   );
 
@@ -134,11 +141,11 @@ export default function CostingPage() {
         <ProfileTab profile={profile} onSaved={setProfile} oneTime={oneTime} onOneTimeChange={setOneTime} />
       ) : tab === "sales" ? (
         <SalesTab
-          priced={priced} sales={sales} menuSales={menuSales} profile={profile}
+          priced={sellable} sales={sales} menuSales={menuSales} profile={profile}
           onSaved={(s, m) => { setSales(s); setMenuSales(m); }}
         />
       ) : tab === "report" ? (
-        <ReportTab priced={priced} sales={sales} menuSales={menuSales} overhead={overhead} oneTime={oneTime} />
+        <ReportTab priced={sellable} sales={sales} menuSales={menuSales} overhead={overhead} oneTime={oneTime} />
       ) : (
         <PlanTab priced={priced} dishes={dishes} profile={profile} overhead={overhead} oneTime={oneTime} />
       )}
@@ -847,25 +854,46 @@ function EntryEditorModal({
                 <b>Étlapról</b>: külön rendelt adagok. <b>Menüben</b>: a napi menükbe felhasznált adagok.
               </p>
               <div className="space-y-3">
-                {activeGroup.items.map((d) => (
-                  <div key={d.id} className="rounded-lg border p-3" style={{ borderColor: "var(--twx-line)" }}>
-                    <div className="mb-2 font-medium">{d.name}</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          Étlapról {d.sale_price != null ? `(${formatHuf(d.sale_price)})` : "(nincs étlap-ár)"}
-                        </label>
-                        <div className="mt-1"><NumField value={qtyE[d.id] ?? ""} onChange={(v) => setQtyE((s) => ({ ...s, [d.id]: v }))} /></div>
+                {activeGroup.items.map((d) => {
+                  // Csak ott kérünk darabszámot, ahol az adott csatornán árazva van az étel.
+                  const hasEtlap = d.cost_price != null && d.sale_price != null;
+                  const hasMenu = d.menu_cost_price != null;
+                  return (
+                    <div key={d.id} className="rounded-lg border p-3" style={{ borderColor: "var(--twx-line)" }}>
+                      <div className="mb-2 font-medium">
+                        {d.name}
+                        {!hasEtlap && hasMenu && (
+                          <span className="ml-2 rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                            csak menüben
+                          </span>
+                        )}
+                        {hasEtlap && !hasMenu && (
+                          <span className="ml-2 rounded-full px-2 py-0.5 text-xs" style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                            csak étlapon
+                          </span>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          Menüben {d.menu_cost_price != null ? `(önktg ${formatHuf(d.menu_cost_price)})` : "(nincs menü-költség)"}
-                        </label>
-                        <div className="mt-1"><NumField value={qtyM[d.id] ?? ""} onChange={(v) => setQtyM((s) => ({ ...s, [d.id]: v }))} /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {hasEtlap && (
+                          <div>
+                            <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                              Étlapról ({formatHuf(d.sale_price as number)})
+                            </label>
+                            <div className="mt-1"><NumField value={qtyE[d.id] ?? ""} onChange={(v) => setQtyE((s) => ({ ...s, [d.id]: v }))} /></div>
+                          </div>
+                        )}
+                        {hasMenu && (
+                          <div>
+                            <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                              Menüben (önktg {formatHuf(d.menu_cost_price as number)})
+                            </label>
+                            <div className="mt-1"><NumField value={qtyM[d.id] ?? ""} onChange={(v) => setQtyM((s) => ({ ...s, [d.id]: v }))} /></div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           ) : null}
