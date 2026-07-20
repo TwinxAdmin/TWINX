@@ -118,15 +118,18 @@ export async function POST(request: Request) {
     const monthlyOverhead = costProfileTotal(normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null));
     const proratedFix = proratedOverhead(monthlyOverhead, days);
 
-    // Egyszeri kiadások: azok, amelyek időszaka (period_start..period_end) átfed a riporttal;
-    // az átfedő napok arányában (arányos elosztás) számítjuk be.
+    // Egyszeri tételek: azok, amelyek időszaka (period_start..period_end) átfed a riporttal;
+    // az átfedő napok arányában (arányos elosztás) számítjuk be. A kiadás a rezsihez adódik,
+    // a bevétel a végén a profithoz (hogy ne torzítsa a rezsi-allokációt).
     const { data: otRows } = await admin
       .from("restaurant_one_time_costs")
-      .select("id, label, amount, period_start, period_end")
+      .select("id, label, amount, period_start, period_end, kind")
       .eq("user_id", user.id)
       .lte("period_start", end)
       .gte("period_end", start);
-    const oneTimeTotal = oneTimeInRange((otRows ?? []) as OneTimeCost[], start, end);
+    const otAll = (otRows ?? []) as OneTimeCost[];
+    const oneTimeTotal = oneTimeInRange(otAll, start, end, "expense");
+    const oneTimeIncome = oneTimeInRange(otAll, start, end, "income");
 
     const overhead = proratedFix + oneTimeTotal;
 
@@ -166,7 +169,7 @@ export async function POST(request: Request) {
     };
 
     // 4) Determinisztikus számítás (időszakra arányosított rezsivel).
-    const result = computeCosting(inputs, menuSales, overhead);
+    const result = computeCosting(inputs, menuSales, overhead, oneTimeIncome);
     const periodLabel = `${start} – ${end} (${days} nap)`;
 
     // 4) AI-javaslat (a számokat készen kapja).
@@ -197,7 +200,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { start, end, days, monthly_overhead: monthlyOverhead, one_time_total: oneTimeTotal, overhead, dish_count: inputs.length },
+      input_data: { start, end, days, monthly_overhead: monthlyOverhead, one_time_total: oneTimeTotal, one_time_income: oneTimeIncome, overhead, dish_count: inputs.length },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });

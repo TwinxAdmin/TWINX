@@ -131,7 +131,11 @@ export type CostingResult = {
     perMenuOverhead: number; // egy menüre jutó rezsi
     perMenuProfit: number;   // ennyi marad egy menün
   };
-  totals: { overhead: number; revenue: number; ingredientCost: number; netProfit: number };
+  totals: {
+    overhead: number; revenue: number; ingredientCost: number;
+    oneTimeIncome: number; // egyszeri bevétel az időszakra (nem értékesítésből)
+    netProfit: number;
+  };
 };
 
 // Fő számítás. A rezsit előbb a két csatorna közt osztjuk el árbevétel-arányosan,
@@ -139,7 +143,8 @@ export type CostingResult = {
 export function computeCosting(
   dishes: CostingDishInput[],
   menuSales: MenuSalesInput,
-  overhead: number
+  overhead: number,
+  oneTimeIncome = 0
 ): CostingResult {
   // ÉTLAP oldal — csak az árazott, étlapról fogyott ételek.
   const etlapItems = dishes.filter((d) => d.qty_etlap > 0 && d.cost_price != null && d.sale_price != null);
@@ -207,7 +212,9 @@ export function computeCosting(
       overhead,
       revenue: totalRevenue,
       ingredientCost,
-      netProfit: totalRevenue - ingredientCost - overhead,
+      oneTimeIncome,
+      // Az egyszeri bevétel nem torzítja a rezsi-allokációt: a végén adódik hozzá.
+      netProfit: totalRevenue - ingredientCost - overhead + oneTimeIncome,
     },
   };
 }
@@ -215,7 +222,12 @@ export function computeCosting(
 // --- Egyszeri (nem havi) kiadások -------------------------------------------
 // Egy egyszeri kiadás egy SAJÁT időszakra (period_start..period_end) vonatkozik, és
 // arányosan (naponta egyenlően) oszlik el rajta. A riport csak az átfedő napok arányát számolja.
-export type OneTimeCost = { id: string; label: string; amount: number; period_start: string; period_end: string };
+export type OneTimeKind = "expense" | "income";
+export type OneTimeCost = {
+  id: string; label: string; amount: number;
+  period_start: string; period_end: string;
+  kind: OneTimeKind; // kiadás vagy bevétel (pl. támogatás, eszköz eladása)
+};
 
 // Egy egyszeri kiadás [start,end] riport-időszakra jutó (arányos) része.
 export function oneTimeShare(c: OneTimeCost, start: string, end: string): number {
@@ -227,9 +239,14 @@ export function oneTimeShare(c: OneTimeCost, start: string, end: string): number
   return ((Number(c.amount) || 0) * overlap) / total;
 }
 
-// Az adott [start,end] riport-időszakra jutó egyszeri kiadások összege (arányosan).
-export function oneTimeInRange(costs: OneTimeCost[], start: string, end: string): number {
-  return costs.reduce((s, c) => s + oneTimeShare(c, start, end), 0);
+// Az adott [start,end] riport-időszakra jutó egyszeri tételek összege (arányosan).
+// kind megadásával csak a kiadásokat vagy csak a bevételeket összegzi.
+export function oneTimeInRange(
+  costs: OneTimeCost[], start: string, end: string, kind?: OneTimeKind
+): number {
+  return costs
+    .filter((c) => !kind || (c.kind ?? "expense") === kind)
+    .reduce((s, c) => s + oneTimeShare(c, start, end), 0);
 }
 
 // --- Időszak-kezelés --------------------------------------------------------
@@ -254,11 +271,14 @@ export function costingSummaryText(r: CostingResult, periodLabel?: string, oneTi
   if (oneTimeTotal && oneTimeTotal > 0) {
     lines.push(`Ebből egyszeri (nem havi) kiadás az időszakban: ${formatHuf(oneTimeTotal)}.`);
   }
+  if (r.totals.oneTimeIncome > 0) {
+    lines.push(`Egyszeri (nem értékesítésből származó) bevétel az időszakban: ${formatHuf(r.totals.oneTimeIncome)}.`);
+  }
   lines.push(
-    `Időszakra jutó fix költség (rezsi + egyszeri): ${formatHuf(r.totals.overhead)}. ` +
+    `Időszakra jutó fix költség (rezsi + egyszeri kiadás): ${formatHuf(r.totals.overhead)}. ` +
       `Időszaki árbevétel: ${formatHuf(r.totals.revenue)}. ` +
       `Alapanyagköltség: ${formatHuf(r.totals.ingredientCost)}. ` +
-      `Étterem időszaki valós profit (árbevétel − alapanyag − rezsi): ${formatHuf(r.totals.netProfit)}.`
+      `Étterem időszaki valós profit (árbevétel − alapanyag − rezsi + egyszeri bevétel): ${formatHuf(r.totals.netProfit)}.`
   );
   lines.push(
     `A rezsit árbevétel-arányosan osztjuk el az étlap és a menü csatorna között, az étlapon belül ételenként szintén.`

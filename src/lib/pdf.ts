@@ -184,7 +184,8 @@ export async function generateCostingPdf(params: {
   y -= 14;
   write(
     `Rezsi-allokáció: árbevétel-arányos (étlap / menü)    ·    Időszaki költség: ${huf(t.overhead)}` +
-      (oneTimeTotal && oneTimeTotal > 0 ? `  (ebből egyszeri: ${huf(oneTimeTotal)})` : ""),
+      (oneTimeTotal && oneTimeTotal > 0 ? `  (ebből egyszeri: ${huf(oneTimeTotal)})` : "") +
+      (t.oneTimeIncome > 0 ? `    ·    Egyszeri bevétel: ${huf(t.oneTimeIncome)}` : ""),
     margin, y, 9.5, C.muted
   );
   y -= 24;

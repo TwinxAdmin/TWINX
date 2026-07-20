@@ -297,7 +297,7 @@ function MenuView({
           </div>
         ) : (
           <p className="text-sm" style={{ color: "#b5372f" }}>
-            Nincs {courses} fogásos menü-ár beállítva — add meg az Önköltség &amp; profit modul „Étteremszintű költség" fülén.
+            Nincs {courses} fogásos menü-ár beállítva — add meg az Önköltség &amp; profit modul „Költségek &amp; bevételek" fülén.
           </p>
         )}
       </div>

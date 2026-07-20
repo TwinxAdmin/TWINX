@@ -455,7 +455,7 @@ export default function MenuGeneratorPage() {
                       </>
                     ) : (
                       <span style={{ color: "#b5372f" }}>
-                        Még nincs menü-ár beállítva. Add meg az Önköltség &amp; profit modul „Étteremszintű költség" fülén.
+                        Még nincs menü-ár beállítva. Add meg az Önköltség &amp; profit modul „Költségek &amp; bevételek" fülén.
                       </span>
                     )}
                   </div>

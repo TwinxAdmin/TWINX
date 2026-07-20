@@ -15,7 +15,7 @@ async function requireUser() {
 }
 
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s).getTime());
-const SELECT = "id, label, amount, period_start, period_end";
+const SELECT = "id, label, amount, period_start, period_end, kind";
 
 export async function GET() {
   const { supabase, user } = await requireUser();
@@ -51,9 +51,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A záró dátum nem lehet korábbi a kezdőnél." }, { status: 422 });
   }
 
+  const kind = String(body.kind ?? "expense") === "income" ? "income" : "expense";
+
   const { data, error } = await supabase
     .from("restaurant_one_time_costs")
-    .insert({ user_id: user.id, label, amount, period_start, period_end })
+    .insert({ user_id: user.id, label, amount, period_start, period_end, kind })
     .select(SELECT)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -31,6 +31,18 @@ end $$;
 alter table public.restaurant_one_time_costs alter column period_start set not null;
 alter table public.restaurant_one_time_costs alter column period_end set not null;
 
+-- Egyszeri tétel típusa: kiadás vagy bevétel (pl. támogatás, régi eszköz eladása).
+alter table public.restaurant_one_time_costs
+  add column if not exists kind text not null default 'expense';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'one_time_kind_check') then
+    alter table public.restaurant_one_time_costs
+      add constraint one_time_kind_check check (kind in ('expense', 'income'));
+  end if;
+end $$;
+
 create index if not exists one_time_costs_user_range_idx
   on public.restaurant_one_time_costs (user_id, period_start, period_end);
 
