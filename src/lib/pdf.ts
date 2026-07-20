@@ -5,6 +5,7 @@ import path from "node:path";
 import { PDFDocument, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { CostingResult } from "@/lib/costing";
+import type { SimResult } from "@/lib/simulation";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -368,6 +369,210 @@ export async function generateCostingPdf(params: {
   pages.forEach((p, i) => {
     p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });
     p.drawText(`Készült a TWINX-szel · ${dateStr}`, { x: margin, y: 22, size: 8, font, color: C.muted });
+    const pn = `${i + 1} / ${pages.length}`;
+    p.drawText(pn, { x: pageW - margin - font.widthOfTextAtSize(pn, 8), y: 22, size: 8, font, color: C.muted });
+  });
+
+  return await pdfDoc.save();
+}
+
+// ---------------------------------------------------------------------------
+// PROFIT-TERV (előretekintő szimuláció) — márkázott PDF.
+// Ugyanaz a vizuális nyelv, mint az önköltség-riportnál, de a hangsúly a CÉLON van.
+// ---------------------------------------------------------------------------
+export async function generateSimulationPdf(params: {
+  result: SimResult;
+  narrative: string;
+  period?: string;
+}): Promise<Uint8Array> {
+  const { result: r, narrative, period } = params;
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  const font = await pdfDoc.embedFont(await loadFontBytes());
+
+  const pageW = 595.28, pageH = 841.89;
+  const margin = 48;
+  const contentW = pageW - margin * 2;
+  const dateStr = new Date().toLocaleDateString("hu-HU");
+
+  let page: PDFPage = pdfDoc.addPage([pageW, pageH]);
+  let y = pageH;
+
+  const write = (s: string, x: number, yy: number, size: number, color = C.ink, bold = false) => {
+    page.drawText(s, { x, y: yy, size, font, color });
+    if (bold) page.drawText(s, { x: x + 0.4, y: yy, size, font, color });
+  };
+  const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink, bold = false) => {
+    write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color, bold);
+  };
+  const truncate = (s: string, size: number, maxW: number) => {
+    if (font.widthOfTextAtSize(s, size) <= maxW) return s;
+    let t = s;
+    while (t.length > 1 && font.widthOfTextAtSize(t + "…", size) > maxW) t = t.slice(0, -1);
+    return t + "…";
+  };
+  const wrapText = (t: string, size: number, maxW: number): string[] => {
+    const out: string[] = [];
+    for (const raw of t.split(/\n/)) {
+      if (raw.trim() === "") { out.push(""); continue; }
+      const words = raw.split(/\s+/);
+      let cur = "";
+      for (const w of words) {
+        const test = cur ? `${cur} ${w}` : w;
+        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
+        else cur = test;
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
+  };
+  function newPage() {
+    page = pdfDoc.addPage([pageW, pageH]);
+    y = pageH - margin;
+  }
+  const sectionTitle = (label: string) => {
+    if (y < margin + 90) newPage();
+    write(label, margin, y, 13, C.ink, true);
+    page.drawRectangle({ x: margin, y: y - 6, width: 42, height: 2.5, color: C.coral });
+    y -= 22;
+  };
+
+  // --- fejléc ---
+  const bandH = 84;
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: bandH, color: C.coral });
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: 4, color: C.coralDeep });
+  write("Profit-terv", margin, pageH - 40, 20, C.white, true);
+  write("TWINX · Vendéglátás", margin, pageH - 60, 10, C.softWhite);
+  writeRight(dateStr, pageW - margin, pageH - 40, 10, C.white);
+  y = pageH - bandH - 26;
+
+  write(period ? `Tervezett időszak: ${period}` : "Tervezett időszak", margin, y, 9.5, C.muted);
+  y -= 14;
+  write(
+    r.mode === "full"
+      ? `Számítási mód: az étterem egyéb költségeivel együtt (időszaki egyéb költség: ${huf(r.otherCosts)})`
+      : "Számítási mód: csak az ételeken elért profit (egyéb költségek nélkül)",
+    margin, y, 9.5, C.muted
+  );
+  y -= 24;
+
+  // --- KPI kártyák ---
+  const kpis: { label: string; value: string; highlight?: boolean; neg?: boolean }[] = [
+    { label: "Tervezett árbevétel", value: huf(r.revenue) },
+    { label: "Tervezett költség", value: huf(r.cost) },
+    { label: r.target > 0 ? "Cél-profit" : "Tételek", value: r.target > 0 ? huf(r.target) : String(r.dishes.length) },
+    { label: "Várható profit", value: huf(r.profit), highlight: true, neg: r.profit < 0 },
+  ];
+  const gap = 10;
+  const cardW = (contentW - gap * 3) / 4;
+  const cardH = 56;
+  kpis.forEach((k, i) => {
+    const x = margin + i * (cardW + gap);
+    page.drawRectangle({
+      x, y: y - cardH, width: cardW, height: cardH,
+      color: k.highlight ? C.soft : C.cream,
+      borderColor: k.highlight ? C.coral : C.line, borderWidth: 1,
+    });
+    write(truncate(k.label, 8, cardW - 16), x + 10, y - 20, 8, C.muted);
+    write(truncate(k.value, 13, cardW - 16), x + 10, y - 40, 13, k.neg ? C.red : k.highlight ? C.coralDeep : C.ink, true);
+  });
+  y -= cardH + 26;
+
+  // --- Cél teljesülése ---
+  if (r.target > 0) {
+    const ok = r.gap <= 0;
+    const boxH = 56;
+    page.drawRectangle({
+      x: margin, y: y - boxH, width: contentW, height: boxH,
+      color: ok ? C.cream : C.soft, borderColor: ok ? C.line : C.coral, borderWidth: 1,
+    });
+    write(ok ? "A CÉL TELJESÜL" : "A CÉLHOZ MÉG HIÁNYZIK", margin + 10, y - 18, 8, ok ? C.muted : C.coralDeep, true);
+    write(
+      ok
+        ? `A terv ${huf(-r.gap)}-tal meghaladja a ${huf(r.target)} célt.`
+        : `${huf(r.gap)} hiányzik a ${huf(r.target)} célhoz.` +
+            (r.scaleFactor ? `  A jelenlegi mix ~${Math.round(r.scaleFactor * 100)}%-ára skálázva jönne ki.` : ""),
+      margin + 10, y - 36, 10, C.ink
+    );
+    y -= boxH + 20;
+    if (r.bestLever && r.gap > 0) {
+      write(
+        `Leggyorsabb emelőkar: „${r.bestLever.name}" (${huf(r.bestLever.unitProfit)}/adag) — ` +
+          `ebből ${r.bestLever.extraQty} adaggal több fedezné a hiányt.`,
+        margin, y, 9.5, C.muted
+      );
+      y -= 22;
+    }
+  }
+
+  // --- Tervezett tételek ---
+  const cols: { w: number; align: "left" | "right"; h: string }[] = [
+    { w: 200, align: "left", h: "Étel" },
+    { w: 60, align: "right", h: "adag" },
+    { w: 79, align: "right", h: "Profit/adag" },
+    { w: 80, align: "right", h: "Árbevétel" },
+    { w: 80, align: "right", h: "Profit" },
+  ];
+  const colX = (idx: number) => margin + cols.slice(0, idx).reduce((s, c) => s + c.w, 0);
+  const drawHead = () => {
+    const h = 20;
+    page.drawRectangle({ x: margin, y: y - h + 4, width: contentW, height: h, color: C.soft });
+    cols.forEach((c, i) => {
+      const x = colX(i);
+      if (c.align === "left") write(c.h, x + 4, y - h + 10, 8, C.coralDeep, true);
+      else writeRight(c.h, x + c.w - 4, y - h + 10, 8, C.coralDeep, true);
+    });
+    y -= h + 2;
+  };
+
+  sectionTitle("Tervezett tételek");
+  drawHead();
+  const rowH = 18;
+  r.dishes.forEach((d, ri) => {
+    if (y - rowH < margin + 30) { newPage(); drawHead(); }
+    if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - rowH + 4, width: contentW, height: rowH, color: C.cream });
+    const yy = y - rowH + 9;
+    write(truncate(d.name, 8.5, cols[0].w - 8), colX(0) + 4, yy, 8.5, C.ink, true);
+    writeRight(String(d.qty), colX(1) + cols[1].w - 4, yy, 8.5, C.ink);
+    writeRight(num(d.unitProfit), colX(2) + cols[2].w - 4, yy, 8.5, d.unitProfit < 0 ? C.red : C.ink);
+    writeRight(num(d.revenue), colX(3) + cols[3].w - 4, yy, 8.5, C.ink);
+    writeRight(num(d.profit), colX(4) + cols[4].w - 4, yy, 8.5, d.profit < 0 ? C.red : C.ink);
+    page.drawRectangle({ x: margin, y: y - rowH + 3, width: contentW, height: 0.5, color: C.line });
+    y -= rowH;
+  });
+  if (!r.dishes.length) { write("Nincs étlapos tétel a tervben.", margin, y - 8, 9, C.muted); y -= 20; }
+  y -= 12;
+
+  // --- Napi menük ---
+  if (r.menu.count > 0) {
+    if (y < margin + 90) newPage();
+    sectionTitle("Napi menük");
+    write(
+      `${r.menu.count} menü (${r.menu.qty2} db 2 fogásos, ${r.menu.qty3} db 3 fogásos)  ·  bevétel ${huf(r.menu.revenue)}  ·  ` +
+        `előállítás ${huf(r.menu.cost)}  ·  profit ${huf(r.menu.profit)}`,
+      margin, y, 9, C.muted
+    );
+    y -= 24;
+  }
+
+  // --- AI-értékelés ---
+  if (narrative.trim()) {
+    if (y < margin + 90) newPage();
+    sectionTitle("Értékelés és javaslatok");
+    const size = 10, lh = 15;
+    for (const line of wrapText(narrative.trim(), size, contentW)) {
+      if (y - lh < margin + 24) newPage();
+      if (line === "") { y -= lh / 2; continue; }
+      write(line, margin, y - lh + 4, size, C.ink);
+      y -= lh;
+    }
+  }
+
+  // --- lábléc ---
+  const pages = pdfDoc.getPages();
+  pages.forEach((p, i) => {
+    p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });
+    p.drawText(`Készült a TWINX-szel · ${dateStr} · tervezési célú becslés`, { x: margin, y: 22, size: 8, font, color: C.muted });
     const pn = `${i + 1} / ${pages.length}`;
     p.drawText(pn, { x: pageW - margin - font.widthOfTextAtSize(pn, 8), y: 22, size: 8, font, color: C.muted });
   });

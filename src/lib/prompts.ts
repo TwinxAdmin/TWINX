@@ -43,6 +43,11 @@ import {
   COSTING_DATA_BLOCK_PREVIEW,
   composeCostingPrompt,
 } from "@/lib/costing";
+import {
+  SIMULATION_DEFAULT_SEGMENTS,
+  SIMULATION_DATA_BLOCK_PREVIEW,
+  composeSimulationPrompt,
+} from "@/lib/simulation";
 
 export type PromptSegments = Record<string, string>;
 
@@ -197,6 +202,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
       },
     ],
   },
+  {
+    key: "profit_plan",
+    label: "Profit-terv (vendéglátás)",
+    dataBlockPreview: SIMULATION_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "Az üzleti tanácsadó szerepe és az alapszabály (a számokat ne írja újra). Változó nem használható.",
+        default: SIMULATION_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet",
+        hint: "Az értékelés felépítése (reális-e a terv + kockázat + javaslat + teendők). Változó nem használható.",
+        default: SIMULATION_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
 ];
 
 export function getModuleDef(module: string): PromptModuleDef | undefined {
@@ -316,6 +341,11 @@ export async function buildMenuPromptActive(opts: {
 export async function buildCostingPromptActive(summaryText: string): Promise<string> {
   const segments = await getActiveSegments("cost_analysis");
   return composeCostingPrompt(summaryText, segments);
+}
+
+export async function buildSimulationPromptActive(summaryText: string): Promise<string> {
+  const segments = await getActiveSegments("profit_plan");
+  return composeSimulationPrompt(summaryText, segments);
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------
