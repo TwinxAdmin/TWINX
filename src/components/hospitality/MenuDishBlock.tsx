@@ -24,6 +24,9 @@ type RecipeRow = {
 
 const EMPTY = { name: "", category: "foetel", cuisine_style: "", menu_yield: "" };
 
+// A menübe kerülő kategóriák — az ital NEM megy menübe (az csak étlapos).
+const MENU_CATEGORIES = DISH_CATEGORIES.filter((c) => c.value !== "ital");
+
 // Menüs színvilág — meleg arany/borostyán, ami elkülöníti a korall étlapostól,
 // de illik a TWINX meleg palettájához.
 const MENU = {
@@ -202,7 +205,7 @@ export default function MenuDishBlock({
                       className="mt-1 w-full"
                       value={form.category}
                       onChange={(v) => set("category", v)}
-                      options={DISH_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                      options={MENU_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
                     />
                     {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
                   </div>
@@ -233,27 +236,27 @@ export default function MenuDishBlock({
           <h3 className="font-display text-base font-medium" style={{ color: MENU.ink }}>Menüs ételeim</h3>
           <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{menuDishes.length} db</span>
         </div>
-        {menuDishes.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Még nincs menüs ételed. Vidd fel az elsőt fentebb, majd add meg a kötegreceptjét.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {DISH_CATEGORIES.filter((c) => catCount(c.value)).map((c) => (
+        {/* A mappák ALAPBÓL látszanak (üresen is), hogy a partner lássa, hova mi kerül. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {MENU_CATEGORIES.map((c) => {
+            const n = catCount(c.value);
+            return (
               <button key={c.value} onClick={() => setOpenCat(c.value)}
                 className="flex flex-col items-start gap-2 rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5"
-                style={{ background: MENU.soft, border: `1px solid ${MENU.line}` }}>
+                style={{ background: n ? MENU.soft : MENU.softer, border: `1px solid ${MENU.line}`, opacity: n ? 1 : 0.85 }}>
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#fff", color: MENU.accent, border: `1px solid ${MENU.line}` }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
                   </svg>
                 </span>
                 <span className="font-medium" style={{ color: MENU.ink }}>{c.label}</span>
-                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{catCount(c.value)} menüs étel</span>
+                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {n ? `${n} menüs étel` : "még üres"}
+                </span>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
 
       {/* Felugró: egy kategória menüs ételei */}
@@ -278,6 +281,12 @@ export default function MenuDishBlock({
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {catCount(openCat) === 0 && (
+                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                    Ebbe a kategóriába még nincs menüs ételed. Vidd fel az elsőt az „Új menüs étel felvitele" résznél,
+                    és állítsd be a kategóriáját erre.
+                  </p>
+                )}
                 {menuDishes.filter((d) => d.category === openCat).map((d) => {
                   const items = recipesByDish.get(d.id) ?? [];
                   return (
