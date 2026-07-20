@@ -51,7 +51,9 @@ export default function HeroVideo() {
       playsInline
       preload="auto"
       poster="/design/hero-bg.jpg"
-      className="h-full w-full object-cover"
+      controls={false}
+      disablePictureInPicture
+      className="twx-hero-video twx-kenburns h-full w-full object-cover"
       style={{ opacity: 0.72, filter: "contrast(1.08) saturate(1.05)" }}
     >
       <source src="/design/hero.mp4" type="video/mp4" />
