@@ -68,10 +68,12 @@ export function volumeLabel(q: { qty?: number; qtyUnit?: string; frequency?: str
 
 // --- Találatszám és kredit-ár ----------------------------------------------
 // A partner dönti el, milyen mélyre megyünk: több találat = több kutatás = több kredit.
+// Az árazás értékalapú: egy jól megtalált beszállító évi több százezer forintot hozhat
+// az étteremnek, ezért a keresés a menü-generáláshoz képest magasabb szinten árazott.
 export const SUPPLIER_PLANS = [
-  { count: 3, credits: 1, label: "3 találat" },
-  { count: 6, credits: 2, label: "6 találat" },
-  { count: 9, credits: 3, label: "9 találat" },
+  { count: 3, credits: 2, label: "3 találat" },
+  { count: 6, credits: 4, label: "6 találat" },
+  { count: 9, credits: 6, label: "9 találat" },
 ] as const;
 
 export function creditsForCount(count: number): number {
