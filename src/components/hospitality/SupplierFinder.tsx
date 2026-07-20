@@ -77,10 +77,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
     }
   };
 
-  // A mentett keresés OLDALT nyílik meg (fix panel), így a középső blokk nem mozdul el.
+  // A mentett keresés OLDALT nyílik meg (fix panel). A napi mappa nyitva marad középen,
+  // hogy ugyanabból a napból egyből másik keresést is meg lehessen nyitni.
   const openSaved = (s: SavedSearch) => {
     setViewSearch(s);
-    setOpenDay(null);
   };
 
   // A mentett kereséseket NAPI mappákba rendezzük (legfrissebb elöl).
@@ -248,12 +248,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         {/* Korábbi keresések — dátum szerinti mappákban */}
         {days.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-semibold">
-              Korábbi kereséseim{" "}
-              <span className="font-normal" style={{ color: "var(--twx-ink-muted)" }}>
-                — a visszanézés ingyenes
-              </span>
-            </h3>
+            <h3 className="mb-2 text-sm font-semibold">Korábbi kereséseim</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {days.map((d) => (
                 <button key={d.day} onClick={() => setOpenDay(d.day)}
@@ -280,7 +275,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       <AnimatePresence>
         {openDay && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            // Ha az oldalpanel nyitva van, a mappa a maradék helyre igazodik, hogy ne takarja el.
+            className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-[padding] duration-300 ${
+              viewSearch ? "lg:pr-[30rem]" : ""
+            }`}
             style={{ background: "rgba(20,12,8,0.45)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setOpenDay(null)}
@@ -353,13 +351,9 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       <AnimatePresence>
         {viewSearch && (
           <>
-            <motion.div
-              className="fixed inset-0 z-40" style={{ background: "rgba(20,12,8,0.35)" }}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setViewSearch(null)}
-            />
+            {/* Nincs saját sötétítés: a napi mappa középen látható és használható marad. */}
             <motion.aside
-              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col overflow-hidden"
+              className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col overflow-hidden"
               style={{ background: "var(--twx-cream-card)", borderLeft: "1px solid var(--twx-line)", boxShadow: "-18px 0 44px rgba(20,12,8,0.18)" }}
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 32 }}
