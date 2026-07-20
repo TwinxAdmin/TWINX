@@ -21,7 +21,7 @@ type RecipeRow = {
   custom_unit_price?: number | null; custom_waste_pct?: number | null;
 };
 
-const EMPTY = { name: "", category: "foetel", cuisine_style: "", menu_yield: "", main_ingredients: "" };
+const EMPTY = { name: "", category: "foetel", cuisine_style: "", menu_yield: "" };
 
 export default function MenuDishBlock({
   menuDishes, onChange,
@@ -76,7 +76,6 @@ export default function MenuDishBlock({
       fd.append("category", form.category);
       fd.append("cuisine_style", form.cuisine_style);
       fd.append("menu_yield", form.menu_yield);
-      fd.append("main_ingredients", form.main_ingredients);
       const res = await fetch("/api/hospitality/dishes", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
@@ -151,11 +150,11 @@ export default function MenuDishBlock({
                     <input type="number" min={1} value={form.menu_yield} onChange={(e) => set("menu_yield", e.target.value)} className="twx-input mt-1" placeholder="pl. 50" />
                     {errors.menu_yield && <p className="mt-1 text-xs text-red-600">{errors.menu_yield}</p>}
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm">Fő alapanyagok (opcionális)</label>
-                    <input value={form.main_ingredients} onChange={(e) => set("main_ingredients", e.target.value)} className="twx-input mt-1" placeholder="pl. marhahús, burgonya, paprika" />
-                  </div>
                 </div>
+                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Az alapanyagokat a következő lépésben, a kötegrecepthez adod meg — a felvitt alapanyagaidból választva,
+                  hogy 50 adaghoz melyikből mennyi kell.
+                </p>
                 <button onClick={addMenuDish} disabled={saving} className="twx-btn">
                   {saving ? "Mentés…" : "Hozzáadás + kötegrecept"}
                 </button>
@@ -328,14 +327,25 @@ function MenuBatchModal({
     setSaving(true);
     try {
       const items = toItems();
-      // 1) adaghozam mentése az ételre
+      // A menü generátor „fő alapanyagai" a kötegrecept konkrét hozzávalóiból állnak össze —
+      // nem szabadszövegből, hanem a ténylegesen kiválasztott alapanyagok neveiből.
+      const mainIngredients = Array.from(
+        new Set(
+          rows
+            .map((r) => (r.ingredient_id ? byId.get(r.ingredient_id)?.name : r.name) ?? "")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        )
+      ).slice(0, 12).join(", ");
+
+      // 1) adaghozam + fő alapanyagok mentése az ételre
       const fd = new FormData();
       fd.append("is_menu", "1");
       fd.append("id", dish.id);
       fd.append("name", dish.name);
       fd.append("category", dish.category);
       fd.append("cuisine_style", dish.cuisine_style ?? "");
-      fd.append("main_ingredients", dish.main_ingredients ?? "");
+      fd.append("main_ingredients", mainIngredients);
       fd.append("menu_yield", String(yieldNum));
       const dRes = await fetch("/api/hospitality/dishes", { method: "PATCH", body: fd });
       if (!dRes.ok) { const e = await dRes.json(); showToast(e.error ?? "Az adaghozam mentése nem sikerült.", "error"); return; }
