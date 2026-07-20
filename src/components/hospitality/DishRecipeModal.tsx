@@ -336,7 +336,7 @@ export default function DishRecipeModal({
         {editDish ? (
           <div className="space-y-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
             <div className="flex items-center justify-between rounded-xl p-3" style={{ background: "var(--twx-coral-soft)" }}>
-              <span className="text-sm font-medium" style={{ color: "#7a2e17" }}>Egy adag alapanyagköltsége</span>
+              <span className="text-sm font-medium" style={{ color: "#7a2e17" }}>Egy étlapos adag előállítási költsége</span>
               <span className="font-display text-2xl font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(liveCost)}</span>
             </div>
             {/* Egy sorban, hogy átlátható maradjon: balra a kilépés, jobbra a három mentés. */}
@@ -352,14 +352,11 @@ export default function DishRecipeModal({
                 style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
                 {saving ? "Mentés…" : "Csak mentés"}
               </button>
-              <button onClick={() => saveAndApply("menu")} disabled={saving}
-                className="rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-60"
-                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                Mentés + menü-költség
-              </button>
+              {/* A recept EGY előállítási költséget ad, és az az ÉTLAPOS önköltség.
+                  A menüs költséget külön logika kezeli majd — ide nem keverjük bele. */}
               <button onClick={() => saveAndApply("etlap")} disabled={saving}
                 className="rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-                Mentés + étlap-ár
+                Mentés + önköltség frissítése
               </button>
             </div>
           </div>
