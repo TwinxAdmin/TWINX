@@ -24,7 +24,10 @@ import {
 } from "@/lib/costing";
 
 type Tab = "profile" | "sales" | "report";
-type SaleRow = { dish_id: string; period_start: string; period_end: string; qty: number };
+type SalesChannel = "etlap" | "menu";
+type SaleRow = { dish_id: string; period_start: string; period_end: string; qty: number; channel: SalesChannel };
+type MenuSaleRow = { period_start: string; period_end: string; qty_2: number; qty_3: number; price_2: number | null; price_3: number | null };
+const MENUS_VIEW = "__menus__"; // a „Napi menük” nézet kulcsa a szerkesztő ablakban
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -53,6 +56,7 @@ export default function CostingPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [profile, setProfile] = useState<CostProfile>(EMPTY_COST_PROFILE);
   const [sales, setSales] = useState<SaleRow[]>([]);
+  const [menuSales, setMenuSales] = useState<MenuSaleRow[]>([]);
   const [oneTime, setOneTime] = useState<OneTimeCost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +75,7 @@ export default function CostingPage() {
         const o = await oRes.json();
         if (dRes.ok) setDishes(d.dishes ?? []);
         if (pRes.ok && p.profile) setProfile(p.profile);
-        if (sRes.ok) setSales(s.sales ?? []);
+        if (sRes.ok) { setSales(s.sales ?? []); setMenuSales(s.menuSales ?? []); }
         if (oRes.ok) setOneTime(o.costs ?? []);
       } finally {
         setLoading(false);
@@ -126,9 +130,12 @@ export default function CostingPage() {
       ) : tab === "profile" ? (
         <ProfileTab profile={profile} onSaved={setProfile} oneTime={oneTime} onOneTimeChange={setOneTime} />
       ) : tab === "sales" ? (
-        <SalesTab priced={priced} sales={sales} onSaved={setSales} />
+        <SalesTab
+          priced={priced} sales={sales} menuSales={menuSales} profile={profile}
+          onSaved={(s, m) => { setSales(s); setMenuSales(m); }}
+        />
       ) : (
-        <ReportTab priced={priced} sales={sales} overhead={overhead} oneTime={oneTime} />
+        <ReportTab priced={priced} sales={sales} menuSales={menuSales} overhead={overhead} oneTime={oneTime} />
       )}
     </main>
   );
@@ -417,7 +424,12 @@ function ProfileTab({
 type DishGroup = { cat: string; label: string; items: Dish[] };
 type ModalState = { start: string; end: string; view: string | null };
 
-function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]; onSaved: (s: SaleRow[]) => void }) {
+function SalesTab({
+  priced, sales, menuSales, profile, onSaved,
+}: {
+  priced: Dish[]; sales: SaleRow[]; menuSales: MenuSaleRow[]; profile: CostProfile;
+  onSaved: (s: SaleRow[], m: MenuSaleRow[]) => void;
+}) {
   const [entryStart, setEntryStart] = useState<string>(todayISO());
   const [entryEnd, setEntryEnd] = useState<string>(todayISO());
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -432,30 +444,51 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
     [priced]
   );
 
-  // Egy (start,end)-hez mentett adagok kikeresése.
-  const savedQtyFor = (s: string, e: string): Record<string, number> => {
-    const m: Record<string, number> = {};
-    for (const r of sales) if (r.period_start === s && r.period_end === e) m[r.dish_id] = r.qty;
-    return m;
+  // Egy (start,end)-hez mentett adagok csatornánként.
+  const savedQtyFor = (s: string, e: string): { etlap: Record<string, number>; menu: Record<string, number> } => {
+    const out = { etlap: {} as Record<string, number>, menu: {} as Record<string, number> };
+    for (const r of sales) {
+      if (r.period_start === s && r.period_end === e) out[r.channel === "menu" ? "menu" : "etlap"][r.dish_id] = r.qty;
+    }
+    return out;
   };
+  const savedMenuFor = (s: string, e: string) =>
+    menuSales.find((m) => m.period_start === s && m.period_end === e);
 
   // Korábban rögzített időszakok (distinct start–end), legfrissebb elöl.
   const periods = useMemo(() => {
-    const map = new Map<string, { start: string; end: string; qty: number; dishes: number }>();
+    const map = new Map<string, { start: string; end: string; qty: number; dishes: number; menus: number }>();
+    const ensure = (s: string, e: string) => {
+      const k = `${s}|${e}`;
+      const v = map.get(k) ?? { start: s, end: e, qty: 0, dishes: 0, menus: 0 };
+      map.set(k, v);
+      return v;
+    };
     for (const r of sales) {
-      const k = `${r.period_start}|${r.period_end}`;
-      const e = map.get(k) ?? { start: r.period_start, end: r.period_end, qty: 0, dishes: 0 };
-      e.qty += r.qty; e.dishes += 1;
-      map.set(k, e);
+      const v = ensure(r.period_start, r.period_end);
+      v.qty += r.qty; v.dishes += 1;
+    }
+    for (const m of menuSales) {
+      const v = ensure(m.period_start, m.period_end);
+      v.menus += (m.qty_2 ?? 0) + (m.qty_3 ?? 0);
     }
     return [...map.values()].sort((a, b) => (a.start < b.start ? 1 : -1));
-  }, [sales]);
+  }, [sales, menuSales]);
 
-  // A modal mentése után frissítjük a helyi sales-listát.
-  const applySaved = (s: string, e: string, entries: { dish_id: string; qty: number }[]) => {
+  // A modal mentése után frissítjük a helyi listákat.
+  const applySaved = (
+    s: string, e: string,
+    entries: { dish_id: string; qty: number; channel: SalesChannel }[],
+    menu: { qty_2: number; qty_3: number; price_2: number | null; price_3: number | null }
+  ) => {
     const others = sales.filter((r) => !(r.period_start === s && r.period_end === e));
-    const now: SaleRow[] = entries.map((x) => ({ dish_id: x.dish_id, period_start: s, period_end: e, qty: x.qty }));
-    onSaved([...now, ...others]);
+    const now: SaleRow[] = entries.map((x) => ({
+      dish_id: x.dish_id, period_start: s, period_end: e, qty: x.qty, channel: x.channel,
+    }));
+    const otherMenus = menuSales.filter((m) => !(m.period_start === s && m.period_end === e));
+    const hasMenu = menu.qty_2 > 0 || menu.qty_3 > 0 || menu.price_2 != null || menu.price_3 != null;
+    const nowMenus: MenuSaleRow[] = hasMenu ? [{ period_start: s, period_end: e, ...menu }] : [];
+    onSaved([...now, ...others], [...nowMenus, ...otherMenus]);
   };
 
   if (!priced.length) {
@@ -468,6 +501,7 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
 
   const single = entryStart === entryEnd;
   const entrySaved = savedQtyFor(entryStart, entryEnd);
+  const entryMenu = savedMenuFor(entryStart, entryEnd);
   const latest = periods[0];
 
   return (
@@ -495,12 +529,12 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
         </div>
       </div>
 
-      {/* Kategória-kockák */}
+      {/* Kategória-kockák + napi menük */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold">Kategóriák — kattints a rögzítéshez</h3>
+        <h3 className="mb-2 text-sm font-semibold">Kattints a rögzítéshez</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {groups.map((g) => {
-            const filled = g.items.filter((d) => (entrySaved[d.id] ?? 0) > 0).length;
+            const filled = g.items.filter((d) => (entrySaved.etlap[d.id] ?? 0) > 0 || (entrySaved.menu[d.id] ?? 0) > 0).length;
             return (
               <button
                 key={g.cat}
@@ -517,6 +551,21 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
               </button>
             );
           })}
+
+          {/* Eladott napi menük — külön kocka */}
+          <button
+            onClick={() => setModal({ start: entryStart, end: entryEnd, view: MENUS_VIEW })}
+            className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
+            style={{ borderColor: "var(--twx-coral)" }}
+          >
+            <span className="font-display text-base font-medium">Napi menük</span>
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott menük száma</span>
+            {entryMenu && (entryMenu.qty_2 > 0 || entryMenu.qty_3 > 0) && (
+              <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                {entryMenu.qty_2} × 2 fog. · {entryMenu.qty_3} × 3 fog.
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -545,7 +594,9 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
                 >
                   <span className="font-display text-sm font-semibold">{p.start === p.end ? p.start : `${p.start} –`}</span>
                   {p.start !== p.end && <span className="font-display text-sm font-semibold">{p.end}</span>}
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{p.dishes} étel · {p.qty} adag</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {p.dishes} étel · {p.qty} adag{p.menus > 0 ? ` · ${p.menus} menü` : ""}
+                  </span>
                 </button>
               ))}
             </div>
@@ -566,8 +617,10 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
             initialView={modal.view}
             groups={groups}
             priced={priced}
+            profile={profile}
             initialQty={savedQtyFor(modal.start, modal.end)}
-            onSaved={(entries) => applySaved(modal.start, modal.end, entries)}
+            initialMenu={savedMenuFor(modal.start, modal.end)}
+            onSaved={(entries, menu) => applySaved(modal.start, modal.end, entries, menu)}
             onClose={() => setModal(null)}
           />
         )}
@@ -578,40 +631,66 @@ function SalesTab({ priced, sales, onSaved }: { priced: Dish[]; sales: SaleRow[]
 
 // Felugró ablak: egy (start,end) eladásainak szerkesztése kategóriánként.
 function EntryEditorModal({
-  start, end, initialView, groups, priced, initialQty, onSaved, onClose,
+  start, end, initialView, groups, priced, profile, initialQty, initialMenu, onSaved, onClose,
 }: {
   start: string; end: string; initialView: string | null;
-  groups: DishGroup[]; priced: Dish[];
-  initialQty: Record<string, number>;
-  onSaved: (entries: { dish_id: string; qty: number }[]) => void;
+  groups: DishGroup[]; priced: Dish[]; profile: CostProfile;
+  initialQty: { etlap: Record<string, number>; menu: Record<string, number> };
+  initialMenu?: MenuSaleRow;
+  onSaved: (
+    entries: { dish_id: string; qty: number; channel: SalesChannel }[],
+    menu: { qty_2: number; qty_3: number; price_2: number | null; price_3: number | null }
+  ) => void;
   onClose: () => void;
 }) {
-  const [qty, setQty] = useState<Record<string, string>>(() => {
+  const toStr = (m: Record<string, number>) => {
     const o: Record<string, string> = {};
-    for (const [id, q] of Object.entries(initialQty)) o[id] = String(q);
+    for (const [id, q] of Object.entries(m)) o[id] = String(q);
     return o;
-  });
+  };
+  const [qtyE, setQtyE] = useState<Record<string, string>>(() => toStr(initialQty.etlap));
+  const [qtyM, setQtyM] = useState<Record<string, string>>(() => toStr(initialQty.menu));
+  const [menu2, setMenu2] = useState(initialMenu?.qty_2 ? String(initialMenu.qty_2) : "");
+  const [menu3, setMenu3] = useState(initialMenu?.qty_3 ? String(initialMenu.qty_3) : "");
+  const [price2, setPrice2] = useState(initialMenu?.price_2 != null ? String(initialMenu.price_2) : "");
+  const [price3, setPrice3] = useState(initialMenu?.price_3 != null ? String(initialMenu.price_3) : "");
   const [view, setView] = useState<string | null>(initialView);
   const [saving, setSaving] = useState(false);
 
-  const qNum = (id: string) => Math.max(0, Math.floor(Number(qty[id]) || 0));
-  const totalDishes = priced.filter((d) => qNum(d.id) > 0).length;
-  const totalQty = priced.reduce((s, d) => s + qNum(d.id), 0);
+  const n = (v: string | undefined) => Math.max(0, Math.floor(Number(v) || 0));
+  const qE = (id: string) => n(qtyE[id]);
+  const qM = (id: string) => n(qtyM[id]);
+  const totalDishes = priced.filter((d) => qE(d.id) > 0 || qM(d.id) > 0).length;
+  const totalQty = priced.reduce((s, d) => s + qE(d.id) + qM(d.id), 0);
   const label = start === end ? start : `${start} – ${end}`;
   const activeGroup = groups.find((g) => g.cat === view);
+  const menusView = view === MENUS_VIEW;
+
+  // Halk ellenőrzés: a menübe felhasznált adagoknak nagyjából 2×(2 fogásos) + 3×(3 fogásos) darabnak kell lennie.
+  const menuPortions = priced.reduce((s, d) => s + qM(d.id), 0);
+  const expectedPortions = n(menu2) * 2 + n(menu3) * 3;
+  const mismatch = menuPortions > 0 && expectedPortions > 0 && menuPortions !== expectedPortions;
 
   const save = async () => {
     setSaving(true);
     try {
-      const entries = priced.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })).filter((e) => e.qty > 0);
+      const entries = [
+        ...priced.map((d) => ({ dish_id: d.id, qty: qE(d.id), channel: "etlap" as SalesChannel })),
+        ...priced.map((d) => ({ dish_id: d.id, qty: qM(d.id), channel: "menu" as SalesChannel })),
+      ].filter((e) => e.qty > 0);
+      const menu = {
+        qty_2: n(menu2), qty_3: n(menu3),
+        price_2: price2.trim() ? toAmount(price2) : null,
+        price_3: price3.trim() ? toAmount(price3) : null,
+      };
       const res = await fetch("/api/hospitality/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start, end, entries }),
+        body: JSON.stringify({ start, end, entries, menu }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return; }
-      onSaved(entries);
+      onSaved(entries, menu);
       showToast("Eladások mentve.", "success");
       onClose();
     } catch {
@@ -646,12 +725,12 @@ function EntryEditorModal({
 
         {/* Törzs */}
         <div className="flex-1 overflow-y-auto p-4">
-          {!activeGroup ? (
+          {!activeGroup && !menusView ? (
             <>
               <p className="mb-3 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Válassz kategóriát, és írd be az eladott adagokat.</p>
               <div className="grid grid-cols-2 gap-3">
                 {groups.map((g) => {
-                  const filled = g.items.filter((d) => qNum(d.id) > 0).length;
+                  const filled = g.items.filter((d) => qE(d.id) > 0 || qM(d.id) > 0).length;
                   return (
                     <button key={g.cat} onClick={() => setView(g.cat)}
                       className="flex flex-col gap-1 rounded-xl border p-3 text-left transition hover:shadow-sm"
@@ -666,30 +745,102 @@ function EntryEditorModal({
                     </button>
                   );
                 })}
+                <button onClick={() => setView(MENUS_VIEW)}
+                  className="flex flex-col gap-1 rounded-xl border p-3 text-left transition hover:shadow-sm"
+                  style={{ borderColor: "var(--twx-coral)" }}>
+                  <span className="font-medium">Napi menük</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott menük száma</span>
+                  {(n(menu2) > 0 || n(menu3) > 0) && (
+                    <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                      {n(menu2)} + {n(menu3)} db
+                    </span>
+                  )}
+                </button>
               </div>
             </>
-          ) : (
+          ) : menusView ? (
             <>
-              <button onClick={() => setView(null)} className="mb-3 text-sm font-medium" style={{ color: "var(--twx-coral)" }}>‹ Kategóriák</button>
-              <h4 className="mb-2 font-display text-base font-medium">{categoryLabel(activeGroup.cat)}</h4>
-              <div className="space-y-2">
+              <button onClick={() => setView(null)} className="mb-3 text-sm font-medium" style={{ color: "var(--twx-coral)" }}>‹ Vissza</button>
+              <h4 className="mb-1 font-display text-base font-medium">Eladott napi menük</h4>
+              <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Hány napi menü fogyott ebben az időszakban? Ebből jön a menük <b>bevétele</b> (a beállított menü-árral),
+                a költség pedig a menübe felhasznált ételekből.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm">
+                    2 fogásos menü{" "}
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      ({profile.menu_price_2 > 0 ? formatHuf(profile.menu_price_2) : "nincs ár beállítva"})
+                    </span>
+                  </span>
+                  <div className="w-24"><NumField value={menu2} onChange={setMenu2} /></div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm">
+                    3 fogásos menü{" "}
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      ({profile.menu_price_3 > 0 ? formatHuf(profile.menu_price_3) : "nincs ár beállítva"})
+                    </span>
+                  </span>
+                  <div className="w-24"><NumField value={menu3} onChange={setMenu3} /></div>
+                </div>
+
+                <div className="rounded-lg border p-3" style={{ borderColor: "var(--twx-line)" }}>
+                  <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Eltérő ár ebben az időszakban? (opcionális — üresen a beállított árral számolunk)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>2 fogásos ára</label>
+                      <div className="mt-1"><NumField value={price2} onChange={setPrice2} /></div>
+                    </div>
+                    <div>
+                      <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>3 fogásos ára</label>
+                      <div className="mt-1"><NumField value={price3} onChange={setPrice3} /></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : activeGroup ? (
+            <>
+              <button onClick={() => setView(null)} className="mb-3 text-sm font-medium" style={{ color: "var(--twx-coral)" }}>‹ Vissza</button>
+              <h4 className="mb-1 font-display text-base font-medium">{categoryLabel(activeGroup.cat)}</h4>
+              <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                <b>Étlapról</b>: külön rendelt adagok. <b>Menüben</b>: a napi menükbe felhasznált adagok.
+              </p>
+              <div className="space-y-3">
                 {activeGroup.items.map((d) => (
-                  <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="min-w-0 font-medium">{d.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>eladott adag</span>
-                      <div className="w-24"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
+                  <div key={d.id} className="rounded-lg border p-3" style={{ borderColor: "var(--twx-line)" }}>
+                    <div className="mb-2 font-medium">{d.name}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                          Étlapról {d.sale_price != null ? `(${formatHuf(d.sale_price)})` : "(nincs étlap-ár)"}
+                        </label>
+                        <div className="mt-1"><NumField value={qtyE[d.id] ?? ""} onChange={(v) => setQtyE((s) => ({ ...s, [d.id]: v }))} /></div>
+                      </div>
+                      <div>
+                        <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                          Menüben {d.menu_cost_price != null ? `(önktg ${formatHuf(d.menu_cost_price)})` : "(nincs menü-költség)"}
+                        </label>
+                        <div className="mt-1"><NumField value={qtyM[d.id] ?? ""} onChange={(v) => setQtyM((s) => ({ ...s, [d.id]: v }))} /></div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Lábléc */}
         <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{totalDishes} étel · {totalQty} adag</span>
+          <span className="text-xs" style={{ color: mismatch ? "#b5372f" : "var(--twx-ink-muted)" }}>
+            {totalDishes} étel · {totalQty} adag
+            {mismatch && ` · figyelem: ${menuPortions} menü-adag, de a menük alapján ~${expectedPortions} várható`}
+          </span>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
             <button onClick={save} disabled={saving}
@@ -706,7 +857,7 @@ function EntryEditorModal({
 // =============================================================================
 // 3) Riport — tetszőleges időszakra, a tárolt eladásokból (kredites + PDF)
 // =============================================================================
-function ReportTab({ priced, sales, overhead, oneTime }: { priced: Dish[]; sales: SaleRow[]; overhead: number; oneTime: OneTimeCost[] }) {
+function ReportTab({ priced, sales, menuSales, overhead, oneTime }: { priced: Dish[]; sales: SaleRow[]; menuSales: MenuSaleRow[]; overhead: number; oneTime: OneTimeCost[] }) {
   const today = todayISO();
   const [start, setStart] = useState<string>(today.slice(0, 8) + "01");
   const [end, setEnd] = useState<string>(today);
@@ -726,6 +877,11 @@ function ReportTab({ priced, sales, overhead, oneTime }: { priced: Dish[]; sales
   );
   const totalQty = inRange.reduce((s, r) => s + r.qty, 0);
   const dishCount = new Set(inRange.map((r) => r.dish_id)).size;
+  const menusInRange = useMemo(
+    () => menuSales.filter((m) => m.period_start >= start && m.period_end <= end && days > 0),
+    [menuSales, start, end, days]
+  );
+  const menuCount = menusInRange.reduce((s, m) => s + (m.qty_2 ?? 0) + (m.qty_3 ?? 0), 0);
 
   const runReport = async () => {
     if (days <= 0) { showToast("A záró dátum nem lehet korábbi az indulónál.", "error"); return; }
@@ -786,7 +942,7 @@ function ReportTab({ priced, sales, overhead, oneTime }: { priced: Dish[]; sales
         </div>
         <div className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
           {days > 0 ? (
-            <>{days} nap · <b style={{ color: "var(--twx-ink)" }}>{dishCount}</b> étel, <b style={{ color: "var(--twx-ink)" }}>{totalQty}</b> adag rögzítve · időszaki költség {formatHuf(periodOverhead)}{oneTimeSum > 0 ? ` (ebből egyszeri ${formatHuf(oneTimeSum)})` : ""}</>
+            <>{days} nap · <b style={{ color: "var(--twx-ink)" }}>{dishCount}</b> étel, <b style={{ color: "var(--twx-ink)" }}>{totalQty}</b> adag{menuCount > 0 ? <>, <b style={{ color: "var(--twx-ink)" }}>{menuCount}</b> menü</> : null} rögzítve · időszaki költség {formatHuf(periodOverhead)}{oneTimeSum > 0 ? ` (ebből egyszeri ${formatHuf(oneTimeSum)})` : ""}</>
           ) : (
             <span style={{ color: "#b5372f" }}>A záró dátum nem lehet korábbi az indulónál.</span>
           )}
