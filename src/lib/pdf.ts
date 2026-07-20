@@ -6,6 +6,7 @@ import { PDFDocument, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { CostingResult } from "@/lib/costing";
 import type { SimResult } from "@/lib/simulation";
+import type { SupplierQuery, SupplierResult } from "@/lib/suppliers";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -573,6 +574,171 @@ export async function generateSimulationPdf(params: {
   pages.forEach((p, i) => {
     p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });
     p.drawText(`Készült a TWINX-szel · ${dateStr} · tervezési célú becslés`, { x: margin, y: 22, size: 8, font, color: C.muted });
+    const pn = `${i + 1} / ${pages.length}`;
+    p.drawText(pn, { x: pageW - margin - font.widthOfTextAtSize(pn, 8), y: 22, size: 8, font, color: C.muted });
+  });
+
+  return await pdfDoc.save();
+}
+
+// ---------------------------------------------------------------------------
+// BESZÁLLÍTÓ-KERESŐ — TWINX stílusú PDF a megtalált termelőkkel/beszállítókkal.
+// A hangsúly a KAPCSOLATFELVÉTELEN van: elérhetőségek + kész megkereső üzenet.
+// ---------------------------------------------------------------------------
+export async function generateSuppliersPdf(params: {
+  query: SupplierQuery;
+  result: SupplierResult;
+}): Promise<Uint8Array> {
+  const { query: q, result } = params;
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  const font = await pdfDoc.embedFont(await loadFontBytes());
+
+  const pageW = 595.28, pageH = 841.89;
+  const margin = 48;
+  const contentW = pageW - margin * 2;
+  const dateStr = new Date().toLocaleDateString("hu-HU");
+
+  let page: PDFPage = pdfDoc.addPage([pageW, pageH]);
+  let y = pageH;
+
+  const write = (s: string, x: number, yy: number, size: number, color = C.ink, bold = false) => {
+    page.drawText(s, { x, y: yy, size, font, color });
+    if (bold) page.drawText(s, { x: x + 0.4, y: yy, size, font, color });
+  };
+  const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink, bold = false) => {
+    write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color, bold);
+  };
+  const wrapText = (t: string, size: number, maxW: number): string[] => {
+    const out: string[] = [];
+    for (const raw of t.split(/\n/)) {
+      if (raw.trim() === "") { out.push(""); continue; }
+      const words = raw.split(/\s+/);
+      let cur = "";
+      for (const w of words) {
+        const test = cur ? `${cur} ${w}` : w;
+        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
+        else cur = test;
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
+  };
+  function newPage() {
+    page = pdfDoc.addPage([pageW, pageH]);
+    y = pageH - margin;
+  }
+  const sectionTitle = (label: string) => {
+    if (y < margin + 90) newPage();
+    write(label, margin, y, 13, C.ink, true);
+    page.drawRectangle({ x: margin, y: y - 6, width: 42, height: 2.5, color: C.coral });
+    y -= 22;
+  };
+  const paragraph = (t: string, size = 9.5, color = C.ink) => {
+    for (const line of wrapText(t, size, contentW)) {
+      if (y - 14 < margin + 24) newPage();
+      if (line === "") { y -= 7; continue; }
+      write(line, margin, y - 10, size, color);
+      y -= 14;
+    }
+  };
+
+  // --- fejléc ---
+  const bandH = 84;
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: bandH, color: C.coral });
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: 4, color: C.coralDeep });
+  write("Beszállító-kereső", margin, pageH - 40, 20, C.white, true);
+  write("TWINX · Vendéglátás", margin, pageH - 60, 10, C.softWhite);
+  writeRight(dateStr, pageW - margin, pageH - 40, 10, C.white);
+  y = pageH - bandH - 26;
+
+  const area = q.radius === "orszagos" ? "országosan" : `${q.radius} km-es körzet`;
+  write(`Keresett: ${q.what}`, margin, y, 10, C.ink, true);
+  y -= 14;
+  write(
+    `Terület: ${q.county}${q.city ? `, ${q.city}` : ""} (${area})` +
+      (q.volume ? `    ·    Mennyiség: ${q.volume}` : ""),
+    margin, y, 9.5, C.muted
+  );
+  y -= 24;
+
+  // --- Szezonalitás / piaci helyzet ---
+  if (result.extras.season || result.extras.market) {
+    const boxLines = [result.extras.season, result.extras.market].filter(Boolean) as string[];
+    const wrapped = boxLines.flatMap((t) => wrapText(t, 9, contentW - 20));
+    const boxH = 16 + wrapped.length * 13;
+    page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });
+    let by = y - 16;
+    for (const line of wrapped) { write(line, margin + 10, by, 9, C.ink); by -= 13; }
+    y -= boxH + 20;
+  }
+
+  // --- Beszállítók ---
+  sectionTitle(`Talált beszállítók (${result.suppliers.length})`);
+
+  result.suppliers.forEach((s, i) => {
+    const contactBits = [
+      s.phone ? `Tel.: ${s.phone}` : "",
+      s.email ? `E-mail: ${s.email}` : "",
+      s.website ? `Web: ${s.website}` : "",
+    ].filter(Boolean);
+
+    const bodyLines = [
+      ...wrapText(s.offering, 9, contentW - 24),
+      ...(s.why ? wrapText(`Miért illik: ${s.why}`, 9, contentW - 24) : []),
+      ...contactBits.flatMap((c) => wrapText(c, 9, contentW - 24)),
+      ...(s.source ? wrapText(`Forrás: ${s.source}`, 7.5, contentW - 24) : []),
+    ];
+    const cardH = 34 + bodyLines.length * 12.5;
+    if (y - cardH < margin + 40) newPage();
+
+    page.drawRectangle({ x: margin, y: y - cardH, width: contentW, height: cardH, color: C.cream, borderColor: C.line, borderWidth: 1 });
+    write(`${i + 1}. ${s.name}`, margin + 12, y - 18, 11, C.coralDeep, true);
+    const loc = [s.location, s.distance].filter(Boolean).join(" · ");
+    if (loc) writeRight(loc, margin + contentW - 12, y - 18, 8.5, C.muted);
+
+    let cy = y - 34;
+    for (const line of bodyLines) {
+      const small = line.startsWith("Forrás:");
+      write(line, margin + 12, cy, small ? 7.5 : 9, small ? C.muted : C.ink);
+      cy -= 12.5;
+    }
+    y -= cardH + 10;
+  });
+
+  if (!result.suppliers.length) {
+    paragraph("Ezekkel a feltételekkel nem találtunk megbízható forrásból igazolható beszállítót. Próbáld tágabb körzettel vagy más beszállító-típussal.", 10, C.muted);
+    y -= 10;
+  }
+
+  // --- Megkereső üzenet ---
+  if (result.extras.outreach) {
+    if (y < margin + 120) newPage();
+    sectionTitle("Kész megkereső üzenet");
+    paragraph("Ezt kimásolhatod és elküldheted a kiválasztott beszállítónak:", 9, C.muted);
+    y -= 4;
+    const lines = wrapText(result.extras.outreach, 9.5, contentW - 24);
+    const boxH = 20 + lines.length * 13;
+    if (y - boxH < margin + 40) newPage();
+    page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.cream, borderColor: C.line, borderWidth: 1 });
+    let oy = y - 18;
+    for (const line of lines) { write(line, margin + 12, oy, 9.5, C.ink); oy -= 13; }
+    y -= boxH + 18;
+  }
+
+  // --- Tippek ---
+  if (result.extras.tips?.length) {
+    if (y < margin + 90) newPage();
+    sectionTitle("Tárgyalási tippek");
+    for (const t of result.extras.tips) paragraph(`•  ${t}`, 9.5);
+    y -= 6;
+  }
+
+  // --- lábléc ---
+  const pages = pdfDoc.getPages();
+  pages.forEach((p, i) => {
+    p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });
+    p.drawText(`Készült a TWINX-szel · ${dateStr} · az elérhetőségeket kérjük ellenőrizni`, { x: margin, y: 22, size: 8, font, color: C.muted });
     const pn = `${i + 1} / ${pages.length}`;
     p.drawText(pn, { x: pageW - margin - font.widthOfTextAtSize(pn, 8), y: 22, size: 8, font, color: C.muted });
   });

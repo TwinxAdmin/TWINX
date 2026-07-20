@@ -48,6 +48,12 @@ import {
   SIMULATION_DATA_BLOCK_PREVIEW,
   composeSimulationPrompt,
 } from "@/lib/simulation";
+import {
+  SUPPLIER_DEFAULT_SEGMENTS,
+  SUPPLIER_DATA_BLOCK_PREVIEW,
+  composeSupplierPrompt,
+  type SupplierQuery,
+} from "@/lib/suppliers";
 
 export type PromptSegments = Record<string, string>;
 
@@ -222,6 +228,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
       },
     ],
   },
+  {
+    key: "supplier_search",
+    label: "Beszállító-kereső (vendéglátás)",
+    dataBlockPreview: SUPPLIER_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A beszerzési szakértő szerepe és a legfontosabb szabály: ne találjon ki céget vagy elérhetőséget. Változó nem használható.",
+        default: SUPPLIER_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet (JSON)",
+        hint: "A kért JSON-kulcsok és a mezők tartalma. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: SUPPLIER_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
 ];
 
 export function getModuleDef(module: string): PromptModuleDef | undefined {
@@ -346,6 +372,11 @@ export async function buildCostingPromptActive(summaryText: string): Promise<str
 export async function buildSimulationPromptActive(summaryText: string): Promise<string> {
   const segments = await getActiveSegments("profit_plan");
   return composeSimulationPrompt(summaryText, segments);
+}
+
+export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
+  const segments = await getActiveSegments("supplier_search");
+  return composeSupplierPrompt(query, segments);
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------
