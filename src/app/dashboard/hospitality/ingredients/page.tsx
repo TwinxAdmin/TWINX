@@ -175,7 +175,7 @@ export default function IngredientsPage() {
               <h2 className="font-display text-lg font-medium">Alapanyagok</h2>
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Kattints egy kategóriára, és vedd fel a beszerzési árakat. Az árat mindig az alap-egységre add meg
-                (pl. <b>marhalábszár — 4 200 Ft/kg</b>); a hulladék% a tisztításkor elvesző részt pótolja.
+                (pl. <b>csirkemell — 1 890 Ft/kg</b>); a hulladék% a tisztításkor elvesző részt pótolja.
               </p>
             </div>
 

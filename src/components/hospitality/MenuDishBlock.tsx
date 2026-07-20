@@ -518,7 +518,7 @@ function MenuBatchModal({
           </div>
 
           <p className="mb-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Alább az <b>egész kötegre</b> add meg az alapanyagokat (pl. 50 adaghoz 8 kg marhalábszár).
+            Alább az <b>egész kötegre</b> add meg az alapanyagokat (pl. 50 adaghoz 8 kg csirkemell).
           </p>
 
           <div className="space-y-2">

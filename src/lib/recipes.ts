@@ -56,7 +56,7 @@ export function unitLabel(u: string): string {
 export const INGREDIENT_CATEGORIES = [
   { value: "zoldseg", label: "Zöldség", example: "pl. burgonya", units: ["kg", "db"] },
   { value: "gyumolcs", label: "Gyümölcs", example: "pl. alma", units: ["kg", "db"] },
-  { value: "hus", label: "Hús", example: "pl. marhalábszár", units: ["kg", "db"] },
+  { value: "hus", label: "Hús", example: "pl. csirkemell", units: ["kg", "db"] },
   { value: "hal", label: "Hal & tenger gyümölcsei", example: "pl. lazacfilé", units: ["kg", "db"] },
   { value: "tejtermek", label: "Tejtermék & tojás", example: "pl. tejföl", units: ["l", "kg", "db"] },
   { value: "pekaru", label: "Pékáru & liszt", example: "pl. finomliszt", units: ["kg", "db"] },
