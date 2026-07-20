@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSimulationPromptActive } from "@/lib/prompts";
+import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { generateSimulationPdf } from "@/lib/pdf";
 import {
   normalizeCostProfile, costProfileTotal, periodDays, proratedOverhead, oneTimeInRange,
@@ -152,6 +153,15 @@ export async function POST(request: Request) {
     try {
       const prompt = await buildSimulationPromptActive(simulationSummaryText(result, periodLabel));
       narrative = await runSonar(prompt, PERPLEXITY_MODEL);
+      // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
+      await logCost({
+        userId: user.id,
+        serviceId: null,
+        feature: FEATURE,
+        serviceName: "perplexity",
+        units: 1,
+        estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+      });
     } catch {
       narrative = "";
     }

@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSupplierPromptActive } from "@/lib/prompts";
+import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { generateSuppliersPdf } from "@/lib/pdf";
 import {
   COUNTIES, SUPPLIER_TYPES, QTY_UNITS, FREQUENCIES,
@@ -100,6 +101,15 @@ export async function POST(request: Request) {
     // 1) Élő webes kutatás (a prompt tiltja a kitalált cégeket, forrást kér).
     const prompt = await buildSupplierPromptActive(query);
     const raw = await runSonar(prompt, PERPLEXITY_MODEL);
+    // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
+    await logCost({
+      userId: user.id,
+      serviceId: null,
+      feature: FEATURE,
+      serviceName: "perplexity",
+      units: 1,
+      estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+    });
     const result = parseSupplierResponse(raw, count);
 
     // Ha egyetlen értékelhető találat sincs, ne vegyük el a kreditet.

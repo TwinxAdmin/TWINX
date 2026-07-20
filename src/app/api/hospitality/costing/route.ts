@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildCostingPromptActive } from "@/lib/prompts";
+import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { generateCostingPdf } from "@/lib/pdf";
 import {
   normalizeCostProfile,
@@ -177,6 +178,15 @@ export async function POST(request: Request) {
     let narrative = "";
     try {
       narrative = await runSonar(prompt, PERPLEXITY_MODEL);
+      // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
+      await logCost({
+        userId: user.id,
+        serviceId: null,
+        feature: FEATURE,
+        serviceName: "perplexity",
+        units: 1,
+        estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+      });
     } catch {
       narrative = ""; // AI-hiba nem bukatja a riportot; a számok mennek.
     }

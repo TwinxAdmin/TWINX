@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildMenuPromptActive } from "@/lib/prompts";
+import { logCost, perplexityCostUsd } from "@/lib/costs";
 import {
   isTimeframe,
   isMenuTheme,
@@ -144,6 +145,15 @@ export async function POST(request: Request) {
 
     // 4) Perplexity (szinkron) -> menü-szöveg
     const menuText = await runSonar(prompt, PERPLEXITY_MODEL);
+    // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
+    await logCost({
+      userId: user.id,
+      serviceId: null,
+      feature: FEATURE,
+      serviceName: "perplexity",
+      units: 1,
+      estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+    });
 
     // 5) Előzmény
     await admin.from("usage_history").insert({
