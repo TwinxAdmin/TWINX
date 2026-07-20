@@ -24,6 +24,16 @@ type RecipeRow = {
 
 const EMPTY = { name: "", category: "foetel", cuisine_style: "", menu_yield: "" };
 
+// Menüs színvilág — meleg arany/borostyán, ami elkülöníti a korall étlapostól,
+// de illik a TWINX meleg palettájához.
+const MENU = {
+  accent: "#b07d1e",
+  soft: "rgba(176,125,30,0.10)",
+  softer: "rgba(176,125,30,0.06)",
+  line: "rgba(176,125,30,0.30)",
+  ink: "#6b4a10",
+};
+
 export default function MenuDishBlock({
   menuDishes, etlapDishes, onChange,
 }: {
@@ -38,6 +48,7 @@ export default function MenuDishBlock({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [editDish, setEditDish] = useState<Dish | null>(null);
+  const [openCat, setOpenCat] = useState<string | null>(null); // felugró: egy kategória menüs ételei
   // Új menüs étel indítható étlapos ételből: csak a nevet/kategóriát vesszük át, a receptet NEM
   // (a menüs elkészítés más — nagy széria, saját kötegrecept).
   const [sourceId, setSourceId] = useState("");
@@ -132,21 +143,28 @@ export default function MenuDishBlock({
   const catCount = (cat: string) => menuDishes.filter((d) => d.category === cat).length;
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="font-display text-lg font-medium">Menüs ételek</h2>
-        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Nagy szériás fogások. Add meg, egy köteghez mennyi alapanyag kell és abból hány adag jön ki — a rendszer
-          kiszámolja egy adag önköltségét. Ezekből dolgozik a menü generátor.
-        </p>
+    <section className="space-y-3 rounded-2xl p-4 sm:p-5" style={{ background: MENU.softer, border: `1px solid ${MENU.line}` }}>
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+          style={{ background: MENU.soft, color: MENU.ink }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16v4H4zM4 12h16M4 12v8M20 12v8M4 20h16" />
+          </svg>
+          Menüs ételek
+        </span>
       </div>
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        Nagy szériás fogások — ezek a napi menübe kerülnek, külön az étlapos ételeidtől. Add meg, egy köteghez
+        mennyi alapanyag kell és abból hány adag jön ki, a rendszer kiszámolja egy adag önköltségét. Ezekből dolgozik
+        a menü generátor.
+      </p>
 
       {/* Új menüs étel */}
-      <div className="twx-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl" style={{ background: "#fff", border: `1px solid ${MENU.line}` }}>
         <button type="button" onClick={() => setAddOpen((o) => !o)} className="flex w-full items-center justify-between p-5 text-left">
           <span className="font-display text-base font-medium">Új menüs étel felvitele</span>
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-xl transition-transform duration-200"
-            style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: addOpen ? "rotate(45deg)" : "none" }}>+</span>
+            style={{ background: MENU.soft, color: MENU.accent, transform: addOpen ? "rotate(45deg)" : "none" }}>+</span>
         </button>
         <AnimatePresence initial={false}>
           {addOpen && (
@@ -154,7 +172,7 @@ export default function MenuDishBlock({
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}>
               <div className="space-y-3 px-5 pb-5">
                 {etlapDishes.length > 0 && (
-                  <div className="rounded-lg p-3" style={{ background: "rgba(239,122,90,0.06)", border: "1px solid var(--twx-line)" }}>
+                  <div className="rounded-lg p-3" style={{ background: MENU.softer, border: `1px solid ${MENU.line}` }}>
                     <label className="block text-sm font-medium">Étlapos ételből indulsz? (opcionális)</label>
                     <SelectField
                       className="mt-1 w-full"
@@ -198,7 +216,9 @@ export default function MenuDishBlock({
                   Az alapanyagokat a következő lépésben, a kötegrecepthez adod meg — a felvitt alapanyagaidból választva,
                   hogy 50 adaghoz melyikből mennyi kell.
                 </p>
-                <button onClick={addMenuDish} disabled={saving} className="twx-btn">
+                <button onClick={addMenuDish} disabled={saving}
+                  className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: MENU.accent }}>
                   {saving ? "Mentés…" : "Hozzáadás + kötegrecept"}
                 </button>
               </div>
@@ -207,22 +227,62 @@ export default function MenuDishBlock({
         </AnimatePresence>
       </div>
 
-      {/* Lista kategóriánként */}
-      {menuDishes.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Még nincs menüs ételed. Vidd fel az elsőt fentebb, majd add meg a kötegreceptjét.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {DISH_CATEGORIES.filter((c) => catCount(c.value)).map((c) => (
-            <div key={c.value} className="twx-card p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>{c.label}</p>
-              <ul className="space-y-1">
-                {menuDishes.filter((d) => d.category === c.value).map((d) => {
+      {/* Menüs ételeim — kategória-mappák (menüs, arany színvilággal) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-base font-medium" style={{ color: MENU.ink }}>Menüs ételeim</h3>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{menuDishes.length} db</span>
+        </div>
+        {menuDishes.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Még nincs menüs ételed. Vidd fel az elsőt fentebb, majd add meg a kötegreceptjét.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {DISH_CATEGORIES.filter((c) => catCount(c.value)).map((c) => (
+              <button key={c.value} onClick={() => setOpenCat(c.value)}
+                className="flex flex-col items-start gap-2 rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5"
+                style={{ background: MENU.soft, border: `1px solid ${MENU.line}` }}>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#fff", color: MENU.accent, border: `1px solid ${MENU.line}` }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+                  </svg>
+                </span>
+                <span className="font-medium" style={{ color: MENU.ink }}>{c.label}</span>
+                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{catCount(c.value)} menüs étel</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Felugró: egy kategória menüs ételei */}
+      <AnimatePresence>
+        {openCat && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(30,20,6,0.45)" }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenCat(null)}>
+            <motion.div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
+              style={{ background: "var(--twx-cream-card)", border: `1px solid ${MENU.line}`, boxShadow: "0 24px 60px rgba(30,20,6,0.28)" }}
+              initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 26 }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b p-4" style={{ borderColor: MENU.line, background: MENU.softer }}>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: MENU.soft, color: MENU.ink }}>Menüs</span>
+                  <div>
+                    <div className="font-display text-lg font-semibold">{categoryLabel(openCat)}</div>
+                    <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{catCount(openCat)} menüs étel</div>
+                  </div>
+                </div>
+                <button onClick={() => setOpenCat(null)} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+              </div>
+
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {menuDishes.filter((d) => d.category === openCat).map((d) => {
                   const items = recipesByDish.get(d.id) ?? [];
                   return (
-                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"
-                      style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                    <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"
+                      style={{ borderColor: MENU.line, background: "#fff" }}>
                       <button onClick={() => setEditDish(d)} className="min-w-0 flex-1 text-left">
                         <span className="font-medium">{d.name}</span>{" "}
                         <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -233,19 +293,25 @@ export default function MenuDishBlock({
                         {d.menu_cost_price != null
                           ? <b>{formatHuf(d.menu_cost_price)}<span className="text-xs font-normal" style={{ color: "var(--twx-ink-muted)" }}>/adag</span></b>
                           : <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>nincs önköltség</span>}
-                        <button onClick={() => setEditDish(d)} className="text-xs font-medium underline" style={{ color: "var(--twx-coral)" }}>
+                        <button onClick={() => setEditDish(d)} className="text-xs font-medium underline" style={{ color: MENU.accent }}>
                           {items.length ? "Recept" : "Recept megadása"}
                         </button>
                         <button onClick={() => removeDish(d.id)} className="text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Törlés">×</button>
                       </span>
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
+              </div>
+
+              <div className="flex justify-end border-t p-4" style={{ borderColor: MENU.line }}>
+                <button onClick={() => setOpenCat(null)} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: MENU.accent }}>
+                  Bezár
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {editDish && (
