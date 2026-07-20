@@ -304,7 +304,7 @@ export async function buildMenuPromptActive(opts: {
   instruction?: string;
   dayPlan?: DayPlanEntry[];
   courses?: string;
-  targetPrice?: string;
+  menuPrice?: string;
   variety?: string;
   targetCount?: string;
   targetProfit?: string;

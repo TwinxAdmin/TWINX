@@ -298,7 +298,7 @@ export function composeMenuPrompt(
     instruction?: string;
     dayPlan?: DayPlanEntry[];
     courses?: string;
-    targetPrice?: string;
+    menuPrice?: string; // a napi menü fix ára (a partner beállítása)
     variety?: string;
     targetCount?: string; // tervezett eladott menü (db)
     targetProfit?: string; // cél össz-profit (Ft)
@@ -320,9 +320,11 @@ export function composeMenuPrompt(
   if (struct.slots.length) {
     lines.push(`Fogások (PONTOSAN ezek, ebben a sorrendben, minden napra): ${struct.slots.map((s) => s.label).join(" + ")}.`);
   }
-  if (opts.targetPrice && Number(opts.targetPrice) > 0) {
+  const menuPrice = Number(opts.menuPrice) || 0;
+  if (menuPrice > 0) {
     lines.push(
-      `Célár: a napi menü (fogások összege) lehetőleg maradjon ${Math.round(Number(opts.targetPrice)).toLocaleString("hu-HU")} Ft alatt az ételek eladási ára alapján.`
+      `A napi menü eladási ára: ${Math.round(menuPrice).toLocaleString("hu-HU")} Ft (fix ár, a partner beállítása). ` +
+        `Az egyes ételeknek a menüben NINCS külön eladási áruk — csak előállítási költségük.`
     );
   }
   if (opts.variety === "high") {
@@ -330,12 +332,14 @@ export function composeMenuPrompt(
   }
   const tCount = Number(opts.targetCount);
   const tProfit = Number(opts.targetProfit);
-  if (tCount > 0 && tProfit > 0) {
+  if (tCount > 0 && tProfit > 0 && menuPrice > 0) {
     const perMenu = Math.round(tProfit / tCount);
+    const maxCost = Math.max(0, Math.round(menuPrice - perMenu));
     lines.push(
-      `Profit-terv: a partner ${tCount.toLocaleString("hu-HU")} menü eladásából összesen ${tProfit.toLocaleString("hu-HU")} Ft profitot céloz. ` +
-        `Ezért állítsd össze úgy a napi menüket, hogy egy menü darab-profitja (az ételek eladási ára MÍNUSZ előkészítési ára összege) érje el a ~${perMenu.toLocaleString("hu-HU")} Ft-ot; ` +
-        `részesítsd előnyben a magasabb darab-profitú ételeket, de a tematikát és a változatosságot is tartva.`
+      `Profit-terv: a partner ${tCount.toLocaleString("hu-HU")} menü eladásából összesen ${tProfit.toLocaleString("hu-HU")} Ft profitot céloz, ` +
+        `azaz menünként ~${perMenu.toLocaleString("hu-HU")} Ft-ot. Mivel a menü ára fix ${Math.round(menuPrice).toLocaleString("hu-HU")} Ft, ` +
+        `egy napi menü ELŐÁLLÍTÁSI KÖLTSÉGE (a benne lévő ételek menü-költségeinek összege) maradjon ${maxCost.toLocaleString("hu-HU")} Ft alatt. ` +
+        `Részesítsd előnyben az alacsonyabb menü-költségű ételeket, de tartsd a tematikát és a változatosságot.`
     );
   }
   const plan = (opts.dayPlan ?? []).filter(

@@ -18,6 +18,7 @@ import {
   timeframeDays,
   categoryLabel,
   marginLabel,
+  courseStructure,
 } from "@/lib/hospitality";
 
 export const runtime = "nodejs";
@@ -62,7 +63,6 @@ export async function POST(request: Request) {
         .slice(0, 7)
     : [];
   const courses = typeof body.courses === "string" ? body.courses.slice(0, 40) : "";
-  const targetPrice = body.targetPrice != null && String(body.targetPrice).trim() ? String(body.targetPrice).trim() : "";
   const variety = body.variety === "high" ? "high" : "normal";
   const targetCount = body.targetCount != null && String(body.targetCount).trim() ? String(body.targetCount).trim() : "";
   const targetProfit = body.targetProfit != null && String(body.targetProfit).trim() ? String(body.targetProfit).trim() : "";
@@ -88,13 +88,26 @@ export async function POST(request: Request) {
 
   try {
     // 2) ELŐSZŰRÉS: a partner saját ételei, a profit-cél szerint preferált marzsokra szűrve.
+    //    A napi menübe CSAK olyan étel kerülhet, amelynek van menü-előállítási költsége.
     const preferred = PREFERRED_MARGINS[goal];
     const { data: dishes, error: dishErr } = await admin
       .from("restaurant_dishes")
-      .select("name, description, category, cuisine_style, profit_margin, cost_price, sale_price, main_ingredients")
+      .select("name, description, category, cuisine_style, profit_margin, menu_cost_price, main_ingredients")
       .eq("user_id", user.id)
+      .not("menu_cost_price", "is", null)
       .or(`profit_margin.in.(${preferred.join(",")}),profit_margin.is.null`);
     if (dishErr) throw new Error(dishErr.message);
+
+    // A napi menü fix ára a költségprofilból (a fogásszám szerint).
+    const { data: profileRow } = await admin
+      .from("restaurant_cost_profile")
+      .select("menu_price_2, menu_price_3")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const courseCount = courseStructure(courses).slots.length;
+    const menuPrice = String(
+      courseCount >= 3 ? Number(profileRow?.menu_price_3 ?? 0) : Number(profileRow?.menu_price_2 ?? 0)
+    );
 
     // Rangsor: a cél szerint preferált marzs kerül előre, majd max MAX_DISHES étel.
     const rank = new Map(preferred.map((m, i) => [m, i]));
@@ -107,7 +120,7 @@ export async function POST(request: Request) {
       await refund();
       return NextResponse.json(
         {
-          error: `Túl kevés étel a kiválasztott profit-célhoz (min. ${MENU_MIN_DISHES}). Vigyél fel többet a Kínálat kezelőben, vagy válassz más profit-célt.`,
+          error: `Túl kevés menübe tehető étel (min. ${MENU_MIN_DISHES}). A napi menühöz az ételeknél meg kell adni a „menüben az előállítási költséget" a Kínálat kezelőben.`,
         },
         { status: 422 }
       );
@@ -119,15 +132,14 @@ export async function POST(request: Request) {
         const parts = [categoryLabel(d.category)];
         if (d.cuisine_style) parts.push(d.cuisine_style);
         if (d.profit_margin) parts.push(`${marginLabel(d.profit_margin)} haszon`);
-        if (d.sale_price != null) parts.push(`ár: ${Math.round(d.sale_price)} Ft`);
-        if (d.cost_price != null && d.sale_price != null) parts.push(`darab-profit: ${Math.round(d.sale_price - d.cost_price)} Ft`);
+        if (d.menu_cost_price != null) parts.push(`menü-előállítási költség: ${Math.round(d.menu_cost_price)} Ft`);
         if (d.main_ingredients) parts.push(`alapanyagok: ${d.main_ingredients}`);
         return `- ${d.name} (${parts.join(", ")})${d.description ? ` — ${d.description}` : ""}`;
       })
       .join("\n");
 
     const prompt = await buildMenuPromptActive({
-      timeframe, theme, goal, dishListText, instruction, dayPlan, courses, targetPrice, variety, targetCount, targetProfit,
+      timeframe, theme, goal, dishListText, instruction, dayPlan, courses, menuPrice, variety, targetCount, targetProfit,
     });
 
     // 4) Perplexity (szinkron) -> menü-szöveg
@@ -138,7 +150,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { timeframe, theme, goal, courses, targetPrice, variety, targetCount, targetProfit, dish_count: selected.length, day_plan: dayPlan, instruction },
+      input_data: { timeframe, theme, goal, courses, menuPrice, variety, targetCount, targetProfit, dish_count: selected.length, day_plan: dayPlan, instruction },
       output_file_url: null,
       credits_charged: charge.bypassed ? 0 : credits,
     });

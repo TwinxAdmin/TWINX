@@ -24,8 +24,8 @@ export default function MenuGeneratorPage() {
   const [theme, setTheme] = useState("valtozatos");
   const [goal, setGoal] = useState("medium");
   const [courses, setCourses] = useState("");
-  const [targetPrice, setTargetPrice] = useState("");
   const [variety, setVariety] = useState("normal");
+  const [menuPrices, setMenuPrices] = useState({ p2: 0, p3: 0 });
   const [targetCount, setTargetCount] = useState("");
   const [targetProfit, setTargetProfit] = useState("");
   const [profitOpen, setProfitOpen] = useState(false);
@@ -37,7 +37,7 @@ export default function MenuGeneratorPage() {
   const [editDay, setEditDay] = useState<string | null>(null);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [dishesData, setDishesData] = useState<
-    { name: string; cuisine_style: string | null; category: string; cost_price: number | null; sale_price: number | null }[]
+    { name: string; cuisine_style: string | null; category: string; menu_cost_price: number | null }[]
   >([]);
 
   // Fogás-slotok a választott struktúra szerint (fogáshoz tartozó étel-kategóriákkal).
@@ -45,11 +45,14 @@ export default function MenuGeneratorPage() {
   const courseSlots: { key: string; label: string; cats: string[] }[] =
     struct.slots.length ? struct.slots : [{ key: "etel", label: "Konkrét étel", cats: [] }];
 
+  // A napi menübe csak olyan étel kerülhet, amelynek van menü-előállítási költsége.
+  const menuPool = dishesData.filter((d) => d.menu_cost_price != null);
+
   // A kiválasztott konyhához (és fogás-kategóriákhoz) tartozó ételek nevei.
   function dishOptions(cuisine: string, cats: string[]): string[] {
     let src = cuisine
-      ? dishesData.filter((d) => (d.cuisine_style ?? "").toLowerCase() === cuisine.toLowerCase())
-      : dishesData;
+      ? menuPool.filter((d) => (d.cuisine_style ?? "").toLowerCase() === cuisine.toLowerCase())
+      : menuPool;
     if (cats.length) src = src.filter((d) => cats.includes(d.category));
     return Array.from(new Set(src.map((d) => d.name).filter(Boolean))).sort((a, b) => a.localeCompare(b, "hu"));
   }
@@ -61,14 +64,21 @@ export default function MenuGeneratorPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/hospitality/dishes");
+        const [res, pRes] = await Promise.all([
+          fetch("/api/hospitality/dishes"),
+          fetch("/api/hospitality/cost-profile"),
+        ]);
         const data = await res.json();
+        const p = await pRes.json();
+        if (pRes.ok && p.profile) {
+          setMenuPrices({ p2: Number(p.profile.menu_price_2) || 0, p3: Number(p.profile.menu_price_3) || 0 });
+        }
         if (res.ok) {
           const list = (data.dishes ?? []) as {
-            name: string; cuisine_style: string | null; category: string; cost_price: number | null; sale_price: number | null;
+            name: string; cuisine_style: string | null; category: string; menu_cost_price: number | null;
           }[];
           setDishesData(list);
-          setDishCount(list.length);
+          setDishCount(list.filter((d) => d.menu_cost_price != null).length);
           const uniq = Array.from(new Set(list.map((d) => d.cuisine_style ?? "").filter(Boolean)));
           setCuisines(uniq.length ? uniq.sort((a, b) => a.localeCompare(b, "hu")) : [...CUISINE_STYLES]);
         }
@@ -90,7 +100,6 @@ export default function MenuGeneratorPage() {
           theme,
           goal,
           courses,
-          targetPrice,
           variety,
           targetCount,
           targetProfit,
@@ -135,44 +144,47 @@ export default function MenuGeneratorPage() {
   const courseCatGroups: string[][] = struct.slots.length
     ? struct.slots.map((s) => s.cats)
     : [["eloetel", "leves"], ["foetel", "koret"], ["desszert"]];
-  const profitOf = (d: { cost_price: number | null; sale_price: number | null }) =>
-    d.cost_price != null && d.sale_price != null ? d.sale_price - d.cost_price : 0;
+  // A menü ára a fogásszám szerint (az Önköltség modulban beállítva).
+  const menuPrice = struct.slots.length >= 3 ? menuPrices.p3 : menuPrices.p2;
+  // Menüben az étel csak KÖLTSÉG — a bevétel a menü fix ára.
+  const costOf = (d: { menu_cost_price: number | null }) => d.menu_cost_price ?? 0;
 
+  // Egy napon elérhető LEGJOBB menü-profit = menü ára − a legolcsóbb összeállítás költsége.
   function bestDayProfit(dayValue: string): number {
     const cuisine = (dayPlan[dayValue] ?? "").toLowerCase();
-    const pool = dishesData.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
+    const pool = menuPool.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
     const pinnedNames = new Set(Object.values(dishPlan[dayValue] || {}).filter(Boolean));
-    let total = 0;
+    let cost = 0;
     for (const cats of courseCatGroups) {
       const pinned = pool.find((d) => pinnedNames.has(d.name) && cats.includes(d.category));
       let chosen = pinned;
       if (!chosen) {
         const cands = pool.filter((d) => cats.includes(d.category));
-        if (cands.length) chosen = cands.reduce((b, d) => (profitOf(d) > profitOf(b) ? d : b));
+        if (cands.length) chosen = cands.reduce((b, d) => (costOf(d) < costOf(b) ? d : b));
       }
-      if (chosen) total += profitOf(chosen);
+      if (chosen) cost += costOf(chosen);
     }
-    return total;
+    return menuPrice - cost;
   }
 
-  // Csere-javaslat a legkritikusabb rögzített ételre.
+  // Csere-javaslat: a legdrágább rögzített étel helyett olcsóbb ugyanabban a kategóriában.
   function swapSuggestion(dayValue: string): string | null {
     const cuisine = (dayPlan[dayValue] ?? "").toLowerCase();
-    const pool = dishesData.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
+    const pool = menuPool.filter((d) => !cuisine || (d.cuisine_style ?? "").toLowerCase() === cuisine);
     const pinned = Object.values(dishPlan[dayValue] || {})
       .filter(Boolean)
       .map((name) => pool.find((d) => d.name === name))
       .filter((d): d is (typeof dishesData)[number] => Boolean(d));
     if (!pinned.length) return null;
-    const worst = pinned.reduce((a, b) => (profitOf(a) < profitOf(b) ? a : b));
-    const alts = pool.filter((d) => d.category === worst.category && d.name !== worst.name && profitOf(d) > profitOf(worst));
+    const worst = pinned.reduce((a, b) => (costOf(a) > costOf(b) ? a : b));
+    const alts = pool.filter((d) => d.category === worst.category && d.name !== worst.name && costOf(d) < costOf(worst));
     if (!alts.length) return null;
-    const best = alts.reduce((a, b) => (profitOf(a) > profitOf(b) ? a : b));
-    return `Cseréld a rögzített „${worst.name}" (${formatHuf(profitOf(worst))}/db) ételt erre: „${best.name}" (${formatHuf(profitOf(best))}/db, +${formatHuf(profitOf(best) - profitOf(worst))}).`;
+    const best = alts.reduce((a, b) => (costOf(a) < costOf(b) ? a : b));
+    return `Cseréld a rögzített „${worst.name}" (${formatHuf(costOf(worst))}/adag előállítás) ételt erre: „${best.name}" (${formatHuf(costOf(best))}/adag, −${formatHuf(costOf(worst) - costOf(best))}).`;
   }
 
   const profitWarning = (() => {
-    if (requiredPerMenu <= 0) return null;
+    if (requiredPerMenu <= 0 || menuPrice <= 0) return null;
     const per = planDays.map((d) => ({ d, best: bestDayProfit(d.value) }));
     const infeasible = per.filter((x) => x.best < requiredPerMenu - 0.5);
     if (!infeasible.length) return null;
@@ -425,13 +437,29 @@ export default function MenuGeneratorPage() {
               >
                 <div className="px-4 pb-4">
                   <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    A bevétel/profit hangolásához. Add meg <b>egy menü célárát</b> (mennyibe kerüljön egy napi menü a vendégnek), és/vagy hogy hány menü eladásából mennyi profitot szeretnél — a rendszer az ételek darab-profitjából (eladási − előkészítési ár) ehhez igazítja a menüt.
+                    A napi menü ára fix — az <b>Önköltség &amp; profit</b> modulban állítod be. Itt azt add meg, hány menü
+                    eladásából mennyi profitot szeretnél; ebből a rendszer kiszámolja, mennyi lehet egy menü
+                    <b> előállítási költsége</b>, és az olcsóbban előállítható ételeket részesíti előnyben.
                   </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div>
-                      <label className="block text-sm">Egy menü célára (Ft)</label>
-                      <input type="number" min={0} value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="twx-input mt-1" placeholder="pl. 2500 / menü" />
-                    </div>
+                  <div
+                    className="mb-3 rounded-lg p-3 text-xs"
+                    style={{ background: "rgba(239,122,90,0.08)", border: "1px solid rgba(239,122,90,0.25)" }}
+                  >
+                    {menuPrice > 0 ? (
+                      <>
+                        A {struct.slots.length >= 3 ? "3 fogásos" : "2 fogásos"} napi menü beállított ára:{" "}
+                        <b>{formatHuf(menuPrice)}</b>
+                        {requiredPerMenu > 0 && (
+                          <> — a célodhoz egy menü előállítása maradjon <b>{formatHuf(Math.max(0, menuPrice - requiredPerMenu))}</b> alatt.</>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ color: "#b5372f" }}>
+                        Még nincs menü-ár beállítva. Add meg az Önköltség &amp; profit modul „Étteremszintű költség" fülén.
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-sm">Tervezett eladott menü (db)</label>
                       <input type="number" min={0} value={targetCount} onChange={(e) => setTargetCount(e.target.value)} className="twx-input mt-1" placeholder="pl. 100" />
