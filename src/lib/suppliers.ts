@@ -33,6 +33,39 @@ export function supplierTypeLabel(v: string): string {
   return SUPPLIER_TYPES.find((t) => t.value === v)?.label ?? v;
 }
 
+// --- Mennyiség és gyakoriság (strukturáltan, hogy a prompt egyértelmű legyen) ---
+export const QTY_UNITS = [
+  { value: "kg", label: "kg" },
+  { value: "l", label: "liter" },
+  { value: "db", label: "darab" },
+  { value: "lada", label: "láda" },
+  { value: "raklap", label: "raklap" },
+] as const;
+
+export const FREQUENCIES = [
+  { value: "napi", label: "naponta" },
+  { value: "heti", label: "hetente" },
+  { value: "ketheti", label: "kéthetente" },
+  { value: "havi", label: "havonta" },
+  { value: "alkalmi", label: "alkalmanként" },
+] as const;
+
+export function qtyUnitLabel(v: string): string {
+  return QTY_UNITS.find((u) => u.value === v)?.label ?? v;
+}
+export function frequencyLabel(v: string): string {
+  return FREQUENCIES.find((f) => f.value === v)?.label ?? v;
+}
+
+// A strukturált mezőkből egyértelmű, rövid mondat: „hetente 50 kg".
+export function volumeLabel(q: { qty?: number; qtyUnit?: string; frequency?: string }): string {
+  const amount = Number(q.qty) || 0;
+  if (amount <= 0) return "";
+  const unit = qtyUnitLabel(q.qtyUnit ?? "kg");
+  const freq = q.frequency ? frequencyLabel(q.frequency) : "";
+  return freq ? `${freq} ${amount} ${unit}` : `${amount} ${unit}`;
+}
+
 // --- Találatszám és kredit-ár ----------------------------------------------
 // A partner dönti el, milyen mélyre megyünk: több találat = több kutatás = több kredit.
 export const SUPPLIER_PLANS = [
@@ -55,7 +88,9 @@ export type SupplierQuery = {
   city: string;          // település (opcionális, a körzet ehhez képest értendő)
   radius: string;        // km vagy "orszagos"
   types: string[];       // beszállító-típusok
-  volume: string;        // mennyiség/gyakoriság, pl. "heti 50 kg"
+  qty: number;           // mennyiség (szám)
+  qtyUnit: string;       // mértékegység (kg / l / db / láda / raklap)
+  frequency: string;     // gyakoriság (napi / heti / kétheti / havi / alkalmi)
   notes: string;         // egyedi igény (bio tanúsítvány, szállítás…)
   count: number;         // hány találatot kérünk
 };
@@ -115,7 +150,7 @@ export function composeSupplierPrompt(
     q.types.length
       ? `Milyen típusú beszállító érdekli: ${q.types.map(supplierTypeLabel).join(", ")}.`
       : `Bármilyen típusú beszállító érdekli (termelő, nagyker, piac).`,
-    q.volume ? `Tervezett mennyiség / gyakoriság: ${q.volume}` : "",
+    volumeLabel(q) ? `Tervezett beszerzési mennyiség: ${volumeLabel(q)}.` : "",
     q.notes ? `Egyedi igény: ${q.notes}` : "",
     `Ennyi találatot adj: PONTOSAN ${q.count} darab (ha kevesebb valódi találat van, inkább adj kevesebbet, mint kitaláltat).`,
     `A megrendelő egy étterem, tehát olyan beszállítókat keress, akik éttermeknek is szállítanak és számlaképesek.`,

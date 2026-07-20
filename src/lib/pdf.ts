@@ -6,7 +6,7 @@ import { PDFDocument, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { CostingResult } from "@/lib/costing";
 import type { SimResult } from "@/lib/simulation";
-import type { SupplierQuery, SupplierResult } from "@/lib/suppliers";
+import { volumeLabel, type SupplierQuery, type SupplierResult } from "@/lib/suppliers";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -657,7 +657,7 @@ export async function generateSuppliersPdf(params: {
   y -= 14;
   write(
     `Terület: ${q.county}${q.city ? `, ${q.city}` : ""} (${area})` +
-      (q.volume ? `    ·    Mennyiség: ${q.volume}` : ""),
+      (volumeLabel(q) ? `    ·    Mennyiség: ${volumeLabel(q)}` : ""),
     margin, y, 9.5, C.muted
   );
   y -= 24;

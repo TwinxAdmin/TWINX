@@ -12,7 +12,8 @@ import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSupplierPromptActive } from "@/lib/prompts";
 import { generateSuppliersPdf } from "@/lib/pdf";
 import {
-  COUNTIES, SUPPLIER_TYPES, creditsForCount, isValidCount, parseSupplierResponse,
+  COUNTIES, SUPPLIER_TYPES, QTY_UNITS, FREQUENCIES,
+  creditsForCount, isValidCount, parseSupplierResponse,
   type SupplierQuery,
 } from "@/lib/suppliers";
 
@@ -63,6 +64,9 @@ export async function POST(request: Request) {
   if (!isValidCount(count)) return NextResponse.json({ error: "Érvénytelen találatszám." }, { status: 422 });
 
   const validTypes = new Set(SUPPLIER_TYPES.map((t) => t.value as string));
+  const validUnits = new Set(QTY_UNITS.map((u) => u.value as string));
+  const validFreqs = new Set(FREQUENCIES.map((f) => f.value as string));
+
   const query: SupplierQuery = {
     what,
     county,
@@ -71,7 +75,10 @@ export async function POST(request: Request) {
     types: Array.isArray(body.types)
       ? (body.types as unknown[]).map((t) => String(t)).filter((t) => validTypes.has(t)).slice(0, 5)
       : [],
-    volume: str(body.volume, 80),
+    // Mennyiség és gyakoriság strukturáltan — így a prompt egyértelmű mondatot kap.
+    qty: Math.max(0, Math.floor(Number(body.qty) || 0)),
+    qtyUnit: validUnits.has(str(body.qtyUnit)) ? str(body.qtyUnit) : "kg",
+    frequency: validFreqs.has(str(body.frequency)) ? str(body.frequency) : "heti",
     notes: str(body.notes, 300),
     count,
   };

@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import { INGREDIENT_CATEGORIES } from "@/lib/recipes";
 import {
-  COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, creditsForCount,
+  COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES, creditsForCount,
   type Supplier, type SupplierExtras,
 } from "@/lib/suppliers";
 
@@ -28,7 +28,9 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [city, setCity] = useState("");
   const [radius, setRadius] = useState("50");
   const [types, setTypes] = useState<string[]>(["ostermelo"]);
-  const [volume, setVolume] = useState("");
+  const [qty, setQty] = useState("");
+  const [qtyUnit, setQtyUnit] = useState("kg");
+  const [frequency, setFrequency] = useState("heti");
   const [notes, setNotes] = useState("");
   const [count, setCount] = useState(3);
   const [running, setRunning] = useState(false);
@@ -59,7 +61,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       const res = await fetch("/api/hospitality/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ what, county, city, radius, types, volume, notes, count }),
+        body: JSON.stringify({ what, county, city, radius, types, qty, qtyUnit, frequency, notes, count }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
@@ -124,13 +126,24 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             </p>
           </div>
           <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyiség / gyakoriság</label>
-            <input
-              value={volume} onChange={(e) => setVolume(e.target.value)}
-              placeholder="pl. heti 50 kg"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--twx-line)", background: "#fff" }}
-            />
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyiség és gyakoriság</label>
+            <div className="mt-1 flex gap-2">
+              <input
+                inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="50"
+                className="w-20 rounded-lg border px-3 py-2 text-right text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }}
+              />
+              <select value={qtyUnit} onChange={(e) => setQtyUnit(e.target.value)}
+                className="box-border h-[38px] rounded-lg border px-2 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                {QTY_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value)}
+                className="box-border h-[38px] flex-1 rounded-lg border px-2 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                {FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
+            </div>
             <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
               Ebből tudjuk, kistermelő vagy nagyker illik hozzád.
             </p>
