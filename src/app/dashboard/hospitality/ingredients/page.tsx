@@ -14,7 +14,8 @@ import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
 import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
-  INGREDIENT_UNITS, INGREDIENT_CATEGORIES, ingredientCategoryLabel, recipeCost, unitLabel,
+  INGREDIENT_UNITS, INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
+  ingredientCategoryUnit, recipeCost, unitLabel,
   type Ingredient, type IngredientUnit,
 } from "@/lib/recipes";
 
@@ -356,7 +357,9 @@ function CategoryModal({
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((s) => s.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
-  const addRow = () => setRows((s) => [...s, { name: "", unit: "kg", unit_price: "", waste_pct: "" }]);
+  // Új sor a kategóriában jellemző mértékegységgel (zöldség → kg, ital → liter, egyéb → db).
+  const addRow = () =>
+    setRows((s) => [...s, { name: "", unit: ingredientCategoryUnit(category), unit_price: "", waste_pct: "" }]);
 
   const removeRow = async (i: number) => {
     const row = rows[i];
@@ -458,7 +461,7 @@ function CategoryModal({
               <div className="min-w-[150px] flex-1">
                 <input
                   value={r.name} onChange={(e) => setRow(i, { name: e.target.value })}
-                  placeholder="pl. marhalábszár"
+                  placeholder={ingredientCategoryExample(category)}
                   className="w-full rounded-lg border px-3 py-2 text-sm"
                   style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
                 />

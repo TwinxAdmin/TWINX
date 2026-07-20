@@ -41,23 +41,35 @@ export function unitLabel(u: string): string {
 }
 
 // --- Alapanyag-kategóriák (a felületen kockákba rendezve) -------------------
+// Minden kategóriához oda illő PÉLDA (a beviteli mező súgójához) és a jellemzően
+// használt alap-egység, hogy ne kelljen mindig átállítani.
 export const INGREDIENT_CATEGORIES = [
-  { value: "zoldseg", label: "Zöldség" },
-  { value: "gyumolcs", label: "Gyümölcs" },
-  { value: "hus", label: "Hús" },
-  { value: "hal", label: "Hal & tenger gyümölcsei" },
-  { value: "tejtermek", label: "Tejtermék & tojás" },
-  { value: "pekaru", label: "Pékáru & liszt" },
-  { value: "szaraz", label: "Száraz áru (rizs, tészta)" },
-  { value: "fuszer", label: "Fűszer & alaplé" },
-  { value: "olaj", label: "Olaj & zsiradék" },
-  { value: "ital", label: "Ital & alkohol" },
-  { value: "egyeb", label: "Egyéb" },
+  { value: "zoldseg", label: "Zöldség", example: "pl. burgonya", unit: "kg" },
+  { value: "gyumolcs", label: "Gyümölcs", example: "pl. alma", unit: "kg" },
+  { value: "hus", label: "Hús", example: "pl. marhalábszár", unit: "kg" },
+  { value: "hal", label: "Hal & tenger gyümölcsei", example: "pl. lazacfilé", unit: "kg" },
+  { value: "tejtermek", label: "Tejtermék & tojás", example: "pl. tejföl", unit: "l" },
+  { value: "pekaru", label: "Pékáru & liszt", example: "pl. finomliszt", unit: "kg" },
+  { value: "szaraz", label: "Száraz áru (rizs, tészta)", example: "pl. rizs", unit: "kg" },
+  { value: "fuszer", label: "Fűszer & alaplé", example: "pl. őrölt paprika", unit: "kg" },
+  { value: "olaj", label: "Olaj & zsiradék", example: "pl. napraforgó olaj", unit: "l" },
+  { value: "ital", label: "Ital & alkohol", example: "pl. ásványvíz", unit: "l" },
+  { value: "egyeb", label: "Egyéb", example: "pl. szalvéta", unit: "db" },
 ] as const;
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number]["value"];
 
 export function ingredientCategoryLabel(v: string): string {
   return INGREDIENT_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+}
+
+// A kategóriához illő példa a beviteli mező súgójában.
+export function ingredientCategoryExample(v: string): string {
+  return INGREDIENT_CATEGORIES.find((c) => c.value === v)?.example ?? "pl. alapanyag neve";
+}
+
+// A kategóriában jellemző alap-egység (új sor felvitelekor ez az alapértelmezett).
+export function ingredientCategoryUnit(v: string): IngredientUnit {
+  return (INGREDIENT_CATEGORIES.find((c) => c.value === v)?.unit ?? "kg") as IngredientUnit;
 }
 
 // --- Típusok ---------------------------------------------------------------
