@@ -21,7 +21,19 @@ import {
   type Ingredient, type IngredientUnit, type RecipeItem,
 } from "@/lib/recipes";
 
-type RecipeRow = { id: string; dish_id: string; ingredient_id: string; quantity: number; unit: string };
+// Egy recept-sor vagy árlistás (ingredient_id), vagy EGYEDI: a partner ehhez az ételhez
+// adta meg a nevet és az árat, mert a hozzávaló nincs a közös listában.
+type RecipeRow = {
+  id: string;
+  dish_id: string;
+  ingredient_id: string | null;
+  quantity: number;
+  unit: string;
+  custom_name?: string | null;
+  custom_unit?: IngredientUnit | null;
+  custom_unit_price?: number | null;
+  custom_waste_pct?: number | null;
+};
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -86,7 +98,15 @@ export default function IngredientsPage() {
     const byDish = new Map<string, RecipeItem[]>();
     for (const r of recipes) {
       const arr = byDish.get(r.dish_id) ?? [];
-      arr.push({ ingredient_id: r.ingredient_id, quantity: r.quantity, unit: r.unit });
+      arr.push({
+        ingredient_id: r.ingredient_id,
+        quantity: r.quantity,
+        unit: r.unit,
+        custom_name: r.custom_name ?? null,
+        custom_unit: r.custom_unit ?? null,
+        custom_unit_price: r.custom_unit_price ?? null,
+        custom_waste_pct: r.custom_waste_pct ?? 0,
+      });
       byDish.set(r.dish_id, arr);
     }
     return byDish;
@@ -108,6 +128,10 @@ export default function IngredientsPage() {
       ...items.map((it, i) => ({ id: `${dishId}-${i}`, dish_id: dishId, ...it })),
     ]);
   };
+
+  // A recept-ablakból felvett új alapanyag azonnal jelenjen meg a közös listában is.
+  const onIngredientAdded = (ing: Ingredient) =>
+    setIngredients((prev) => [...prev, ing].sort((a, b) => a.name.localeCompare(b.name, "hu")));
 
   // Azok az ételek, ahol a tárolt étlap-ár eltér a recept szerinti önköltségtől.
   const staleEtlap = useMemo(
@@ -243,6 +267,7 @@ export default function IngredientsPage() {
             ingredients={ingredients}
             recipesByDish={recipesByDish}
             onRecipeSaved={onRecipeSaved}
+            onIngredientAdded={onIngredientAdded}
             onApplyCost={applyCost}
             onClose={() => setOpenDishCat(null)}
           />

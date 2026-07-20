@@ -23,9 +23,15 @@ export default function RecipeCalculator({
 }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<Row[]>(
-    () => initialItems.map((i) => ({ ingredient_id: i.ingredient_id, quantity: String(i.quantity), unit: i.unit }))
+  // Csak az árlistás sorok szerkeszthetők itt.
+  const [rows, setRows] = useState<Row[]>(() =>
+    initialItems
+      .filter((i) => i.ingredient_id)
+      .map((i) => ({ ingredient_id: String(i.ingredient_id), quantity: String(i.quantity), unit: i.unit }))
   );
+  // Az ételhez felvitt EGYEDI hozzávalók (nincsenek a közös árlistában) változatlanul
+  // átmennek: itt csak megjelennek, szerkeszteni az Alapanyagok & receptek fülön lehet őket.
+  const [customItems] = useState<RecipeItem[]>(() => initialItems.filter((i) => !i.ingredient_id && i.custom_name));
 
   useEffect(() => {
     (async () => {
@@ -41,9 +47,12 @@ export default function RecipeCalculator({
 
   const byId = useMemo(() => new Map(ingredients.map((i) => [i.id, i])), [ingredients]);
 
-  const items: RecipeItem[] = rows
-    .map((r) => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity.replace(",", ".")) || 0, unit: r.unit }))
-    .filter((r) => r.ingredient_id && r.quantity > 0);
+  const items: RecipeItem[] = [
+    ...rows
+      .map((r) => ({ ingredient_id: r.ingredient_id, quantity: Number(r.quantity.replace(",", ".")) || 0, unit: r.unit }))
+      .filter((r) => r.ingredient_id && r.quantity > 0),
+    ...customItems,
+  ];
   const total = recipeCost(items, ingredients);
 
   const addRow = () => {
@@ -145,9 +154,27 @@ export default function RecipeCalculator({
                   </div>
                 );
               })}
+              {/* Egyedi hozzávalók: itt csak látszanak, hogy a költség teljes legyen. */}
+              {customItems.map((c, idx) => (
+                <div key={`c-${idx}`} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm"
+                  style={{ background: "var(--twx-coral-soft)" }}>
+                  <span>
+                    {c.custom_name}{" "}
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {c.quantity} {c.unit} · csak ehhez az ételhez
+                    </span>
+                  </span>
+                  <span>{formatHuf(itemCost(c, undefined))}</span>
+                </div>
+              ))}
               <button onClick={addRow} className="text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
                 + Alapanyag hozzáadása
               </button>
+              {customItems.length > 0 && (
+                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Az egyedi hozzávalókat az Alapanyagok &amp; receptek fülön tudod módosítani.
+                </p>
+              )}
             </div>
           )}
         </div>

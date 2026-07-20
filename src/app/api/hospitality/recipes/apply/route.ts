@@ -31,7 +31,10 @@ export async function POST(request: Request) {
   // Alapanyagok + az érintett receptsorok (RLS: csak a sajátok).
   const [ingRes, itemRes] = await Promise.all([
     supabase.from("restaurant_ingredients").select("id, name, unit, unit_price, waste_pct, category"),
-    supabase.from("dish_recipe_items").select("dish_id, ingredient_id, quantity, unit").in("dish_id", dishIds),
+    supabase
+      .from("dish_recipe_items")
+      .select("dish_id, ingredient_id, quantity, unit, custom_name, custom_unit, custom_unit_price, custom_waste_pct")
+      .in("dish_id", dishIds),
   ]);
   if (ingRes.error) return NextResponse.json({ error: ingRes.error.message }, { status: 500 });
   if (itemRes.error) return NextResponse.json({ error: itemRes.error.message }, { status: 500 });
@@ -41,7 +44,16 @@ export async function POST(request: Request) {
   for (const r of itemRes.data ?? []) {
     const id = String(r.dish_id);
     const arr = byDish.get(id) ?? [];
-    arr.push({ ingredient_id: String(r.ingredient_id), quantity: Number(r.quantity), unit: String(r.unit) });
+    // Az egyedi hozzávaló ára a soron van — a szerver ezt is beszámolja.
+    arr.push({
+      ingredient_id: r.ingredient_id ? String(r.ingredient_id) : null,
+      quantity: Number(r.quantity),
+      unit: String(r.unit),
+      custom_name: r.custom_name ? String(r.custom_name) : null,
+      custom_unit: r.custom_unit ? (String(r.custom_unit) as Ingredient["unit"]) : null,
+      custom_unit_price: r.custom_unit_price != null ? Number(r.custom_unit_price) : null,
+      custom_waste_pct: r.custom_waste_pct != null ? Number(r.custom_waste_pct) : 0,
+    });
     byDish.set(id, arr);
   }
 

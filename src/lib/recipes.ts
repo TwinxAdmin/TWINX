@@ -98,25 +98,58 @@ export type Ingredient = {
   category: string;   // lásd INGREDIENT_CATEGORIES
 };
 
+// Egy recept-sor kétféle lehet:
+//   a) árlistás  → ingredient_id ki van töltve, az árat a közös lista adja
+//   b) EGYEDI    → nincs ingredient_id, a partner ehhez az ételhez adta meg a nevet és az
+//                  árat (pl. oregánó a pizzához). Ez az ár csak ennél az ételnél él.
 export type RecipeItem = {
-  ingredient_id: string;
+  ingredient_id: string | null;
   quantity: number;
   unit: string; // ahogy beírta (g/dkg/kg/ml/dl/l/db)
+  custom_name?: string | null;
+  custom_unit?: IngredientUnit | null;
+  custom_unit_price?: number | null;
+  custom_waste_pct?: number | null;
 };
+
+// Egyedi (csak ehhez az ételhez felvitt) hozzávaló-e a sor.
+export function isCustomItem(item: RecipeItem): boolean {
+  return !item.ingredient_id && !!String(item.custom_name ?? "").trim();
+}
+
+// A sor „forrása": vagy az árlistás alapanyag, vagy a sorba írt egyedi adatok.
+// Így minden számítás és felirat egy helyről dolgozik.
+export function itemSource(
+  item: RecipeItem,
+  ing: Ingredient | undefined
+): { name: string; unit: IngredientUnit; unit_price: number; waste_pct: number } | null {
+  if (item.ingredient_id) {
+    return ing
+      ? { name: ing.name, unit: ing.unit, unit_price: Number(ing.unit_price) || 0, waste_pct: Number(ing.waste_pct) || 0 }
+      : null;
+  }
+  if (!isCustomItem(item)) return null;
+  return {
+    name: String(item.custom_name),
+    unit: (item.custom_unit ?? "kg") as IngredientUnit,
+    unit_price: Number(item.custom_unit_price) || 0,
+    waste_pct: Number(item.custom_waste_pct) || 0,
+  };
+}
 
 // --- Számítás --------------------------------------------------------------
 // Egy recept-sor alapanyagköltsége EGY adagra, a hulladék-százalékkal növelve.
 export function itemCost(item: RecipeItem, ing: Ingredient | undefined): number {
-  if (!ing) return 0;
-  const base = toBaseAmount(item.quantity, item.unit, ing.unit);
-  const waste = 1 + (Number(ing.waste_pct) || 0) / 100;
-  return base * (Number(ing.unit_price) || 0) * waste;
+  const src = itemSource(item, ing);
+  if (!src) return 0;
+  const base = toBaseAmount(item.quantity, item.unit, src.unit);
+  return base * src.unit_price * (1 + src.waste_pct / 100);
 }
 
 // A teljes recept adagonkénti alapanyagköltsége.
 export function recipeCost(items: RecipeItem[], ingredients: Ingredient[]): number {
   const byId = new Map(ingredients.map((i) => [i.id, i]));
-  return items.reduce((s, it) => s + itemCost(it, byId.get(it.ingredient_id)), 0);
+  return items.reduce((s, it) => s + itemCost(it, it.ingredient_id ? byId.get(it.ingredient_id) : undefined), 0);
 }
 
 // Validáció alapanyag felvitelekor.
