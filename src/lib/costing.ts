@@ -19,6 +19,9 @@ export type CostProfile = {
   delivery_fees: number;
   other: number;
   extra_items: ExtraItem[];
+  // Napi menük ára — NEM költség, csak beállítás (a fix költség összegébe nem számít bele).
+  menu_price_2: number; // 2 fogásos napi menü ára
+  menu_price_3: number; // 3 fogásos napi menü ára
 };
 
 // A standard mezők megjelenítési sorrendben (UI + összegzés).
@@ -38,6 +41,7 @@ export const COST_FIELDS: { key: keyof Omit<CostProfile, "extra_items">; label: 
 export const EMPTY_COST_PROFILE: CostProfile = {
   rent: 0, wages: 0, utilities: 0, insurance: 0, accounting: 0,
   marketing: 0, depreciation: 0, bank_fees: 0, delivery_fees: 0, other: 0, extra_items: [],
+  menu_price_2: 0, menu_price_3: 0,
 };
 
 // Havi összes fix költség (standard mezők + egyedi tételek).
@@ -70,6 +74,9 @@ export function normalizeCostProfile(raw: Record<string, unknown> | null | undef
     : [];
   const out = { ...EMPTY_COST_PROFILE, extra_items: extra } as CostProfile;
   for (const f of COST_FIELDS) out[f.key] = toAmount(r[f.key]);
+  // A menü-árak külön kezelendők: beállítások, nem költségtételek.
+  out.menu_price_2 = toAmount(r.menu_price_2);
+  out.menu_price_3 = toAmount(r.menu_price_3);
   return out;
 }
 

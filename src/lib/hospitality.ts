@@ -36,8 +36,9 @@ export type Dish = {
   category: DishCategory;
   cuisine_style: string | null;
   profit_margin: ProfitMargin | null;
-  cost_price: number | null; // előkészítési / önköltségi ár
-  sale_price: number | null; // eladási ár
+  cost_price: number | null; // ÉTLAP: előkészítési / önköltségi ár (kis széria)
+  sale_price: number | null; // ÉTLAP: eladási ár
+  menu_cost_price: number | null; // MENÜ: előállítási költség (nagy széria); üres = nem megy menübe
   main_ingredients: string | null; // vesszővel elválasztott fő alapanyagok
   image_url: string | null;
   created_at: string;
@@ -62,6 +63,7 @@ export type DishInput = {
   profit_margin: string;
   cost_price: string;
   sale_price: string;
+  menu_cost_price: string;
   main_ingredients: string;
 };
 
@@ -78,10 +80,27 @@ export function validateDishInput(input: Partial<DishInput>): {
   // Profitmarzs opcionális: üres megengedett, de ha van, érvényes legyen.
   const pm = String(input.profit_margin ?? "").trim();
   if (pm && !PROFIT_MARGINS.some((m) => m.value === pm)) errors.profit_margin = "Érvénytelen profitmarzs.";
-  for (const key of ["cost_price", "sale_price"] as const) {
-    const raw = String(input[key] ?? "").trim().replace(",", ".");
-    if (!raw) errors[key] = "Az ár megadása kötelező.";
-    else if (isNaN(Number(raw)) || Number(raw) < 0) errors[key] = "Nem negatív szám legyen.";
+  // Árazás: az ÉTLAP páros (előkészítési + eladási) és a MENÜ költség közül legalább az
+  // egyik legyen kitöltve. Ami ki van töltve, annak érvényes, nem negatív számnak kell lennie.
+  const num = (v: unknown) => String(v ?? "").trim().replace(",", ".");
+  const bad = (raw: string) => isNaN(Number(raw)) || Number(raw) < 0;
+
+  const cost = num(input.cost_price);
+  const sale = num(input.sale_price);
+  const menuCost = num(input.menu_cost_price);
+
+  if (cost && bad(cost)) errors.cost_price = "Nem negatív szám legyen.";
+  if (sale && bad(sale)) errors.sale_price = "Nem negatív szám legyen.";
+  if (menuCost && bad(menuCost)) errors.menu_cost_price = "Nem negatív szám legyen.";
+
+  const etlapFull = !!cost && !!sale;
+  const etlapPartial = (!!cost || !!sale) && !etlapFull;
+  if (etlapPartial) {
+    if (!cost) errors.cost_price = "Az étlapos árhoz mindkét mező kell.";
+    if (!sale) errors.sale_price = "Az étlapos árhoz mindkét mező kell.";
+  }
+  if (!etlapFull && !menuCost) {
+    errors.cost_price = errors.cost_price ?? "Adj meg étlapos árat, vagy menü előállítási költséget.";
   }
   return { valid: Object.keys(errors).length === 0, errors };
 }
