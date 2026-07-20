@@ -20,11 +20,14 @@ type SavedSearch = {
   results: Supplier[];
   extras: SupplierExtras;
   pdf_url: string | null;
-  is_favorite?: boolean;
   created_at: string;
 };
 
+// Egy kedvenc beszállító (egyenként menthető a találatokból).
+type FavSupplier = Supplier & { id?: string; source_what?: string | null };
+
 const FAV_KEY = "__fav__"; // a Kedvencek mappa kulcsa
+const favKey = (name: string) => name.trim().toLowerCase(); // azonosság névre
 
 export default function SupplierFinder({ ingredientNames }: { ingredientNames: string[] }) {
   const [what, setWhat] = useState("");
@@ -40,21 +43,61 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [running, setRunning] = useState(false);
 
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
-  const [lastSaved, setLastSaved] = useState<SavedSearch | null>(null); // a friss keresés mentett sora (kedvenchez)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<SavedSearch[]>([]);
-  const [openFolder, setOpenFolder] = useState<string | null>(null); // felugró: egy KATEGÓRIA (vagy Kedvencek) keresései
+  const [favSuppliers, setFavSuppliers] = useState<FavSupplier[]>([]); // kedvenc beszállítók
+  const [openFolder, setOpenFolder] = useState<string | null>(null); // felugró: egy KATEGÓRIA (vagy Kedvencek)
   const [viewSearch, setViewSearch] = useState<SavedSearch | null>(null); // oldalt nyíló panel
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/hospitality/suppliers");
-        const data = await res.json();
-        if (res.ok) setHistory(data.searches ?? []);
+        const [hRes, fRes] = await Promise.all([
+          fetch("/api/hospitality/suppliers"),
+          fetch("/api/hospitality/supplier-favorites"),
+        ]);
+        const h = await hRes.json();
+        const f = await fRes.json();
+        if (hRes.ok) setHistory(h.searches ?? []);
+        if (fRes.ok) setFavSuppliers(f.favorites ?? []);
       } catch { /* előzmény nélkül is működik */ }
     })();
   }, []);
+
+  // Egy KONKRÉT beszállító kedvenc-állapotának kapcsolása (egy kattintás, ingyenes).
+  const favSet = new Set(favSuppliers.map((f) => favKey(f.name)));
+  const isFav = (s: Supplier) => favSet.has(favKey(s.name));
+
+  const toggleFavSupplier = async (s: Supplier, sourceWhat?: string) => {
+    const on = isFav(s);
+    if (on) {
+      setFavSuppliers((list) => list.filter((f) => favKey(f.name) !== favKey(s.name)));
+      try {
+        const res = await fetch(`/api/hospitality/supplier-favorites?name=${encodeURIComponent(s.name)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+        showToast("Eltávolítva a kedvencekből.", "info");
+      } catch {
+        setFavSuppliers((list) => [{ ...s, source_what: sourceWhat ?? null }, ...list]);
+        showToast("Nem sikerült menteni. Próbáld újra.", "error");
+      }
+    } else {
+      setFavSuppliers((list) => [{ ...s, source_what: sourceWhat ?? null }, ...list]);
+      try {
+        const res = await fetch("/api/hospitality/supplier-favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...s, source_what: sourceWhat ?? null }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error();
+        setFavSuppliers((list) => list.map((f) => (favKey(f.name) === favKey(s.name) ? data.favorite : f)));
+        showToast("Kedvencekhez adva.", "success");
+      } catch {
+        setFavSuppliers((list) => list.filter((f) => favKey(f.name) !== favKey(s.name)));
+        showToast("Nem sikerült menteni. Próbáld újra.", "error");
+      }
+    }
+  };
 
   const toggleType = (v: string) =>
     setTypes((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
@@ -73,7 +116,6 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
       setResult(data.result);
       setPdfUrl(data.pdf_url ?? null);
-      setLastSaved(data.search ?? null);
       if (data.search) setHistory((h) => [data.search, ...h]);
       showToast(data.charged ? `${data.credits} kredit levonva.` : "Keresés kész (ingyenes hozzáférés).", "success");
     } catch {
@@ -87,26 +129,6 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   // hogy ugyanabból a kategóriából egyből másik keresést is meg lehessen nyitni.
   const openSaved = (s: SavedSearch) => {
     setViewSearch(s);
-  };
-
-  // Egy keresés kedvenc-állapotának kapcsolása (egy kattintás, ingyenes).
-  const toggleFav = async (s: SavedSearch) => {
-    const next = !s.is_favorite;
-    setHistory((h) => h.map((x) => (x.id === s.id ? { ...x, is_favorite: next } : x)));
-    if (viewSearch?.id === s.id) setViewSearch({ ...viewSearch, is_favorite: next });
-    try {
-      const res = await fetch("/api/hospitality/suppliers", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: s.id, is_favorite: next }),
-      });
-      if (!res.ok) throw new Error();
-      showToast(next ? "Kedvencekhez adva." : "Eltávolítva a kedvencekből.", "success");
-    } catch {
-      // Hiba esetén visszaállítjuk.
-      setHistory((h) => h.map((x) => (x.id === s.id ? { ...x, is_favorite: !next } : x)));
-      showToast("Nem sikerült menteni. Próbáld újra.", "error");
-    }
   };
 
   // A mentett kereséseket KATEGÓRIÁRA (a keresett alapanyagra) csoportosítjuk; a dátum
@@ -131,17 +153,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       .sort((a, b) => (a.latest < b.latest ? 1 : -1));
   })();
 
-  const favorites = history
-    .filter((s) => s.is_favorite)
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-
-  // Az éppen megnyitott mappa találatai (Kedvencek vagy egy kategória).
-  const folderItems = openFolder === FAV_KEY
-    ? favorites
-    : (categories.find((c) => c.key === openFolder)?.items ?? []);
-  const folderTitle = openFolder === FAV_KEY
-    ? "Kedvencek"
-    : categories.find((c) => c.key === openFolder)?.label ?? "";
+  // Egy kategória mappájának keresései (a Kedvencek mappát külön kezeljük, mert az
+  // beszállítókat mutat, nem kereséseket).
+  const folderItems = categories.find((c) => c.key === openFolder)?.items ?? [];
+  const folderTitle = categories.find((c) => c.key === openFolder)?.label ?? "";
 
   const dateTimeLabel = (iso: string) =>
     new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) +
@@ -281,12 +296,12 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         </div>
 
         {/* Korábbi keresések — KATEGÓRIA szerinti mappákban (+ Kedvencek elöl) */}
-        {(categories.length > 0 || favorites.length > 0) && (
+        {(categories.length > 0 || favSuppliers.length > 0) && (
           <div>
             <h3 className="mb-2 text-sm font-semibold">Korábbi kereséseim</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {/* Kedvencek mappa — csak a kedvencnek jelölt keresések */}
-              {favorites.length > 0 && (
+              {/* Kedvencek mappa — csak a kedvencnek jelölt BESZÁLLÍTÓK */}
+              {favSuppliers.length > 0 && (
                 <button onClick={() => setOpenFolder(FAV_KEY)}
                   className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
                   style={{ borderColor: "var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
@@ -297,7 +312,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                     </svg>
                     <span className="font-display text-sm font-semibold" style={{ color: "#7a2e17" }}>Kedvencek</span>
                   </span>
-                  <span className="text-xs" style={{ color: "#7a2e17" }}>{favorites.length} beszállító-keresés</span>
+                  <span className="text-xs" style={{ color: "#7a2e17" }}>{favSuppliers.length} beszállító</span>
                 </button>
               )}
               {categories.map((c) => (
@@ -342,10 +357,12 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             >
               <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
                 <div>
-                  <div className="font-display text-lg font-semibold capitalize">{folderTitle}</div>
+                  <div className="font-display text-lg font-semibold capitalize">
+                    {openFolder === FAV_KEY ? "Kedvencek" : folderTitle}
+                  </div>
                   <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                     {openFolder === FAV_KEY
-                      ? `${folderItems.length} kedvenc keresés`
+                      ? `${favSuppliers.length} kedvenc beszállító`
                       : `${folderItems.length} keresés ebben a kategóriában`}
                   </div>
                 </div>
@@ -354,43 +371,46 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
-                {folderItems.length === 0 && (
-                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Ez a mappa üres.</p>
-                )}
-                {folderItems.map((s) => (
-                  <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        {/* Kedvencek mappában a keresett alapanyag is látszik (vegyes kategóriák). */}
-                        {openFolder === FAV_KEY && <span className="font-medium capitalize">{s.query?.what} · </span>}
-                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dateTimeLabel(s.created_at)}</span>
-                        <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
-                        </p>
+                {/* KEDVENCEK: konkrét beszállító-kártyák (nem keresések) */}
+                {openFolder === FAV_KEY ? (
+                  favSuppliers.length === 0 ? (
+                    <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                      Még nincs kedvenc beszállítód. A találatoknál a csillaggal tehetsz be egyet-egyet ide.
+                    </p>
+                  ) : (
+                    favSuppliers.map((s) => (
+                      <SupplierCard key={s.id ?? s.name} s={s} isFav onToggleFav={() => toggleFavSupplier(s)} sourceWhat={s.source_what ?? undefined} />
+                    ))
+                  )
+                ) : (
+                  <>
+                    {folderItems.length === 0 && (
+                      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Ez a mappa üres.</p>
+                    )}
+                    {folderItems.map((s) => (
+                      <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                        <div className="min-w-0">
+                          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dateTimeLabel(s.created_at)}</span>
+                          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                            {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
+                          </p>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          <button onClick={() => openSaved(s)} className="text-sm font-medium underline"
+                            style={{ color: "var(--twx-coral)" }}>
+                            Megnyitás
+                          </button>
+                          {s.pdf_url && (
+                            <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download
+                              className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>
+                              PDF
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      {/* Csillag: egy kattintással kedvencnek jelöl / levesz. */}
-                      <button onClick={() => toggleFav(s)} aria-label={s.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}
-                        title={s.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"} className="flex-none rounded-lg p-1">
-                        <svg width="20" height="20" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
-                          fill={s.is_favorite ? "var(--twx-coral)" : "none"} stroke={s.is_favorite ? "var(--twx-coral)" : "var(--twx-ink-muted)"}>
-                          <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <button onClick={() => openSaved(s)} className="text-sm font-medium underline"
-                        style={{ color: "var(--twx-coral)" }}>
-                        Megnyitás
-                      </button>
-                      {s.pdf_url && (
-                        <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download
-                          className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>
-                          PDF
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                  </>
+                )}
               </div>
 
               <div className="flex justify-end border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
@@ -407,23 +427,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       {/* Találatok — friss keresés eredménye */}
       {result && (
         <div className="mt-6">
-          {lastSaved && (() => {
-            const cur = history.find((x) => x.id === lastSaved.id) ?? lastSaved;
-            return (
-              <button onClick={() => toggleFav(cur)}
-                className="mb-3 inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition"
-                style={cur.is_favorite
-                  ? { background: "var(--twx-coral-soft)", color: "#7a2e17" }
-                  : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
-                  fill={cur.is_favorite ? "var(--twx-coral)" : "none"} stroke={cur.is_favorite ? "var(--twx-coral)" : "currentColor"}>
-                  <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
-                </svg>
-                {cur.is_favorite ? "Kedvenc keresés" : "Kedvencekhez adom"}
-              </button>
-            );
-          })()}
-          <ResultBody result={result} pdfUrl={pdfUrl} />
+          <ResultBody result={result} pdfUrl={pdfUrl} isFav={isFav} onToggleFav={(s) => toggleFavSupplier(s, what)} />
         </div>
       )}
 
@@ -447,23 +451,15 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                     {new Date(viewSearch.created_at).toLocaleDateString("hu-HU")}
                   </div>
                 </div>
-                <div className="flex flex-none items-center gap-1">
-                  <button onClick={() => toggleFav(viewSearch)} className="rounded-lg p-1"
-                    aria-label={viewSearch.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}
-                    title={viewSearch.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
-                      fill={viewSearch.is_favorite ? "var(--twx-coral)" : "none"} stroke={viewSearch.is_favorite ? "var(--twx-coral)" : "var(--twx-ink-muted)"}>
-                      <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
-                    </svg>
-                  </button>
-                  <button onClick={() => setViewSearch(null)} className="rounded-lg px-2 py-1 text-xl"
-                    style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
-                </div>
+                <button onClick={() => setViewSearch(null)} className="flex-none rounded-lg px-2 py-1 text-xl"
+                  style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 <ResultBody
                   result={{ suppliers: viewSearch.results ?? [], extras: viewSearch.extras ?? {} }}
                   pdfUrl={viewSearch.pdf_url}
+                  isFav={isFav}
+                  onToggleFav={(s) => toggleFavSupplier(s, viewSearch.query?.what)}
                 />
               </div>
             </motion.aside>
@@ -474,10 +470,58 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   );
 }
 
+// Egy beszállító kártyája — csillaggal (kedvencnek jelöl / levesz egy kattintással).
+// Ugyanez jelenik meg a találatoknál és a Kedvencek mappában.
+function SupplierCard({
+  s, isFav, onToggleFav, sourceWhat,
+}: {
+  s: Supplier & { source_what?: string | null };
+  isFav: boolean;
+  onToggleFav: () => void;
+  sourceWhat?: string;
+}) {
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: isFav ? "var(--twx-coral)" : "var(--twx-line)", background: "#fff" }}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-display text-base font-semibold">{s.name}</p>
+        <button onClick={onToggleFav} className="flex-none rounded-lg p-1"
+          aria-label={isFav ? "Kedvenc levétele" : "Kedvencnek jelöl"} title={isFav ? "Kedvenc levétele" : "Kedvencnek jelöl"}>
+          <svg width="20" height="20" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
+            fill={isFav ? "var(--twx-coral)" : "none"} stroke={isFav ? "var(--twx-coral)" : "var(--twx-ink-muted)"}>
+            <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+          </svg>
+        </button>
+      </div>
+      {(s.location || s.distance || sourceWhat) && (
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          {[sourceWhat, s.location, s.distance].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      {s.offering && <p className="mt-1 text-sm">{s.offering}</p>}
+      {s.why && <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{s.why}</p>}
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {s.phone && <span>📞 <a href={`tel:${s.phone}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.phone}</a></span>}
+        {s.email && <span>✉ <a href={`mailto:${s.email}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.email}</a></span>}
+        {s.website && <span>🌐 <a href={s.website} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--twx-coral)" }}>weboldal</a></span>}
+      </div>
+      {s.source && (
+        <p className="mt-2 break-all text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Forrás: <a href={s.source} target="_blank" rel="noopener noreferrer" className="underline">{s.source}</a>
+        </p>
+      )}
+    </div>
+  );
+}
+
 // A találatok megjelenítése — ugyanaz a friss keresésnél és az oldalt nyíló panelben.
 function ResultBody({
-  result, pdfUrl,
-}: { result: { suppliers: Supplier[]; extras: SupplierExtras }; pdfUrl: string | null }) {
+  result, pdfUrl, isFav, onToggleFav,
+}: {
+  result: { suppliers: Supplier[]; extras: SupplierExtras };
+  pdfUrl: string | null;
+  isFav: (s: Supplier) => boolean;
+  onToggleFav: (s: Supplier) => void;
+}) {
   return (
     <div className="space-y-3">
       {(result.extras.season || result.extras.market) && (
@@ -488,28 +532,12 @@ function ResultBody({
       )}
 
       <h3 className="font-display text-lg font-medium">Találatok ({result.suppliers.length})</h3>
+      <p className="-mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+        A csillaggal egy-egy beszállítót a <b>Kedvencek</b> közé tehetsz — nem az egész keresést.
+      </p>
       <div className="space-y-3">
         {result.suppliers.map((s, i) => (
-          <div key={`${s.name}-${i}`} className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-            <p className="font-display text-base font-semibold">{s.name}</p>
-            {(s.location || s.distance) && (
-              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {[s.location, s.distance].filter(Boolean).join(" · ")}
-              </p>
-            )}
-            {s.offering && <p className="mt-1 text-sm">{s.offering}</p>}
-            {s.why && <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{s.why}</p>}
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {s.phone && <span>📞 <a href={`tel:${s.phone}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.phone}</a></span>}
-              {s.email && <span>✉ <a href={`mailto:${s.email}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.email}</a></span>}
-              {s.website && <span>🌐 <a href={s.website} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--twx-coral)" }}>weboldal</a></span>}
-            </div>
-            {s.source && (
-              <p className="mt-2 break-all text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Forrás: <a href={s.source} target="_blank" rel="noopener noreferrer" className="underline">{s.source}</a>
-              </p>
-            )}
-          </div>
+          <SupplierCard key={`${s.name}-${i}`} s={s} isFav={isFav(s)} onToggleFav={() => onToggleFav(s)} />
         ))}
       </div>
 
