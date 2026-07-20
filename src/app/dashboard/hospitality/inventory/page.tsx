@@ -380,6 +380,7 @@ export default function InventoryPage() {
       {!loading && (
         <MenuDishBlock
           menuDishes={menuDishes}
+          etlapDishes={etlapDishes}
           onChange={(updater) => setDishes((prev) => updater(prev))}
         />
       )}

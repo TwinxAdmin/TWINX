@@ -24,9 +24,10 @@ type RecipeRow = {
 const EMPTY = { name: "", category: "foetel", cuisine_style: "", menu_yield: "" };
 
 export default function MenuDishBlock({
-  menuDishes, onChange,
+  menuDishes, etlapDishes, onChange,
 }: {
   menuDishes: Dish[];
+  etlapDishes: Dish[];
   onChange: (updater: (prev: Dish[]) => Dish[]) => void;
 }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -36,6 +37,9 @@ export default function MenuDishBlock({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [editDish, setEditDish] = useState<Dish | null>(null);
+  // Új menüs étel indítható étlapos ételből: csak a nevet/kategóriát vesszük át, a receptet NEM
+  // (a menüs elkészítés más — nagy széria, saját kötegrecept).
+  const [sourceId, setSourceId] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -66,6 +70,20 @@ export default function MenuDishBlock({
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Étlapos étel kiválasztása magvetőnek: átvesszük a nevét, kategóriáját, konyhatípusát.
+  const pickSource = (id: string) => {
+    setSourceId(id);
+    const src = etlapDishes.find((d) => d.id === id);
+    if (src) {
+      setForm((f) => ({
+        ...f,
+        name: f.name || src.name,
+        category: src.category,
+        cuisine_style: src.cuisine_style ?? "",
+      }));
+    }
+  };
+
   const addMenuDish = async () => {
     setErrors({});
     setSaving(true);
@@ -85,7 +103,9 @@ export default function MenuDishBlock({
       }
       onChange((prev) => [data.dish, ...prev]);
       showToast("Menüs étel hozzáadva. Most add meg a kötegreceptjét.", "success");
+      // A menüs recept MÁS, mint az étlapos — csak a nevet/kategóriát vesszük át, a receptet NEM.
       setForm({ ...EMPTY });
+      setSourceId("");
       setEditDish(data.dish); // rögtön nyíljon a recept-szerkesztő
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
@@ -132,6 +152,21 @@ export default function MenuDishBlock({
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}>
               <div className="space-y-3 px-5 pb-5">
+                {etlapDishes.length > 0 && (
+                  <div className="rounded-lg p-3" style={{ background: "rgba(239,122,90,0.06)", border: "1px solid var(--twx-line)" }}>
+                    <label className="block text-sm font-medium">Étlapos ételből indulsz? (opcionális)</label>
+                    <select value={sourceId} onChange={(e) => pickSource(e.target.value)} className="twx-input mt-1">
+                      <option value="">— nem, új ételt viszek fel —</option>
+                      {etlapDishes.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name} ({categoryLabel(d.category)})</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      Átvesszük a nevét és kategóriáját. A <b>receptet nem</b> — a menüs elkészítés más (nagy széria),
+                      azt itt külön adod meg.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label className="block text-sm">Étel neve *</label>
