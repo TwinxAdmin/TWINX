@@ -24,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("restaurant_dishes")
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ dishes: data ?? [] });
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
     profit_margin: String(form.get("profit_margin") ?? ""),
     cost_price: String(form.get("cost_price") ?? ""),
     sale_price: String(form.get("sale_price") ?? ""),
+    menu_cost_price: String(form.get("menu_cost_price") ?? ""),
     main_ingredients: String(form.get("main_ingredients") ?? "").trim(),
   };
 
@@ -82,10 +83,11 @@ export async function POST(request: Request) {
       profit_margin: input.profit_margin || null,
       cost_price: parsePrice(input.cost_price),
       sale_price: parsePrice(input.sale_price),
+      menu_cost_price: parsePrice(input.menu_cost_price),
       main_ingredients: input.main_ingredients || null,
       image_url: imageUrl,
     })
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, dish: data });
@@ -113,6 +115,7 @@ export async function PATCH(request: Request) {
     profit_margin: String(form.get("profit_margin") ?? ""),
     cost_price: String(form.get("cost_price") ?? ""),
     sale_price: String(form.get("sale_price") ?? ""),
+    menu_cost_price: String(form.get("menu_cost_price") ?? ""),
     main_ingredients: String(form.get("main_ingredients") ?? "").trim(),
   };
   const { valid, errors } = validateDishInput(input);
@@ -126,6 +129,7 @@ export async function PATCH(request: Request) {
     profit_margin: input.profit_margin || null,
     cost_price: parsePrice(input.cost_price),
     sale_price: parsePrice(input.sale_price),
+    menu_cost_price: parsePrice(input.menu_cost_price),
     main_ingredients: input.main_ingredients || null,
   };
 
@@ -150,7 +154,7 @@ export async function PATCH(request: Request) {
     .from("restaurant_dishes")
     .update(patch)
     .eq("id", id)
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Nincs ilyen étel." }, { status: 404 });

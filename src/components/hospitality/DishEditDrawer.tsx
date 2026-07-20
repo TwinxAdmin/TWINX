@@ -30,6 +30,7 @@ export default function DishEditDrawer({
     profit_margin: dish.profit_margin as string,
     cost_price: dish.cost_price != null ? String(dish.cost_price) : "",
     sale_price: dish.sale_price != null ? String(dish.sale_price) : "",
+    menu_cost_price: dish.menu_cost_price != null ? String(dish.menu_cost_price) : "",
     main_ingredients: dish.main_ingredients ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -162,25 +163,44 @@ export default function DishEditDrawer({
               className="mb-3 rounded-lg p-3 text-xs"
               style={{ background: "rgba(239,122,90,0.08)", border: "1px solid rgba(239,122,90,0.25)", color: "var(--twx-ink)" }}
             >
-              Az árak <b>kötelezők</b> — ezekből számol a rendszer darab-profitot és menü profit-tervet.
+              Étlapon saját előkészítési + eladási ár; menüben csak az <b>előállítási költség</b> (a napi menü árát az
+              Önköltség modulban állítod be). Elég az egyik oldalt kitölteni.
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm">Előkészítési ár (Ft) *</label>
-                <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" />
-                {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+
+            {/* ÉTLAP */}
+            <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Étlap (à la carte)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm">Előkészítési ár (Ft)</label>
+                  <input type="number" min={0} value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} className="twx-input mt-1" />
+                  {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm">Eladási ár (Ft)</label>
+                  <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" />
+                  {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm">Eladási ár (Ft) *</label>
-                <input type="number" min={0} value={form.sale_price} onChange={(e) => set("sale_price", e.target.value)} className="twx-input mt-1" />
-                {errors.sale_price && <p className="mt-1 text-xs text-red-600">{errors.sale_price}</p>}
-              </div>
+              {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
+                <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
+                  Étlapos darab-profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
+                </p>
+              )}
             </div>
-            {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
-              <p className="mt-2 text-sm" style={{ color: "var(--twx-coral)" }}>
-                Darabonkénti profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
-              </p>
-            )}
+
+            {/* MENÜ */}
+            <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Menü (napi menü)</p>
+              <label className="block text-sm">Előállítási költség menüben (Ft)</label>
+              <input type="number" min={0} value={form.menu_cost_price} onChange={(e) => set("menu_cost_price", e.target.value)} className="twx-input mt-1" />
+              {errors.menu_cost_price && <p className="mt-1 text-xs text-red-600">{errors.menu_cost_price}</p>}
+              {form.cost_price && form.menu_cost_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.menu_cost_price)) && (
+                <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                  Megtakarítás az étlaposhoz képest: <b>{formatHuf(Number(form.cost_price) - Number(form.menu_cost_price))}</b>/adag
+                </p>
+              )}
+            </div>
             <div className="mt-3">
               <label className="block text-sm">Profitmarzs (opcionális)</label>
               <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
