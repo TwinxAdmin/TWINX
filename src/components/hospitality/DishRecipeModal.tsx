@@ -1,28 +1,27 @@
 // DishRecipeModal — egy étel-kategória (pl. Főételek) ablaka.
 // Két nézet: (1) a kategória ételei a recept szerinti önköltséggel, (2) egy kiválasztott
-// étel RECEPTJE, ahol alapanyagonként megadható, mennyi kell EGY adaghoz.
+// étel RECEPTJE, ahol hozzávalónként megadható, mennyi kell EGY adaghoz.
 //
-// A hozzávalót NEM kötelező előre felvinni az árlistába: a partner beírhat bármit (pl.
-// oregánó a pizzához). Ha a név nincs a közös listában, megkérdezzük, mi legyen vele:
+// A hozzávalót NEM egy nagy legördülőből kell kikeresni: a „+ Hozzávaló" gomb egy
+// VÁLASZTÓT nyit — kereső + kategória-kockák (Zöldség, Hús…) —, és csak a megnyitott
+// kategória tételei látszanak. Ha a keresett név nincs a listában, ott helyben felvehető:
 //   - „Csak ehhez az ételhez"  → a megadott ár EGYEDI, csak ennél az ételnél él
 //   - „Felveszem a listába"    → bekerül a közös árlistába, az Egyéb kategóriába
-//
-// A recept mentése után az önköltség egy gombbal beírható az étel étlap-árába vagy
-// menü-költségébe (a szerver számolja újra).
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import { formatHuf, type Dish } from "@/lib/hospitality";
 import {
-  ENTRY_UNITS, DEFAULT_ENTRY_UNIT, INGREDIENT_UNITS, itemCost, recipeCost, unitLabel,
+  ENTRY_UNITS, DEFAULT_ENTRY_UNIT, INGREDIENT_UNITS, INGREDIENT_CATEGORIES,
+  itemCost, recipeCost, unitLabel,
   type Ingredient, type IngredientUnit, type RecipeItem,
 } from "@/lib/recipes";
 
 type Row = {
   ingredient_id: string | null;
-  name: string;                 // amit a partner lát / beír
+  name: string;                 // a hozzávaló neve (választás után fix)
   quantity: string;
   unit: string;                 // bevitt egység (g/dkg/kg/ml/dl/l/db)
   custom_unit: IngredientUnit;  // egyedi hozzávaló alap-egysége
@@ -30,13 +29,10 @@ type Row = {
   custom_waste_pct: string;
 };
 
-// A „nincs a listában" kérdés állapota.
-type Pending = { idx: number; name: string; unit: IngredientUnit; price: string; waste: string };
-
-const emptyRow = (): Row => ({
-  ingredient_id: null, name: "", quantity: "", unit: "dkg",
-  custom_unit: "kg", custom_unit_price: "", custom_waste_pct: "",
-});
+// A választó állapota: melyik kategória van nyitva, és mire keres.
+type Picker = { cat: string | null; q: string };
+// A „nincs a listában" felvitel állapota.
+type Pending = { name: string; unit: IngredientUnit; price: string; waste: string };
 
 export default function DishRecipeModal({
   label, dishes, ingredients, recipesByDish,
@@ -53,12 +49,22 @@ export default function DishRecipeModal({
 }) {
   const [editDish, setEditDish] = useState<Dish | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [picker, setPicker] = useState<Picker | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const byId = new Map(ingredients.map((i) => [i.id, i]));
-  const findByName = (name: string) =>
-    ingredients.find((i) => i.name.trim().toLowerCase() === name.trim().toLowerCase());
+  const byId = useMemo(() => new Map(ingredients.map((i) => [i.id, i])), [ingredients]);
+
+  // Csak azok a kategóriák jelennek meg, ahol van felvitt alapanyag.
+  const catGroups = useMemo(
+    () =>
+      INGREDIENT_CATEGORIES.map((c) => ({
+        value: c.value as string,
+        label: c.label,
+        items: ingredients.filter((i) => (i.category ?? "egyeb") === c.value),
+      })).filter((g) => g.items.length),
+    [ingredients]
+  );
 
   const openDish = (d: Dish) => {
     const items = recipesByDish.get(d.id) ?? [];
@@ -73,6 +79,7 @@ export default function DishRecipeModal({
         custom_waste_pct: i.custom_waste_pct ? String(i.custom_waste_pct) : "",
       }))
     );
+    setPicker(null);
     setPending(null);
     setEditDish(d);
   };
@@ -97,33 +104,32 @@ export default function DishRecipeModal({
   const patchRow = (idx: number, patch: Partial<Row>) =>
     setRows((s) => s.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
-  // Név beírása: ha egyezik egy árlistás alapanyaggal, azonnal ahhoz kötjük.
-  const setName = (idx: number, name: string) => {
-    const hit = findByName(name);
-    patchRow(idx, hit
-      ? { name: hit.name, ingredient_id: hit.id, unit: DEFAULT_ENTRY_UNIT[hit.unit] }
-      : { name, ingredient_id: null });
-  };
+  // --- Hozzávaló hozzáadása ------------------------------------------------
+  const usedIds = new Set(rows.map((r) => r.ingredient_id).filter(Boolean) as string[]);
 
-  // Kilépéskor kérdezünk rá az ismeretlen névre (ha még nincs egyedi ára).
-  const askIfUnknown = (idx: number) => {
-    const r = rows[idx];
-    if (!r || r.ingredient_id || !r.name.trim() || r.custom_unit_price.trim()) return;
-    setPending({ idx, name: r.name.trim(), unit: "kg", price: "", waste: "" });
+  const pickIngredient = (ing: Ingredient) => {
+    setRows((s) => [
+      ...s,
+      {
+        ingredient_id: ing.id, name: ing.name, quantity: "", unit: DEFAULT_ENTRY_UNIT[ing.unit],
+        custom_unit: ing.unit, custom_unit_price: "", custom_waste_pct: "",
+      },
+    ]);
+    setPicker(null);
   };
 
   // 1) Csak ehhez az ételhez — az ár a recept-soron marad.
   const keepCustom = () => {
     if (!pending) return;
-    patchRow(pending.idx, {
-      ingredient_id: null,
-      name: pending.name,
-      custom_unit: pending.unit,
-      custom_unit_price: pending.price || "0",
-      custom_waste_pct: pending.waste,
-      unit: DEFAULT_ENTRY_UNIT[pending.unit],
-    });
+    setRows((s) => [
+      ...s,
+      {
+        ingredient_id: null, name: pending.name, quantity: "", unit: DEFAULT_ENTRY_UNIT[pending.unit],
+        custom_unit: pending.unit, custom_unit_price: pending.price || "0", custom_waste_pct: pending.waste,
+      },
+    ]);
     setPending(null);
+    setPicker(null);
   };
 
   // 2) Felveszem a közös árlistába — az Egyéb kategóriába kerül.
@@ -143,10 +149,7 @@ export default function DishRecipeModal({
       if (!res.ok) { showToast(data.error ?? "Nem sikerült felvenni.", "error"); return; }
       const ing = data.ingredient as Ingredient;
       onIngredientAdded(ing);
-      patchRow(pending.idx, {
-        ingredient_id: ing.id, name: ing.name,
-        unit: DEFAULT_ENTRY_UNIT[ing.unit], custom_unit_price: "",
-      });
+      pickIngredient(ing);
       setPending(null);
       showToast(`„${ing.name}" bekerült az Egyéb kategóriába.`, "success");
     } catch {
@@ -154,7 +157,7 @@ export default function DishRecipeModal({
     }
   };
 
-  // Recept mentése az ételhez.
+  // --- Mentés ---------------------------------------------------------------
   const saveRecipe = async (): Promise<boolean> => {
     if (!editDish) return false;
     setSaving(true);
@@ -177,7 +180,6 @@ export default function DishRecipeModal({
     }
   };
 
-  // Mentés + az önköltség beírása a kiválasztott ár-mezőbe.
   const saveAndApply = async (target: "etlap" | "menu") => {
     if (!editDish) return;
     const ok = await saveRecipe();
@@ -186,6 +188,15 @@ export default function DishRecipeModal({
     showToast("Recept mentve, önköltség beírva.", "success");
     setEditDish(null);
   };
+
+  // A választóban megjelenő tételek: keresésnél mindenhonnan, egyébként a nyitott kategóriából.
+  const pickerResults = (() => {
+    if (!picker) return [];
+    const q = picker.q.trim().toLowerCase();
+    if (q) return ingredients.filter((i) => i.name.toLowerCase().includes(q)).slice(0, 60);
+    if (picker.cat) return ingredients.filter((i) => (i.category ?? "egyeb") === picker.cat);
+    return [];
+  })();
 
   return (
     <motion.div
@@ -266,38 +277,27 @@ export default function DishRecipeModal({
                 ‹ Vissza az ételekhez
               </button>
 
-              {/* A már felvitt alapanyagok javaslatként jönnek, de bármi beírható. */}
-              <datalist id="twx-ingredient-names">
-                {ingredients.map((i) => <option key={i.id} value={i.name} />)}
-              </datalist>
-
               <div className="space-y-2">
+                {!rows.length && (
+                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                    Még nincs hozzávaló. Add hozzá az elsőt lentebb.
+                  </p>
+                )}
+
                 {rows.map((r, idx) => {
                   const ing = r.ingredient_id ? byId.get(r.ingredient_id) : undefined;
                   const base: IngredientUnit = ing ? ing.unit : r.custom_unit;
-                  const custom = !r.ingredient_id && !!r.name.trim();
+                  const custom = !r.ingredient_id;
                   return (
-                    <div key={idx} className="flex flex-wrap items-center gap-2">
-                      <div className="min-w-[150px] flex-1">
-                        <input
-                          value={r.name}
-                          list="twx-ingredient-names"
-                          placeholder="alapanyag neve (pl. oregánó)"
-                          onChange={(e) => setName(idx, e.target.value)}
-                          onBlur={() => askIfUnknown(idx)}
-                          className="w-full rounded-lg border px-3 py-2 text-sm"
-                          style={{ borderColor: custom ? "var(--twx-coral)" : "var(--twx-line)", background: "#fff" }}
-                        />
-                        {custom && (
-                          <span className="text-[11px]" style={{ color: "var(--twx-coral)" }}>
-                            egyedi ár: {formatHuf(Number(r.custom_unit_price.replace(",", ".")) || 0)}/{unitLabel(r.custom_unit)} · csak ennél az ételnél
-                          </span>
-                        )}
-                        {ing && (
-                          <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                            árlistából: {formatHuf(ing.unit_price)}/{unitLabel(ing.unit)}
-                          </span>
-                        )}
+                    <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border p-2"
+                      style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                      <div className="min-w-[140px] flex-1">
+                        <div className="text-sm font-medium">{r.name}</div>
+                        <div className="text-[11px]" style={{ color: custom ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                          {custom
+                            ? `egyedi ár: ${formatHuf(Number(r.custom_unit_price.replace(",", ".")) || 0)}/${unitLabel(r.custom_unit)} · csak ennél az ételnél`
+                            : ing ? `${formatHuf(ing.unit_price)}/${unitLabel(ing.unit)}` : ""}
+                        </div>
                       </div>
                       <input
                         inputMode="decimal" value={r.quantity} placeholder="0"
@@ -319,12 +319,14 @@ export default function DishRecipeModal({
                     </div>
                   );
                 })}
-                <button onClick={() => setRows((s) => [...s, emptyRow()])} className="text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
-                  + Hozzávaló hozzáadása
+
+                <button
+                  onClick={() => setPicker({ cat: null, q: "" })}
+                  className="w-full rounded-xl border border-dashed px-4 py-2 text-sm font-medium"
+                  style={{ borderColor: "var(--twx-coral)", color: "var(--twx-coral)" }}
+                >
+                  + Hozzávaló
                 </button>
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Nem kell előre felvinni mindent: írd be a nevét, és ha nincs az árlistában, megkérdezzük, mennyibe kerül.
-                </p>
               </div>
             </>
           )}
@@ -368,12 +370,116 @@ export default function DishRecipeModal({
           </div>
         )}
 
-        {/* „Nincs a listában" kérdés */}
+        {/* ================= HOZZÁVALÓ-VÁLASZTÓ ================= */}
+        <AnimatePresence>
+          {picker && !pending && (
+            <motion.div
+              className="absolute inset-0 z-10 flex items-end justify-center sm:items-center"
+              style={{ background: "rgba(20,12,8,0.35)" }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setPicker(null)}
+            >
+              <motion.div
+                className="flex max-h-[80%] w-full max-w-lg flex-col overflow-hidden rounded-2xl m-4"
+                style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 16px 40px rgba(0,0,0,0.2)" }}
+                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b p-3" style={{ borderColor: "var(--twx-line)" }}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-display text-base font-semibold">
+                      {picker.q.trim()
+                        ? "Találatok"
+                        : picker.cat
+                          ? INGREDIENT_CATEGORIES.find((c) => c.value === picker.cat)?.label
+                          : "Miből válasszunk?"}
+                    </span>
+                    <button onClick={() => setPicker(null)} className="text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+                  </div>
+                  <input
+                    autoFocus value={picker.q} placeholder="Keresés az alapanyagok között…"
+                    onChange={(e) => setPicker({ ...picker, q: e.target.value })}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "var(--twx-line)", background: "#fff" }}
+                  />
+                  {picker.cat && !picker.q.trim() && (
+                    <button onClick={() => setPicker({ ...picker, cat: null })}
+                      className="mt-2 text-xs font-medium" style={{ color: "var(--twx-coral)" }}>
+                      ‹ Vissza a kategóriákhoz
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  {/* Kategória-kockák */}
+                  {!picker.q.trim() && !picker.cat && (
+                    catGroups.length ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {catGroups.map((g) => (
+                          <button key={g.value} onClick={() => setPicker({ cat: g.value, q: "" })}
+                            className="rounded-xl border p-3 text-left transition hover:shadow-sm"
+                            style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                            <div className="text-sm font-medium">{g.label}</div>
+                            <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} alapanyag</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                        Még nincs felvitt alapanyagod. Írd be a keresőbe a hozzávaló nevét, és itt helyben felveheted.
+                      </p>
+                    )
+                  )}
+
+                  {/* Tételek (kategórián belül vagy keresésre) */}
+                  {(picker.q.trim() || picker.cat) && (
+                    <div className="space-y-1">
+                      {pickerResults.map((i) => {
+                        const used = usedIds.has(i.id);
+                        return (
+                          <button key={i.id} disabled={used} onClick={() => pickIngredient(i)}
+                            className="flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition hover:shadow-sm disabled:opacity-40"
+                            style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                            <span>
+                              {i.name}
+                              {used && <span className="ml-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>· már a receptben</span>}
+                            </span>
+                            <span className="flex-none text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                              {formatHuf(i.unit_price)}/{unitLabel(i.unit)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {!pickerResults.length && (
+                        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Nincs a listában → felvitel */}
+                {picker.q.trim() && (
+                  <div className="border-t p-3" style={{ borderColor: "var(--twx-line)" }}>
+                    <button
+                      onClick={() => setPending({ name: picker.q.trim(), unit: "kg", price: "", waste: "" })}
+                      className="w-full rounded-xl px-4 py-2 text-sm font-semibold"
+                      style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
+                    >
+                      „{picker.q.trim()}" nincs a listában — felveszem
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ================= „NINCS A LISTÁBAN" KÉRDÉS ================= */}
         <AnimatePresence>
           {pending && (
             <motion.div
-              className="absolute inset-0 z-10 flex items-center justify-center p-4"
-              style={{ background: "rgba(20,12,8,0.35)" }}
+              className="absolute inset-0 z-20 flex items-center justify-center p-4"
+              style={{ background: "rgba(20,12,8,0.45)" }}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             >
               <motion.div
@@ -381,7 +487,7 @@ export default function DishRecipeModal({
                 style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 16px 40px rgba(0,0,0,0.2)" }}
                 initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
               >
-                <div className="font-display text-base font-semibold">„{pending.name}" még nincs az alapanyagok között</div>
+                <div className="font-display text-base font-semibold">„{pending.name}" felvitele</div>
                 <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                   Add meg, mennyiért szerzed be — enélkül nem tudjuk beszámolni az önköltségbe.
                 </p>
@@ -425,8 +531,7 @@ export default function DishRecipeModal({
                   <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                     A megadott ár csak ennél az ételnél él, a közös listába nem kerül be.
                   </p>
-                  <button
-                    onClick={() => { patchRow(pending.idx, { name: "", ingredient_id: null }); setPending(null); }}
+                  <button onClick={() => setPending(null)}
                     className="w-full px-4 py-1 text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
                     Mégse
                   </button>
