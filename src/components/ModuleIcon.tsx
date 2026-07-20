@@ -82,6 +82,16 @@ const paths: Record<string, JSX.Element> = {
       <rect x="17" y="5" width="3" height="13" />
     </>
   ),
+  recipe: (
+    <>
+      <path d="M4 20h16" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+      <path d="M9 6.5c0-1 .8-1.5 1.5-1.5S12 5.5 12 6.5 13 8 14 8" />
+      <circle cx="9" cy="12" r="0.7" />
+      <circle cx="13" cy="14" r="0.7" />
+      <circle cx="16" cy="11.5" r="0.7" />
+    </>
+  ),
   cost: (
     <>
       <circle cx="12" cy="12" r="9" />
