@@ -23,8 +23,9 @@ import {
   type OneTimeCost,
   type OneTimeKind,
 } from "@/lib/costing";
+import type { SimResult } from "@/lib/simulation";
 
-type Tab = "profile" | "sales" | "report";
+type Tab = "profile" | "sales" | "report" | "plan";
 type SalesChannel = "etlap" | "menu";
 type SaleRow = { dish_id: string; period_start: string; period_end: string; qty: number; channel: SalesChannel };
 type MenuSaleRow = { period_start: string; period_end: string; qty_2: number; qty_3: number; price_2: number | null; price_3: number | null };
@@ -94,6 +95,7 @@ export default function CostingPage() {
     { key: "profile", label: "Költségek & bevételek" },
     { key: "sales", label: "Eladások" },
     { key: "report", label: "Riport" },
+    { key: "plan", label: "Profit-terv" },
   ];
 
   return (
@@ -135,8 +137,10 @@ export default function CostingPage() {
           priced={priced} sales={sales} menuSales={menuSales} profile={profile}
           onSaved={(s, m) => { setSales(s); setMenuSales(m); }}
         />
-      ) : (
+      ) : tab === "report" ? (
         <ReportTab priced={priced} sales={sales} menuSales={menuSales} overhead={overhead} oneTime={oneTime} />
+      ) : (
+        <PlanTab priced={priced} dishes={dishes} profile={profile} overhead={overhead} oneTime={oneTime} />
       )}
     </main>
   );
@@ -1154,5 +1158,441 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{label}</p>
       <p className="font-display text-xl font-semibold" style={{ color: warn ? "#b5372f" : "var(--twx-ink)" }}>{value}</p>
     </div>
+  );
+}
+
+// =============================================================================
+// 4) Profit-terv — előretekintő szimuláció (kredit: PDF + AI-értékelés)
+// =============================================================================
+function nextWeek(): { start: string; end: string } {
+  const d = new Date();
+  const day = (d.getDay() + 6) % 7;          // hétfő = 0
+  d.setDate(d.getDate() + (7 - day));        // következő hétfő
+  const start = d.toISOString().slice(0, 10);
+  d.setDate(d.getDate() + 6);
+  return { start, end: d.toISOString().slice(0, 10) };
+}
+
+function PlanTab({
+  priced, dishes, profile, overhead, oneTime,
+}: {
+  priced: Dish[]; dishes: Dish[]; profile: CostProfile; overhead: number; oneTime: OneTimeCost[];
+}) {
+  const def = nextWeek();
+  const [start, setStart] = useState(def.start);
+  const [end, setEnd] = useState(def.end);
+  const [target, setTarget] = useState("");
+  const [mode, setMode] = useState<"dish" | "full">("dish");
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [menuQty2, setMenuQty2] = useState("");
+  const [menuQty3, setMenuQty3] = useState("");
+  const [modal, setModal] = useState<string | null>(null);
+  const [result, setResult] = useState<SimResult | null>(null);
+  const [narrative, setNarrative] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const days = periodDays(start, end);
+  const otherCosts =
+    proratedOverhead(overhead, days) + oneTimeInRange(oneTime, start, end, "expense");
+  const oneTimeIncomeSum = oneTimeInRange(oneTime, start, end, "income");
+
+  // Menünkénti előállítási költség becslése az ételek menü-költségeiből.
+  const menuCostAvg = useMemo(() => {
+    const vals = dishes.map((d) => d.menu_cost_price).filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  }, [dishes]);
+  const [cost2, setCost2] = useState("");
+  const [cost3, setCost3] = useState("");
+  const suggested2 = Math.round(menuCostAvg * 2);
+  const suggested3 = Math.round(menuCostAvg * 3);
+  const effCost2 = cost2.trim() ? toAmount(cost2) : suggested2;
+  const effCost3 = cost3.trim() ? toAmount(cost3) : suggested3;
+
+  const groups = useMemo(
+    () =>
+      DISH_CATEGORIES.map((c) => ({
+        cat: c.value as string,
+        label: c.label,
+        items: priced.filter((d) => d.category === c.value),
+      })).filter((g) => g.items.length),
+    [priced]
+  );
+
+  const qNum = (id: string) => Math.max(0, Math.floor(Number(qty[id]) || 0));
+  const chosen = priced.filter((d) => qNum(d.id) > 0);
+  const menuTotal = Math.max(0, Math.floor(Number(menuQty2) || 0)) + Math.max(0, Math.floor(Number(menuQty3) || 0));
+
+  const run = async () => {
+    if (days <= 0) { showToast("A záró dátum nem lehet korábbi az indulónál.", "error"); return; }
+    if (!chosen.length && menuTotal === 0) { showToast("Adj meg legalább egy ételt vagy menüt darabszámmal.", "error"); return; }
+    setRunning(true);
+    setResult(null); setNarrative(""); setPdfUrl(null);
+    try {
+      const res = await fetch("/api/hospitality/simulation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start, end, mode, target: toAmount(target),
+          dishes: chosen.map((d) => ({ dish_id: d.id, qty: qNum(d.id) })),
+          menu: {
+            qty2: Number(menuQty2) || 0, qty3: Number(menuQty3) || 0,
+            price2: profile.menu_price_2, price3: profile.menu_price_3,
+            cost2: effCost2, cost3: effCost3,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? "A terv lekérése sikertelen.", "error"); return; }
+      setResult(data.result);
+      setNarrative(data.narrative ?? "");
+      setPdfUrl(data.pdf_url ?? null);
+      showToast(data.charged ? `${data.credits} kredit levonva.` : "Profit-terv kész (ingyenes hozzáférés).", "success");
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const exportPng = async () => {
+    const el = document.getElementById("plan-result");
+    if (!el) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, { backgroundColor: "#faf7f2", scale: 2 });
+      const link = document.createElement("a");
+      link.download = `profit-terv-${start}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch {
+      showToast("A kép mentése nem sikerült.", "error");
+    }
+  };
+
+  if (!priced.length && !dishes.length) {
+    return (
+      <div className="twx-card p-5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        Nincs árazott ételed. Előbb vigyél fel ételeket árakkal a Kínálat kezelőben.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        <b>Tervezés, nem riport.</b> Itt te állítod be, miből mennyit szeretnél eladni egy jövőbeli időszakban, és
+        megnézheted, mennyi profit jönne ki belőle — illetve mi kell a célod eléréséhez. A tényleges eladásokból az
+        előző fül <b>Riportja</b> számol.
+      </div>
+
+      {/* Időszak + cél + mód */}
+      <div className="twx-card space-y-4 p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak kezdete</label>
+            <input type="date" value={start} max={end} onChange={(e) => setStart(e.target.value)}
+              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak vége</label>
+            <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
+              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          </div>
+          <div className="w-40">
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Cél-profit (Ft)</label>
+            <div className="mt-1"><NumField value={target} onChange={setTarget} placeholder="pl. 1000000" /></div>
+          </div>
+          <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            {days > 0 ? `${days} napos időszak` : <span style={{ color: "#b5372f" }}>Hibás időszak</span>}
+          </div>
+        </div>
+
+        <div>
+          <span className="mr-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Mit vegyünk figyelembe?</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {([["dish", "Csak az ételek profitja"], ["full", "Minden költséggel"]] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setMode(v)}
+                className="rounded-full px-3 py-1 text-xs font-medium"
+                style={mode === v ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            {mode === "full" ? (
+              <>Az időszakra jutó egyéb költség: <b style={{ color: "var(--twx-ink)" }}>{formatHuf(otherCosts)}</b>
+                {oneTimeIncomeSum > 0 && <> · egyszeri bevétel: <b style={{ color: "var(--twx-ink)" }}>{formatHuf(oneTimeIncomeSum)}</b></>}
+                {" "}(rezsi arányosítva + egyszeri tételek).</>
+            ) : (
+              <>Csak az eladott ételek és menük árrése számít; rezsi és egyéb költség nélkül.</>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Tervezett mennyiségek — kategória-kockák */}
+      <div>
+        <h3 className="mb-2 text-sm font-semibold">Tervezett mennyiségek</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {groups.map((g) => {
+            const filled = g.items.filter((d) => qNum(d.id) > 0).length;
+            return (
+              <button key={g.cat} onClick={() => setModal(g.cat)}
+                className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md">
+                <span className="font-display text-base font-medium">{g.label}</span>
+                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{g.items.length} étel</span>
+                {filled > 0 && (
+                  <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    {filled} tervezve
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          <button onClick={() => setModal(MENUS_VIEW)}
+            className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
+            style={{ borderColor: "var(--twx-coral)" }}>
+            <span className="font-display text-base font-medium">Napi menük</span>
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>tervezett menü-darabszám</span>
+            {menuTotal > 0 && (
+              <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                {menuTotal} menü
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <button onClick={run} disabled={running || days <= 0 || (!chosen.length && menuTotal === 0)}
+        className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        style={{ background: "var(--twx-coral)" }}>
+        {running ? "Terv készül…" : "Profit-terv lekérése (1 kredit)"}
+      </button>
+
+      {/* Eredmény */}
+      {result && (
+        <>
+          <div id="plan-result" className="space-y-3 rounded-2xl p-4" style={{ background: "var(--twx-cream-card)" }}>
+            <PlanResultView result={result} period={`${start} – ${end}`} />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {pdfUrl && (
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                PDF letöltése
+              </a>
+            )}
+            <button onClick={exportPng}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+              style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+              PNG letöltése
+            </button>
+          </div>
+        </>
+      )}
+
+      {narrative && (
+        <div className="twx-card p-5">
+          <h3 className="mb-2 font-display text-lg font-medium">Értékelés és javaslatok</h3>
+          <div className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: "var(--twx-ink)" }}>{narrative}</div>
+        </div>
+      )}
+
+      {/* Tervező ablak */}
+      <AnimatePresence>
+        {modal && (
+          <PlanEditorModal
+            view={modal}
+            groups={groups}
+            qty={qty} setQty={setQty}
+            menuQty2={menuQty2} setMenuQty2={setMenuQty2}
+            menuQty3={menuQty3} setMenuQty3={setMenuQty3}
+            cost2={cost2} setCost2={setCost2}
+            cost3={cost3} setCost3={setCost3}
+            suggested2={suggested2} suggested3={suggested3}
+            profile={profile}
+            onClose={() => setModal(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Az eredmény megjelenítése (ez megy PNG-be is).
+function PlanResultView({ result: r, period }: { result: SimResult; period: string }) {
+  return (
+    <>
+      <div>
+        <h3 className="font-display text-lg font-semibold">Profit-terv</h3>
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          {period} · {r.mode === "full" ? "minden költséggel" : "csak az ételek profitja"}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Tervezett árbevétel" value={formatHuf(r.revenue)} />
+        <Stat label="Tervezett költség" value={formatHuf(r.cost)} />
+        <Stat label={r.target > 0 ? "Cél-profit" : "Tételek"} value={r.target > 0 ? formatHuf(r.target) : String(r.dishes.length)} />
+        <Stat label="Várható profit" value={formatHuf(r.profit)} warn={r.profit < 0} />
+      </div>
+
+      {r.target > 0 && (
+        <div className="rounded-2xl p-4" style={{ background: r.gap <= 0 ? "var(--twx-cream-card)" : "var(--twx-coral-soft)", border: `1px solid ${r.gap <= 0 ? "var(--twx-line)" : "var(--twx-coral)"}` }}>
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: r.gap <= 0 ? "var(--twx-ink-muted)" : "#7a2e17" }}>
+            {r.gap <= 0 ? "A cél teljesül" : "A célhoz még hiányzik"}
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--twx-ink)" }}>
+            {r.gap <= 0
+              ? <>A terv <b>{formatHuf(-r.gap)}</b>-tal meghaladja a {formatHuf(r.target)} célt.</>
+              : <>
+                  <b>{formatHuf(r.gap)}</b> hiányzik a {formatHuf(r.target)} célhoz.
+                  {r.scaleFactor && <> A jelenlegi mix <b>~{Math.round(r.scaleFactor * 100)}%</b>-ára skálázva jönne ki.</>}
+                </>}
+          </p>
+          {r.bestLever && r.gap > 0 && (
+            <p className="mt-1 text-sm" style={{ color: "var(--twx-ink)" }}>
+              Leggyorsabb emelőkar: <b>{r.bestLever.name}</b> ({formatHuf(r.bestLever.unitProfit)}/adag) — ebből{" "}
+              <b>{r.bestLever.extraQty} adaggal</b> több fedezné a hiányt.
+            </p>
+          )}
+        </div>
+      )}
+
+      {r.dishes.length > 0 && (
+        <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
+                <th className="p-3 font-medium">Étel</th>
+                <th className="p-3 text-right font-medium">adag</th>
+                <th className="p-3 text-right font-medium">Profit/adag</th>
+                <th className="p-3 text-right font-medium">Árbevétel</th>
+                <th className="p-3 text-right font-medium">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.dishes.map((d) => (
+                <tr key={d.dish_id} style={{ borderTop: "1px solid var(--twx-line)" }}>
+                  <td className="p-3 font-medium">{d.name}</td>
+                  <td className="p-3 text-right">{d.qty}</td>
+                  <td className="p-3 text-right" style={{ color: d.unitProfit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.unitProfit)}</td>
+                  <td className="p-3 text-right">{formatHuf(d.revenue)}</td>
+                  <td className="p-3 text-right" style={{ color: d.profit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.profit)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {r.menu.count > 0 && (
+        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          <b style={{ color: "var(--twx-ink)" }}>Napi menük:</b> {r.menu.count} db ({r.menu.qty2} × 2 fogásos, {r.menu.qty3} × 3 fogásos) ·
+          bevétel {formatHuf(r.menu.revenue)} · előállítás {formatHuf(r.menu.cost)} · profit {formatHuf(r.menu.profit)}
+        </p>
+      )}
+      <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Tervezési célú becslés · TWINX</p>
+    </>
+  );
+}
+
+// Felugró ablak a tervezett mennyiségek megadásához.
+function PlanEditorModal({
+  view, groups, qty, setQty, menuQty2, setMenuQty2, menuQty3, setMenuQty3,
+  cost2, setCost2, cost3, setCost3, suggested2, suggested3, profile, onClose,
+}: {
+  view: string; groups: DishGroup[];
+  qty: Record<string, string>; setQty: (f: (s: Record<string, string>) => Record<string, string>) => void;
+  menuQty2: string; setMenuQty2: (v: string) => void;
+  menuQty3: string; setMenuQty3: (v: string) => void;
+  cost2: string; setCost2: (v: string) => void;
+  cost3: string; setCost3: (v: string) => void;
+  suggested2: number; suggested3: number;
+  profile: CostProfile; onClose: () => void;
+}) {
+  const group = groups.find((g) => g.cat === view);
+  const isMenus = view === MENUS_VIEW;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(20,12,8,0.45)" }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
+        style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
+        initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 26 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <div className="font-display text-lg font-semibold">
+            {isMenus ? "Tervezett napi menük" : categoryLabel(group?.cat ?? "")}
+          </div>
+          <button onClick={onClose} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {isMenus ? (
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Hány napi menüt terveztek eladni? A bevétel a beállított menü-árakból jön; az előállítási költséget
+                az ételeid menü-költségeiből becsültük, de felülírhatod.
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm">2 fogásos menü <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>({profile.menu_price_2 > 0 ? formatHuf(profile.menu_price_2) : "nincs ár"})</span></span>
+                <div className="w-24"><NumField value={menuQty2} onChange={setMenuQty2} /></div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm">3 fogásos menü <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>({profile.menu_price_3 > 0 ? formatHuf(profile.menu_price_3) : "nincs ár"})</span></span>
+                <div className="w-24"><NumField value={menuQty3} onChange={setMenuQty3} /></div>
+              </div>
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--twx-line)" }}>
+                <p className="mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Egy menü előállítási költsége (becsült)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>2 fogásos</label>
+                    <div className="mt-1"><NumField value={cost2} onChange={setCost2} placeholder={String(suggested2)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>3 fogásos</label>
+                    <div className="mt-1"><NumField value={cost3} onChange={setCost3} placeholder={String(suggested3)} /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(group?.items ?? []).map((d) => (
+                <div key={d.id} className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="font-medium">{d.name}</span>{" "}
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      · profit {formatHuf((d.sale_price as number) - (d.cost_price as number))}/adag
+                    </span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>tervezett adag</span>
+                    <div className="w-24"><NumField value={qty[d.id] ?? ""} onChange={(v) => setQty((s) => ({ ...s, [d.id]: v }))} /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+          <button onClick={onClose}
+            className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+            Kész
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
