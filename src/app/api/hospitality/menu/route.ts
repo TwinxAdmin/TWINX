@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       .from("restaurant_dishes")
       .select("name, description, category, cuisine_style, profit_margin, menu_cost_price, main_ingredients")
       .eq("user_id", user.id)
+      .eq("is_menu", true)
       .not("menu_cost_price", "is", null)
       .or(`profit_margin.in.(${preferred.join(",")}),profit_margin.is.null`);
     if (dishErr) throw new Error(dishErr.message);

@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateDishInput, parsePrice } from "@/lib/hospitality";
+import { validateDishInput, parsePrice, DISH_CATEGORIES } from "@/lib/hospitality";
 
 export const runtime = "nodejs";
 const BUCKET = "reports";
@@ -24,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("restaurant_dishes")
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, is_menu, menu_yield, created_at")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ dishes: data ?? [] });
@@ -41,6 +41,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
+  // Menüs étel: külön entitás, kötegrecepttel készül. Itt csak a "vázát" hozzuk létre
+  // (név, kategória, hány adag jön ki egy kötegből) — az önköltség a recept mentésekor
+  // számolódik és kerül a menu_cost_price-ba.
+  const isMenu = String(form.get("is_menu") ?? "") === "1";
+  if (isMenu) {
+    const name = String(form.get("name") ?? "").trim();
+    const category = String(form.get("category") ?? "");
+    const yieldRaw = Math.floor(Number(String(form.get("menu_yield") ?? "").replace(",", ".")) || 0);
+    const errors: Record<string, string> = {};
+    if (!name) errors.name = "Az étel neve kötelező.";
+    if (!DISH_CATEGORIES.some((c) => c.value === category)) errors.category = "Válassz kategóriát.";
+    if (yieldRaw <= 0) errors.menu_yield = "Add meg, hány adag jön ki egy kötegből.";
+    if (Object.keys(errors).length) return NextResponse.json({ errors }, { status: 422 });
+
+    const { data, error } = await supabase
+      .from("restaurant_dishes")
+      .insert({
+        user_id: user.id,
+        name,
+        category,
+        cuisine_style: String(form.get("cuisine_style") ?? "").trim() || null,
+        main_ingredients: String(form.get("main_ingredients") ?? "").trim() || null,
+        is_menu: true,
+        menu_yield: yieldRaw,
+      })
+      .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, is_menu, menu_yield, created_at")
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, dish: data });
+  }
+
   const input = {
     name: String(form.get("name") ?? "").trim(),
     description: String(form.get("description") ?? "").trim(),
@@ -49,7 +80,6 @@ export async function POST(request: Request) {
     profit_margin: String(form.get("profit_margin") ?? ""),
     cost_price: String(form.get("cost_price") ?? ""),
     sale_price: String(form.get("sale_price") ?? ""),
-    menu_cost_price: String(form.get("menu_cost_price") ?? ""),
     main_ingredients: String(form.get("main_ingredients") ?? "").trim(),
   };
 
@@ -83,11 +113,11 @@ export async function POST(request: Request) {
       profit_margin: input.profit_margin || null,
       cost_price: parsePrice(input.cost_price),
       sale_price: parsePrice(input.sale_price),
-      menu_cost_price: parsePrice(input.menu_cost_price),
       main_ingredients: input.main_ingredients || null,
       image_url: imageUrl,
+      is_menu: false,
     })
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, is_menu, menu_yield, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, dish: data });
@@ -107,6 +137,34 @@ export async function PATCH(request: Request) {
   const id = String(form.get("id") ?? "");
   if (!id) return NextResponse.json({ error: "Hiányzó azonosító." }, { status: 400 });
 
+  // Menüs étel szerkesztése: név, kategória, konyhatípus, fő alapanyagok, adaghozam.
+  // (Az önköltség a recept mentésekor számolódik, nem itt.)
+  if (String(form.get("is_menu") ?? "") === "1") {
+    const name = String(form.get("name") ?? "").trim();
+    const category = String(form.get("category") ?? "");
+    const yieldRaw = Math.floor(Number(String(form.get("menu_yield") ?? "").replace(",", ".")) || 0);
+    const errors: Record<string, string> = {};
+    if (!name) errors.name = "Az étel neve kötelező.";
+    if (!DISH_CATEGORIES.some((c) => c.value === category)) errors.category = "Válassz kategóriát.";
+    if (yieldRaw <= 0) errors.menu_yield = "Add meg, hány adag jön ki egy kötegből.";
+    if (Object.keys(errors).length) return NextResponse.json({ errors }, { status: 422 });
+
+    const { data, error } = await supabase
+      .from("restaurant_dishes")
+      .update({
+        name, category,
+        cuisine_style: String(form.get("cuisine_style") ?? "").trim() || null,
+        main_ingredients: String(form.get("main_ingredients") ?? "").trim() || null,
+        menu_yield: yieldRaw,
+      })
+      .eq("id", id)
+      .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, is_menu, menu_yield, created_at")
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: "Nincs ilyen étel." }, { status: 404 });
+    return NextResponse.json({ ok: true, dish: data });
+  }
+
   const input = {
     name: String(form.get("name") ?? "").trim(),
     description: String(form.get("description") ?? "").trim(),
@@ -115,7 +173,6 @@ export async function PATCH(request: Request) {
     profit_margin: String(form.get("profit_margin") ?? ""),
     cost_price: String(form.get("cost_price") ?? ""),
     sale_price: String(form.get("sale_price") ?? ""),
-    menu_cost_price: String(form.get("menu_cost_price") ?? ""),
     main_ingredients: String(form.get("main_ingredients") ?? "").trim(),
   };
   const { valid, errors } = validateDishInput(input);
@@ -129,7 +186,6 @@ export async function PATCH(request: Request) {
     profit_margin: input.profit_margin || null,
     cost_price: parsePrice(input.cost_price),
     sale_price: parsePrice(input.sale_price),
-    menu_cost_price: parsePrice(input.menu_cost_price),
     main_ingredients: input.main_ingredients || null,
   };
 
@@ -154,7 +210,7 @@ export async function PATCH(request: Request) {
     .from("restaurant_dishes")
     .update(patch)
     .eq("id", id)
-    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, created_at")
+    .select("id, name, description, category, cuisine_style, profit_margin, cost_price, sale_price, menu_cost_price, main_ingredients, image_url, is_menu, menu_yield, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Nincs ilyen étel." }, { status: 404 });

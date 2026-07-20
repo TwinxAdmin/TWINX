@@ -8,6 +8,7 @@ import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import DishEditDrawer from "@/components/hospitality/DishEditDrawer";
 import RecipeCalculator from "@/components/hospitality/RecipeCalculator";
+import MenuDishBlock from "@/components/hospitality/MenuDishBlock";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import type { RecipeItem } from "@/lib/recipes";
@@ -22,7 +23,7 @@ import {
   type Dish,
 } from "@/lib/hospitality";
 
-const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "", menu_cost_price: "", main_ingredients: "" };
+const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "", main_ingredients: "" };
 
 export default function InventoryPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -40,6 +41,10 @@ export default function InventoryPage() {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [editDish, setEditDish] = useState<Dish | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  // Étlapos és menüs ételek szétválasztva — a két blokk külön dolgozik velük.
+  const etlapDishes = dishes.filter((d) => !d.is_menu);
+  const menuDishes = dishes.filter((d) => d.is_menu);
 
   function pickImage(f: File | null) {
     if (f && !f.type.startsWith("image/")) {
@@ -221,11 +226,9 @@ export default function InventoryPage() {
               className="mb-3 rounded-lg p-3 text-xs"
               style={{ background: "rgba(239,122,90,0.08)", border: "1px solid rgba(239,122,90,0.25)", color: "var(--twx-ink)" }}
             >
-              <b>Miért két árazás?</b> Étlapról az étel kis szériában készül — ennek az önköltségét ki tudod számoltatni
-              az Alapanyagok &amp; receptek fülön. Menübe viszont nagy mennyiségben, más adaggal megy, így az előállítása
-              is más: ezt <b>te add meg</b> ide, mert te tudod, mennyibe kerül nagy szériában — a rendszer ezt nem
-              találja ki helyetted. A napi menü árát az Önköltség moduljában állítod be. Elég az egyik oldalt kitölteni:
-              ha nincs menü-költség, az étel nem megy menübe.
+              Ez az <b>étlapos (à la carte)</b> árazás. Az önköltséget ki tudod számoltatni az alapanyagokból, vagy
+              beírhatod fejből. A <b>menüs ételeket külön</b>, lentebb a „Menüs ételek" blokkban viszed fel — ott nagy
+              szériás kötegrecept alapján számoljuk az egy adagra jutó költséget.
             </div>
 
             <button
@@ -255,26 +258,6 @@ export default function InventoryPage() {
                 {form.cost_price && form.sale_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.sale_price)) && (
                   <p className="text-sm sm:col-span-2" style={{ color: "var(--twx-coral)" }}>
                     Étlapos darab-profit: <b>{formatHuf(Number(form.sale_price) - Number(form.cost_price))}</b>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* MENÜ */}
-            <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Menü (napi menü)</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm">Előállítási költség menüben (Ft)</label>
-                  <input type="number" min={0} value={form.menu_cost_price} onChange={(e) => set("menu_cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 550" />
-                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Te add meg: mennyibe kerül ez a fogás, ha nagy szériában, menübe készül. Ebből dolgozik a menü generátor.
-                  </p>
-                  {errors.menu_cost_price && <p className="mt-1 text-xs text-red-600">{errors.menu_cost_price}</p>}
-                </div>
-                {form.cost_price && form.menu_cost_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.menu_cost_price)) && (
-                  <p className="self-end text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                    Megtakarítás az étlaposhoz képest: <b>{formatHuf(Number(form.cost_price) - Number(form.menu_cost_price))}</b>/adag
                   </p>
                 )}
               </div>
@@ -353,11 +336,11 @@ export default function InventoryPage() {
         </AnimatePresence>
       </div>
 
-      {/* Ételeim — kategória-mappák */}
+      {/* Ételeim — kategória-mappák (CSAK étlapos ételek) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-medium">Ételeim</h2>
-          {!loading && <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{dishes.length} db</span>}
+          <h2 className="font-display text-lg font-medium">Ételeim (étlap)</h2>
+          {!loading && <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{etlapDishes.length} db</span>}
         </div>
 
         {loading ? (
@@ -367,7 +350,7 @@ export default function InventoryPage() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {DISH_CATEGORIES.map((c) => {
-              const count = dishes.filter((d) => d.category === c.value).length;
+              const count = etlapDishes.filter((d) => d.category === c.value).length;
               return (
                 <button
                   key={c.value}
@@ -386,12 +369,20 @@ export default function InventoryPage() {
             })}
           </div>
         )}
-        {!loading && dishes.length === 0 && (
+        {!loading && etlapDishes.length === 0 && (
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Még nincs ételed. Vidd fel az elsőt fentebb — a rendszer a kategóriájának megfelelő mappába rendezi.
+            Még nincs étlapos ételed. Vidd fel az elsőt fentebb — a rendszer a kategóriájának megfelelő mappába rendezi.
           </p>
         )}
       </div>
+
+      {/* Menüs ételek — külön blokk, kötegrecepttel */}
+      {!loading && (
+        <MenuDishBlock
+          menuDishes={menuDishes}
+          onChange={(updater) => setDishes((prev) => updater(prev))}
+        />
+      )}
 
       {/* Kategória felugró ablak — a lista végig látszik, egy ételre kattintva
           a jobboldali panel nyílik (nem tűnik el a többi étel). */}
@@ -418,7 +409,7 @@ export default function InventoryPage() {
             </div>
 
             {(() => {
-              const inCat = dishes.filter((d) => d.category === openCategory);
+              const inCat = etlapDishes.filter((d) => d.category === openCategory);
               return inCat.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs étel ebben a kategóriában.</p>
               ) : (
@@ -488,16 +479,11 @@ export default function InventoryPage() {
           <RecipeCalculator
             initialItems={recipeItems}
             onClose={() => setCalcOpen(false)}
-            onApply={(cost, target, items) => {
+            onApply={(cost, _target, items) => {
               setRecipeItems(items);
-              set(target === "etlap" ? "cost_price" : "menu_cost_price", String(cost));
+              set("cost_price", String(cost));
               setCalcOpen(false);
-              showToast(
-                target === "etlap"
-                  ? `Étlap-ár beírva: ${formatHuf(cost)}`
-                  : `Menü-költség beírva: ${formatHuf(cost)}`,
-                "success"
-              );
+              showToast(`Étlapos önköltség beírva: ${formatHuf(cost)}`, "success");
             }}
           />
         )}

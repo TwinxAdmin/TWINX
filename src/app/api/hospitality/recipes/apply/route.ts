@@ -22,7 +22,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const target = String(body.target ?? "etlap") === "menu" ? "menu" : "etlap";
+  // "etlap"      → cost_price      (recept = egy adag önköltsége)
+  // "menu"       → menu_cost_price (recept = egy adag önköltsége, régi étlapos út — megmarad)
+  // "menu_batch" → menu_cost_price = a KÖTEG recept-költsége ÷ menu_yield (menüs ételek)
+  const rawTarget = String(body.target ?? "etlap");
+  const target: "etlap" | "menu" | "menu_batch" =
+    rawTarget === "menu_batch" ? "menu_batch" : rawTarget === "menu" ? "menu" : "etlap";
   const dishIds = Array.isArray(body.dish_ids)
     ? (body.dish_ids as unknown[]).map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 200)
     : [];
@@ -57,13 +62,28 @@ export async function POST(request: Request) {
     byDish.set(id, arr);
   }
 
-  const field = target === "menu" ? "menu_cost_price" : "cost_price";
+  const field = target === "etlap" ? "cost_price" : "menu_cost_price";
+
+  // Menü-batch módban az adaghozam (menu_yield) kell az osztáshoz — az ételekről.
+  const yieldById = new Map<string, number>();
+  if (target === "menu_batch") {
+    const { data: dishRows, error: dErr } = await supabase
+      .from("restaurant_dishes")
+      .select("id, menu_yield")
+      .in("id", dishIds);
+    if (dErr) return NextResponse.json({ error: dErr.message }, { status: 500 });
+    for (const d of dishRows ?? []) yieldById.set(String(d.id), Math.max(1, Number(d.menu_yield) || 1));
+  }
+
   const updated: { dish_id: string; cost: number }[] = [];
 
   for (const dishId of dishIds) {
     const items = byDish.get(dishId);
     if (!items?.length) continue; // recept nélkül nincs mit frissíteni
-    const cost = Math.round(recipeCost(items, ingredients));
+    // Menü-batch: a köteg költségét elosztjuk az adaghozammal → egy adag önköltsége.
+    const batch = recipeCost(items, ingredients);
+    const perUnit = target === "menu_batch" ? batch / (yieldById.get(dishId) ?? 1) : batch;
+    const cost = Math.round(perUnit);
     const { error } = await supabase
       .from("restaurant_dishes")
       .update({ [field]: cost })

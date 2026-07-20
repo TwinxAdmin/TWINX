@@ -32,7 +32,6 @@ export default function DishEditDrawer({
     profit_margin: dish.profit_margin as string,
     cost_price: dish.cost_price != null ? String(dish.cost_price) : "",
     sale_price: dish.sale_price != null ? String(dish.sale_price) : "",
-    menu_cost_price: dish.menu_cost_price != null ? String(dish.menu_cost_price) : "",
     main_ingredients: dish.main_ingredients ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -224,18 +223,6 @@ export default function DishEditDrawer({
               )}
             </div>
 
-            {/* MENÜ */}
-            <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Menü (napi menü)</p>
-              <label className="block text-sm">Előállítási költség menüben (Ft)</label>
-              <input type="number" min={0} value={form.menu_cost_price} onChange={(e) => set("menu_cost_price", e.target.value)} className="twx-input mt-1" />
-              {errors.menu_cost_price && <p className="mt-1 text-xs text-red-600">{errors.menu_cost_price}</p>}
-              {form.cost_price && form.menu_cost_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.menu_cost_price)) && (
-                <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                  Megtakarítás az étlaposhoz képest: <b>{formatHuf(Number(form.cost_price) - Number(form.menu_cost_price))}</b>/adag
-                </p>
-              )}
-            </div>
             <div className="mt-3">
               <label className="block text-sm">Profitmarzs (opcionális)</label>
               <select value={form.profit_margin} onChange={(e) => set("profit_margin", e.target.value)} className="twx-input mt-1">
@@ -295,16 +282,11 @@ export default function DishEditDrawer({
             <RecipeCalculator
               initialItems={recipeItems}
               onClose={() => setCalcOpen(false)}
-              onApply={(cost, target, items) => {
+              onApply={(cost, _target, items) => {
                 setRecipeItems(items);
-                set(target === "etlap" ? "cost_price" : "menu_cost_price", String(cost));
+                set("cost_price", String(cost));
                 setCalcOpen(false);
-                showToast(
-                  target === "etlap"
-                    ? `Étlap-ár beírva: ${formatHuf(cost)}`
-                    : `Menü-költség beírva: ${formatHuf(cost)}`,
-                  "success"
-                );
+                showToast(`Étlapos önköltség beírva: ${formatHuf(cost)}`, "success");
               }}
             />
           )}

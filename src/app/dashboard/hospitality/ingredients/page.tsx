@@ -143,12 +143,13 @@ export default function IngredientsPage() {
     [dishes, costByDish]
   );
 
+  // CSAK étlapos ételek — a menüs ételek receptje a Kínálat kezelő menüs blokkjában készül.
   const dishGroups = useMemo(
     () =>
       DISH_CATEGORIES.map((c) => ({
         cat: c.value as string,
         label: c.label,
-        items: dishes.filter((d) => d.category === c.value),
+        items: dishes.filter((d) => d.category === c.value && !d.is_menu),
       })).filter((g) => g.items.length),
     [dishes]
   );
