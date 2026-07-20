@@ -184,16 +184,13 @@ export default function RecipeCalculator({
             <span className="text-sm font-medium" style={{ color: "#7a2e17" }}>Egy adag alapanyagköltsége</span>
             <span className="font-display text-2xl font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(total)}</span>
           </div>
+          {/* A recept az ÉTLAPOS előállítási költséget adja. A menüs költséget a partner
+              külön, kézzel adja meg (nagy szériás előállítás), ezért ide nem tesszük. */}
           <div className="flex flex-wrap justify-end gap-2">
             <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
             <button onClick={() => apply("etlap")} disabled={!items.length}
               className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--twx-coral)" }}>
-              Beírom étlap-árnak
-            </button>
-            <button onClick={() => apply("menu")} disabled={!items.length}
-              className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-              Beírom menü-költségnek
+              Beírom étlapos önköltségnek
             </button>
           </div>
         </div>

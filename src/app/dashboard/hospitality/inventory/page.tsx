@@ -221,10 +221,11 @@ export default function InventoryPage() {
               className="mb-3 rounded-lg p-3 text-xs"
               style={{ background: "rgba(239,122,90,0.08)", border: "1px solid rgba(239,122,90,0.25)", color: "var(--twx-ink)" }}
             >
-              <b>Miért két árazás?</b> Étlapról az étel kis szériában készül — ott saját előkészítési és eladási ára van.
-              Menübe viszont nagy mennyiségben megy, így olcsóbb az előállítása, és nem az ételnek, hanem magának a
-              <b> napi menünek</b> van ára (azt az Önköltség moduljában állítod be). Ezért itt a menühöz csak az
-              <b> előállítási költséget</b> kérjük. Elég az egyik oldalt kitölteni: ha nincs menü-költség, az étel nem megy menübe.
+              <b>Miért két árazás?</b> Étlapról az étel kis szériában készül — ennek az önköltségét ki tudod számoltatni
+              az Alapanyagok &amp; receptek fülön. Menübe viszont nagy mennyiségben, más adaggal megy, így az előállítása
+              is más: ezt <b>te add meg</b> ide, mert te tudod, mennyibe kerül nagy szériában — a rendszer ezt nem
+              találja ki helyetted. A napi menü árát az Önköltség moduljában állítod be. Elég az egyik oldalt kitölteni:
+              ha nincs menü-költség, az étel nem megy menübe.
             </div>
 
             <button
@@ -266,6 +267,9 @@ export default function InventoryPage() {
                 <div>
                   <label className="block text-sm">Előállítási költség menüben (Ft)</label>
                   <input type="number" min={0} value={form.menu_cost_price} onChange={(e) => set("menu_cost_price", e.target.value)} className="twx-input mt-1" placeholder="pl. 550" />
+                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Te add meg: mennyibe kerül ez a fogás, ha nagy szériában, menübe készül. Ebből dolgozik a menü generátor.
+                  </p>
                   {errors.menu_cost_price && <p className="mt-1 text-xs text-red-600">{errors.menu_cost_price}</p>}
                 </div>
                 {form.cost_price && form.menu_cost_price && !isNaN(Number(form.cost_price)) && !isNaN(Number(form.menu_cost_price)) && (
