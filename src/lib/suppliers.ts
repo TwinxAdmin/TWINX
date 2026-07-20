@@ -93,6 +93,7 @@ export type SupplierQuery = {
   frequency: string;     // gyakoriság (napi / heti / kétheti / havi / alkalmi)
   notes: string;         // egyedi igény (bio tanúsítvány, szállítás…)
   count: number;         // hány találatot kérünk
+  exclude?: string[];    // már ismert beszállítók — ezeket NE adja vissza újra
 };
 
 export type Supplier = {
@@ -154,6 +155,12 @@ export function composeSupplierPrompt(
     q.notes ? `Egyedi igény: ${q.notes}` : "",
     `Ennyi találatot adj: PONTOSAN ${q.count} darab (ha kevesebb valódi találat van, inkább adj kevesebbet, mint kitaláltat).`,
     `A megrendelő egy étterem, tehát olyan beszállítókat keress, akik éttermeknek is szállítanak és számlaképesek.`,
+    // A partner ne fizessen kétszer ugyanazokért a nevekért: a már ismerteket kizárjuk.
+    q.exclude?.length
+      ? `FONTOS: az alábbi beszállítókat a partner MÁR ISMERI egy korábbi keresésből, ezeket NE sorold fel újra — keress helyettük MÁSOKAT: ${q.exclude.join("; ")}.`
+      : "",
+    // Változatosság: ne mindig ugyanaz a néhány, jól indexelt nagyker jöjjön vissza.
+    `Merítsd a találatokat többféle forrásból: cégkatalógusok mellett nézd a helyi termelői piacok kiállítói listáit, agrárkamarai és őstermelői nyilvántartásokat, gazdaboltokat, termelői közösségeket és szakmai beszerzési csoportokat is. Kerüld, hogy csak a legnagyobb, legismertebb nagykereskedők szerepeljenek.`,
   ].filter(Boolean);
 
   return `${intro}\n\nKeresési feltételek:\n${lines.join("\n")}\n\n${task}`;

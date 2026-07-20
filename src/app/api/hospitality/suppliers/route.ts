@@ -84,6 +84,25 @@ export async function POST(request: Request) {
     count,
   };
 
+
+  // Amit a partner UGYANERRE az alapanyagra már megtalált, azt nem adjuk vissza újra —
+  // így a második keresés valóban ÚJ beszállítókat hoz, nem ugyanazt a listát.
+  const { data: prevRows } = await supabase
+    .from("supplier_searches")
+    .select("query, results")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const norm = (v: string) => v.trim().toLowerCase();
+  const known = new Set<string>();
+  for (const row of prevRows ?? []) {
+    const q = (row.query ?? {}) as { what?: string };
+    if (norm(String(q.what ?? "")) !== norm(what)) continue;
+    for (const s of (row.results ?? []) as { name?: string }[]) {
+      if (s?.name) known.add(String(s.name).trim());
+    }
+  }
+  const exclude = [...known].slice(0, 40);
+
   const admin = createAdminClient();
   const credits = creditsForCount(count);
 
@@ -99,7 +118,7 @@ export async function POST(request: Request) {
 
   try {
     // 1) Élő webes kutatás (a prompt tiltja a kitalált cégeket, forrást kér).
-    const prompt = await buildSupplierPromptActive(query);
+    const prompt = await buildSupplierPromptActive({ ...query, exclude });
     const raw = await runSonar(prompt, PERPLEXITY_MODEL);
     // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
     await logCost({

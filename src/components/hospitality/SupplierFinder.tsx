@@ -38,7 +38,8 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<SavedSearch[]>([]);
-  const [openDay, setOpenDay] = useState<string | null>(null); // felugró: egy nap keresései
+  const [openDay, setOpenDay] = useState<string | null>(null);      // felugró: egy nap keresései
+  const [viewSearch, setViewSearch] = useState<SavedSearch | null>(null); // oldalt nyíló panel
 
   useEffect(() => {
     (async () => {
@@ -76,9 +77,9 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
     }
   };
 
+  // A mentett keresés OLDALT nyílik meg (fix panel), így a középső blokk nem mozdul el.
   const openSaved = (s: SavedSearch) => {
-    setResult({ suppliers: s.results ?? [], extras: s.extras ?? {} });
-    setPdfUrl(s.pdf_url);
+    setViewSearch(s);
     setOpenDay(null);
   };
 
@@ -98,6 +99,18 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
   const dayLabel = (d: string) =>
     new Date(d).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
+
+  // Hány beszállítót találtunk már UGYANERRE az alapanyagra? (a szerver ezeket kizárja)
+  const alreadyFound = (() => {
+    const key = what.trim().toLowerCase();
+    if (!key) return 0;
+    const names = new Set<string>();
+    for (const s of history) {
+      if ((s.query?.what ?? "").trim().toLowerCase() !== key) continue;
+      for (const r of s.results ?? []) if (r?.name) names.add(r.name.trim());
+    }
+    return names.size;
+  })();
 
   return (
     <section className="twx-card p-5 sm:p-6">
@@ -215,6 +228,15 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </div>
         </div>
 
+        {/* Ha ugyanerre már keresett: jelezzük, hogy a korábbiakat kizárva keresünk újakat. */}
+        {alreadyFound > 0 && (
+          <div className="rounded-xl p-3 text-sm" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+            Erre már kerestél korábban, és <b>{alreadyFound}</b> beszállítót találtunk. Az új keresés ezeket
+            <b> kizárja</b>, tehát csak olyanokat hoz, akiket még nem láttál — a korábbiak pedig lent, a dátumos
+            mappákban bármikor ingyen visszanézhetők.
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={search} disabled={running}
             className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
@@ -320,79 +342,128 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         )}
       </AnimatePresence>
 
-      {/* Találatok */}
+      {/* Találatok — friss keresés eredménye */}
       {result && (
-        <div className="mt-6 space-y-3">
-          {(result.extras.season || result.extras.market) && (
-            <div className="rounded-xl p-3 text-sm" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-              {result.extras.season && <p>{result.extras.season}</p>}
-              {result.extras.market && <p className="mt-1">{result.extras.market}</p>}
-            </div>
-          )}
-
-          <h3 className="font-display text-lg font-medium">Találatok ({result.suppliers.length})</h3>
-          <div className="space-y-3">
-            {result.suppliers.map((s, i) => (
-              <div key={`${s.name}-${i}`} className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-display text-base font-semibold">{s.name}</span>
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {[s.location, s.distance].filter(Boolean).join(" · ")}
-                  </span>
-                </div>
-                {s.offering && <p className="mt-1 text-sm">{s.offering}</p>}
-                {s.why && <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{s.why}</p>}
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  {s.phone && <span>📞 <a href={`tel:${s.phone}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.phone}</a></span>}
-                  {s.email && <span>✉ <a href={`mailto:${s.email}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.email}</a></span>}
-                  {s.website && <span>🌐 <a href={s.website} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--twx-coral)" }}>weboldal</a></span>}
-                </div>
-                {s.source && (
-                  <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Forrás: <a href={s.source} target="_blank" rel="noopener noreferrer" className="underline">{s.source}</a>
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {result.extras.outreach && (
-            <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-sm font-semibold">Kész megkereső üzenet</h4>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(result.extras.outreach ?? ""); showToast("Vágólapra másolva.", "info"); }}
-                  className="text-xs font-medium underline" style={{ color: "var(--twx-coral)" }}>
-                  Másolás
-                </button>
-              </div>
-              <p className="whitespace-pre-wrap text-sm">{result.extras.outreach}</p>
-            </div>
-          )}
-
-          {result.extras.tips?.length ? (
-            <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-              <h4 className="mb-2 text-sm font-semibold">Tárgyalási tippek</h4>
-              <ul className="space-y-1 text-sm">
-                {result.extras.tips.map((t, i) => <li key={i}>• {t}</li>)}
-              </ul>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-3">
-            {pdfUrl && (
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download
-                className="rounded-xl px-5 py-2.5 text-sm font-semibold"
-                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                PDF letöltése
-              </a>
-            )}
-            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Az elérhetőségek nyilvános forrásokból származnak — hívás előtt érdemes ellenőrizni őket.
-            </span>
-          </div>
+        <div className="mt-6">
+          <ResultBody result={result} pdfUrl={pdfUrl} />
         </div>
       )}
+
+      {/* Mentett keresés — OLDALT nyíló panel (a középső tartalom nem mozdul) */}
+      <AnimatePresence>
+        {viewSearch && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40" style={{ background: "rgba(20,12,8,0.35)" }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setViewSearch(null)}
+            />
+            <motion.aside
+              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col overflow-hidden"
+              style={{ background: "var(--twx-cream-card)", borderLeft: "1px solid var(--twx-line)", boxShadow: "-18px 0 44px rgba(20,12,8,0.18)" }}
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 32 }}
+            >
+              <div className="flex items-start justify-between gap-3 border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+                <div className="min-w-0">
+                  <div className="font-display text-lg font-semibold">{viewSearch.query?.what}</div>
+                  <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {viewSearch.query?.county}
+                    {viewSearch.query?.city ? `, ${viewSearch.query.city}` : ""} ·{" "}
+                    {new Date(viewSearch.created_at).toLocaleDateString("hu-HU")}
+                  </div>
+                </div>
+                <button onClick={() => setViewSearch(null)} className="rounded-lg px-2 py-1 text-xl"
+                  style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <ResultBody
+                  result={{ suppliers: viewSearch.results ?? [], extras: viewSearch.extras ?? {} }}
+                  pdfUrl={viewSearch.pdf_url}
+                />
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </section>
+  );
+}
+
+// A találatok megjelenítése — ugyanaz a friss keresésnél és az oldalt nyíló panelben.
+function ResultBody({
+  result, pdfUrl,
+}: { result: { suppliers: Supplier[]; extras: SupplierExtras }; pdfUrl: string | null }) {
+  return (
+    <div className="space-y-3">
+      {(result.extras.season || result.extras.market) && (
+        <div className="rounded-xl p-3 text-sm" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+          {result.extras.season && <p>{result.extras.season}</p>}
+          {result.extras.market && <p className="mt-1">{result.extras.market}</p>}
+        </div>
+      )}
+
+      <h3 className="font-display text-lg font-medium">Találatok ({result.suppliers.length})</h3>
+      <div className="space-y-3">
+        {result.suppliers.map((s, i) => (
+          <div key={`${s.name}-${i}`} className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+            <p className="font-display text-base font-semibold">{s.name}</p>
+            {(s.location || s.distance) && (
+              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                {[s.location, s.distance].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            {s.offering && <p className="mt-1 text-sm">{s.offering}</p>}
+            {s.why && <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{s.why}</p>}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {s.phone && <span>📞 <a href={`tel:${s.phone}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.phone}</a></span>}
+              {s.email && <span>✉ <a href={`mailto:${s.email}`} className="underline" style={{ color: "var(--twx-coral)" }}>{s.email}</a></span>}
+              {s.website && <span>🌐 <a href={s.website} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--twx-coral)" }}>weboldal</a></span>}
+            </div>
+            {s.source && (
+              <p className="mt-2 break-all text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Forrás: <a href={s.source} target="_blank" rel="noopener noreferrer" className="underline">{s.source}</a>
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {result.extras.outreach && (
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+          <div className="mb-2 flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Kész megkereső üzenet</h4>
+            <button
+              onClick={() => { navigator.clipboard.writeText(result.extras.outreach ?? ""); showToast("Vágólapra másolva.", "info"); }}
+              className="text-xs font-medium underline" style={{ color: "var(--twx-coral)" }}>
+              Másolás
+            </button>
+          </div>
+          <p className="whitespace-pre-wrap text-sm">{result.extras.outreach}</p>
+        </div>
+      )}
+
+      {result.extras.tips?.length ? (
+        <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+          <h4 className="mb-2 text-sm font-semibold">Tárgyalási tippek</h4>
+          <ul className="space-y-1 text-sm">
+            {result.extras.tips.map((t, i) => <li key={i}>• {t}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {pdfUrl && (
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold"
+            style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+            PDF letöltése
+          </a>
+        )}
+        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Az elérhetőségek nyilvános forrásokból származnak — hívás előtt érdemes ellenőrizni őket.
+        </span>
+      </div>
+    </div>
   );
 }
