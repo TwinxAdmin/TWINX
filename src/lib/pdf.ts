@@ -676,34 +676,42 @@ export async function generateSuppliersPdf(params: {
   // --- Beszállítók ---
   sectionTitle(`Talált beszállítók (${result.suppliers.length})`);
 
+  // Minden sort előre kiszámolunk (szöveg + méret + szín + sormagasság), így a kártya
+  // magassága és a kirajzolás UGYANABBÓL az adatból jön — nem tud elcsúszni vagy egymásra futni.
+  type CardLine = { t: string; size: number; color: ReturnType<typeof rgb>; bold?: boolean; lh: number };
+  const innerW = contentW - 24;
+
   result.suppliers.forEach((s, i) => {
-    const contactBits = [
+    const lines: CardLine[] = [];
+    for (const t of wrapText(`${i + 1}. ${s.name}`, 11, innerW)) {
+      lines.push({ t, size: 11, color: C.coralDeep, bold: true, lh: 15 });
+    }
+    const loc = [s.location, s.distance].filter(Boolean).join(" · ");
+    for (const t of wrapText(loc, 8.5, innerW)) lines.push({ t, size: 8.5, color: C.muted, lh: 11.5 });
+    if (s.offering) for (const t of wrapText(s.offering, 9, innerW)) lines.push({ t, size: 9, color: C.ink, lh: 12.5 });
+    if (s.why) for (const t of wrapText(`Miért illik: ${s.why}`, 9, innerW)) lines.push({ t, size: 9, color: C.ink, lh: 12.5 });
+    for (const c of [
       s.phone ? `Tel.: ${s.phone}` : "",
       s.email ? `E-mail: ${s.email}` : "",
       s.website ? `Web: ${s.website}` : "",
-    ].filter(Boolean);
+    ].filter(Boolean)) {
+      for (const t of wrapText(c, 9, innerW)) lines.push({ t, size: 9, color: C.ink, lh: 12.5 });
+    }
+    if (s.source) for (const t of wrapText(`Forrás: ${s.source}`, 7.5, innerW)) {
+      lines.push({ t, size: 7.5, color: C.muted, lh: 10.5 });
+    }
 
-    const bodyLines = [
-      ...wrapText(s.offering, 9, contentW - 24),
-      ...(s.why ? wrapText(`Miért illik: ${s.why}`, 9, contentW - 24) : []),
-      ...contactBits.flatMap((c) => wrapText(c, 9, contentW - 24)),
-      ...(s.source ? wrapText(`Forrás: ${s.source}`, 7.5, contentW - 24) : []),
-    ];
-    const cardH = 34 + bodyLines.length * 12.5;
+    const padTop = 16, padBottom = 12;
+    const cardH = padTop + lines.reduce((sum, l) => sum + l.lh, 0) + padBottom;
     if (y - cardH < margin + 40) newPage();
 
     page.drawRectangle({ x: margin, y: y - cardH, width: contentW, height: cardH, color: C.cream, borderColor: C.line, borderWidth: 1 });
-    write(`${i + 1}. ${s.name}`, margin + 12, y - 18, 11, C.coralDeep, true);
-    const loc = [s.location, s.distance].filter(Boolean).join(" · ");
-    if (loc) writeRight(loc, margin + contentW - 12, y - 18, 8.5, C.muted);
-
-    let cy = y - 34;
-    for (const line of bodyLines) {
-      const small = line.startsWith("Forrás:");
-      write(line, margin + 12, cy, small ? 7.5 : 9, small ? C.muted : C.ink);
-      cy -= 12.5;
+    let cy = y - padTop;
+    for (const l of lines) {
+      write(l.t, margin + 12, cy - l.size * 0.15, l.size, l.color, l.bold);
+      cy -= l.lh;
     }
-    y -= cardH + 10;
+    y -= cardH + 12;
   });
 
   if (!result.suppliers.length) {
@@ -713,16 +721,21 @@ export async function generateSuppliersPdf(params: {
 
   // --- Megkereső üzenet ---
   if (result.extras.outreach) {
-    if (y < margin + 120) newPage();
+    const lines = wrapText(result.extras.outreach, 9.5, innerW);
+    const boxH = 18 + lines.length * 13.5 + 12;
+    // A cím, a bevezető és a doboz EGYÜTT férjen ki — különben új lapon kezdjük.
+    if (y - (boxH + 60) < margin + 40) newPage();
     sectionTitle("Kész megkereső üzenet");
-    paragraph("Ezt kimásolhatod és elküldheted a kiválasztott beszállítónak:", 9, C.muted);
-    y -= 4;
-    const lines = wrapText(result.extras.outreach, 9.5, contentW - 24);
-    const boxH = 20 + lines.length * 13;
-    if (y - boxH < margin + 40) newPage();
+    write("Ezt kimásolhatod és elküldheted a kiválasztott beszállítónak:", margin, y - 10, 9, C.muted);
+    y -= 22;
+
     page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.cream, borderColor: C.line, borderWidth: 1 });
     let oy = y - 18;
-    for (const line of lines) { write(line, margin + 12, oy, 9.5, C.ink); oy -= 13; }
+    for (const line of lines) {
+      if (line === "") { oy -= 7; continue; }
+      write(line, margin + 12, oy, 9.5, C.ink);
+      oy -= 13.5;
+    }
     y -= boxH + 18;
   }
 

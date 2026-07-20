@@ -38,7 +38,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<SavedSearch[]>([]);
-  const [openHistory, setOpenHistory] = useState(false);
+  const [openDay, setOpenDay] = useState<string | null>(null); // felugró: egy nap keresései
 
   useEffect(() => {
     (async () => {
@@ -79,8 +79,25 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const openSaved = (s: SavedSearch) => {
     setResult({ suppliers: s.results ?? [], extras: s.extras ?? {} });
     setPdfUrl(s.pdf_url);
-    setOpenHistory(false);
+    setOpenDay(null);
   };
+
+  // A mentett kereséseket NAPI mappákba rendezzük (legfrissebb elöl).
+  const days = (() => {
+    const map = new Map<string, SavedSearch[]>();
+    for (const s of history) {
+      const day = (s.created_at ?? "").slice(0, 10);
+      const arr = map.get(day) ?? [];
+      arr.push(s);
+      map.set(day, arr);
+    }
+    return [...map.entries()]
+      .map(([day, items]) => ({ day, items }))
+      .sort((a, b) => (a.day < b.day ? 1 : -1));
+  })();
+
+  const dayLabel = (d: string) =>
+    new Date(d).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
 
   return (
     <section className="twx-card p-5 sm:p-6">
@@ -204,41 +221,104 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             style={{ background: "var(--twx-coral)" }}>
             {running ? "Keresés folyamatban…" : `Beszállítók keresése (${creditsForCount(count)} kredit)`}
           </button>
-          {history.length > 0 && (
-            <button onClick={() => setOpenHistory((o) => !o)} className="text-sm font-medium underline"
-              style={{ color: "var(--twx-coral)" }}>
-              Korábbi kereséseim ({history.length}) — ingyenes
-            </button>
-          )}
         </div>
 
-        {/* Korábbi keresések */}
-        <AnimatePresence initial={false}>
-          {openHistory && (
+        {/* Korábbi keresések — dátum szerinti mappákban */}
+        {days.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">
+              Korábbi kereséseim{" "}
+              <span className="font-normal" style={{ color: "var(--twx-ink-muted)" }}>
+                — a visszanézés ingyenes
+              </span>
+            </h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {days.map((d) => (
+                <button key={d.day} onClick={() => setOpenDay(d.day)}
+                  className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
+                  style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                  <span className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+                      strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+                    </svg>
+                    <span className="font-display text-sm font-semibold">{dayLabel(d.day)}</span>
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {d.items.length} keresés
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Felugró: egy nap keresései */}
+      <AnimatePresence>
+        {openDay && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(20,12,8,0.45)" }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setOpenDay(null)}
+          >
             <motion.div
-              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}
+              className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
+              style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
+              initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="divide-y rounded-xl border" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                {history.map((s) => (
-                  <button key={s.id} onClick={() => openSaved(s)}
-                    className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm hover:opacity-80">
-                    <span>
-                      <b>{s.query?.what}</b>{" "}
+              <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+                <div>
+                  <div className="font-display text-lg font-semibold">{dayLabel(openDay)}</div>
+                  <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {days.find((d) => d.day === openDay)?.items.length ?? 0} keresés ezen a napon
+                  </div>
+                </div>
+                <button onClick={() => setOpenDay(null)} className="rounded-lg px-2 py-1 text-xl"
+                  style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+              </div>
+
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {(days.find((d) => d.day === openDay)?.items ?? []).map((s) => (
+                  <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium">{s.query?.what}</span>
                       <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                        · {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
+                        {new Date(s.created_at).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}
                       </span>
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      {new Date(s.created_at).toLocaleDateString("hu-HU")}
-                    </span>
-                  </button>
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <button onClick={() => openSaved(s)} className="text-sm font-medium underline"
+                        style={{ color: "var(--twx-coral)" }}>
+                        Megnyitás
+                      </button>
+                      {s.pdf_url && (
+                        <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download
+                          className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>
+                          PDF
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
+
+              <div className="flex justify-end border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+                <button onClick={() => setOpenDay(null)}
+                  className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                  Bezár
+                </button>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Találatok */}
       {result && (
