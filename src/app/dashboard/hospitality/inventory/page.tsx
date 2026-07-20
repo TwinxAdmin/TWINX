@@ -24,7 +24,7 @@ import {
   type Dish,
 } from "@/lib/hospitality";
 
-const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "", main_ingredients: "" };
+const EMPTY = { name: "", description: "", category: "foetel", cuisine_style: "", profit_margin: "", cost_price: "", sale_price: "" };
 
 export default function InventoryPage() {
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -178,11 +178,21 @@ export default function InventoryPage() {
             <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. Tartalmas marhagulyás hagyományos recept szerint, friss csipetkével" />
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-sm">Fő alapanyagok (opcionális)</label>
-            <input value={form.main_ingredients} onChange={(e) => set("main_ingredients", e.target.value)} className="twx-input mt-1" placeholder="pl. burgonya, marhahús, paprika (vesszővel)" />
-            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Ezekből tud a rendszer alapanyag szerint menüt összeállítani (pl. „2 nap krumpli, 3 nap tészta").
-            </p>
+            <div className="flex gap-3 rounded-xl p-3" style={{ background: "rgba(239,122,90,0.07)", border: "1px solid rgba(239,122,90,0.22)" }}>
+              <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg" style={{ background: "rgba(239,122,90,0.14)", color: "var(--twx-coral)" }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M9 7h6M9 11h6M9 15h4" />
+                </svg>
+              </span>
+              <div className="text-xs leading-relaxed" style={{ color: "var(--twx-ink)" }}>
+                <b>Az alapanyagokat itt még nem kell megadnod.</b> Most csak vidd fel az ételt a nevével, kategóriájával
+                és árával. Az összetevőket később, az <b>Alapanyagok &amp; receptek</b> fülön adod hozzá az ételhez —
+                ott megadod, melyik hozzávalóból mennyi kell egy adaghoz. Ez lesz az alapja annak, hogy a rendszer
+                <b> automatikusan kiszámolja az étel önköltségét</b>, jelezze, ha egy alapanyag drágulása miatt csökken
+                a profit, és pontos <b>költség- és profitkimutatásokat</b> adjon. Minél részletesebb a recept, annál
+                pontosabb lesz a kalkuláció — de ráérsz vele, amikor időd engedi.
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm">Kategória *</label>
