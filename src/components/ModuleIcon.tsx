@@ -92,6 +92,14 @@ const paths: Record<string, JSX.Element> = {
       <circle cx="16" cy="11.5" r="0.7" />
     </>
   ),
+  supplier: (
+    <>
+      <path d="M3 7h11v9H3z" />
+      <path d="M14 10h4l3 3v3h-7" />
+      <circle cx="7" cy="18" r="1.8" />
+      <circle cx="17" cy="18" r="1.8" />
+    </>
+  ),
   cost: (
     <>
       <circle cx="12" cy="12" r="9" />

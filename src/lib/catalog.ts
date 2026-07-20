@@ -39,6 +39,7 @@ export const CATEGORIES: Category[] = [
     modules: [
       { label: "Kínálat kezelő", href: "/dashboard/hospitality/inventory", icon: "inventory", desc: "A saját étlap-adatbázisod" },
       { label: "Alapanyagok & receptek", href: "/dashboard/hospitality/ingredients", icon: "recipe", desc: "Beszerzési árak és adagonkénti önköltség" },
+      { label: "Beszállító-kereső", href: "/dashboard/hospitality/suppliers", icon: "supplier", desc: "Termelők és nagykerek felkutatása a környékeden" },
       { label: "Önköltség & profit", href: "/dashboard/hospitality/costing", icon: "cost", desc: "Teljes önköltség, rezsi-allokáció, megtérülés" },
       { label: "Menü generátor", href: "/dashboard/hospitality/menu", icon: "menu", desc: "AI napi/heti menü a kínálatodból" },
       { label: "Árazás elemző", href: "/dashboard/hospitality/pricing", icon: "pricing", desc: "Haszonkulcs-elemzés és ár-javaslatok" },

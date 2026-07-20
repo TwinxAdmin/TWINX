@@ -83,29 +83,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   };
 
   return (
-    <section
-      className="rounded-3xl p-5 sm:p-6"
-      style={{ border: "2px solid var(--twx-coral)", background: "var(--twx-cream-card)" }}
-    >
-      {/* Csalogató infósáv */}
-      <div
-        className="mb-5 rounded-2xl p-4"
-        style={{ background: "var(--twx-coral-soft)", border: "1px solid rgba(239,122,90,0.35)" }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: "#7a2e17" }}>
-          Beszállító-kereső
-        </p>
-        <h2 className="font-display mt-1 text-xl font-semibold" style={{ color: "#7a2e17" }}>
-          Találd meg a termelőt, aki olcsóbban és frissebben szállít
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed" style={{ color: "#7a2e17" }}>
-          A legtöbb étterem azért fizet túl az alapanyagért, mert nincs ideje beszállítót keresni. Add meg, mit keresel
-          és hol — a Twinx élő webes kutatással összeszedi a környékbeli termelőket, nagykereskedőket és piacokat,
-          <b> forrásmegjelöléssel és elérhetőséggel</b>. A végén kapsz egy letölthető PDF-et, benne egy kész megkereső
-          üzenettel, amit csak el kell küldened.
-        </p>
-      </div>
-
+    <section className="twx-card p-5 sm:p-6">
       {/* Űrlap */}
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -12,7 +12,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
-import SupplierFinder from "@/components/hospitality/SupplierFinder";
 import { formatHuf, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
   INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
@@ -310,9 +309,6 @@ export default function IngredientsPage() {
               </div>
             )}
           </section>
-
-          {/* Beszállító-kereső — külön, keretezett blokk az oldal alján */}
-          <SupplierFinder ingredientNames={ingredients.map((i) => i.name)} />
         </>
       )}
 
