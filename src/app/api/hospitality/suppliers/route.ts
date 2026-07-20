@@ -32,11 +32,40 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("supplier_searches")
-    .select("id, query, results, extras, pdf_url, credits_charged, created_at")
+    .select("id, query, results, extras, pdf_url, credits_charged, is_favorite, created_at")
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(60);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ searches: data ?? [] });
+}
+
+// PATCH: egy keresés kedvenc-állapotának kapcsolása (egy kattintás). Ingyenes.
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
+  }
+  const id = String(body.id ?? "").trim();
+  const isFavorite = Boolean(body.is_favorite);
+  if (!id) return NextResponse.json({ error: "Hiányzó azonosító." }, { status: 400 });
+
+  // RLS: csak a saját sorát írhatja.
+  const { data, error } = await supabase
+    .from("supplier_searches")
+    .update({ is_favorite: isFavorite })
+    .eq("id", id)
+    .select("id, is_favorite")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, search: data });
 }
 
 export async function POST(request: Request) {
@@ -165,7 +194,7 @@ export async function POST(request: Request) {
         pdf_url: pdfUrl,
         credits_charged: charge.bypassed ? 0 : credits,
       })
-      .select("id, query, results, extras, pdf_url, credits_charged, created_at")
+      .select("id, query, results, extras, pdf_url, credits_charged, is_favorite, created_at")
       .single();
 
     // 4) Előzmény.

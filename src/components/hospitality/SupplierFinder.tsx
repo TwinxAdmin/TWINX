@@ -20,8 +20,11 @@ type SavedSearch = {
   results: Supplier[];
   extras: SupplierExtras;
   pdf_url: string | null;
+  is_favorite?: boolean;
   created_at: string;
 };
+
+const FAV_KEY = "__fav__"; // a Kedvencek mappa kulcsa
 
 export default function SupplierFinder({ ingredientNames }: { ingredientNames: string[] }) {
   const [what, setWhat] = useState("");
@@ -37,9 +40,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [running, setRunning] = useState(false);
 
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
+  const [lastSaved, setLastSaved] = useState<SavedSearch | null>(null); // a friss keresés mentett sora (kedvenchez)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<SavedSearch[]>([]);
-  const [openDay, setOpenDay] = useState<string | null>(null);      // felugró: egy nap keresései
+  const [openFolder, setOpenFolder] = useState<string | null>(null); // felugró: egy KATEGÓRIA (vagy Kedvencek) keresései
   const [viewSearch, setViewSearch] = useState<SavedSearch | null>(null); // oldalt nyíló panel
 
   useEffect(() => {
@@ -69,6 +73,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
       setResult(data.result);
       setPdfUrl(data.pdf_url ?? null);
+      setLastSaved(data.search ?? null);
       if (data.search) setHistory((h) => [data.search, ...h]);
       showToast(data.charged ? `${data.credits} kredit levonva.` : "Keresés kész (ingyenes hozzáférés).", "success");
     } catch {
@@ -78,28 +83,69 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
     }
   };
 
-  // A mentett keresés OLDALT nyílik meg (fix panel). A napi mappa nyitva marad középen,
-  // hogy ugyanabból a napból egyből másik keresést is meg lehessen nyitni.
+  // A mentett keresés OLDALT nyílik meg (fix panel). A mappa nyitva marad középen,
+  // hogy ugyanabból a kategóriából egyből másik keresést is meg lehessen nyitni.
   const openSaved = (s: SavedSearch) => {
     setViewSearch(s);
   };
 
-  // A mentett kereséseket NAPI mappákba rendezzük (legfrissebb elöl).
-  const days = (() => {
-    const map = new Map<string, SavedSearch[]>();
+  // Egy keresés kedvenc-állapotának kapcsolása (egy kattintás, ingyenes).
+  const toggleFav = async (s: SavedSearch) => {
+    const next = !s.is_favorite;
+    setHistory((h) => h.map((x) => (x.id === s.id ? { ...x, is_favorite: next } : x)));
+    if (viewSearch?.id === s.id) setViewSearch({ ...viewSearch, is_favorite: next });
+    try {
+      const res = await fetch("/api/hospitality/suppliers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: s.id, is_favorite: next }),
+      });
+      if (!res.ok) throw new Error();
+      showToast(next ? "Kedvencekhez adva." : "Eltávolítva a kedvencekből.", "success");
+    } catch {
+      // Hiba esetén visszaállítjuk.
+      setHistory((h) => h.map((x) => (x.id === s.id ? { ...x, is_favorite: !next } : x)));
+      showToast("Nem sikerült menteni. Próbáld újra.", "error");
+    }
+  };
+
+  // A mentett kereséseket KATEGÓRIÁRA (a keresett alapanyagra) csoportosítjuk; a dátum
+  // a mappán belül, keresésenként látszik. A legfrissebb kategória van elöl.
+  const norm = (v: string) => v.trim().toLowerCase();
+  const categories = (() => {
+    const map = new Map<string, { label: string; items: SavedSearch[] }>();
     for (const s of history) {
-      const day = (s.created_at ?? "").slice(0, 10);
-      const arr = map.get(day) ?? [];
-      arr.push(s);
-      map.set(day, arr);
+      const label = (s.query?.what ?? "").trim() || "Egyéb";
+      const key = norm(label);
+      const g = map.get(key) ?? { label, items: [] };
+      g.items.push(s);
+      map.set(key, g);
     }
     return [...map.entries()]
-      .map(([day, items]) => ({ day, items }))
-      .sort((a, b) => (a.day < b.day ? 1 : -1));
+      .map(([key, g]) => ({
+        key,
+        label: g.label,
+        items: g.items.sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+        latest: g.items.reduce((m, x) => (x.created_at > m ? x.created_at : m), ""),
+      }))
+      .sort((a, b) => (a.latest < b.latest ? 1 : -1));
   })();
 
-  const dayLabel = (d: string) =>
-    new Date(d).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
+  const favorites = history
+    .filter((s) => s.is_favorite)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  // Az éppen megnyitott mappa találatai (Kedvencek vagy egy kategória).
+  const folderItems = openFolder === FAV_KEY
+    ? favorites
+    : (categories.find((c) => c.key === openFolder)?.items ?? []);
+  const folderTitle = openFolder === FAV_KEY
+    ? "Kedvencek"
+    : categories.find((c) => c.key === openFolder)?.label ?? "";
+
+  const dateTimeLabel = (iso: string) =>
+    new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) +
+    " · " + new Date(iso).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
   // Hány beszállítót találtunk már UGYANERRE az alapanyagra? (a szerver ezeket kizárja)
   const alreadyFound = (() => {
@@ -221,8 +267,8 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         {alreadyFound > 0 && (
           <div className="rounded-xl p-3 text-sm" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
             Erre már kerestél korábban, és <b>{alreadyFound}</b> beszállítót találtunk. Az új keresés ezeket
-            <b> kizárja</b>, tehát csak olyanokat hoz, akiket még nem láttál — a korábbiak pedig lent, a dátumos
-            mappákban bármikor ingyen visszanézhetők.
+            <b> kizárja</b>, tehát csak olyanokat hoz, akiket még nem láttál — a korábbiak pedig lent, az adott
+            alapanyag mappájában bármikor ingyen visszanézhetők.
           </div>
         )}
 
@@ -234,13 +280,28 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </button>
         </div>
 
-        {/* Korábbi keresések — dátum szerinti mappákban */}
-        {days.length > 0 && (
+        {/* Korábbi keresések — KATEGÓRIA szerinti mappákban (+ Kedvencek elöl) */}
+        {(categories.length > 0 || favorites.length > 0) && (
           <div>
             <h3 className="mb-2 text-sm font-semibold">Korábbi kereséseim</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {days.map((d) => (
-                <button key={d.day} onClick={() => setOpenDay(d.day)}
+              {/* Kedvencek mappa — csak a kedvencnek jelölt keresések */}
+              {favorites.length > 0 && (
+                <button onClick={() => setOpenFolder(FAV_KEY)}
+                  className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
+                  style={{ borderColor: "var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
+                  <span className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--twx-coral)" stroke="var(--twx-coral)" strokeWidth="1.4"
+                      strokeLinejoin="round" aria-hidden>
+                      <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+                    </svg>
+                    <span className="font-display text-sm font-semibold" style={{ color: "#7a2e17" }}>Kedvencek</span>
+                  </span>
+                  <span className="text-xs" style={{ color: "#7a2e17" }}>{favorites.length} beszállító-keresés</span>
+                </button>
+              )}
+              {categories.map((c) => (
+                <button key={c.key} onClick={() => setOpenFolder(c.key)}
                   className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
                   style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
                   <span className="flex items-center gap-2">
@@ -248,10 +309,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                       strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
                       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
                     </svg>
-                    <span className="font-display text-sm font-semibold">{dayLabel(d.day)}</span>
+                    <span className="font-display text-sm font-semibold capitalize">{c.label}</span>
                   </span>
                   <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {d.items.length} keresés
+                    {c.items.length} keresés · {dateTimeLabel(c.latest).split(" · ")[0]}
                   </span>
                 </button>
               ))}
@@ -260,9 +321,9 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         )}
       </div>
 
-      {/* Felugró: egy nap keresései */}
+      {/* Felugró: egy KATEGÓRIA (vagy a Kedvencek) keresései */}
       <AnimatePresence>
-        {openDay && (
+        {openFolder && (
           <motion.div
             // Ha az oldalpanel nyitva van, a mappa a maradék helyre igazodik, hogy ne takarja el.
             className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-[padding] duration-300 ${
@@ -270,7 +331,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             }`}
             style={{ background: "rgba(20,12,8,0.45)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setOpenDay(null)}
+            onClick={() => setOpenFolder(null)}
           >
             <motion.div
               className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
@@ -281,27 +342,41 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             >
               <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
                 <div>
-                  <div className="font-display text-lg font-semibold">{dayLabel(openDay)}</div>
+                  <div className="font-display text-lg font-semibold capitalize">{folderTitle}</div>
                   <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {days.find((d) => d.day === openDay)?.items.length ?? 0} keresés ezen a napon
+                    {openFolder === FAV_KEY
+                      ? `${folderItems.length} kedvenc keresés`
+                      : `${folderItems.length} keresés ebben a kategóriában`}
                   </div>
                 </div>
-                <button onClick={() => setOpenDay(null)} className="rounded-lg px-2 py-1 text-xl"
+                <button onClick={() => setOpenFolder(null)} className="rounded-lg px-2 py-1 text-xl"
                   style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-4">
-                {(days.find((d) => d.day === openDay)?.items ?? []).map((s) => (
+                {folderItems.length === 0 && (
+                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Ez a mappa üres.</p>
+                )}
+                {folderItems.map((s) => (
                   <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-medium">{s.query?.what}</span>
-                      <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                        {new Date(s.created_at).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        {/* Kedvencek mappában a keresett alapanyag is látszik (vegyes kategóriák). */}
+                        {openFolder === FAV_KEY && <span className="font-medium capitalize">{s.query?.what} · </span>}
+                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dateTimeLabel(s.created_at)}</span>
+                        <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                          {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
+                        </p>
+                      </div>
+                      {/* Csillag: egy kattintással kedvencnek jelöl / levesz. */}
+                      <button onClick={() => toggleFav(s)} aria-label={s.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}
+                        title={s.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"} className="flex-none rounded-lg p-1">
+                        <svg width="20" height="20" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
+                          fill={s.is_favorite ? "var(--twx-coral)" : "none"} stroke={s.is_favorite ? "var(--twx-coral)" : "var(--twx-ink-muted)"}>
+                          <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+                        </svg>
+                      </button>
                     </div>
-                    <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
-                    </p>
                     <div className="mt-2 flex flex-wrap gap-3">
                       <button onClick={() => openSaved(s)} className="text-sm font-medium underline"
                         style={{ color: "var(--twx-coral)" }}>
@@ -319,7 +394,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               </div>
 
               <div className="flex justify-end border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-                <button onClick={() => setOpenDay(null)}
+                <button onClick={() => setOpenFolder(null)}
                   className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
                   Bezár
                 </button>
@@ -332,6 +407,22 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       {/* Találatok — friss keresés eredménye */}
       {result && (
         <div className="mt-6">
+          {lastSaved && (() => {
+            const cur = history.find((x) => x.id === lastSaved.id) ?? lastSaved;
+            return (
+              <button onClick={() => toggleFav(cur)}
+                className="mb-3 inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition"
+                style={cur.is_favorite
+                  ? { background: "var(--twx-coral-soft)", color: "#7a2e17" }
+                  : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
+                  fill={cur.is_favorite ? "var(--twx-coral)" : "none"} stroke={cur.is_favorite ? "var(--twx-coral)" : "currentColor"}>
+                  <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+                </svg>
+                {cur.is_favorite ? "Kedvenc keresés" : "Kedvencekhez adom"}
+              </button>
+            );
+          })()}
           <ResultBody result={result} pdfUrl={pdfUrl} />
         </div>
       )}
@@ -356,8 +447,18 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                     {new Date(viewSearch.created_at).toLocaleDateString("hu-HU")}
                   </div>
                 </div>
-                <button onClick={() => setViewSearch(null)} className="rounded-lg px-2 py-1 text-xl"
-                  style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+                <div className="flex flex-none items-center gap-1">
+                  <button onClick={() => toggleFav(viewSearch)} className="rounded-lg p-1"
+                    aria-label={viewSearch.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}
+                    title={viewSearch.is_favorite ? "Kedvenc levétele" : "Kedvencnek jelöl"}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="1.6" strokeLinejoin="round"
+                      fill={viewSearch.is_favorite ? "var(--twx-coral)" : "none"} stroke={viewSearch.is_favorite ? "var(--twx-coral)" : "var(--twx-ink-muted)"}>
+                      <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+                    </svg>
+                  </button>
+                  <button onClick={() => setViewSearch(null)} className="rounded-lg px-2 py-1 text-xl"
+                    style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 <ResultBody
