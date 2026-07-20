@@ -3,6 +3,7 @@
 // Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
+import SelectField from "@/components/SelectField";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
@@ -230,32 +231,20 @@ export default function VisualizationPage() {
           </h2>
 
           <Field label="Helység típusa (kötelező)">
-            <select
+            <SelectField
               value={current.config.roomType}
-              onChange={(e) => updateConfig({ roomType: e.target.value })}
-              className="twx-input"
-            >
-              <option value="">— Válassz helységet —</option>
-              {ROOM_TYPES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateConfig({ roomType: v })}
+              placeholder="— Válassz helységet —"
+              options={[{ value: "", label: "— Válassz helységet —" }, ...ROOM_TYPES.map((r) => ({ value: r.value, label: r.label }))]}
+            />
           </Field>
 
           <Field label="Stílus (opcionális)">
-            <select
+            <SelectField
               value={current.config.style}
-              onChange={(e) => updateConfig({ style: e.target.value })}
-              className="twx-input"
-            >
-              {STYLE_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => updateConfig({ style: v })}
+              options={STYLE_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+            />
             {current.config.style && SUPABASE_URL && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -503,18 +492,12 @@ function OptionSelect({
 }) {
   return (
     <Field label={label}>
-      <select
+      <SelectField
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="twx-input"
-      >
-        <option value="">— Válassz —</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        placeholder="— Válassz —"
+        options={[{ value: "", label: "— Válassz —" }, ...options.map((o) => ({ value: o.value, label: o.label }))]}
+      />
     </Field>
   );
 }

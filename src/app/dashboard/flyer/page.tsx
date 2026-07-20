@@ -19,6 +19,7 @@ import {
 } from "@/lib/flyer";
 import { toDownloadUrl } from "@/lib/files";
 import ModuleIntro from "@/components/ModuleIntro";
+import SelectField from "@/components/SelectField";
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -616,11 +617,8 @@ export default function FlyerPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-sm">Hangnem</label>
-            <select value={tone} onChange={(e) => setTone(e.target.value)} className="twx-input mt-1">
-              {FLYER_TONES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-56" value={tone} onChange={setTone}
+              options={FLYER_TONES.map((t) => ({ value: t.value, label: t.label }))} />
           </div>
           <button onClick={generateText} disabled={genLoading} className="twx-btn">
             {genLoading ? "Generálás…" : "Szöveg generálása"}
@@ -687,11 +685,8 @@ export default function FlyerPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm">Formátum</label>
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className="twx-input mt-1">
-              {FLYER_FORMATS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={format} onChange={setFormat}
+              options={FLYER_FORMATS.map((f) => ({ value: f.value, label: f.label }))} />
             <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
               A színt, betűt és a témát a kiválasztott arculat adja.
             </p>

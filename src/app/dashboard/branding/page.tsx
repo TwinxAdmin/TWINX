@@ -1,6 +1,7 @@
 // dashboard/branding — Arculatok: több arculat-profil kezelése (céges, közös belépéshez is).
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
+import SelectField from "@/components/SelectField";
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -209,19 +210,13 @@ export default function BrandingPage() {
             </div>
             <div>
               <label className="block text-sm">Betűtípus</label>
-              <select value={values.font} onChange={(e) => setField("font", e.target.value)} className="twx-input mt-1">
-                {BRANDING_FONTS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+              <SelectField className="mt-1 w-full" value={values.font} onChange={(v) => setField("font", v)}
+                options={BRANDING_FONTS.map((f) => ({ value: f.value, label: f.label }))} />
             </div>
             <div>
               <label className="block text-sm">Téma</label>
-              <select value={values.theme} onChange={(e) => setField("theme", e.target.value as "light" | "dark")} className="twx-input mt-1">
-                {BRANDING_THEMES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+              <SelectField className="mt-1 w-full" value={values.theme} onChange={(v) => setField("theme", v as "light" | "dark")}
+                options={BRANDING_THEMES.map((t) => ({ value: t.value, label: t.label }))} />
             </div>
           </div>
 
