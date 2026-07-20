@@ -180,14 +180,10 @@ export async function generateCostingPdf(params: {
 
   // --- meta sor ---
   const t = result.totals;
-  const alloc = result.method === "revenue" ? "árbevétel-arányos" : "darab-arányos";
-  write(
-    period ? `Időszak: ${period}` : `Rezsi-allokáció: ${alloc}`,
-    margin, y, 9.5, C.muted
-  );
+  write(period ? `Időszak: ${period}` : `Önköltség & profit`, margin, y, 9.5, C.muted);
   y -= 14;
   write(
-    `Rezsi-allokáció: ${alloc}    ·    Időszaki költség: ${huf(t.overhead)}` +
+    `Rezsi-allokáció: árbevétel-arányos (étlap / menü)    ·    Időszaki költség: ${huf(t.overhead)}` +
       (oneTimeTotal && oneTimeTotal > 0 ? `  (ebből egyszeri: ${huf(oneTimeTotal)})` : ""),
     margin, y, 9.5, C.muted
   );
@@ -197,7 +193,7 @@ export async function generateCostingPdf(params: {
   const kpis: { label: string; value: string; highlight?: boolean; neg?: boolean }[] = [
     { label: "Időszaki árbevétel", value: huf(t.revenue) },
     { label: "Alapanyagköltség", value: huf(t.ingredientCost) },
-    { label: "Rávetített rezsi", value: huf(t.coveredOverhead) },
+    { label: "Időszaki költség", value: huf(t.overhead) },
     { label: "Étterem időszaki profit", value: huf(t.netProfit), highlight: true, neg: t.netProfit < 0 },
   ];
   const gap = 10;
@@ -252,20 +248,27 @@ export async function generateCostingPdf(params: {
     y -= h + 2;
   };
 
-  sectionTitle("Ételenkénti bontás");
+  // ===================== ÉTLAP =====================
+  const e = result.etlap;
+  sectionTitle("Étlap — ételenkénti bontás");
+  write(
+    `Árbevétel ${huf(e.revenue)}  ·  alapanyag ${huf(e.ingredientCost)}  ·  rezsi ${huf(e.overhead)}  ·  profit ${huf(e.profit)}`,
+    margin, y, 8.5, C.muted
+  );
+  y -= 16;
   drawTableHeader();
 
   const rowH = 18;
-  result.dishes.forEach((d, ri) => {
+  e.dishes.forEach((d, ri) => {
     if (y - rowH < margin + 30) { newPage(); drawTableHeader(); }
     if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - rowH + 4, width: contentW, height: rowH, color: C.cream });
     const cells: { text: string; align: "left" | "right"; color?: ReturnType<typeof rgb> }[] = [
       { text: truncate(d.name, 8.5, cols[0].w - 8), align: "left" },
-      { text: String(d.monthly_qty), align: "right" },
+      { text: String(d.qty), align: "right" },
       { text: num(d.fullUnitCost), align: "right" },
       { text: num(d.unitProfit), align: "right", color: d.unitProfit < 0 ? C.red : C.ink },
       { text: `${Math.round(d.unitMarginPct)}%`, align: "right", color: d.unitMarginPct < 0 ? C.red : C.ink },
-      { text: num(d.monthlyProfit), align: "right", color: d.monthlyProfit < 0 ? C.red : C.ink },
+      { text: num(d.periodProfit), align: "right", color: d.periodProfit < 0 ? C.red : C.ink },
       { text: String(d.breakevenQty), align: "right" },
     ];
     cells.forEach((cell, i) => {
@@ -277,8 +280,75 @@ export async function generateCostingPdf(params: {
     page.drawRectangle({ x: margin, y: y - rowH + 3, width: contentW, height: 0.5, color: C.line });
     y -= rowH;
   });
-  write("A számértékek forintban (Ft). „Önktg/adag” = alapanyag + rá jutó rezsi; „Fed.” = fedezeti darabszám.", margin, y - 6, 7.5, C.muted);
+  if (!e.dishes.length) { write("Nincs étlapos eladás ebben az időszakban.", margin, y - 8, 9, C.muted); y -= 20; }
+  write("Ft-ban. „Önktg/adag” = alapanyag + rá jutó rezsi; „Fed.” = fedezeti darabszám.", margin, y - 6, 7.5, C.muted);
   y -= 30;
+
+  // ===================== NAPI MENÜK =====================
+  const m = result.menu;
+  if (y < margin + 150) newPage();
+  sectionTitle("Napi menük");
+  if (m.count > 0) {
+    write(
+      `${m.count} eladott menü (${m.qty2} db 2 fogásos, ${m.qty3} db 3 fogásos)  ·  bevétel ${huf(m.revenue)}  ·  ` +
+        `előállítás ${huf(m.ingredientCost)}  ·  rezsi ${huf(m.overhead)}  ·  profit ${huf(m.profit)}`,
+      margin, y, 8.5, C.muted
+    );
+    y -= 20;
+
+    // Egy menüre vetített kártya — a lényeg egy pillantásra.
+    const boxH = 50;
+    page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });
+    write("EGY MENÜRE VETÍTVE", margin + 10, y - 16, 8, C.coralDeep, true);
+    const parts = [
+      `Ár: ${huf(m.perMenuRevenue)}`,
+      `Előállítás: ${huf(m.perMenuCost)}`,
+      `Rezsi: ${huf(m.perMenuOverhead)}`,
+      `Marad: ${huf(m.perMenuProfit)}`,
+    ];
+    let px = margin + 10;
+    parts.forEach((p, i) => {
+      const last = i === parts.length - 1;
+      write(p, px, y - 34, last ? 11 : 10, last ? (m.perMenuProfit < 0 ? C.red : C.coralDeep) : C.ink, last);
+      px += font.widthOfTextAtSize(p, last ? 11 : 10) + 24;
+    });
+    y -= boxH + 20;
+
+    // Menübe felhasznált ételek költsége.
+    const mCols: { w: number; align: "left" | "right"; h: string }[] = [
+      { w: 240, align: "left", h: "Menübe felhasznált étel" },
+      { w: 80, align: "right", h: "adag" },
+      { w: 89, align: "right", h: "Önktg/adag" },
+      { w: 90, align: "right", h: "Összesen" },
+    ];
+    const mColX = (idx: number) => margin + mCols.slice(0, idx).reduce((s, c) => s + c.w, 0);
+    const drawMenuHeader = () => {
+      const h = 20;
+      page.drawRectangle({ x: margin, y: y - h + 4, width: contentW, height: h, color: C.soft });
+      mCols.forEach((c, i) => {
+        const x = mColX(i);
+        if (c.align === "left") write(c.h, x + 4, y - h + 10, 8, C.coralDeep, true);
+        else writeRight(c.h, x + c.w - 4, y - h + 10, 8, C.coralDeep, true);
+      });
+      y -= h + 2;
+    };
+    drawMenuHeader();
+    m.dishes.forEach((d, ri) => {
+      if (y - rowH < margin + 30) { newPage(); drawMenuHeader(); }
+      if (ri % 2 === 1) page.drawRectangle({ x: margin, y: y - rowH + 4, width: contentW, height: rowH, color: C.cream });
+      const yy = y - rowH + 9;
+      write(truncate(d.name, 8.5, mCols[0].w - 8), mColX(0) + 4, yy, 8.5, C.ink, true);
+      writeRight(String(d.qty), mColX(1) + mCols[1].w - 4, yy, 8.5, C.ink);
+      writeRight(num(d.unitCost), mColX(2) + mCols[2].w - 4, yy, 8.5, C.ink);
+      writeRight(num(d.totalCost), mColX(3) + mCols[3].w - 4, yy, 8.5, C.ink);
+      page.drawRectangle({ x: margin, y: y - rowH + 3, width: contentW, height: 0.5, color: C.line });
+      y -= rowH;
+    });
+    y -= 16;
+  } else {
+    write("Nincs rögzített menü-eladás ebben az időszakban.", margin, y - 8, 9, C.muted);
+    y -= 30;
+  }
 
   // --- AI-elemzés ---
   if (narrative.trim()) {

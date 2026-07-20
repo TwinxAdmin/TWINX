@@ -22,6 +22,7 @@ import {
   COSTING_CREDITS,
   COSTING_MIN_DISHES,
   type CostingDishInput,
+  type MenuSalesInput,
   type OneTimeCost,
 } from "@/lib/costing";
 
@@ -61,22 +62,34 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // A rögzített eladások az időszakon belül (period_start >= start ÉS period_end <= end),
-  // ételenként összegezve. Így 2 napra és 2 hónapra is ugyanabból az adatból megy a riport.
+  // ételenként ÉS csatornánként összegezve. Így 2 napra és 2 hónapra is ugyanabból megy a riport.
   const { data: saleRows, error: saleErr } = await admin
     .from("dish_sales")
-    .select("dish_id, qty")
+    .select("dish_id, qty, channel")
     .eq("user_id", user.id)
     .gte("period_start", start)
     .lte("period_end", end);
   if (saleErr) return NextResponse.json({ error: saleErr.message }, { status: 500 });
 
-  const qtyById = new Map<string, number>();
+  const qtyEtlap = new Map<string, number>();
+  const qtyMenu = new Map<string, number>();
   for (const r of saleRows ?? []) {
     const id = String(r.dish_id);
-    qtyById.set(id, (qtyById.get(id) ?? 0) + (Number(r.qty) || 0));
+    const target = String(r.channel) === "menu" ? qtyMenu : qtyEtlap;
+    target.set(id, (target.get(id) ?? 0) + (Number(r.qty) || 0));
   }
-  const ids = [...qtyById.keys()].slice(0, MAX_DISHES);
-  if (ids.length < COSTING_MIN_DISHES) {
+
+  // Eladott napi menük az időszakban (+ esetleges ár-felülírás).
+  const { data: menuRows } = await admin
+    .from("menu_sales")
+    .select("qty_2, qty_3, price_2, price_3")
+    .eq("user_id", user.id)
+    .gte("period_start", start)
+    .lte("period_end", end);
+
+  const ids = [...new Set([...qtyEtlap.keys(), ...qtyMenu.keys()])].slice(0, MAX_DISHES);
+  const anyMenus = (menuRows ?? []).some((m) => (Number(m.qty_2) || 0) + (Number(m.qty_3) || 0) > 0);
+  if (ids.length < COSTING_MIN_DISHES && !anyMenus) {
     return NextResponse.json(
       { error: "Ebben az időszakban nincs rögzített eladás. Előbb vidd fel az eladott adagokat az Eladások fülön." },
       { status: 422 }
@@ -117,35 +130,43 @@ export async function POST(request: Request) {
 
     const overhead = proratedFix + oneTimeTotal;
 
-    // 2) A kiválasztott ételek árai a DB-ből (csak árazott ételek).
+    // 2) Az érintett ételek árai a DB-ből (étlapos pár + menü-költség).
     const { data: dishRows, error: dishErr } = await admin
       .from("restaurant_dishes")
-      .select("id, name, category, cost_price, sale_price")
+      .select("id, name, category, cost_price, sale_price, menu_cost_price")
       .eq("user_id", user.id)
-      .in("id", ids);
+      .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     if (dishErr) throw new Error(dishErr.message);
 
-    const inputs: CostingDishInput[] = (dishRows ?? [])
-      .filter((d) => d.cost_price != null && d.sale_price != null)
-      .map((d) => ({
-        dish_id: d.id as string,
-        name: d.name as string,
-        category: (d.category as string) ?? null,
-        cost_price: Number(d.cost_price),
-        sale_price: Number(d.sale_price),
-        monthly_qty: qtyById.get(d.id as string) ?? 0,
-      }));
+    const inputs: CostingDishInput[] = (dishRows ?? []).map((d) => ({
+      dish_id: d.id as string,
+      name: d.name as string,
+      category: (d.category as string) ?? null,
+      cost_price: d.cost_price != null ? Number(d.cost_price) : null,
+      sale_price: d.sale_price != null ? Number(d.sale_price) : null,
+      menu_cost_price: d.menu_cost_price != null ? Number(d.menu_cost_price) : null,
+      qty_etlap: qtyEtlap.get(d.id as string) ?? 0,
+      qty_menu: qtyMenu.get(d.id as string) ?? 0,
+    }));
 
-    if (inputs.length < COSTING_MIN_DISHES) {
-      await refund();
-      return NextResponse.json(
-        { error: "A kiválasztott ételeknél nincs megadva ár. Adj meg előkészítési + eladási árat a Kínálat kezelőben." },
-        { status: 422 }
-      );
+    // 3) Eladott menük + ár (a felülírás elsőbbséget élvez a beállított árral szemben).
+    const profile = normalizeCostProfile((profileRow ?? null) as Record<string, unknown> | null);
+    let qty2 = 0, qty3 = 0, rev2 = 0, rev3 = 0;
+    for (const m of menuRows ?? []) {
+      const q2 = Math.max(0, Math.floor(Number(m.qty_2) || 0));
+      const q3 = Math.max(0, Math.floor(Number(m.qty_3) || 0));
+      const p2 = m.price_2 != null ? Number(m.price_2) : profile.menu_price_2;
+      const p3 = m.price_3 != null ? Number(m.price_3) : profile.menu_price_3;
+      qty2 += q2; qty3 += q3; rev2 += q2 * p2; rev3 += q3 * p3;
     }
+    const menuSales: MenuSalesInput = {
+      qty2, qty3,
+      price2: qty2 > 0 ? rev2 / qty2 : profile.menu_price_2,
+      price3: qty3 > 0 ? rev3 / qty3 : profile.menu_price_3,
+    };
 
-    // 3) Determinisztikus számítás (árbevétel-arányos rezsi-allokáció, időszakra arányosítva).
-    const result = computeCosting(inputs, overhead, "revenue");
+    // 4) Determinisztikus számítás (időszakra arányosított rezsivel).
+    const result = computeCosting(inputs, menuSales, overhead);
     const periodLabel = `${start} – ${end} (${days} nap)`;
 
     // 4) AI-javaslat (a számokat készen kapja).

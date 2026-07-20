@@ -992,49 +992,119 @@ function ReportTab({ priced, sales, menuSales, overhead, oneTime }: { priced: Di
   );
 }
 
-// Számított eredmény megjelenítése (a riporthoz).
+// Számított eredmény megjelenítése (a riporthoz) — étlap és menü csatorna külön.
 function ResultView({ result }: { result: CostingResult }) {
   const t = result.totals;
+  const e = result.etlap;
+  const m = result.menu;
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Időszaki árbevétel" value={formatHuf(t.revenue)} />
         <Stat label="Alapanyagköltség" value={formatHuf(t.ingredientCost)} />
-        <Stat label="Rávetített rezsi" value={formatHuf(t.coveredOverhead)} />
+        <Stat label="Időszaki költség" value={formatHuf(t.overhead)} />
         <Stat label="Étterem időszaki profit" value={formatHuf(t.netProfit)} warn={t.netProfit < 0} />
       </div>
 
-      <div className="twx-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
-              <th className="p-3 font-medium">Étel</th>
-              <th className="p-3 text-right font-medium">eladott</th>
-              <th className="p-3 text-right font-medium">Teljes önktg/adag</th>
-              <th className="p-3 text-right font-medium">Valós profit/adag</th>
-              <th className="p-3 text-right font-medium">Árrés</th>
-              <th className="p-3 text-right font-medium">Időszaki profit</th>
-              <th className="p-3 text-right font-medium">Fedezeti db</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.dishes.map((d) => (
-              <tr key={d.dish_id} style={{ borderTop: "1px solid var(--twx-line)" }}>
-                <td className="p-3 font-medium">{d.name}</td>
-                <td className="p-3 text-right">{d.monthly_qty}</td>
-                <td className="p-3 text-right">{formatHuf(d.fullUnitCost)}</td>
-                <td className="p-3 text-right" style={{ color: d.unitProfit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.unitProfit)}</td>
-                <td className="p-3 text-right" style={{ color: d.unitMarginPct < 0 ? "#b5372f" : "var(--twx-ink)" }}>{Math.round(d.unitMarginPct)}%</td>
-                <td className="p-3 text-right" style={{ color: d.monthlyProfit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.monthlyProfit)}</td>
-                <td className="p-3 text-right">{d.breakevenQty} db</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* ÉTLAP */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-display text-lg font-medium">Étlap</h3>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            bevétel {formatHuf(e.revenue)} · alapanyag {formatHuf(e.ingredientCost)} · rezsi {formatHuf(e.overhead)} ·{" "}
+            <b style={{ color: e.profit < 0 ? "#b5372f" : "var(--twx-ink)" }}>profit {formatHuf(e.profit)}</b>
+          </span>
+        </div>
+        {e.dishes.length ? (
+          <div className="twx-card overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
+                  <th className="p-3 font-medium">Étel</th>
+                  <th className="p-3 text-right font-medium">eladott</th>
+                  <th className="p-3 text-right font-medium">Teljes önktg/adag</th>
+                  <th className="p-3 text-right font-medium">Valós profit/adag</th>
+                  <th className="p-3 text-right font-medium">Árrés</th>
+                  <th className="p-3 text-right font-medium">Időszaki profit</th>
+                  <th className="p-3 text-right font-medium">Fedezeti db</th>
+                </tr>
+              </thead>
+              <tbody>
+                {e.dishes.map((d) => (
+                  <tr key={d.dish_id} style={{ borderTop: "1px solid var(--twx-line)" }}>
+                    <td className="p-3 font-medium">{d.name}</td>
+                    <td className="p-3 text-right">{d.qty}</td>
+                    <td className="p-3 text-right">{formatHuf(d.fullUnitCost)}</td>
+                    <td className="p-3 text-right" style={{ color: d.unitProfit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.unitProfit)}</td>
+                    <td className="p-3 text-right" style={{ color: d.unitMarginPct < 0 ? "#b5372f" : "var(--twx-ink)" }}>{Math.round(d.unitMarginPct)}%</td>
+                    <td className="p-3 text-right" style={{ color: d.periodProfit < 0 ? "#b5372f" : "var(--twx-ink)" }}>{formatHuf(d.periodProfit)}</td>
+                    <td className="p-3 text-right">{d.breakevenQty} db</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs étlapos eladás ebben az időszakban.</div>
+        )}
       </div>
+
+      {/* NAPI MENÜK */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-display text-lg font-medium">Napi menük</h3>
+          {m.count > 0 && (
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              {m.count} menü ({m.qty2} × 2 fog., {m.qty3} × 3 fog.) · bevétel {formatHuf(m.revenue)} ·{" "}
+              <b style={{ color: m.profit < 0 ? "#b5372f" : "var(--twx-ink)" }}>profit {formatHuf(m.profit)}</b>
+            </span>
+          )}
+        </div>
+
+        {m.count > 0 ? (
+          <>
+            {/* Egy menüre vetítve — a lényeg */}
+            <div className="rounded-2xl p-4" style={{ background: "var(--twx-coral-soft)" }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "#7a2e17" }}>Egy menüre vetítve</p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div><p className="text-xs" style={{ color: "#7a2e17" }}>Menü ára</p><p className="font-display text-lg font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(m.perMenuRevenue)}</p></div>
+                <div><p className="text-xs" style={{ color: "#7a2e17" }}>Előállítás</p><p className="font-display text-lg font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(m.perMenuCost)}</p></div>
+                <div><p className="text-xs" style={{ color: "#7a2e17" }}>Rá jutó rezsi</p><p className="font-display text-lg font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(m.perMenuOverhead)}</p></div>
+                <div><p className="text-xs" style={{ color: "#7a2e17" }}>Marad</p><p className="font-display text-lg font-semibold" style={{ color: m.perMenuProfit < 0 ? "#b5372f" : "#7a2e17" }}>{formatHuf(m.perMenuProfit)}</p></div>
+              </div>
+            </div>
+
+            <div className="twx-card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ color: "var(--twx-ink-muted)" }} className="text-left">
+                    <th className="p-3 font-medium">Menübe felhasznált étel</th>
+                    <th className="p-3 text-right font-medium">adag</th>
+                    <th className="p-3 text-right font-medium">Önktg/adag</th>
+                    <th className="p-3 text-right font-medium">Összesen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {m.dishes.map((d) => (
+                    <tr key={d.dish_id} style={{ borderTop: "1px solid var(--twx-line)" }}>
+                      <td className="p-3 font-medium">{d.name}</td>
+                      <td className="p-3 text-right">{d.qty}</td>
+                      <td className="p-3 text-right">{formatHuf(d.unitCost)}</td>
+                      <td className="p-3 text-right">{formatHuf(d.totalCost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs rögzített menü-eladás ebben az időszakban.</div>
+        )}
+      </div>
+
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-        A „teljes önköltség/adag" az alapanyag + a rá jutó időszaki rezsi egy adagra vetítve. A „fedezeti db" az a
-        darabszám, ami az ételre eső időszaki rezsit fedezi.
+        A rezsit árbevétel-arányosan osztjuk el az étlap és a menü között. A „teljes önköltség/adag" az alapanyag + a rá
+        jutó rezsi; a „fedezeti db" az a darabszám, ami az ételre eső rezsit fedezi.
       </p>
     </div>
   );

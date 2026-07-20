@@ -81,98 +81,134 @@ export function normalizeCostProfile(raw: Record<string, unknown> | null | undef
 }
 
 // --- Étel-szintű bemenet a kalkulációhoz ------------------------------------
+// Egy étel két csatornán fogyhat:
+//  - ÉTLAP: saját eladási ára van, kis szériás önköltséggel (cost_price/sale_price)
+//  - MENÜ: nincs saját ára (a napi MENÜNEK van ára), csak előállítási költsége (menu_cost_price)
 export type CostingDishInput = {
   dish_id: string;
   name: string;
   category?: string | null;
-  cost_price: number; // alapanyag/előkészítési önköltség (adag)
-  sale_price: number; // eladási ár (adag)
-  monthly_qty: number; // várható havi eladott darab
+  cost_price: number | null;      // étlapos önköltség / adag
+  sale_price: number | null;      // étlapos eladási ár / adag
+  menu_cost_price: number | null; // menüben az előállítási költség / adag
+  qty_etlap: number;              // étlapról eladott adag
+  qty_menu: number;               // menübe felhasznált adag
 };
 
-// Egy étel számított eredménye.
-export type DishCosting = {
-  dish_id: string;
-  name: string;
-  category?: string | null;
-  cost_price: number;
-  sale_price: number;
-  monthly_qty: number;
-  revenue: number;            // havi árbevétel (qty × ár)
-  ingredientCost: number;     // havi alapanyagköltség (qty × önköltség)
-  overheadShare: number;      // rá jutó havi rezsi (allokáció)
-  overheadPerUnit: number;    // rezsi / adag
-  fullUnitCost: number;       // teljes önköltség / adag (alapanyag + rezsi)
-  unitProfit: number;         // valós darab-profit (ár − teljes önköltség)
-  unitMarginPct: number;      // valós árrés %
-  monthlyProfit: number;      // havi valós profit erre az ételre
-  breakevenQty: number;       // ennyi adag fedezi a rá jutó rezsit
+// Az időszakban eladott napi menük (bevételi oldal).
+export type MenuSalesInput = { qty2: number; qty3: number; price2: number; price3: number };
+
+// Étlapos étel eredménye (saját árral → van darab-profit).
+export type EtlapDishResult = {
+  dish_id: string; name: string; category?: string | null;
+  qty: number; sale_price: number; cost_price: number;
+  revenue: number; ingredientCost: number;
+  overheadShare: number; overheadPerUnit: number;
+  fullUnitCost: number;   // alapanyag + rá jutó rezsi (adag)
+  unitProfit: number;     // valós darab-profit
+  unitMarginPct: number;
+  periodProfit: number;   // időszaki profit erre az ételre
+  breakevenQty: number;
 };
 
-export type AllocationMethod = "revenue" | "unit";
+// Menübe felhasznált étel (csak költségoldal — a bevétel a menü ára).
+export type MenuDishResult = {
+  dish_id: string; name: string; category?: string | null;
+  qty: number; unitCost: number; totalCost: number;
+};
 
 export type CostingResult = {
-  dishes: DishCosting[];
-  totals: {
-    overhead: number;         // havi összes fix költség
-    revenue: number;          // összes havi árbevétel
-    ingredientCost: number;   // összes havi alapanyagköltség
-    grossProfit: number;      // árbevétel − alapanyag (fedezet)
-    netProfit: number;        // árbevétel − alapanyag − rezsi (étterem valós profit)
-    totalQty: number;         // összes havi adag
-    coveredOverhead: number;  // a bevitt ételekre allokált rezsi összege
+  etlap: {
+    dishes: EtlapDishResult[];
+    revenue: number; ingredientCost: number; overhead: number; profit: number;
   };
-  method: AllocationMethod;
+  menu: {
+    dishes: MenuDishResult[];
+    qty2: number; qty3: number; count: number;
+    revenue: number; ingredientCost: number; overhead: number; profit: number;
+    perMenuRevenue: number;  // átlagos menü-ár
+    perMenuCost: number;     // egy menü átlagos előállítási költsége
+    perMenuOverhead: number; // egy menüre jutó rezsi
+    perMenuProfit: number;   // ennyi marad egy menün
+  };
+  totals: { overhead: number; revenue: number; ingredientCost: number; netProfit: number };
 };
 
-// Fő számítás: étel-szintű önköltség + étteremszintű rezsi-allokáció.
-// overhead: havi összes fix költség. method: "revenue" (árbevétel-arányos) v. "unit" (darab-arányos).
+// Fő számítás. A rezsit előbb a két csatorna közt osztjuk el árbevétel-arányosan,
+// az étlapon belül pedig ételenként szintén árbevétel-arányosan.
 export function computeCosting(
   dishes: CostingDishInput[],
-  overhead: number,
-  method: AllocationMethod = "revenue"
+  menuSales: MenuSalesInput,
+  overhead: number
 ): CostingResult {
-  const totalRevenue = dishes.reduce((s, d) => s + d.sale_price * d.monthly_qty, 0);
-  const totalQty = dishes.reduce((s, d) => s + d.monthly_qty, 0);
-  const totalIngredient = dishes.reduce((s, d) => s + d.cost_price * d.monthly_qty, 0);
+  // ÉTLAP oldal — csak az árazott, étlapról fogyott ételek.
+  const etlapItems = dishes.filter((d) => d.qty_etlap > 0 && d.cost_price != null && d.sale_price != null);
+  const etlapRevenue = etlapItems.reduce((s, d) => s + (d.sale_price as number) * d.qty_etlap, 0);
+  const etlapIngredient = etlapItems.reduce((s, d) => s + (d.cost_price as number) * d.qty_etlap, 0);
 
-  const out: DishCosting[] = dishes.map((d) => {
-    const revenue = d.sale_price * d.monthly_qty;
-    const ingredientCost = d.cost_price * d.monthly_qty;
-    // Allokációs súly: árbevétel-részesedés vagy darab-részesedés.
-    let weight = 0;
-    if (method === "revenue") weight = totalRevenue > 0 ? revenue / totalRevenue : 0;
-    else weight = totalQty > 0 ? d.monthly_qty / totalQty : 0;
-    const overheadShare = overhead * weight;
-    const overheadPerUnit = d.monthly_qty > 0 ? overheadShare / d.monthly_qty : 0;
-    const fullUnitCost = d.cost_price + overheadPerUnit;
-    const unitProfit = d.sale_price - fullUnitCost;
-    const unitMarginPct = d.sale_price > 0 ? (unitProfit / d.sale_price) * 100 : 0;
-    const monthlyProfit = unitProfit * d.monthly_qty;
-    // Fedezeti darab: a rá jutó rezsit hány adag fedezi (ár − alapanyag = adag-fedezet).
-    const unitContribution = d.sale_price - d.cost_price;
-    const breakevenQty = unitContribution > 0 ? Math.ceil(overheadShare / unitContribution) : 0;
+  // MENÜ oldal — a menübe felhasznált adagok költsége, bevétel a menük árából.
+  const menuItems = dishes.filter((d) => d.qty_menu > 0 && d.menu_cost_price != null);
+  const menuIngredient = menuItems.reduce((s, d) => s + (d.menu_cost_price as number) * d.qty_menu, 0);
+  const menuCount = menuSales.qty2 + menuSales.qty3;
+  const menuRevenue = menuSales.qty2 * menuSales.price2 + menuSales.qty3 * menuSales.price3;
+
+  // Rezsi szétosztása a két csatorna közt (árbevétel-arányosan).
+  const totalRevenue = etlapRevenue + menuRevenue;
+  const etlapOverhead = totalRevenue > 0 ? (overhead * etlapRevenue) / totalRevenue : 0;
+  const menuOverhead = overhead - etlapOverhead;
+
+  const etlapDishes: EtlapDishResult[] = etlapItems.map((d) => {
+    const sale = d.sale_price as number;
+    const cost = d.cost_price as number;
+    const revenue = sale * d.qty_etlap;
+    const ingredientCost = cost * d.qty_etlap;
+    const overheadShare = etlapRevenue > 0 ? (etlapOverhead * revenue) / etlapRevenue : 0;
+    const overheadPerUnit = d.qty_etlap > 0 ? overheadShare / d.qty_etlap : 0;
+    const fullUnitCost = cost + overheadPerUnit;
+    const unitProfit = sale - fullUnitCost;
+    const contribution = sale - cost;
     return {
       dish_id: d.dish_id, name: d.name, category: d.category ?? null,
-      cost_price: d.cost_price, sale_price: d.sale_price, monthly_qty: d.monthly_qty,
+      qty: d.qty_etlap, sale_price: sale, cost_price: cost,
       revenue, ingredientCost, overheadShare, overheadPerUnit,
-      fullUnitCost, unitProfit, unitMarginPct, monthlyProfit, breakevenQty,
+      fullUnitCost, unitProfit,
+      unitMarginPct: sale > 0 ? (unitProfit / sale) * 100 : 0,
+      periodProfit: unitProfit * d.qty_etlap,
+      breakevenQty: contribution > 0 ? Math.ceil(overheadShare / contribution) : 0,
     };
   });
 
-  const coveredOverhead = out.reduce((s, d) => s + d.overheadShare, 0);
+  const menuDishes: MenuDishResult[] = menuItems.map((d) => ({
+    dish_id: d.dish_id, name: d.name, category: d.category ?? null,
+    qty: d.qty_menu,
+    unitCost: d.menu_cost_price as number,
+    totalCost: (d.menu_cost_price as number) * d.qty_menu,
+  }));
+
+  const etlapProfit = etlapRevenue - etlapIngredient - etlapOverhead;
+  const menuProfit = menuRevenue - menuIngredient - menuOverhead;
+  const ingredientCost = etlapIngredient + menuIngredient;
+
   return {
-    dishes: out,
+    etlap: {
+      dishes: etlapDishes.sort((a, b) => b.periodProfit - a.periodProfit),
+      revenue: etlapRevenue, ingredientCost: etlapIngredient, overhead: etlapOverhead, profit: etlapProfit,
+    },
+    menu: {
+      dishes: menuDishes.sort((a, b) => b.totalCost - a.totalCost),
+      qty2: menuSales.qty2, qty3: menuSales.qty3, count: menuCount,
+      revenue: menuRevenue, ingredientCost: menuIngredient, overhead: menuOverhead, profit: menuProfit,
+      perMenuRevenue: menuCount > 0 ? menuRevenue / menuCount : 0,
+      perMenuCost: menuCount > 0 ? menuIngredient / menuCount : 0,
+      perMenuOverhead: menuCount > 0 ? menuOverhead / menuCount : 0,
+      perMenuProfit: menuCount > 0 ? menuProfit / menuCount : 0,
+    },
     totals: {
       overhead,
       revenue: totalRevenue,
-      ingredientCost: totalIngredient,
-      grossProfit: totalRevenue - totalIngredient,
-      netProfit: totalRevenue - totalIngredient - overhead,
-      totalQty,
-      coveredOverhead,
+      ingredientCost,
+      netProfit: totalRevenue - ingredientCost - overhead,
     },
-    method,
   };
 }
 
@@ -225,17 +261,45 @@ export function costingSummaryText(r: CostingResult, periodLabel?: string, oneTi
       `Étterem időszaki valós profit (árbevétel − alapanyag − rezsi): ${formatHuf(r.totals.netProfit)}.`
   );
   lines.push(
-    `Rezsi-allokáció módszere: ${r.method === "revenue" ? "árbevétel-arányos" : "darab-arányos"}.`
+    `A rezsit árbevétel-arányosan osztjuk el az étlap és a menü csatorna között, az étlapon belül ételenként szintén.`
   );
-  lines.push(``, `Ételenkénti bontás:`);
-  for (const d of r.dishes) {
+
+  // ÉTLAP
+  lines.push(
+    ``,
+    `ÉTLAP csatorna — árbevétel ${formatHuf(r.etlap.revenue)}, alapanyag ${formatHuf(r.etlap.ingredientCost)}, ` +
+      `rá jutó rezsi ${formatHuf(r.etlap.overhead)}, profit ${formatHuf(r.etlap.profit)}.`,
+    `Ételenként:`
+  );
+  for (const d of r.etlap.dishes) {
     lines.push(
-      `- ${d.name}: ${d.monthly_qty} db az időszakban, eladási ár ${formatHuf(d.sale_price)}, ` +
+      `- ${d.name}: ${d.qty} db étlapról, eladási ár ${formatHuf(d.sale_price)}, ` +
         `alapanyag ${formatHuf(d.cost_price)}/adag, rá jutó rezsi ${formatHuf(d.overheadPerUnit)}/adag, ` +
         `teljes önköltség ${formatHuf(d.fullUnitCost)}/adag, valós darab-profit ${formatHuf(d.unitProfit)} ` +
-        `(${Math.round(d.unitMarginPct)}% árrés), időszaki profit ${formatHuf(d.monthlyProfit)}, ` +
+        `(${Math.round(d.unitMarginPct)}% árrés), időszaki profit ${formatHuf(d.periodProfit)}, ` +
         `fedezeti darabszám ${d.breakevenQty} db.`
     );
+  }
+  if (!r.etlap.dishes.length) lines.push(`- (nincs étlapos eladás az időszakban)`);
+
+  // MENÜ
+  lines.push(
+    ``,
+    `MENÜ csatorna — ${r.menu.count} eladott napi menü (${r.menu.qty2} db 2 fogásos, ${r.menu.qty3} db 3 fogásos), ` +
+      `bevétel ${formatHuf(r.menu.revenue)}, előállítási költség ${formatHuf(r.menu.ingredientCost)}, ` +
+      `rá jutó rezsi ${formatHuf(r.menu.overhead)}, profit ${formatHuf(r.menu.profit)}.`
+  );
+  if (r.menu.count > 0) {
+    lines.push(
+      `EGY MENÜRE vetítve: átlagos ár ${formatHuf(r.menu.perMenuRevenue)}, előállítás ${formatHuf(r.menu.perMenuCost)}, ` +
+        `rezsi ${formatHuf(r.menu.perMenuOverhead)}, marad ${formatHuf(r.menu.perMenuProfit)}.`
+    );
+    lines.push(`A menükbe felhasznált ételek költsége:`);
+    for (const d of r.menu.dishes) {
+      lines.push(`- ${d.name}: ${d.qty} adag × ${formatHuf(d.unitCost)} = ${formatHuf(d.totalCost)}`);
+    }
+  } else {
+    lines.push(`- (nincs menü-eladás az időszakban)`);
   }
   return lines.join("\n");
 }
