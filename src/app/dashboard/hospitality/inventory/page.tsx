@@ -142,23 +142,30 @@ export default function InventoryPage() {
         chips={["Privát adatbázis", "Profitmarzs", "RAG-forrás"]}
       />
 
+      {/* ===== ÉTLAPOS blokk (korall színvilág) ===== */}
+      <section className="space-y-3 rounded-2xl p-4 sm:p-5" style={{ background: "rgba(239,122,90,0.05)", border: "1px solid rgba(239,122,90,0.22)" }}>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+            style={{ background: "rgba(239,122,90,0.12)", color: "#7a2e17" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M9 7h6M9 11h6M9 15h4" />
+            </svg>
+            Étlapos ételek
+          </span>
+        </div>
+        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          À la carte fogások — ezeket viszed fel ide, névvel, kategóriával és árral. A menüs ételeket lentebb, a
+          külön <b>Menüs</b> blokkban kezeled.
+        </p>
+
       {/* Új étel */}
-      <div className="twx-card overflow-hidden">
+      <div className="overflow-hidden rounded-xl" style={{ background: "#fff", border: "1px solid rgba(239,122,90,0.22)" }}>
         <button
           type="button"
           onClick={() => setAddOpen((o) => !o)}
           className="flex w-full items-center justify-between p-5 text-left"
         >
-          <span className="flex items-center gap-2">
-            <span className="font-display text-lg font-medium">Új étel felvitele</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-              style={{ background: "rgba(239,122,90,0.12)", color: "#7a2e17" }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M9 7h6M9 11h6M9 15h4" />
-              </svg>
-              Étlapra
-            </span>
-          </span>
+          <span className="font-display text-lg font-medium">Új étel felvitele</span>
           <span
             className="flex h-8 w-8 items-center justify-center rounded-full text-xl transition-transform duration-200"
             style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: addOpen ? "rotate(45deg)" : "none" }}
@@ -361,7 +368,7 @@ export default function InventoryPage() {
       {/* Ételeim — kategória-mappák (CSAK étlapos ételek) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-medium">Ételeim (étlap)</h2>
+          <h3 className="font-display text-base font-medium" style={{ color: "#7a2e17" }}>Étlapos ételeim</h3>
           {!loading && <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>{etlapDishes.length} db</span>}
         </div>
 
@@ -377,15 +384,16 @@ export default function InventoryPage() {
                 <button
                   key={c.value}
                   onClick={() => { setOpenCategory(c.value); setEditDish(null); }}
-                  className="twx-card flex flex-col items-start gap-2 p-4 text-left transition-all hover:-translate-y-0.5"
+                  className="flex flex-col items-start gap-2 rounded-2xl p-4 text-left transition-all hover:-translate-y-0.5"
+                  style={{ background: count ? "rgba(239,122,90,0.10)" : "rgba(239,122,90,0.05)", border: "1px solid rgba(239,122,90,0.22)", opacity: count ? 1 : 0.85 }}
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)" }}>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "#fff", color: "var(--twx-coral)", border: "1px solid rgba(239,122,90,0.22)" }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
                     </svg>
                   </span>
-                  <span className="font-medium">{c.label}</span>
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{count} étel</span>
+                  <span className="font-medium" style={{ color: "#7a2e17" }}>{c.label}</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{count ? `${count} étel` : "még üres"}</span>
                 </button>
               );
             })}
@@ -397,6 +405,7 @@ export default function InventoryPage() {
           </p>
         )}
       </div>
+      </section>
 
       {/* Menüs ételek — külön blokk, kötegrecepttel */}
       {!loading && (
