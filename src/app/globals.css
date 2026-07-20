@@ -120,16 +120,3 @@ body {
 /* Szándékosan NEM kapcsoljuk le az animációkat reduced-motion esetén: a landing
    élménye mindig fusson, a távoli partner böngésző-/OS-beállításától függetlenül. */
 
-/* A hero háttérvideó csak dekoráció. Ha a böngésző (Reduce Motion / autoplay-tiltás)
-   leállítja, Safari egy nagy „lejátszás" gombot tenne a videóra — ezt elrejtjük, hogy a
-   hero tiszta maradjon (poszter + animált orbok), a videó pedig interakcióra amúgy is indul. */
-.twx-hero-video::-webkit-media-controls,
-.twx-hero-video::-webkit-media-controls-start-playback-button,
-.twx-hero-video::-webkit-media-controls-play-button,
-.twx-hero-video::-webkit-media-controls-panel,
-.twx-hero-video::-webkit-media-controls-overlay-play-button {
-  display: none !important;
-  -webkit-appearance: none;
-  appearance: none;
-  opacity: 0 !important;
-}

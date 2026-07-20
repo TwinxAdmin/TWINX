@@ -61,8 +61,9 @@ export default async function LandingPage() {
             Most kép (public/design/hero-bg.jpg) bronz overlay-jel + finom Ken Burns animációval.
             Videóra cseréléshez lásd a lenti kommentet. */}
         <div className="pointer-events-none absolute inset-0" aria-hidden style={{ isolation: "isolate" }}>
-          {/* Hero VIDEÓ (public/design/hero.mp4) — kliens-komponens, megbízható auto-indítással.
-              A poszter a kép, amíg tölt / ha a böngésző blokkolja az autoplay-t. */}
+          {/* Hero háttér — animált WEBP (public/design/hero.webp). Azért nem <video>, mert
+              az autoplay-t az energiatakarékos mód / Reduce Motion leállíthatja; az animált
+              kép viszont mindig, magától fut. */}
           <HeroVideo />
           {/* Bronz overlay — meleg gradiens blend módban (twinx ráhangolás) */}
           <div
