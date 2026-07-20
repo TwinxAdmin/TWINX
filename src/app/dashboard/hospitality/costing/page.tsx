@@ -167,6 +167,8 @@ function ProfileTab({
   const [extra, setExtra] = useState<{ label: string; amount: string }[]>(
     () => (profile.extra_items ?? []).map((e) => ({ label: e.label, amount: String(e.amount) }))
   );
+  const [menu2, setMenu2] = useState(profile.menu_price_2 ? String(profile.menu_price_2) : "");
+  const [menu3, setMenu3] = useState(profile.menu_price_3 ? String(profile.menu_price_3) : "");
   const [saving, setSaving] = useState(false);
 
   // Egyszeri kiadás felvitele (kezdő dátum + időtartam → záró dátum).
@@ -225,6 +227,8 @@ function ProfileTab({
         extra_items: extra
           .map((e) => ({ label: e.label.trim(), amount: toAmount(e.amount) }))
           .filter((e) => e.label && e.amount > 0),
+        menu_price_2: toAmount(menu2),
+        menu_price_3: toAmount(menu3),
       };
       for (const f of COST_FIELDS) payload[f.key] = toAmount(vals[f.key]);
       const res = await fetch("/api/hospitality/cost-profile", {
@@ -304,6 +308,27 @@ function ProfileTab({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4" style={{ background: "var(--twx-coral-soft)" }}>
         <span className="text-sm font-medium" style={{ color: "#7a2e17" }}>Havi összes fix költség</span>
         <span className="font-display text-2xl font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(total)}</span>
+      </div>
+
+      {/* Napi menü árak — beállítás, NEM költség */}
+      <div className="twx-card space-y-3 p-4">
+        <div>
+          <h3 className="font-display text-base font-medium">Napi menü árai</h3>
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Mennyiért adod a napi menüt? Ez a <b>bevételi</b> oldal a menüknél — nem költség, ezért a fenti összegbe
+            nem számít bele. A menü <b>költsége</b> az ételek menü-előállítási költségéből jön, így naponta változhat.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">2 fogásos menü ára</span>
+            <div className="w-36 flex-none"><NumField value={menu2} onChange={setMenu2} placeholder="pl. 2500" /></div>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">3 fogásos menü ára</span>
+            <div className="w-36 flex-none"><NumField value={menu3} onChange={setMenu3} placeholder="pl. 3200" /></div>
+          </div>
+        </div>
       </div>
 
       <button

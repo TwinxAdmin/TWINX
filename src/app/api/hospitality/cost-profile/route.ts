@@ -14,7 +14,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-const SELECT = "rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, delivery_fees, other, extra_items, updated_at";
+const SELECT = "rent, wages, utilities, insurance, accounting, marketing, depreciation, bank_fees, delivery_fees, other, extra_items, menu_price_2, menu_price_3, updated_at";
 
 export async function GET() {
   const { supabase, user } = await requireUser();
@@ -43,7 +43,14 @@ export async function POST(request: Request) {
   }
 
   const profile = normalizeCostProfile(body);
-  const row: Record<string, unknown> = { user_id: user.id, extra_items: profile.extra_items, updated_at: new Date().toISOString() };
+  const row: Record<string, unknown> = {
+    user_id: user.id,
+    extra_items: profile.extra_items,
+    // Menü-árak: beállítások, nem költségtételek (a fix költség összegébe nem számítanak).
+    menu_price_2: profile.menu_price_2,
+    menu_price_3: profile.menu_price_3,
+    updated_at: new Date().toISOString(),
+  };
   for (const f of COST_FIELDS) row[f.key] = profile[f.key];
 
   const { data, error } = await supabase
