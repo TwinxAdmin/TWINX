@@ -339,26 +339,27 @@ export default function DishRecipeModal({
               <span className="text-sm font-medium" style={{ color: "#7a2e17" }}>Egy adag alapanyagköltsége</span>
               <span className="font-display text-2xl font-semibold" style={{ color: "#7a2e17" }}>{formatHuf(liveCost)}</span>
             </div>
-            <div className="flex flex-wrap justify-end gap-2">
-              <button onClick={() => setEditDish(null)} className="rounded-xl px-4 py-2 text-sm font-medium"
+            {/* Egy sorban, hogy átlátható maradjon: balra a kilépés, jobbra a három mentés. */}
+            <div className="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
+              <button onClick={() => setEditDish(null)} className="mr-auto rounded-xl px-3 py-2 text-xs font-medium"
                 style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
                 Mégse
               </button>
               <button
                 onClick={async () => { const ok = await saveRecipe(); if (ok) { showToast("Recept mentve.", "success"); setEditDish(null); } }}
                 disabled={saving}
-                className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                className="rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-60"
                 style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                {saving ? "Mentés…" : "Csak a recept mentése"}
-              </button>
-              <button onClick={() => saveAndApply("etlap")} disabled={saving}
-                className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-                Mentés + étlap-ár
+                {saving ? "Mentés…" : "Csak mentés"}
               </button>
               <button onClick={() => saveAndApply("menu")} disabled={saving}
-                className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                className="rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-60"
                 style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
                 Mentés + menü-költség
+              </button>
+              <button onClick={() => saveAndApply("etlap")} disabled={saving}
+                className="rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                Mentés + étlap-ár
               </button>
             </div>
           </div>
