@@ -7,8 +7,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import DishEditDrawer from "@/components/hospitality/DishEditDrawer";
+import RecipeCalculator from "@/components/hospitality/RecipeCalculator";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
+import type { RecipeItem } from "@/lib/recipes";
 import {
   DISH_CATEGORIES,
   PROFIT_MARGINS,
@@ -27,6 +29,9 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  // Recept-kalkulátor (opcionális segítség az önköltség kiszámolásához)
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [cuisineMode, setCuisineMode] = useState<"list" | "custom">("list");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -90,8 +95,17 @@ export default function InventoryPage() {
         showToast(data.error ?? "Nem sikerült menteni.", "error");
         return;
       }
+      // Ha a kalkulátorban recept is készült, azt az étel létrejötte után mentjük.
+      if (recipeItems.length) {
+        await fetch("/api/hospitality/recipes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dish_id: data.dish.id, items: recipeItems }),
+        }).catch(() => null);
+      }
       setDishes((prev) => [data.dish, ...prev]);
       showToast("Étel hozzáadva.", "success");
+      setRecipeItems([]);
       resetForm();
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
@@ -212,6 +226,16 @@ export default function InventoryPage() {
               <b> napi menünek</b> van ára (azt az Önköltség moduljában állítod be). Ezért itt a menühöz csak az
               <b> előállítási költséget</b> kérjük. Elég az egyik oldalt kitölteni: ha nincs menü-költség, az étel nem megy menübe.
             </div>
+
+            <button
+              type="button"
+              onClick={() => setCalcOpen(true)}
+              className="mb-3 text-sm font-medium underline"
+              style={{ color: "var(--twx-coral)" }}
+            >
+              Nem tudod fejből? Számoljuk ki az alapanyagokból
+              {recipeItems.length > 0 && ` (${recipeItems.length} alapanyag felvive)`}
+            </button>
 
             {/* ÉTLAP */}
             <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
@@ -449,6 +473,27 @@ export default function InventoryPage() {
             onDeleted={(id) => {
               removeDish(id);
               setEditDish(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Recept-kalkulátor (új étel felvitelekor) */}
+      <AnimatePresence>
+        {calcOpen && (
+          <RecipeCalculator
+            initialItems={recipeItems}
+            onClose={() => setCalcOpen(false)}
+            onApply={(cost, target, items) => {
+              setRecipeItems(items);
+              set(target === "etlap" ? "cost_price" : "menu_cost_price", String(cost));
+              setCalcOpen(false);
+              showToast(
+                target === "etlap"
+                  ? `Étlap-ár beírva: ${formatHuf(cost)}`
+                  : `Menü-költség beírva: ${formatHuf(cost)}`,
+                "success"
+              );
             }}
           />
         )}

@@ -2,11 +2,13 @@
 // Saját mentés gomb; mentés/bezárás után a panel visszabújik (AnimatePresence a szülőben).
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState, type FormEvent } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import RecipeCalculator from "@/components/hospitality/RecipeCalculator";
 import { compressImage } from "@/lib/image-compress";
 import { DISH_CATEGORIES, PROFIT_MARGINS, CUISINE_STYLES, formatHuf, type Dish } from "@/lib/hospitality";
+import type { RecipeItem } from "@/lib/recipes";
 
 export default function DishEditDrawer({
   dish,
@@ -38,6 +40,23 @@ export default function DishEditDrawer({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(dish.image_url ?? null);
   const [imageAction, setImageAction] = useState<"keep" | "new" | "remove">("keep");
+  // Recept-kalkulátor: a meglévő receptet betöltjük, hogy szerkeszthető legyen.
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/hospitality/recipes?dish_id=${dish.id}`);
+        const data = await res.json();
+        if (res.ok) {
+          setRecipeItems((data.items ?? []).map((i: RecipeItem) => ({
+            ingredient_id: i.ingredient_id, quantity: Number(i.quantity), unit: i.unit,
+          })));
+        }
+      } catch { /* recept nélkül is működik */ }
+    })();
+  }, [dish.id]);
   const [dragOver, setDragOver] = useState(false);
   const [cuisineMode, setCuisineMode] = useState<"list" | "custom">(
     dish.cuisine_style && !CUISINE_STYLES.includes(dish.cuisine_style as never) ? "custom" : "list"
@@ -74,6 +93,12 @@ export default function DishEditDrawer({
         showToast(data.error ?? "Nem sikerült menteni.", "error");
         return;
       }
+      // A recept is mentődik az étellel együtt (a kalkulátorban felvitt sorok).
+      await fetch("/api/hospitality/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dish_id: dish.id, items: recipeItems }),
+      }).catch(() => null);
       showToast("Étel módosítva.", "success");
       onSaved(data.dish);
     } catch {
@@ -167,6 +192,16 @@ export default function DishEditDrawer({
               Önköltség modulban állítod be). Elég az egyik oldalt kitölteni.
             </div>
 
+            <button
+              type="button"
+              onClick={() => setCalcOpen(true)}
+              className="mb-3 text-sm font-medium underline"
+              style={{ color: "var(--twx-coral)" }}
+            >
+              Nem tudod fejből? Számoljuk ki az alapanyagokból
+              {recipeItems.length > 0 && ` (${recipeItems.length} alapanyag)`}
+            </button>
+
             {/* ÉTLAP */}
             <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Étlap (à la carte)</p>
@@ -253,6 +288,27 @@ export default function DishEditDrawer({
             </button>
           </div>
         </form>
+
+        {/* Recept-kalkulátor */}
+        <AnimatePresence>
+          {calcOpen && (
+            <RecipeCalculator
+              initialItems={recipeItems}
+              onClose={() => setCalcOpen(false)}
+              onApply={(cost, target, items) => {
+                setRecipeItems(items);
+                set(target === "etlap" ? "cost_price" : "menu_cost_price", String(cost));
+                setCalcOpen(false);
+                showToast(
+                  target === "etlap"
+                    ? `Étlap-ár beírva: ${formatHuf(cost)}`
+                    : `Menü-költség beírva: ${formatHuf(cost)}`,
+                  "success"
+                );
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.aside>
   );
 }
