@@ -12,13 +12,34 @@ export default function HeroVideo() {
     const v = ref.current;
     if (!v) return;
     v.muted = true; // biztos, ami biztos (autoplay feltétele)
+
     const tryPlay = () => {
       const p = v.play();
       if (p && typeof p.catch === "function") p.catch(() => {});
     };
     tryPlay();
     const t = setTimeout(tryPlay, 350); // Safari néha késve engedi
-    return () => clearTimeout(t);
+
+    // Ha a böngésző/OS (pl. „Reduce Motion" vagy autoplay-tiltás) leállította a videót,
+    // az ELSŐ felhasználói interakcióra és lapváltásra újrapróbáljuk — így sosem marad
+    // állva a hero, akármi is a távoli partner beállítása.
+    const kick = () => tryPlay();
+    const opts: AddEventListenerOptions = { passive: true };
+    window.addEventListener("pointerdown", kick, opts);
+    window.addEventListener("touchstart", kick, opts);
+    window.addEventListener("scroll", kick, opts);
+    window.addEventListener("keydown", kick);
+    const onVis = () => { if (!document.hidden) tryPlay(); };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", kick);
+      window.removeEventListener("touchstart", kick);
+      window.removeEventListener("scroll", kick);
+      window.removeEventListener("keydown", kick);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   return (

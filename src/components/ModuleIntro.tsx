@@ -2,7 +2,7 @@
 // szöveg + jellemző-chipek. Egységes akcent, finom belépő + lebegő animáció.
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import ModuleIcon from "@/components/ModuleIcon";
 
 type Props = {
@@ -14,10 +14,9 @@ type Props = {
 };
 
 export default function ModuleIntro({ eyebrow, title, subtitle, icon, chips }: Props) {
-  const reduce = useReducedMotion();
   return (
     <motion.section
-      initial={{ opacity: 0, y: reduce ? 0 : 16 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="relative mb-8 overflow-hidden rounded-3xl"
@@ -63,8 +62,8 @@ export default function ModuleIntro({ eyebrow, title, subtitle, icon, chips }: P
         </div>
 
         <motion.div
-          animate={reduce ? undefined : { y: [0, -8, 0] }}
-          transition={reduce ? undefined : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           className="relative flex h-24 w-24 flex-none items-center justify-center rounded-2xl sm:h-28 sm:w-28"
           style={{
             background: "rgba(239,122,90,0.12)",

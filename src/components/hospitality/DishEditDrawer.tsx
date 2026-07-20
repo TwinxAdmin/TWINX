@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import RecipeCalculator from "@/components/hospitality/RecipeCalculator";
 import SelectField from "@/components/SelectField";
@@ -24,7 +24,6 @@ export default function DishEditDrawer({
   onSaved: (d: Dish) => void;
   onDeleted: (id: string) => void;
 }) {
-  const reduce = useReducedMotion();
   const [form, setForm] = useState({
     name: dish.name,
     description: dish.description ?? "",
@@ -110,9 +109,9 @@ export default function DishEditDrawer({
 
   return (
     <motion.aside
-      initial={{ x: reduce ? 0 : "100%" }}
+      initial={{ x: "100%" }}
       animate={{ x: 0 }}
-      exit={{ x: reduce ? 0 : "100%" }}
+      exit={{ x: "100%" }}
       transition={{ type: "spring", stiffness: 380, damping: 40 }}
       className="pointer-events-auto fixed right-0 top-0 z-[60] h-full w-[92vw] max-w-md overflow-y-auto p-6"
       style={{ background: "var(--twx-cream)", color: "var(--twx-ink)", boxShadow: "-24px 0 60px rgba(0,0,0,0.22)" }}

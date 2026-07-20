@@ -1,9 +1,8 @@
 // AnimatedNumber — felpörgő számláló + villanás változáskor (kredit-egyenleghez).
-// reduced-motion esetén azonnal a végértékre ugrik, villanás nélkül.
+// Az animáció MINDIG fut — a reduced-motion beállítást szándékosan nem figyeljük.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
 
 type Props = {
   value: number;
@@ -13,7 +12,6 @@ type Props = {
 };
 
 export default function AnimatedNumber({ value, className, duration = 800, animateOnMount = false }: Props) {
-  const reduce = useReducedMotion();
   const [display, setDisplay] = useState(animateOnMount ? 0 : value);
   const [flash, setFlash] = useState<null | "up" | "down">(null);
   const prev = useRef(animateOnMount ? 0 : value);
@@ -26,12 +24,6 @@ export default function AnimatedNumber({ value, className, duration = 800, anima
 
     setFlash(to > from ? "up" : "down");
     const flashTimer = setTimeout(() => setFlash(null), 700);
-
-    if (reduce) {
-      setDisplay(to);
-      prev.current = to;
-      return () => clearTimeout(flashTimer);
-    }
 
     const start = performance.now();
     const tick = (now: number) => {
@@ -47,7 +39,7 @@ export default function AnimatedNumber({ value, className, duration = 800, anima
       clearTimeout(flashTimer);
       if (raf.current) cancelAnimationFrame(raf.current);
     };
-  }, [value, duration, reduce]);
+  }, [value, duration]);
 
   return (
     <span
