@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
+import DateField from "@/components/DateField";
 import { showToast } from "@/components/Toast";
 import { formatHuf, categoryLabel, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
@@ -413,8 +414,7 @@ function OneTimeSection({
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mikortól</label>
-          <input type="date" value={start} onChange={(e) => setStart(e.target.value)}
-            className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          <DateField className="mt-1 w-[156px]" value={start} onChange={setStart} />
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyi időre</label>
@@ -426,8 +426,7 @@ function OneTimeSection({
         {duration === "custom" && (
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Meddig</label>
-            <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+            <DateField className="mt-1 w-[156px]" value={end} min={start} onChange={setEnd} />
           </div>
         )}
         <button onClick={add} disabled={busy}
@@ -559,13 +558,11 @@ function SalesTab({
       <div className="twx-card flex flex-wrap items-end gap-4 p-4">
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Nap / időszak kezdete</label>
-          <input type="date" value={entryStart} max={entryEnd} onChange={(e) => setEntryStart(e.target.value)}
-            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          <DateField className="mt-1 w-[156px]" value={entryStart} max={entryEnd} onChange={setEntryStart} />
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak vége</label>
-          <input type="date" value={entryEnd} min={entryStart} onChange={(e) => setEntryEnd(e.target.value)}
-            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          <DateField className="mt-1 w-[156px]" value={entryEnd} min={entryStart} onChange={setEntryEnd} />
         </div>
         <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           {single ? "Egy napra rögzítesz." : `${periodDays(entryStart, entryEnd)} napos időszakra rögzítesz.`}
@@ -997,13 +994,11 @@ function ReportTab({ priced, sales, menuSales, overhead, oneTime }: { priced: Di
       <div className="twx-card flex flex-wrap items-end gap-4 p-4">
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Induló dátum</label>
-          <input type="date" value={start} max={end} onChange={(e) => setStart(e.target.value)}
-            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          <DateField className="mt-1 w-[156px]" value={start} max={end} onChange={setStart} />
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Záró dátum</label>
-          <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
-            className="mt-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+          <DateField className="mt-1 w-[156px]" value={end} min={start} onChange={setEnd} />
         </div>
         <div className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
           {days > 0 ? (
@@ -1319,13 +1314,11 @@ function PlanTab({
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak kezdete</label>
-            <input type="date" value={start} max={end} onChange={(e) => setStart(e.target.value)}
-              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+            <DateField className="mt-1 w-[156px]" value={start} max={end} onChange={setStart} />
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Időszak vége</label>
-            <input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }} />
+            <DateField className="mt-1 w-[156px]" value={end} min={start} onChange={setEnd} />
           </div>
           <div className="w-40">
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Cél-profit (Ft)</label>
