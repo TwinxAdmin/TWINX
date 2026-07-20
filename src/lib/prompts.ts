@@ -54,6 +54,12 @@ import {
   composeSupplierPrompt,
   type SupplierQuery,
 } from "@/lib/suppliers";
+import {
+  PROFESSIONAL_DEFAULT_SEGMENTS,
+  PROFESSIONAL_DATA_BLOCK_PREVIEW,
+  composeProfessionalPrompt,
+  type ProfessionalQuery,
+} from "@/lib/professionals";
 
 export type PromptSegments = Record<string, string>;
 
@@ -248,6 +254,46 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
       },
     ],
   },
+  {
+    key: "professional_hospitality",
+    label: "Szakember-kereső (vendéglátás)",
+    dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A HR/beszerzési szakértő szerepe és a legfontosabb szabály: ne találjon ki személyt vagy elérhetőséget. Változó nem használható.",
+        default: PROFESSIONAL_DEFAULT_SEGMENTS.hospitality.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet (JSON)",
+        hint: "A kért JSON-kulcsok és a mezők tartalma. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: PROFESSIONAL_DEFAULT_SEGMENTS.hospitality.task,
+      },
+    ],
+  },
+  {
+    key: "professional_realestate",
+    label: "Szakember-kereső (ingatlan)",
+    dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "Az ingatlanpiaci szakértő szerepe és a legfontosabb szabály: ne találjon ki személyt vagy elérhetőséget, ellenőrizze a jogosultságot. Változó nem használható.",
+        default: PROFESSIONAL_DEFAULT_SEGMENTS.realestate.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet (JSON)",
+        hint: "A kért JSON-kulcsok és a mezők tartalma. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: PROFESSIONAL_DEFAULT_SEGMENTS.realestate.task,
+      },
+    ],
+  },
 ];
 
 export function getModuleDef(module: string): PromptModuleDef | undefined {
@@ -377,6 +423,12 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
 export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
   const segments = await getActiveSegments("supplier_search");
   return composeSupplierPrompt(query, segments);
+}
+
+export async function buildProfessionalPromptActive(query: ProfessionalQuery): Promise<string> {
+  const moduleKey = query.industry === "realestate" ? "professional_realestate" : "professional_hospitality";
+  const segments = await getActiveSegments(moduleKey);
+  return composeProfessionalPrompt(query, segments);
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------

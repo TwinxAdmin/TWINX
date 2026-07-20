@@ -28,6 +28,7 @@ export const CATEGORIES: Category[] = [
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization", icon: "visualization", desc: "Fotórealisztikus belsőépítészet" },
       { label: "Videó generálás", href: "/dashboard/real-estate/video", icon: "video", desc: "Profi bemutató videó a fotókból" },
       { label: "Hirdetéskészítő", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott ingatlanhirdetés" },
+      { label: "Szakember-kereső", href: "/dashboard/real-estate/professionals", icon: "pro", desc: "Közvetítő, ügyvéd, energetikus, kivitelező…" },
     ],
   },
   {
@@ -40,6 +41,7 @@ export const CATEGORIES: Category[] = [
       { label: "Kínálat kezelő", href: "/dashboard/hospitality/inventory", icon: "inventory", desc: "A saját étlap-adatbázisod" },
       { label: "Alapanyagok & receptek", href: "/dashboard/hospitality/ingredients", icon: "recipe", desc: "Beszerzési árak és adagonkénti önköltség" },
       { label: "Beszállító-kereső", href: "/dashboard/hospitality/suppliers", icon: "supplier", desc: "Termelők és nagykerek felkutatása a környékeden" },
+      { label: "Szakember-kereső", href: "/dashboard/hospitality/professionals", icon: "pro", desc: "Séf, felszolgáló, cukrász, HACCP, szerviz…" },
       { label: "Önköltség & profit", href: "/dashboard/hospitality/costing", icon: "cost", desc: "Teljes önköltség, rezsi-allokáció, megtérülés" },
       { label: "Menü generátor", href: "/dashboard/hospitality/menu", icon: "menu", desc: "AI napi/heti menü a kínálatodból" },
       { label: "Árazás elemző", href: "/dashboard/hospitality/pricing", icon: "pricing", desc: "Haszonkulcs-elemzés és ár-javaslatok" },

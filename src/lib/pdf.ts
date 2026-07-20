@@ -7,6 +7,10 @@ import fontkit from "@pdf-lib/fontkit";
 import type { CostingResult } from "@/lib/costing";
 import type { SimResult } from "@/lib/simulation";
 import { volumeLabel, type SupplierQuery, type SupplierResult } from "@/lib/suppliers";
+import {
+  professionLabel, professionsFor,
+  type Industry, type ProfessionalQuery, type ProfessionalResult,
+} from "@/lib/professionals";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -748,6 +752,176 @@ export async function generateSuppliersPdf(params: {
   }
 
   // --- lábléc ---
+  const pages = pdfDoc.getPages();
+  pages.forEach((p, i) => {
+    p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });
+    p.drawText(`Készült a TWINX-szel · ${dateStr} · az elérhetőségeket kérjük ellenőrizni`, { x: margin, y: 22, size: 8, font, color: C.muted });
+    const pn = `${i + 1} / ${pages.length}`;
+    p.drawText(pn, { x: pageW - margin - font.widthOfTextAtSize(pn, 8), y: 22, size: 8, font, color: C.muted });
+  });
+
+  return await pdfDoc.save();
+}
+
+// ===========================================================================
+// Szakember-kereső PDF (vendéglátás + ingatlan)
+// ===========================================================================
+export async function generateProfessionalsPdf(params: {
+  query: ProfessionalQuery;
+  result: ProfessionalResult;
+}): Promise<Uint8Array> {
+  const { query: q, result } = params;
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  const font = await pdfDoc.embedFont(await loadFontBytes());
+
+  const pageW = 595.28, pageH = 841.89;
+  const margin = 48;
+  const contentW = pageW - margin * 2;
+  const dateStr = new Date().toLocaleDateString("hu-HU");
+  const industry = q.industry as Industry;
+  const industryLabel = industry === "realestate" ? "Ingatlan" : "Vendéglátás";
+  const profName =
+    professionsFor(industry).find((p) => p.value === q.profession)?.label ??
+    (q.professionCustom || professionLabel(industry, q.profession));
+
+  let page: PDFPage = pdfDoc.addPage([pageW, pageH]);
+  let y = pageH;
+
+  const write = (s: string, x: number, yy: number, size: number, color = C.ink, bold = false) => {
+    page.drawText(s, { x, y: yy, size, font, color });
+    if (bold) page.drawText(s, { x: x + 0.4, y: yy, size, font, color });
+  };
+  const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink, bold = false) => {
+    write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color, bold);
+  };
+  const wrapText = (t: string, size: number, maxW: number): string[] => {
+    const out: string[] = [];
+    for (const raw of t.split(/\n/)) {
+      if (raw.trim() === "") { out.push(""); continue; }
+      const words = raw.split(/\s+/);
+      let cur = "";
+      for (const w of words) {
+        const test = cur ? `${cur} ${w}` : w;
+        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
+        else cur = test;
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
+  };
+  function newPage() { page = pdfDoc.addPage([pageW, pageH]); y = pageH - margin; }
+  const sectionTitle = (label: string) => {
+    if (y < margin + 90) newPage();
+    write(label, margin, y, 13, C.ink, true);
+    page.drawRectangle({ x: margin, y: y - 6, width: 42, height: 2.5, color: C.coral });
+    y -= 22;
+  };
+  const paragraph = (t: string, size = 9.5, color = C.ink) => {
+    for (const line of wrapText(t, size, contentW)) {
+      if (y - 14 < margin + 24) newPage();
+      if (line === "") { y -= 7; continue; }
+      write(line, margin, y - 10, size, color);
+      y -= 14;
+    }
+  };
+
+  const bandH = 84;
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: bandH, color: C.coral });
+  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: 4, color: C.coralDeep });
+  write("Szakember-kereső", margin, pageH - 40, 20, C.white, true);
+  write(`TWINX · ${industryLabel}`, margin, pageH - 60, 10, C.softWhite);
+  writeRight(dateStr, pageW - margin, pageH - 40, 10, C.white);
+  y = pageH - bandH - 26;
+
+  const area = q.radius === "orszagos" ? "országosan" : `${q.radius} km-es körzet`;
+  write(`Keresett szakma: ${profName}`, margin, y, 10, C.ink, true);
+  y -= 14;
+  write(`Terület: ${q.county}${q.city ? `, ${q.city}` : ""} (${area})`, margin, y, 9.5, C.muted);
+  y -= 24;
+
+  if (result.extras.market) {
+    const wrapped = wrapText(result.extras.market, 9, contentW - 20);
+    const boxH = 16 + wrapped.length * 13;
+    page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });
+    let by = y - 16;
+    for (const line of wrapped) { write(line, margin + 10, by, 9, C.ink); by -= 13; }
+    y -= boxH + 20;
+  }
+
+  sectionTitle(`Talált szakemberek (${result.professionals.length})`);
+
+  type CardLine = { t: string; size: number; color: ReturnType<typeof rgb>; bold?: boolean; lh: number };
+  const innerW = contentW - 24;
+
+  result.professionals.forEach((s, i) => {
+    const lines: CardLine[] = [];
+    for (const t of wrapText(`${i + 1}. ${s.name}`, 11, innerW)) {
+      lines.push({ t, size: 11, color: C.coralDeep, bold: true, lh: 15 });
+    }
+    const meta = [s.role, s.location, s.distance].filter(Boolean).join(" · ");
+    for (const t of wrapText(meta, 8.5, innerW)) lines.push({ t, size: 8.5, color: C.muted, lh: 11.5 });
+    const meta2 = [
+      s.experience ? `Tapasztalat: ${s.experience}` : "",
+      s.availability ? `Elérhető: ${s.availability}` : "",
+      s.rate ? `Díjazás: ${s.rate}` : "",
+    ].filter(Boolean).join("   ·   ");
+    if (meta2) for (const t of wrapText(meta2, 8.5, innerW)) lines.push({ t, size: 8.5, color: C.muted, lh: 11.5 });
+    if (s.why) for (const t of wrapText(`Miért illik: ${s.why}`, 9, innerW)) lines.push({ t, size: 9, color: C.ink, lh: 12.5 });
+    for (const c of [
+      s.phone ? `Tel.: ${s.phone}` : "",
+      s.email ? `E-mail: ${s.email}` : "",
+      s.website ? `Web: ${s.website}` : "",
+    ].filter(Boolean)) {
+      for (const t of wrapText(c, 9, innerW)) lines.push({ t, size: 9, color: C.ink, lh: 12.5 });
+    }
+    if (s.source) for (const t of wrapText(`Forrás: ${s.source}`, 7.5, innerW)) {
+      lines.push({ t, size: 7.5, color: C.muted, lh: 10.5 });
+    }
+
+    const padTop = 16, padBottom = 12;
+    const cardH = padTop + lines.reduce((sum, l) => sum + l.lh, 0) + padBottom;
+    if (y - cardH < margin + 40) newPage();
+
+    page.drawRectangle({ x: margin, y: y - cardH, width: contentW, height: cardH, color: C.cream, borderColor: C.line, borderWidth: 1 });
+    let cy = y - padTop;
+    for (const l of lines) {
+      write(l.t, margin + 12, cy - l.size * 0.15, l.size, l.color, l.bold);
+      cy -= l.lh;
+    }
+    y -= cardH + 12;
+  });
+
+  if (!result.professionals.length) {
+    paragraph("Ezekkel a feltételekkel nem találtunk igazolható szakembert. Próbáld tágabb körzettel vagy kevesebb szűrővel.", 10, C.muted);
+    y -= 10;
+  }
+
+  if (result.extras.outreach) {
+    const lines = wrapText(result.extras.outreach, 9.5, innerW);
+    const boxH = 18 + lines.length * 13.5 + 12;
+    if (y - (boxH + 60) < margin + 40) newPage();
+    sectionTitle("Kész megkereső üzenet");
+    write("Ezt kimásolhatod és elküldheted a kiválasztott szakembernek:", margin, y - 10, 9, C.muted);
+    y -= 22;
+
+    page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.cream, borderColor: C.line, borderWidth: 1 });
+    let oy = y - 18;
+    for (const line of lines) {
+      if (line === "") { oy -= 7; continue; }
+      write(line, margin + 12, oy, 9.5, C.ink);
+      oy -= 13.5;
+    }
+    y -= boxH + 18;
+  }
+
+  if (result.extras.tips?.length) {
+    if (y < margin + 90) newPage();
+    sectionTitle("Kiválasztási / tárgyalási tippek");
+    for (const t of result.extras.tips) paragraph(`•  ${t}`, 9.5);
+    y -= 6;
+  }
+
   const pages = pdfDoc.getPages();
   pages.forEach((p, i) => {
     p.drawRectangle({ x: margin, y: 34, width: contentW, height: 0.6, color: C.line });

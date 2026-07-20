@@ -100,6 +100,13 @@ const paths: Record<string, JSX.Element> = {
       <circle cx="17" cy="18" r="1.8" />
     </>
   ),
+  pro: (
+    <>
+      <circle cx="12" cy="8" r="3.2" />
+      <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="m18.5 4.5.8 1.7 1.8.2-1.4 1.3.4 1.8-1.6-.9-1.6.9.4-1.8-1.4-1.3 1.8-.2z" />
+    </>
+  ),
   cost: (
     <>
       <circle cx="12" cy="12" r="9" />
