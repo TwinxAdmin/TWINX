@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import SelectField from "@/components/SelectField";
 import { DISH_CATEGORIES, categoryLabel, formatHuf, type Dish } from "@/lib/hospitality";
 import {
   ENTRY_UNITS, DEFAULT_ENTRY_UNIT, INGREDIENT_UNITS, INGREDIENT_CATEGORIES,
@@ -155,12 +156,16 @@ export default function MenuDishBlock({
                 {etlapDishes.length > 0 && (
                   <div className="rounded-lg p-3" style={{ background: "rgba(239,122,90,0.06)", border: "1px solid var(--twx-line)" }}>
                     <label className="block text-sm font-medium">Étlapos ételből indulsz? (opcionális)</label>
-                    <select value={sourceId} onChange={(e) => pickSource(e.target.value)} className="twx-input mt-1">
-                      <option value="">— nem, új ételt viszek fel —</option>
-                      {etlapDishes.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name} ({categoryLabel(d.category)})</option>
-                      ))}
-                    </select>
+                    <SelectField
+                      className="mt-1 w-full"
+                      value={sourceId}
+                      onChange={pickSource}
+                      placeholder="— nem, új ételt viszek fel —"
+                      options={[
+                        { value: "", label: "— nem, új ételt viszek fel —" },
+                        ...etlapDishes.map((d) => ({ value: d.id, label: `${d.name} (${categoryLabel(d.category)})` })),
+                      ]}
+                    />
                     <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                       Átvesszük a nevét és kategóriáját. A <b>receptet nem</b> — a menüs elkészítés más (nagy széria),
                       azt itt külön adod meg.
@@ -175,9 +180,12 @@ export default function MenuDishBlock({
                   </div>
                   <div>
                     <label className="block text-sm">Kategória *</label>
-                    <select value={form.category} onChange={(e) => set("category", e.target.value)} className="twx-input mt-1">
-                      {DISH_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
+                    <SelectField
+                      className="mt-1 w-full"
+                      value={form.category}
+                      onChange={(v) => set("category", v)}
+                      options={DISH_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                    />
                     {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
                   </div>
                   <div>

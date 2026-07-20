@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import DateField from "@/components/DateField";
+import SelectField from "@/components/SelectField";
 import { showToast } from "@/components/Toast";
 import { formatHuf, categoryLabel, DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
@@ -418,10 +419,8 @@ function OneTimeSection({
         </div>
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mennyi időre</label>
-          <select value={duration} onChange={(e) => setDuration(e.target.value)}
-            className="mt-1 box-border h-[38px] rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}>
-            {OT_DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
+          <SelectField className="mt-1 w-44" value={duration} onChange={setDuration}
+            options={OT_DURATIONS.map((d) => ({ value: d.value, label: d.label }))} />
         </div>
         {duration === "custom" && (
           <div>

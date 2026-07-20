@@ -14,6 +14,7 @@ import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
 import DishRecipeModal from "@/components/hospitality/DishRecipeModal";
+import SelectField from "@/components/SelectField";
 import { DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
   INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
@@ -430,17 +431,15 @@ function CategoryModal({
                   style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
                 />
               </div>
-              <select
-                value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value as IngredientUnit })}
-                className="box-border h-[38px] rounded-lg border px-2 py-2 text-sm"
-                style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
-              >
-                {/* Csak a kategóriában értelmes egységek — plusz a sor jelenlegi értéke,
-                    hogy egy korábban máshogy rögzített tétel se essen ki a listából. */}
-                {Array.from(new Set([...ingredientCategoryUnits(category), r.unit])).map((u) => (
-                  <option key={u} value={u}>{unitLabel(u)}</option>
-                ))}
-              </select>
+              {/* Csak a kategóriában értelmes egységek — plusz a sor jelenlegi értéke,
+                  hogy egy korábban máshogy rögzített tétel se essen ki a listából. */}
+              <SelectField
+                className="w-24"
+                value={r.unit}
+                onChange={(v) => setRow(i, { unit: v as IngredientUnit })}
+                searchable={false}
+                options={Array.from(new Set([...ingredientCategoryUnits(category), r.unit])).map((u) => ({ value: u, label: unitLabel(u) }))}
+              />
               <div className="w-28">
                 <input
                   inputMode="numeric" value={r.unit_price} onChange={(e) => setRow(i, { unit_price: e.target.value })}

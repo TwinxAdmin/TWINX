@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import { showToast } from "@/components/Toast";
+import SelectField from "@/components/SelectField";
 import {
   TIMEFRAMES,
   MENU_THEMES,
@@ -216,43 +217,28 @@ export default function MenuGeneratorPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm">Időtáv</label>
-            <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className="twx-input mt-1">
-              {TIMEFRAMES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={timeframe} onChange={setTimeframe}
+              options={TIMEFRAMES.map((t) => ({ value: t.value, label: t.label }))} />
           </div>
           <div>
             <label className="block text-sm">Tematika</label>
-            <select value={theme} onChange={(e) => setTheme(e.target.value)} className="twx-input mt-1">
-              {MENU_THEMES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={theme} onChange={setTheme}
+              options={MENU_THEMES.map((t) => ({ value: t.value, label: t.label }))} />
           </div>
           <div>
             <label className="block text-sm">Profit cél</label>
-            <select value={goal} onChange={(e) => setGoal(e.target.value)} className="twx-input mt-1">
-              {PROFIT_GOALS.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={goal} onChange={setGoal}
+              options={PROFIT_GOALS.map((g) => ({ value: g.value, label: g.label }))} />
           </div>
           <div>
             <label className="block text-sm">Fogások</label>
-            <select value={courses} onChange={(e) => setCourses(e.target.value)} className="twx-input mt-1">
-              {COURSE_STRUCTURES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={courses} onChange={setCourses}
+              options={COURSE_STRUCTURES.map((c) => ({ value: c.value, label: c.label }))} />
           </div>
           <div>
             <label className="block text-sm">Változatosság</label>
-            <select value={variety} onChange={(e) => setVariety(e.target.value)} className="twx-input mt-1">
-              {VARIETY_OPTIONS.map((v) => (
-                <option key={v.value} value={v.value}>{v.label}</option>
-              ))}
-            </select>
+            <SelectField className="mt-1 w-full" value={variety} onChange={setVariety}
+              options={VARIETY_OPTIONS.map((v) => ({ value: v.value, label: v.label }))} />
           </div>
         </div>
 
@@ -367,35 +353,33 @@ export default function MenuGeneratorPage() {
                     </button>
                   </div>
                   <label className="block text-sm">Konyha (opcionális)</label>
-                  <select
+                  <SelectField
+                    className="mt-1 w-full"
                     value={cuisine}
-                    onChange={(e) => {
-                      const c = e.target.value;
+                    onChange={(c) => {
                       setDayPlan((p) => ({ ...p, [d.value]: c }));
                       setDishPlan((p) => ({ ...p, [d.value]: {} }));
                     }}
-                    className="twx-input mt-1"
-                  >
-                    <option value="">— konyha —</option>
-                    {cuisines.map((c) => (<option key={c} value={c}>{c}</option>))}
-                  </select>
+                    placeholder="— konyha —"
+                    options={[{ value: "", label: "— konyha —" }, ...cuisines.map((c) => ({ value: c, label: c }))]}
+                  />
                   <div className="mt-3 space-y-3">
                     {courseSlots.map((slot) => {
                       const opts = dishOptions(cuisine, slot.cats);
                       return (
                         <div key={slot.key}>
                           <label className="block text-sm">{slot.label}</label>
-                          <select
+                          <SelectField
+                            className="mt-1 w-full"
                             value={dishPlan[d.value]?.[slot.key] ?? ""}
-                            onChange={(e) =>
-                              setDishPlan((p) => ({ ...p, [d.value]: { ...(p[d.value] || {}), [slot.key]: e.target.value } }))
-                            }
-                            className="twx-input mt-1"
+                            onChange={(v) => setDishPlan((p) => ({ ...p, [d.value]: { ...(p[d.value] || {}), [slot.key]: v } }))}
                             disabled={opts.length === 0}
-                          >
-                            <option value="">{opts.length === 0 ? "— nincs elérhető étel —" : "— Twinx dönt —"}</option>
-                            {opts.map((name) => (<option key={name} value={name}>{name}</option>))}
-                          </select>
+                            placeholder={opts.length === 0 ? "— nincs elérhető étel —" : "— Twinx dönt —"}
+                            options={[
+                              { value: "", label: opts.length === 0 ? "— nincs elérhető étel —" : "— Twinx dönt —" },
+                              ...opts.map((name) => ({ value: name, label: name })),
+                            ]}
+                          />
                         </div>
                       );
                     })}

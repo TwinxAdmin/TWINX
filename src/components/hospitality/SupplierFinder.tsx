@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import SelectField from "@/components/SelectField";
 import { INGREDIENT_CATEGORIES } from "@/lib/recipes";
 import {
   COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES, creditsForCount,
@@ -141,16 +142,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                 className="w-20 rounded-lg border px-3 py-2 text-right text-sm"
                 style={{ borderColor: "var(--twx-line)", background: "#fff" }}
               />
-              <select value={qtyUnit} onChange={(e) => setQtyUnit(e.target.value)}
-                className="box-border h-[38px] rounded-lg border px-2 py-2 text-sm"
-                style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                {QTY_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-              </select>
-              <select value={frequency} onChange={(e) => setFrequency(e.target.value)}
-                className="box-border h-[38px] flex-1 rounded-lg border px-2 py-2 text-sm"
-                style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                {FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
+              <SelectField className="w-24" value={qtyUnit} onChange={setQtyUnit}
+                options={QTY_UNITS.map((u) => ({ value: u.value, label: u.label }))} />
+              <SelectField className="flex-1" value={frequency} onChange={setFrequency}
+                options={FREQUENCIES.map((f) => ({ value: f.value, label: f.label }))} />
             </div>
             <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
               Ebből tudjuk, kistermelő vagy nagyker illik hozzád.
@@ -161,11 +156,8 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megye</label>
-            <select value={county} onChange={(e) => setCounty(e.target.value)}
-              className="mt-1 box-border h-[38px] w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-              {COUNTIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <SelectField className="mt-1 w-full" value={county} onChange={setCounty}
+              options={COUNTIES.map((c) => ({ value: c, label: c }))} />
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Település</label>
@@ -175,11 +167,8 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Körzet</label>
-            <select value={radius} onChange={(e) => setRadius(e.target.value)}
-              className="mt-1 box-border h-[38px] w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-              {RADIUS_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
+            <SelectField className="mt-1 w-full" value={radius} onChange={setRadius}
+              options={RADIUS_OPTIONS.map((r) => ({ value: r.value, label: r.label }))} />
           </div>
         </div>
 
