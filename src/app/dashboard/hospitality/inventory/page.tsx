@@ -149,7 +149,16 @@ export default function InventoryPage() {
           onClick={() => setAddOpen((o) => !o)}
           className="flex w-full items-center justify-between p-5 text-left"
         >
-          <span className="font-display text-lg font-medium">Új étel felvitele</span>
+          <span className="flex items-center gap-2">
+            <span className="font-display text-lg font-medium">Új étel felvitele</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+              style={{ background: "rgba(239,122,90,0.12)", color: "#7a2e17" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M9 7h6M9 11h6M9 15h4" />
+              </svg>
+              Étlapra
+            </span>
+          </span>
           <span
             className="flex h-8 w-8 items-center justify-center rounded-full text-xl transition-transform duration-200"
             style={{ background: "rgba(239,122,90,0.12)", color: "var(--twx-coral)", transform: addOpen ? "rotate(45deg)" : "none" }}
