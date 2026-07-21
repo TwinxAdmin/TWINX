@@ -109,6 +109,14 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
+
+      // Pro (mélykutatás): aszinkron — elindult, a háttérben fut, lekérdezzük míg elkészül.
+      if (data.processing && data.jobId) {
+        showToast(data.charged ? `Pro keresés elindult (${data.credits} kredit). Ez akár 1–2 perc.` : "Pro keresés elindult.", "info");
+        await pollDeep(data.jobId);
+        return;
+      }
+
       setResult(data.result);
       setPdfUrl(data.pdf_url ?? null);
       if (data.search) setHistory((h) => [data.search, ...h]);
@@ -119,6 +127,34 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       setRunning(false);
     }
   };
+
+  // A Pro keresés állapotának lekérdezése, míg el nem készül (vagy hiba / időtúllépés).
+  const pollDeep = (jobId: string) => new Promise<void>((resolve) => {
+    const started = Date.now();
+    const tick = async () => {
+      try {
+        const r = await fetch(`/api/professionals/status?id=${jobId}`);
+        const d = await r.json();
+        if (d.status === "completed") {
+          setResult(d.result);
+          setPdfUrl(d.pdf_url ?? null);
+          if (d.search) setHistory((h) => [d.search, ...h]);
+          showToast("Pro keresés kész.", "success");
+          resolve(); return;
+        }
+        if (d.status === "failed") {
+          showToast(d.error ?? "A Pro keresés nem sikerült.", "error");
+          resolve(); return;
+        }
+      } catch { /* átmeneti hiba — folytatjuk a lekérdezést */ }
+      if (Date.now() - started > 5 * 60 * 1000) {
+        showToast("A Pro keresés tovább fut a háttérben — kicsit később nézd meg a korábbi kereséseidnél.", "info");
+        resolve(); return;
+      }
+      setTimeout(tick, 4000);
+    };
+    setTimeout(tick, 3000);
+  });
 
   // --- Kedvenc szakember (egyenként) ---------------------------------------
   const favSet = new Set(favs.map((f) => favKey(f.name)));
