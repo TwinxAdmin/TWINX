@@ -470,6 +470,27 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "etterem", label: "Étterem" },
       ],
     },
+    {
+      id: "csapatmeret", label: "Vezetett csapat mérete", type: "select",
+      options: [
+        { value: "kis", label: "10 fő alatt" },
+        { value: "kozepes", label: "10–30 fő" },
+        { value: "nagy", label: "30+ fő" },
+      ],
+    },
+    {
+      id: "nyitas", label: "Nyitás / rendszerépítés", type: "select",
+      options: [
+        { value: "van", label: "Új egység beindításában jártas" },
+      ],
+    },
+    {
+      id: "profit_felelosseg", label: "Árrés / profit-felelősség", type: "chips",
+      options: [
+        { value: "pl", label: "P&L / eredményfelelősség" },
+        { value: "cost_control", label: "Cost control / árrés-optimalizálás" },
+      ],
+    },
   ],
 };
 
