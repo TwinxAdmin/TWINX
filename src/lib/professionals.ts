@@ -230,6 +230,30 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "kezmuves_kenyer", label: "Kézműves kenyérsütés" },
       ],
     },
+    {
+      id: "napi_kapacitas", label: "Napi kapacitás / volumen", type: "select",
+      options: [
+        { value: "manufaktura", label: "Kis manufaktúra" },
+        { value: "kozepes", label: "Közepes üzem" },
+        { value: "nagyuzem", label: "Nagyüzemi sütés" },
+      ],
+    },
+    {
+      id: "esztetika", label: "Esztétika / díszítés szintje", type: "select",
+      options: [
+        { value: "alap", label: "Alap díszítés" },
+        { value: "kozepes", label: "Közepes (igényes)" },
+        { value: "eskuvoi", label: "Esküvői torták" },
+        { value: "showpiece", label: "Showpiece / verseny szintű" },
+      ],
+    },
+    {
+      id: "haccp_allergen", label: "HACCP / allergénkezelés rutin", type: "chips",
+      options: [
+        { value: "haccp", label: "HACCP-tudatos" },
+        { value: "allergen", label: "Allergén / mentes kezelés" },
+      ],
+    },
   ],
 };
 
