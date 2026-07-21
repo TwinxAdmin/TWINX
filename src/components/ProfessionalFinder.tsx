@@ -161,6 +161,22 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     }
   };
 
+  // Egy korábbi keresés törlése (optimista; hiba esetén visszaáll).
+  const deleteSearch = async (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Biztosan törlöd ezt a keresést?")) return;
+    const prev = history;
+    setHistory((h) => h.filter((s) => s.id !== id));
+    if (viewSearch?.id === id) setViewSearch(null);
+    try {
+      const res = await fetch(`/api/professionals?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      showToast("Keresés törölve.", "info");
+    } catch {
+      setHistory(prev);
+      showToast("Nem sikerült törölni.", "error");
+    }
+  };
+
   // --- Előzmény kategória (szakma) szerint ----------------------------------
   const norm = (v: string) => v.trim().toLowerCase();
   const labelOf = (s: SavedSearch) =>
@@ -184,6 +200,12 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) +
     " · " + new Date(iso).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
+  // Ha a nyitott szakma-mappa kiürült (pl. az utolsó keresés törlésekor), zárjuk be.
+  useEffect(() => {
+    if (openFolder && openFolder !== FAV_KEY && !categories.some((c) => c.key === openFolder)) {
+      setOpenFolder(null);
+    }
+  }, [openFolder, categories]);
 
   return (
     <section className="twx-card p-5 sm:p-6">
@@ -467,9 +489,10 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
                       <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                         {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-3">
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
                         <button onClick={() => setViewSearch(s)} className="text-sm font-medium underline" style={{ color: "var(--twx-coral)" }}>Megnyitás</button>
                         {s.pdf_url && <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>PDF</a>}
+                        <button onClick={() => deleteSearch(s.id)} className="ml-auto text-sm font-medium underline" style={{ color: "#b4442b" }}>Törlés</button>
                       </div>
                     </div>
                   ))

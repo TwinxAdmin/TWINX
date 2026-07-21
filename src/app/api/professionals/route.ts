@@ -42,6 +42,27 @@ export async function GET(request: Request) {
   return NextResponse.json({ searches: data ?? [] });
 }
 
+// Egy korábbi keresés törlése (csak a sajátunk). A tárolt PDF-et a Storage-ban
+// hagyjuk (soft-listing) — csak a listából / előzményből tűnik el.
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Hiányzó azonosító." }, { status: 400 });
+
+  const { error } = await supabase
+    .from("professional_searches")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
