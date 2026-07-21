@@ -49,7 +49,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [customCriteria, setCustomCriteria] = useState<string[]>([]); // a partner saját szempontjai
   const [customInput, setCustomInput] = useState("");
-  const [notes, setNotes] = useState("");
   const [count, setCount] = useState(3);
   const [running, setRunning] = useState(false);
 
@@ -95,7 +94,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           rate,
           details,
           customCriteria,
-          notes, count,
+          count,
         }),
       });
       const data = await res.json();
@@ -239,14 +238,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
             <SelectField className="mt-1 w-full" value={language} onChange={setLanguage}
               options={[{ value: "", label: "Mindegy" }, ...LANGUAGE_OPTIONS.map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))]} />
           </div>
-        </div>
-
-        {/* Egyedi igény */}
-        <div>
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Egyedi igény (opcionális)</label>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder={industry === "hospitality" ? "pl. rendezvény-tapasztalat, egészségügyi kiskönyv" : "pl. referencia + írásos árajánlat"}
-            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
         </div>
 
         {/* Részletes keresés — szakma szerint változó, lenyíló. MINDEN szakmánál elérhető:
