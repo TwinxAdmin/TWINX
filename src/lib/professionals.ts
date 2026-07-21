@@ -77,7 +77,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress a megadott italismeretre (koktélkeverés/mixer, csapolt/kézműves sörök, alap italok) és a hely stílusára (pörgős klub, elegáns lobby bár, látványpult/flair). Fontos a tempó, kasszakezelés, up-selling és a vendégélmény. Forrás: szakmai közösségek, versenyek (flair/mixológia), álláshirdetők, korábbi helyek." },
   { value: "barista", label: "Barista", hint: "Baristát keress a megadott kávé-stílusra (újhullámos/specialty világos pörkölés vagy klasszikus olasz sötét pörkölés) és extra tudásra (latte art, alternatív kávékészítés: V60, Aeropress). Fontos az eszpresszógép-kezelés és -karbantartás, darálóbeállítás, tempó és vendégélmény. Forrás: specialty kávézók, barista-versenyek, szakmai közösségek, álláshirdetők." },
   { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
-  { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress; fontos a személyzet-irányítás, készletgazdálkodás, adminisztráció és értékesítési szemlélet." },
+  { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress a megadott fő fókuszra (pénzügy/adminisztráció – NTAK, leltár; HR és csapatépítés; vendégkapcsolatok/front-office) és üzlettípus-rutinra (szálloda, klub/bár, kávézó, étterem). Fontos a személyzet-irányítás, készletgazdálkodás, hatósági megfelelés (NTAK), értékesítési szemlélet és eredményfelelősség. Forrás: LinkedIn, szakmai vezetői közösségek, korábbi üzletek." },
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress; fontos a hatósági megfelelés, dokumentáció és auditálási tapasztalat." },
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
@@ -447,6 +447,27 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       options: [
         { value: "porkolo", label: "Pörkölő-kapcsolat / beszerzés" },
         { value: "upsell", label: "Kávéajánlás / up-selling" },
+      ],
+    },
+  ],
+
+  // Üzletvezető
+  uzletvezeto: [
+    {
+      id: "fo_fokusz", label: "Fő fókusz", type: "chips",
+      options: [
+        { value: "penzugy", label: "Pénzügy és adminisztráció (NTAK, leltár)" },
+        { value: "hr", label: "HR és csapatépítés" },
+        { value: "vendegkapcsolat", label: "Vendégkapcsolatok (front-office vezető)" },
+      ],
+    },
+    {
+      id: "uzlettipus", label: "Üzlettípus rutin", type: "chips",
+      options: [
+        { value: "szalloda", label: "Szálloda" },
+        { value: "klub_bar", label: "Éjszakai klub / Bár" },
+        { value: "kavezo", label: "Kávézó" },
+        { value: "etterem", label: "Étterem" },
       ],
     },
   ],
