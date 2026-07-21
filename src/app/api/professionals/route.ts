@@ -18,8 +18,9 @@ import {
 } from "@/lib/professionals";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300; // a Pro (mélykutatás) mód akár 1-2 perc is lehet
 const FEATURE = "professional_search";
+const DEEP_MODEL = "sonar-deep-research";
 const BUCKET = "reports";
 
 export async function GET(request: Request) {
@@ -129,8 +130,12 @@ export async function POST(request: Request) {
   }
   const exclude = [...known].slice(0, 40);
 
+  // Pro (mélykutatás) mód: dupla kredit + legmélyebb Perplexity modell.
+  const deep = Boolean(body.deep);
+  const model = deep ? DEEP_MODEL : PERPLEXITY_MODEL;
+
   const admin = createAdminClient();
-  const credits = creditsForCount(count);
+  const credits = creditsForCount(count) * (deep ? 2 : 1);
 
   const charge = await chargeCredit({ userId: user.id, amount: credits });
   if (!charge.ok) {
@@ -144,10 +149,10 @@ export async function POST(request: Request) {
 
   try {
     const prompt = await buildProfessionalPromptActive({ ...query, exclude });
-    const raw = await runSonar(prompt, PERPLEXITY_MODEL);
+    const raw = await runSonar(prompt, model);
     await logCost({
       userId: user.id, serviceId: null, feature: FEATURE, serviceName: "perplexity",
-      units: 1, estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+      units: 1, estimatedCostUsd: perplexityCostUsd(model),
     });
     const result = parseProfessionalResponse(raw, count);
 
@@ -190,7 +195,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { industry, profession: query.profession, professionCustom: query.professionCustom, county, city: query.city, radius: query.radius, count },
+      input_data: { industry, profession: query.profession, professionCustom: query.professionCustom, county, city: query.city, radius: query.radius, count, deep },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });

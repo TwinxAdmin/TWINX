@@ -29,6 +29,9 @@ type FavPro = Professional & { id?: string; source_what?: string | null };
 const FAV_KEY = "__fav__";
 const favKey = (name: string) => name.trim().toLowerCase();
 
+// Mélymerítés (Perplexity Deep Research) arany színvilága — elkülönül a korall alapmódtól.
+const GOLD = { accent: "#b07d1e", soft: "rgba(176,125,30,0.12)", line: "rgba(176,125,30,0.35)", ink: "#6b4a10" };
+
 export default function ProfessionalFinder({ industry }: { industry: Industry }) {
   // A szakmákat ABC-sorrendben kínáljuk a legördülőben.
   const professions = [...professionsFor(industry)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
@@ -51,7 +54,9 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [customCriteria, setCustomCriteria] = useState<string[]>([]); // a partner saját szempontjai
   const [customInput, setCustomInput] = useState("");
   const [count, setCount] = useState(3);
+  const [deep, setDeep] = useState(false); // Mélymerítés (Deep Research) — dupla kredit
   const [running, setRunning] = useState(false);
+  const mult = deep ? 2 : 1; // kredit-szorzó mélymerítésnél
 
   const [result, setResult] = useState<{ professionals: Professional[]; extras: ProfessionalExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -99,6 +104,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           details,
           customCriteria,
           count,
+          deep,
         }),
       });
       const data = await res.json();
@@ -324,24 +330,49 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </AnimatePresence>
         </div>
 
-        {/* Találatszám = kredit */}
+        {/* Találatszám = kredit + Mélymerítés */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány szakembert keressünk?</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {PROFESSIONAL_PLANS.map((p) => (
-              <button key={p.count} type="button" onClick={() => setCount(p.count)}
-                className="rounded-xl px-4 py-2 text-sm font-medium transition"
-                style={count === p.count ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
-                {p.label} · {p.credits} kredit
-              </button>
-            ))}
+          <div className="mt-1 flex flex-wrap items-stretch gap-2">
+            {PROFESSIONAL_PLANS.map((p) => {
+              const on = count === p.count;
+              const sel = deep ? { background: GOLD.accent, color: "#fff" } : { background: "var(--twx-coral)", color: "#fff" };
+              return (
+                <button key={p.count} type="button" onClick={() => setCount(p.count)}
+                  className="rounded-xl px-4 py-2 text-sm font-medium transition"
+                  style={on ? sel : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
+                  {p.label} · {p.credits * mult} kredit
+                </button>
+              );
+            })}
+
+            {/* Pro verzió kapcsoló — arany, a keresést a legmélyebb kutatásra állítja */}
+            <button type="button" onClick={() => setDeep((d) => !d)}
+              className="ml-auto inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition"
+              style={deep
+                ? { background: GOLD.accent, color: "#fff" }
+                : { border: `1px solid ${GOLD.line}`, color: GOLD.ink, background: GOLD.soft }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 3 2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" />
+              </svg>
+              Pro verzió
+            </button>
           </div>
+
+          <p className="mt-2 text-xs" style={{ color: deep ? GOLD.ink : "var(--twx-ink-muted)" }}>
+            {deep
+              ? "Pro verzió BE — a Twinx a legmélyebb kutatással dolgozik: több forrás, alaposabb ellenőrzés, pontosabb találatok. A kredit ilyenkor duplázódik."
+              : "Kapcsold be a Pro verziót: a legmélyebb kutatás (több forrás, alaposabb ellenőrzés) a legjobb találatokért — dupla kreditért."}
+          </p>
         </div>
 
         <div>
           <button onClick={search} disabled={running}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-            {running ? "Keresés folyamatban…" : `Szakemberek keresése (${creditsForCount(count)} kredit)`}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            style={{ background: deep ? GOLD.accent : "var(--twx-coral)" }}>
+            {running
+              ? (deep ? "Pro keresés folyamatban… (akár 1–2 perc)" : "Keresés folyamatban…")
+              : `Szakemberek keresése (${creditsForCount(count) * mult} kredit)`}
           </button>
         </div>
 
