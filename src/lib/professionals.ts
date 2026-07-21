@@ -387,11 +387,27 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "keszletkezeles", label: "Készletkezelés / leltár rutin", type: "select",
+      options: [
+        { value: "alap", label: "Alap leltárrutin" },
+        { value: "teljes", label: "Teljes készletkezelés (bevételezés, párlat-nyilvántartás)" },
+      ],
+    },
+    {
       id: "italismeret_pult", label: "Italismeret", type: "chips",
       options: [
         { value: "koktel_mixer", label: "Koktélkeverés (Mixer)" },
         { value: "sor", label: "Csapolt / kézműves sörök" },
         { value: "alap", label: "Alap italok" },
+      ],
+    },
+    {
+      id: "kasszarendszer", label: "Kasszarendszer-ismeret", type: "chips",
+      options: [
+        { value: "hostware", label: "HostWare" },
+        { value: "rkeeper", label: "r_keeper" },
+        { value: "standmagus", label: "StandMágus" },
+        { value: "altalanos_pos", label: "Általános POS rutin" },
       ],
     },
   ],
