@@ -359,6 +359,21 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "altalanos_pos", label: "Általános POS rutin" },
       ],
     },
+    {
+      id: "protokoll", label: "Rendezvény- / protokoll-tapasztalat", type: "select",
+      options: [
+        { value: "rendezveny", label: "Rendezvény / fogadás tapasztalat" },
+        { value: "vip", label: "VIP / protokoll-tapasztalat" },
+      ],
+    },
+    {
+      id: "italismeret", label: "Borajánlás / italismeret", type: "chips",
+      options: [
+        { value: "borajanlas", label: "Borajánlás / up-selling" },
+        { value: "koktel", label: "Koktél rutin" },
+        { value: "kave", label: "Kávé / barista rutin" },
+      ],
+    },
   ],
 };
 
