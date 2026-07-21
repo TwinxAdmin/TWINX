@@ -266,6 +266,30 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "alacarte", label: "À la carte előételek" },
       ],
     },
+    {
+      id: "talalas", label: "Tálalás / dekoráció szintje", type: "select",
+      options: [
+        { value: "egyszeru", label: "Egyszerű, funkcionális" },
+        { value: "igenyes", label: "Igényes" },
+        { value: "reprezentativ", label: "Reprezentatív (fotózható) tálak" },
+      ],
+    },
+    {
+      id: "napi_volumen", label: "Napi volumen (fő)", type: "select",
+      options: [
+        { value: "kis", label: "50 fő alatt" },
+        { value: "kozepes", label: "50–150 fő" },
+        { value: "nagy", label: "150 fő felett" },
+      ],
+    },
+    {
+      id: "faragas", label: "Faragás / díszítő technikák", type: "select",
+      options: [
+        { value: "alap", label: "Alap díszítőelemek" },
+        { value: "faragas", label: "Zöldség- / gyümölcsfaragás rutin" },
+        { value: "showpiece", label: "Showpiece / jégszobor" },
+      ],
+    },
   ],
 };
 
