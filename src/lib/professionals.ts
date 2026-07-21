@@ -599,6 +599,33 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "tervezett", label: "Tervezett karbantartás" },
       ],
     },
+    {
+      id: "reagalasi_ido", label: "Reagálási idő", type: "select",
+      options: [
+        { value: "2ora", label: "2 órán belül" },
+        { value: "4ora", label: "4 órán belül" },
+        { value: "aznap", label: "Aznap" },
+        { value: "24_48", label: "24–48 órán belül" },
+      ],
+    },
+    {
+      id: "szerzodes_tipus", label: "Szerződés típusa", type: "select",
+      options: [
+        { value: "eseti", label: "Eseti (alkalmi hívás)" },
+        { value: "atalany", label: "Átalánydíjas karbantartási szerződés" },
+      ],
+    },
+    {
+      id: "marka_jogosultsag", label: "Gyártói márka-jogosultság", type: "chips",
+      options: [
+        { value: "rational", label: "Rational" },
+        { value: "electrolux", label: "Electrolux Professional" },
+        { value: "winterhalter", label: "Winterhalter" },
+        { value: "hobart", label: "Hobart" },
+        { value: "meiko", label: "Meiko" },
+        { value: "egyeb", label: "Egyéb / több márka" },
+      ],
+    },
   ],
 };
 
