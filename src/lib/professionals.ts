@@ -719,10 +719,25 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "rendezveny", label: "Rendezvény / borvacsora vezetés", type: "select",
+      options: [
+        { value: "van", label: "Van borvacsora / rendezvény vezetési tapasztalat" },
+      ],
+    },
+    {
       id: "feladatkor", label: "Feladatkör", type: "chips",
       options: [
         { value: "borlap_beszerzes", label: "Borlap összeállítása (beszerzés is)" },
         { value: "vendegteri_ajanlas", label: "Kizárólag vendégtéri ajánlás" },
+      ],
+    },
+    {
+      id: "borstilus", label: "Borstílus-fókusz", type: "chips",
+      options: [
+        { value: "magyar", label: "Magyar borvidékek" },
+        { value: "import", label: "Import borok" },
+        { value: "pezsgo", label: "Pezsgő / champagne" },
+        { value: "naturbor", label: "Natúrborok" },
       ],
     },
   ],
