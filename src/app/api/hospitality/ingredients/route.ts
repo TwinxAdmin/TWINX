@@ -5,7 +5,23 @@ import { createClient } from "@/lib/supabase/server";
 import { validateIngredient } from "@/lib/recipes";
 
 export const runtime = "nodejs";
-const SELECT = "id, name, unit, unit_price, waste_pct, category";
+const SELECT = "id, name, unit, unit_price, waste_pct, category, pack_qty, pack_price";
+
+// A "csomagos" bevitelből (mennyiség + teljes ár) számolt egységár. Ha nincs mennyiség/ár,
+// az explicit unit_price-t használjuk (kompatibilis a régi bevitellel).
+const numOrNull = (v: unknown): number | null => {
+  const s = String(v ?? "").trim().replace(",", ".");
+  if (s === "") return null;
+  const n = Number(s);
+  return isNaN(n) || n < 0 ? null : n;
+};
+function derivePricing(body: Record<string, unknown>) {
+  const packQty = numOrNull(body.pack_qty);
+  const packPrice = numOrNull(body.pack_price);
+  const unitPrice =
+    packQty != null && packQty > 0 && packPrice != null ? packPrice / packQty : num(body.unit_price);
+  return { pack_qty: packQty, pack_price: packPrice, unit_price: unitPrice };
+}
 
 async function requireUser() {
   const supabase = await createClient();
@@ -46,13 +62,16 @@ export async function POST(request: Request) {
   const err = validateIngredient(body as { name?: string; unit?: string; unit_price?: unknown });
   if (err) return NextResponse.json({ error: err }, { status: 422 });
 
+  const pricing = derivePricing(body);
   const { data, error } = await supabase
     .from("restaurant_ingredients")
     .insert({
       user_id: user.id,
       name: String(body.name).trim().slice(0, 120),
       unit: String(body.unit),
-      unit_price: num(body.unit_price),
+      unit_price: pricing.unit_price,
+      pack_qty: pricing.pack_qty,
+      pack_price: pricing.pack_price,
       waste_pct: Math.min(90, num(body.waste_pct)),
       category: String(body.category ?? "egyeb").slice(0, 30),
     })
@@ -81,12 +100,15 @@ export async function PATCH(request: Request) {
   const err = validateIngredient(body as { name?: string; unit?: string; unit_price?: unknown });
   if (err) return NextResponse.json({ error: err }, { status: 422 });
 
+  const pricing = derivePricing(body);
   const { data, error } = await supabase
     .from("restaurant_ingredients")
     .update({
       name: String(body.name).trim().slice(0, 120),
       unit: String(body.unit),
-      unit_price: num(body.unit_price),
+      unit_price: pricing.unit_price,
+      pack_qty: pricing.pack_qty,
+      pack_price: pricing.pack_price,
       waste_pct: Math.min(90, num(body.waste_pct)),
       category: String(body.category ?? "egyeb").slice(0, 30),
     })
