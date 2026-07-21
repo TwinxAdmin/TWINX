@@ -76,7 +76,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress; fontos a vendégkezelés, nyelvtudás és a felszolgálási tapasztalat típusa (à la carte, fine dining, rendezvény)." },
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress; nézd a koktél-ismeretet, kávégép-kezelést, kasszakezelést." },
   { value: "barista", label: "Barista", hint: "Baristát keress; fontos a specialty kávé ismerete, latte art, gépkezelés és karbantartás." },
-  { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress; a megbízhatóság és a terhelhetőség a legfontosabb." },
+  { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
   { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress; fontos a személyzet-irányítás, készletgazdálkodás, adminisztráció és értékesítési szemlélet." },
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress; fontos a hatósági megfelelés, dokumentáció és auditálási tapasztalat." },
@@ -288,6 +288,25 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "alap", label: "Alap díszítőelemek" },
         { value: "faragas", label: "Zöldség- / gyümölcsfaragás rutin" },
         { value: "showpiece", label: "Showpiece / jégszobor" },
+      ],
+    },
+  ],
+
+  // Konyhai kisegítő / mosogató
+  kisegito: [
+    {
+      id: "fizikai", label: "Fizikai terhelhetőség", type: "select",
+      options: [
+        { value: "normal", label: "Normál terhelés" },
+        { value: "nehez", label: "Nehéz fizikai munka bírása (pl. 50 l fazekak)" },
+      ],
+    },
+    {
+      id: "munkakor", label: "Munkakör", type: "chips",
+      options: [
+        { value: "fekete", label: "Fekete mosogató (edények / gépek)" },
+        { value: "feher", label: "Fehér mosogató (poharak / tányérok)" },
+        { value: "zoldseg", label: "Zöldségelőkészítés (pucolás, darabolás)" },
       ],
     },
   ],
