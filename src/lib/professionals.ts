@@ -302,11 +302,33 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "egeszsegugyi", label: "Egészségügyi kiskönyv", type: "select",
+      options: [
+        { value: "van", label: "Van érvényes egészségügyi kiskönyve" },
+      ],
+    },
+    {
       id: "munkakor", label: "Munkakör", type: "chips",
       options: [
         { value: "fekete", label: "Fekete mosogató (edények / gépek)" },
         { value: "feher", label: "Fehér mosogató (poharak / tányérok)" },
         { value: "zoldseg", label: "Zöldségelőkészítés (pucolás, darabolás)" },
+      ],
+    },
+    {
+      id: "muszakvallalas", label: "Műszakvállalás", type: "chips",
+      options: [
+        { value: "hajnali", label: "Hajnali" },
+        { value: "esti", label: "Esti" },
+        { value: "hetvegi", label: "Hétvégi" },
+      ],
+    },
+    {
+      id: "gepismeret", label: "Nagykonyhai gépismeret", type: "chips",
+      options: [
+        { value: "mosogatogep", label: "Ipari mosogatógép" },
+        { value: "kutter", label: "Kutter" },
+        { value: "szeletelo", label: "Szeletelő gép" },
       ],
     },
   ],
