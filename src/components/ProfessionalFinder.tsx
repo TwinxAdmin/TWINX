@@ -34,8 +34,9 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   // (egyéni alkalmazottak — később kidolgozzuk).
   const [tab, setTab] = useState<"finder" | "recruit">("finder");
 
-  // A keresőben CSAK a "finder" szakmák (online, nyilvános elérhetőségűek), ABC-sorrendben.
-  const professions = [...professionsForTrack(industry, "finder")].sort((a, b) => a.label.localeCompare(b.label, "hu"));
+  // A szakmalista a fül szerint vált: "finder" = online elérhető szolgáltatók,
+  // "recruit" = egyéni alkalmazottak (toborzás). Mindkettő teljes, részletes űrlappal.
+  const professions = [...professionsForTrack(industry, tab)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
   // Toborzás fül csak ott, ahol van egyéni (recruit) szakma — pl. vendéglátás; ingatlannál nincs.
   const hasRecruit = professionsForTrack(industry, "recruit").length > 0;
 
@@ -80,6 +81,14 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       } catch { /* előzmény nélkül is működik */ }
     })();
   }, [industry]);
+
+  // Fülváltáskor a szakma és a szűrők visszaállnak az adott track első szakmájára.
+  useEffect(() => {
+    const list = professionsForTrack(industry, tab);
+    setProfession(list[0]?.value ?? "");
+    setProfessionCustom(""); setDetails({}); setCustomCriteria([]); setCustomInput("");
+    setResult(null); setPdfUrl(null);
+  }, [tab, industry]);
 
   const isCustom = !professions.some((p) => p.value === profession);
   // Logikus elrendezés: előbb a legördülő (select) mezők, utána a kattintós (chips) mezők.
@@ -197,23 +206,12 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       </div>
       )}
 
-      {tab === "recruit" ? (
-        <div className="rounded-xl border p-6 text-center" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--twx-coral-soft)" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--twx-coral)" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" aria-hidden>
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" />
-            </svg>
-          </div>
-          <h3 className="font-display text-lg font-semibold">Toborzás — hamarosan</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Az egyéni pozíciókat (séf, szakács, cukrász, felszolgáló, pultos, barista…) nem lehet kész
-            kontaktként megtalálni az interneten — ezeket külön toborzási folyamattal oldjuk meg.
-            Ezt a felületet a következő lépésben dolgozzuk ki: hol és hogyan érd el a jelölteket,
-            célzott álláshirdetéssel és jelentkezés-kezeléssel.
-          </p>
-        </div>
-      ) : (
       <div className="space-y-4">
+        {tab === "recruit" && (
+          <div className="rounded-xl border p-3 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+            <b>Toborzás.</b> Itt egyéni munkatárs profilját állítod össze (séf, szakács, cukrász, felszolgáló, pultos, barista…) a részletes szempontokkal — pontosan azzal a szakmánkénti táblázattal, amit kidolgoztunk. A jelöltek elérésének módja és a kredit-modell még kidolgozás alatt, ezért itt egyelőre nem vonunk kreditet.
+          </div>
+        )}
         {/* Szakma */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -365,29 +363,44 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </AnimatePresence>
         </div>
 
-        {/* Találatszám = kredit */}
-        <div>
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány szakembert keressünk?</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {PROFESSIONAL_PLANS.map((p) => (
-              <button key={p.count} type="button" onClick={() => setCount(p.count)}
-                className="rounded-xl px-4 py-2 text-sm font-medium transition"
-                style={count === p.count ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
-                {p.label} · {p.credits} kredit
-              </button>
-            ))}
-          </div>
-        </div>
+        {tab === "finder" ? (
+          <>
+            {/* Találatszám = kredit */}
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány szakembert keressünk?</label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {PROFESSIONAL_PLANS.map((p) => (
+                  <button key={p.count} type="button" onClick={() => setCount(p.count)}
+                    className="rounded-xl px-4 py-2 text-sm font-medium transition"
+                    style={count === p.count ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
+                    {p.label} · {p.credits} kredit
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div>
-          <button onClick={search} disabled={running}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-            {running ? "Keresés folyamatban…" : `Szakemberek keresése (${creditsForCount(count)} kredit)`}
-          </button>
-        </div>
+            <div>
+              <button onClick={search} disabled={running}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                {running ? "Keresés folyamatban…" : `Szakemberek keresése (${creditsForCount(count)} kredit)`}
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Toborzás: a keresés/kredit-logika még kidolgozás alatt */
+          <div>
+            <button type="button" disabled
+              className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white opacity-60" style={{ background: "var(--twx-coral)" }}>
+              Toborzási keresés — hamarosan
+            </button>
+            <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              A profil összeállítása már működik. A jelöltek elérésének módját és a kredit-modellt a következő lépésben véglegesítjük.
+            </p>
+          </div>
+        )}
 
         {/* Korábbi keresések — szakma szerinti mappák + Kedvencek */}
-        {(categories.length > 0 || favs.length > 0) && (
+        {tab === "finder" && (categories.length > 0 || favs.length > 0) && (
           <div>
             <h3 className="mb-2 text-sm font-semibold">Korábbi kereséseim</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -421,7 +434,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
         )}
       </div>
-      )}
 
       {/* Felugró mappa */}
       <AnimatePresence>
