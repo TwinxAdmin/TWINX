@@ -80,7 +80,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress a megadott fő fókuszra (pénzügy/adminisztráció – NTAK, leltár; HR és csapatépítés; vendégkapcsolatok/front-office) és üzlettípus-rutinra (szálloda, klub/bár, kávézó, étterem). Fontos a személyzet-irányítás, készletgazdálkodás, hatósági megfelelés (NTAK), értékesítési szemlélet és eredményfelelősség. Forrás: LinkedIn, szakmai vezetői közösségek, korábbi üzletek." },
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
-  { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
+  { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress a megadott szoftveres integrációra (NTAK adatszolgáltatás kezelése, vendéglátós szoftver – pl. r_keeper – összekötése a könyveléssel) és kapacitásra (bérszámfejtés, készletnyilvántartás ellenőrzése). Fontos a NAV-online, felszolgálási díj, KATA/áfa és a TEÁOR-specifikus vendéglátós tapasztalat, referenciák. Forrás: könyvelőirodák, kamarai listák, ajánlások." },
   { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
   { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress a megadott gépcsoportokra (hűtéstechnika: kamrák/pultok; hőtechnika: gázos/elektromos tűzhelyek; sütőkemencék pl. Rational) és kiszállás-típusra (S.O.S. 0–24 hibaelhárítás vagy tervezett karbantartás). Fontos a gyors kiszállás, gyártói szakértelem/jogosultság, alkatrész-ellátás és karbantartási szerződés lehetősége. Forrás: szerviz-cégek, gyártói partnerlisták, ajánlások." },
   { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress a megadott területre (vendégtér napi takarítás, konyhai mélytakarítás – zsíroldás/elszívók, ablak/homlokzat) és eszköz-igényre (saját ipari gép/vegyszer vagy helyi eszközök). Fontos a higiéniai előírások ismerete, rugalmas (zárás utáni/hajnali) időbeosztás, számlaképesség és referenciák. Forrás: takarító cégek, helyi szolgáltatók, ajánlások." },
@@ -665,6 +665,24 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       options: [
         { value: "textil_mosas", label: "Asztalterítő / egyenruha mosás" },
         { value: "textil_berles", label: "Textilbérlés (terítő, egyenruha)" },
+      ],
+    },
+  ],
+
+  // Vendéglátós könyvelő
+  konyvelo: [
+    {
+      id: "szoftver_integracio", label: "Szoftveres integráció", type: "chips",
+      options: [
+        { value: "ntak", label: "NTAK adatszolgáltatás kezelése" },
+        { value: "pos_konyveles", label: "Vendéglátós szoftver (pl. r_keeper) összekötése a könyveléssel" },
+      ],
+    },
+    {
+      id: "kapacitas", label: "Kapacitás", type: "chips",
+      options: [
+        { value: "berszamfejtes", label: "Bérszámfejtést is vállal" },
+        { value: "keszletellenorzes", label: "Készletnyilvántartás ellenőrzése" },
       ],
     },
   ],
