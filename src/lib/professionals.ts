@@ -189,6 +189,26 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "menu_bufe", label: "Menü / Büfé (nagy volumen)" },
       ],
     },
+    {
+      id: "konyhastilus", label: "Konyhastílus", type: "chips",
+      options: [
+        { value: "magyaros", label: "Magyaros" },
+        { value: "olasz", label: "Olasz" },
+        { value: "azsiai", label: "Ázsiai" },
+        { value: "mediterran", label: "Mediterrán" },
+        { value: "amerikai_bbq", label: "Amerikai / BBQ" },
+        { value: "street_food", label: "Street food" },
+        { value: "nemzetkozi", label: "Nemzetközi" },
+      ],
+    },
+    {
+      id: "onallosag", label: "Önállóság szintje", type: "select",
+      options: [
+        { value: "betanitas", label: "Betanítással dolgozik" },
+        { value: "onallo_poszt", label: "Önállóan visz egy posztot" },
+        { value: "tobb_poszt", label: "Több posztot átlát / helyettesít" },
+      ],
+    },
   ],
 };
 
