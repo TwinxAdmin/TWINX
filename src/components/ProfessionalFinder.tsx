@@ -47,6 +47,8 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőben, szakma szerint változik).
   const [details, setDetails] = useState<Record<string, string | string[]>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [customCriteria, setCustomCriteria] = useState<string[]>([]); // a partner saját szempontjai
+  const [customInput, setCustomInput] = useState("");
   const [notes, setNotes] = useState("");
   const [count, setCount] = useState(3);
   const [running, setRunning] = useState(false);
@@ -92,6 +94,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           languages: language ? [language] : [],
           rate,
           details,
+          customCriteria,
           notes, count,
         }),
       });
@@ -171,7 +174,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Milyen szakembert keresel?</label>
-            <SelectField className="mt-1 w-full" value={profession} onChange={(v) => { setProfession(v); setDetails({}); }} searchable
+            <SelectField className="mt-1 w-full" value={profession} onChange={(v) => { setProfession(v); setDetails({}); setCustomCriteria([]); setCustomInput(""); }} searchable
               options={[...professions.map((p) => ({ value: p.value, label: p.label })), { value: "egyeb", label: "Egyéb (beírom)…" }]} />
             {isCustom && (
               <input value={professionCustom} onChange={(e) => setProfessionCustom(e.target.value)}
@@ -246,60 +249,85 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
         </div>
 
-        {/* Részletes keresés — szakma szerint változó, lenyíló. Csak akkor, ha a szakmához
-            van részletes szempont-készlet (szakmánként töltjük fel). */}
-        {detailFields.length > 0 && (
-          <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
-            <button type="button" onClick={() => setDetailsOpen((o) => !o)}
-              className="flex w-full items-center justify-between p-3 text-left" style={{ background: "var(--twx-coral-soft)" }}>
-              <span className="text-sm font-semibold" style={{ color: "#7a2e17" }}>
-                Részletes keresés — {professionLabel(industry, profession)}
-              </span>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full text-lg transition-transform duration-200"
-                style={{ color: "var(--twx-coral)", transform: detailsOpen ? "rotate(45deg)" : "none" }}>+</span>
-            </button>
-            <AnimatePresence initial={false}>
-              {detailsOpen && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}>
-                  <div className="space-y-3 p-3">
-                    <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      Szakmára szabott szempontok — minél többet adsz meg, annál pontosabb a találat.
-                    </p>
-                    {detailFields.map((f) => (
-                      <div key={f.id}>
-                        <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{f.label}</label>
-                        {f.type === "select" ? (
-                          <SelectField className="mt-1 w-full" value={String(details[f.id] ?? "")}
-                            onChange={(v) => setDetails((d) => ({ ...d, [f.id]: v }))}
-                            options={[{ value: "", label: "Mindegy" }, ...f.options]} />
-                        ) : (
-                          <div className="mt-1 flex flex-wrap gap-2">
-                            {f.options.map((o) => {
-                              const arr = (details[f.id] as string[]) ?? [];
-                              const on = arr.includes(o.value);
-                              return (
-                                <button key={o.value} type="button"
-                                  onClick={() => setDetails((d) => {
-                                    const cur = (d[f.id] as string[]) ?? [];
-                                    return { ...d, [f.id]: on ? cur.filter((x) => x !== o.value) : [...cur, o.value] };
-                                  })}
-                                  className="rounded-full px-3 py-1 text-xs font-medium transition"
-                                  style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
-                                  {o.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+        {/* Részletes keresés — szakma szerint változó, lenyíló. MINDEN szakmánál elérhető:
+            a szakmára szabott mezők (ha vannak) + a partner saját szempontjai. */}
+        <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+          <button type="button" onClick={() => setDetailsOpen((o) => !o)}
+            className="flex w-full items-center justify-between p-3 text-left" style={{ background: "var(--twx-coral-soft)" }}>
+            <span className="text-sm font-semibold" style={{ color: "#7a2e17" }}>
+              Részletes keresés — {isCustom ? (professionCustom || "egyéni szakma") : professionLabel(industry, profession)}
+            </span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full text-lg transition-transform duration-200"
+              style={{ color: "var(--twx-coral)", transform: detailsOpen ? "rotate(45deg)" : "none" }}>+</span>
+          </button>
+          <AnimatePresence initial={false}>
+            {detailsOpen && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}>
+                <div className="space-y-3 p-3">
+                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Szakmára szabott szempontok — minél többet adsz meg, annál pontosabb a találat.
+                  </p>
+                  {detailFields.map((f) => (
+                    <div key={f.id}>
+                      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{f.label}</label>
+                      {f.type === "select" ? (
+                        <SelectField className="mt-1 w-full" value={String(details[f.id] ?? "")}
+                          onChange={(v) => setDetails((d) => ({ ...d, [f.id]: v }))}
+                          options={[{ value: "", label: "Mindegy" }, ...f.options]} />
+                      ) : (
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {f.options.map((o) => {
+                            const arr = (details[f.id] as string[]) ?? [];
+                            const on = arr.includes(o.value);
+                            return (
+                              <button key={o.value} type="button"
+                                onClick={() => setDetails((d) => {
+                                  const cur = (d[f.id] as string[]) ?? [];
+                                  return { ...d, [f.id]: on ? cur.filter((x) => x !== o.value) : [...cur, o.value] };
+                                })}
+                                className="rounded-full px-3 py-1 text-xs font-medium transition"
+                                style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Saját szempont — bármely szakmánál hozzáadható */}
+                  <div className="border-t pt-3" style={{ borderColor: "var(--twx-line)" }}>
+                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Saját szempont hozzáadása</label>
+                    <div className="mt-1 flex gap-2">
+                      <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } } }}
+                        placeholder="pl. dolgozott már hasonló koncepciójú helyen"
+                        className="flex-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                      <button type="button"
+                        onClick={() => { const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } }}
+                        className="flex-none rounded-lg px-3 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                        Hozzáad
+                      </button>
+                    </div>
+                    {customCriteria.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {customCriteria.map((c, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs"
+                            style={{ background: "var(--twx-coral)", color: "#fff" }}>
+                            {c}
+                            <button type="button" onClick={() => setCustomCriteria((l) => l.filter((_, j) => j !== i))} aria-label="Törlés" className="text-sm leading-none">×</button>
+                          </span>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Találatszám = kredit */}
         <div>

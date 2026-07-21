@@ -296,6 +296,7 @@ export type ProfessionalQuery = {
   services?: string[];         // ingatlan
   needCredential?: boolean;    // engedély / kamarai tagság elvárt
   details?: Record<string, string | string[]>; // szakma-specifikus részletes szempontok
+  customCriteria?: string[];   // a partner saját szempontjai (bármely szakmánál)
   notes: string;
   count: number;
   exclude?: string[];
@@ -408,9 +409,11 @@ export function composeProfessionalPrompt(
 
   // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőből) — ezekre külön figyelj.
   const detailLines = formatDetails(q.profession, q.details);
-  if (detailLines.length) {
+  const custom = (q.customCriteria ?? []).map((c) => c.trim()).filter(Boolean);
+  if (detailLines.length || custom.length) {
     lines.push(`Részletes elvárások (ezeknek KIEMELTEN feleljen meg a jelölt):`);
     for (const d of detailLines) lines.push(`- ${d}`);
+    for (const c of custom) lines.push(`- ${c}`);
   }
 
   if (q.notes) lines.push(`Egyedi igény: ${q.notes}`);

@@ -102,6 +102,9 @@ export async function POST(request: Request) {
     services: industry === "realestate" ? arrFree(body.services) : undefined,
     needCredential: industry === "realestate" ? Boolean(body.needCredential) : undefined,
     details: sanitizeDetails(validProf ? profession : "egyeb", body.details),
+    customCriteria: Array.isArray(body.customCriteria)
+      ? (body.customCriteria as unknown[]).map((c) => String(c).trim().slice(0, 120)).filter(Boolean).slice(0, 10)
+      : [],
     notes: str(body.notes, 300),
     count,
   };
