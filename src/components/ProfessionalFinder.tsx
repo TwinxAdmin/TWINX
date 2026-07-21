@@ -75,7 +75,10 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   }, [industry]);
 
   const isCustom = !professions.some((p) => p.value === profession);
-  const detailFields = detailFieldsFor(profession);
+  // Logikus elrendezés: előbb a legördülő (select) mezők, utána a kattintós (chips) mezők.
+  const detailFields = [...detailFieldsFor(profession)].sort((a, b) =>
+    a.type === b.type ? 0 : a.type === "select" ? -1 : 1
+  );
 
   const search = async () => {
     if (isCustom && !professionCustom.trim()) { showToast("Add meg a keresett szakmát.", "error"); return; }
