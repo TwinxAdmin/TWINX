@@ -73,7 +73,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "szakacs", label: "Szakács", hint: "Gyakorlott szakácsot keress a megadott poszt(ok)ra (melegkonyha, hidegkonyha, grill/húsok, tészta/pizza, köret) és szerviz-típusra (à la carte pörgős rendelés vagy menü/büfé nagy volumen). Fontos a megbízhatóság, műszakbírás, tempó és a HACCP-ismeret. Forrás: álláshirdető felületek, szakmai csoportok, korábbi munkahelyek." },
   { value: "cukrasz", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress a megadott szakterületre (francia cukrászat/tányérdesszert, hagyományos sütemények, kovászos pékáru, mentes/vegán) és technológiai rutinra (fagylaltfőzés, csokoládé temperálás, kézműves kenyérsütés). Nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát, versenyeredményeket. Forrás: Instagram/portfólió, szakmai csoportok, cukrász-versenyek." },
   { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress a megadott profilra (szállodai svédasztal/reggeliztetés, rendezvény/catering tálak és falatkák, à la carte előételek). Fontos a gyorsaság, az esztétikus tálalás, a nagy volumen bírása és a HACCP-fegyelem. Forrás: álláshirdetők, szállodai/catering háttér, szakmai csoportok." },
-  { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress; fontos a vendégkezelés, nyelvtudás és a felszolgálási tapasztalat típusa (à la carte, fine dining, rendezvény)." },
+  { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress a megadott felszolgálási stílusra (tányérszerviz, francia/angol szerviz, bankett/rendezvény), kasszarendszer-ismeretre (HostWare, r_keeper, StandMágus vagy általános POS) és a hely tempójára (pörgős vs. elegáns). Fontos a vendégkezelés, ápolt megjelenés, nyelvtudás és a felszolgálási tapasztalat típusa. Forrás: álláshirdetők, szakmai csoportok, korábbi vendéglátóhelyek." },
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress; nézd a koktél-ismeretet, kávégép-kezelést, kasszakezelést." },
   { value: "barista", label: "Barista", hint: "Baristát keress; fontos a specialty kávé ismerete, latte art, gépkezelés és karbantartás." },
   { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
@@ -329,6 +329,34 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "mosogatogep", label: "Ipari mosogatógép" },
         { value: "kutter", label: "Kutter" },
         { value: "szeletelo", label: "Szeletelő gép" },
+      ],
+    },
+  ],
+
+  // Felszolgáló / pincér
+  felszolgalo: [
+    {
+      id: "munkabiras", label: "Munkabírás / hely tempója", type: "select",
+      options: [
+        { value: "porgos", label: "Nagy terasz / pörgős hely" },
+        { value: "elegans", label: "Elegáns / lassabb tempójú hely" },
+      ],
+    },
+    {
+      id: "felszolgalasi_stilus", label: "Felszolgálási stílus", type: "chips",
+      options: [
+        { value: "tanyerszerviz", label: "Tányérszerviz (klasszikus)" },
+        { value: "francia_angol", label: "Francia / Angol szerviz" },
+        { value: "bankett", label: "Bankett / Rendezvény" },
+      ],
+    },
+    {
+      id: "kasszarendszer", label: "Kasszarendszer-ismeret", type: "chips",
+      options: [
+        { value: "hostware", label: "HostWare" },
+        { value: "rkeeper", label: "r_keeper" },
+        { value: "standmagus", label: "StandMágus" },
+        { value: "altalanos_pos", label: "Általános POS rutin" },
       ],
     },
   ],
