@@ -72,7 +72,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "sef", label: "Séf / konyhafőnök", hint: "Tapasztalt séfet/konyhafőnököt keress. Nézd a korábbi éttermeket és azok színvonalát/stílusát, a vezetett brigád méretét, a menü- és étlaptervezési, valamint árukalkulációs (cost control) rutint, illetve új konyha beindításában szerzett tapasztalatot. Forrásként használd a szakmai közösségi profilokat (LinkedIn, szakmai csoportok), éttermi sajtót, díjakat/elismeréseket (pl. Gault&Millau, Michelin-említés), séf-adatbázisokat és álláshirdető felületeket. A megadott konyha-stílus, brigádméret és kiemelt kompetencia legyen a fő szűrő." },
   { value: "szakacs", label: "Szakács", hint: "Gyakorlott szakácsot keress a megadott poszt(ok)ra (melegkonyha, hidegkonyha, grill/húsok, tészta/pizza, köret) és szerviz-típusra (à la carte pörgős rendelés vagy menü/büfé nagy volumen). Fontos a megbízhatóság, műszakbírás, tempó és a HACCP-ismeret. Forrás: álláshirdető felületek, szakmai csoportok, korábbi munkahelyek." },
   { value: "cukrasz", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress a megadott szakterületre (francia cukrászat/tányérdesszert, hagyományos sütemények, kovászos pékáru, mentes/vegán) és technológiai rutinra (fagylaltfőzés, csokoládé temperálás, kézműves kenyérsütés). Nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát, versenyeredményeket. Forrás: Instagram/portfólió, szakmai csoportok, cukrász-versenyek." },
-  { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress (saláták, előételek, tálalás); fontos a gyorsaság és az esztétikus tálalás." },
+  { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress a megadott profilra (szállodai svédasztal/reggeliztetés, rendezvény/catering tálak és falatkák, à la carte előételek). Fontos a gyorsaság, az esztétikus tálalás, a nagy volumen bírása és a HACCP-fegyelem. Forrás: álláshirdetők, szállodai/catering háttér, szakmai csoportok." },
   { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress; fontos a vendégkezelés, nyelvtudás és a felszolgálási tapasztalat típusa (à la carte, fine dining, rendezvény)." },
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress; nézd a koktél-ismeretet, kávégép-kezelést, kasszakezelést." },
   { value: "barista", label: "Barista", hint: "Baristát keress; fontos a specialty kávé ismerete, latte art, gépkezelés és karbantartás." },
@@ -252,6 +252,18 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       options: [
         { value: "haccp", label: "HACCP-tudatos" },
         { value: "allergen", label: "Allergén / mentes kezelés" },
+      ],
+    },
+  ],
+
+  // Hidegkonyhás
+  hidegkonyhas: [
+    {
+      id: "profil", label: "Profil", type: "chips",
+      options: [
+        { value: "svedasztal", label: "Szállodai svédasztal (reggeliztetés)" },
+        { value: "rendezveny", label: "Rendezvény / Catering (tálak, falatkák)" },
+        { value: "alacarte", label: "À la carte előételek" },
       ],
     },
   ],
