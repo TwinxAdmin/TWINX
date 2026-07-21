@@ -29,9 +29,6 @@ type FavPro = Professional & { id?: string; source_what?: string | null };
 const FAV_KEY = "__fav__";
 const favKey = (name: string) => name.trim().toLowerCase();
 
-// Mélymerítés (Perplexity Deep Research) arany színvilága — elkülönül a korall alapmódtól.
-const GOLD = { accent: "#b07d1e", soft: "rgba(176,125,30,0.12)", line: "rgba(176,125,30,0.35)", ink: "#6b4a10" };
-
 export default function ProfessionalFinder({ industry }: { industry: Industry }) {
   // A szakmákat ABC-sorrendben kínáljuk a legördülőben.
   const professions = [...professionsFor(industry)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
@@ -54,9 +51,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [customCriteria, setCustomCriteria] = useState<string[]>([]); // a partner saját szempontjai
   const [customInput, setCustomInput] = useState("");
   const [count, setCount] = useState(3);
-  const [deep, setDeep] = useState(false); // Mélymerítés (Deep Research) — dupla kredit
   const [running, setRunning] = useState(false);
-  const mult = deep ? 2 : 1; // kredit-szorzó mélymerítésnél
 
   const [result, setResult] = useState<{ professionals: Professional[]; extras: ProfessionalExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -104,19 +99,10 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           details,
           customCriteria,
           count,
-          deep,
         }),
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
-
-      // Pro (mélykutatás): aszinkron — elindult, a háttérben fut, lekérdezzük míg elkészül.
-      if (data.processing && data.jobId) {
-        showToast(data.charged ? `Pro keresés elindult (${data.credits} kredit). Ez akár 1–2 perc.` : "Pro keresés elindult.", "info");
-        await pollDeep(data.jobId);
-        return;
-      }
-
       setResult(data.result);
       setPdfUrl(data.pdf_url ?? null);
       if (data.search) setHistory((h) => [data.search, ...h]);
@@ -127,34 +113,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       setRunning(false);
     }
   };
-
-  // A Pro keresés állapotának lekérdezése, míg el nem készül (vagy hiba / időtúllépés).
-  const pollDeep = (jobId: string) => new Promise<void>((resolve) => {
-    const started = Date.now();
-    const tick = async () => {
-      try {
-        const r = await fetch(`/api/professionals/status?id=${jobId}`);
-        const d = await r.json();
-        if (d.status === "completed") {
-          setResult(d.result);
-          setPdfUrl(d.pdf_url ?? null);
-          if (d.search) setHistory((h) => [d.search, ...h]);
-          showToast("Pro keresés kész.", "success");
-          resolve(); return;
-        }
-        if (d.status === "failed") {
-          showToast(d.error ?? "A Pro keresés nem sikerült.", "error");
-          resolve(); return;
-        }
-      } catch { /* átmeneti hiba — folytatjuk a lekérdezést */ }
-      if (Date.now() - started > 5 * 60 * 1000) {
-        showToast("A Pro keresés tovább fut a háttérben — kicsit később nézd meg a korábbi kereséseidnél.", "info");
-        resolve(); return;
-      }
-      setTimeout(tick, 4000);
-    };
-    setTimeout(tick, 3000);
-  });
 
   // --- Kedvenc szakember (egyenként) ---------------------------------------
   const favSet = new Set(favs.map((f) => favKey(f.name)));
@@ -366,49 +324,24 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </AnimatePresence>
         </div>
 
-        {/* Találatszám = kredit + Mélymerítés */}
+        {/* Találatszám = kredit */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány szakembert keressünk?</label>
-          <div className="mt-1 flex flex-wrap items-stretch gap-2">
-            {PROFESSIONAL_PLANS.map((p) => {
-              const on = count === p.count;
-              const sel = deep ? { background: GOLD.accent, color: "#fff" } : { background: "var(--twx-coral)", color: "#fff" };
-              return (
-                <button key={p.count} type="button" onClick={() => setCount(p.count)}
-                  className="rounded-xl px-4 py-2 text-sm font-medium transition"
-                  style={on ? sel : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
-                  {p.label} · {p.credits * mult} kredit
-                </button>
-              );
-            })}
-
-            {/* Pro verzió kapcsoló — arany, a keresést a legmélyebb kutatásra állítja */}
-            <button type="button" onClick={() => setDeep((d) => !d)}
-              className="ml-auto inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition"
-              style={deep
-                ? { background: GOLD.accent, color: "#fff" }
-                : { border: `1px solid ${GOLD.line}`, color: GOLD.ink, background: GOLD.soft }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m12 3 2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" />
-              </svg>
-              Pro verzió
-            </button>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {PROFESSIONAL_PLANS.map((p) => (
+              <button key={p.count} type="button" onClick={() => setCount(p.count)}
+                className="rounded-xl px-4 py-2 text-sm font-medium transition"
+                style={count === p.count ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
+                {p.label} · {p.credits} kredit
+              </button>
+            ))}
           </div>
-
-          <p className="mt-2 text-xs" style={{ color: deep ? GOLD.ink : "var(--twx-ink-muted)" }}>
-            {deep
-              ? "Pro verzió BE — a Twinx a legmélyebb kutatással dolgozik: több forrás, alaposabb ellenőrzés, pontosabb találatok. A kredit ilyenkor duplázódik."
-              : "Kapcsold be a Pro verziót: a legmélyebb kutatás (több forrás, alaposabb ellenőrzés) a legjobb találatokért — dupla kreditért."}
-          </p>
         </div>
 
         <div>
           <button onClick={search} disabled={running}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            style={{ background: deep ? GOLD.accent : "var(--twx-coral)" }}>
-            {running
-              ? (deep ? "Pro keresés folyamatban… (akár 1–2 perc)" : "Keresés folyamatban…")
-              : `Szakemberek keresése (${creditsForCount(count) * mult} kredit)`}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+            {running ? "Keresés folyamatban…" : `Szakemberek keresése (${creditsForCount(count)} kredit)`}
           </button>
         </div>
 

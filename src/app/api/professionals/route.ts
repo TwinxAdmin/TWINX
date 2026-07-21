@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
-import { runSonar, submitSonarAsync, PERPLEXITY_MODEL } from "@/lib/perplexity";
+import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildProfessionalPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { generateProfessionalsPdf } from "@/lib/pdf";
@@ -18,9 +18,8 @@ import {
 } from "@/lib/professionals";
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // a Pro (mélykutatás) mód akár 1-2 perc is lehet
+export const maxDuration = 60;
 const FEATURE = "professional_search";
-const DEEP_MODEL = "sonar-deep-research";
 const BUCKET = "reports";
 
 export async function GET(request: Request) {
@@ -34,7 +33,6 @@ export async function GET(request: Request) {
   let q = supabase
     .from("professional_searches")
     .select("id, industry, query, results, extras, pdf_url, credits_charged, created_at")
-    .eq("status", "completed") // a Pro-keresés folyamatban/hibás sorai ne jelenjenek meg az előzményben
     .order("created_at", { ascending: false })
     .limit(60);
   if (industry) q = q.eq("industry", industry);
@@ -131,12 +129,8 @@ export async function POST(request: Request) {
   }
   const exclude = [...known].slice(0, 40);
 
-  // Pro (mélykutatás) mód: dupla kredit + legmélyebb Perplexity modell.
-  const deep = Boolean(body.deep);
-  const model = deep ? DEEP_MODEL : PERPLEXITY_MODEL;
-
   const admin = createAdminClient();
-  const credits = creditsForCount(count) * (deep ? 2 : 1);
+  const credits = creditsForCount(count);
 
   const charge = await chargeCredit({ userId: user.id, amount: credits });
   if (!charge.ok) {
@@ -150,42 +144,10 @@ export async function POST(request: Request) {
 
   try {
     const prompt = await buildProfessionalPromptActive({ ...query, exclude });
-
-    // PRO (mélykutatás): ASZINKRON — a Deep Research percekig futhat, ezért nem várjuk meg
-    // a HTTP-kérésben (Vercel timeout ellen). Beküldjük, 'processing' sorként elmentjük, a
-    // kliens a /status végponton lekérdezi, míg el nem készül.
-    if (deep) {
-      const requestId = await submitSonarAsync(prompt, DEEP_MODEL);
-      await logCost({
-        userId: user.id, serviceId: null, feature: FEATURE, serviceName: "perplexity",
-        units: 1, estimatedCostUsd: perplexityCostUsd(DEEP_MODEL),
-      });
-      const { data: job, error: jobErr } = await supabase
-        .from("professional_searches")
-        .insert({
-          user_id: user.id,
-          industry,
-          query,
-          results: [],
-          extras: {},
-          pdf_url: null,
-          credits_charged: charge.bypassed ? 0 : credits,
-          status: "processing",
-          pplx_request_id: requestId,
-        })
-        .select("id")
-        .single();
-      if (jobErr) throw new Error(jobErr.message);
-      return NextResponse.json({
-        ok: true, deep: true, processing: true, jobId: job.id,
-        charged: !charge.bypassed, credits: charge.bypassed ? 0 : credits,
-      });
-    }
-
-    const raw = await runSonar(prompt, model);
+    const raw = await runSonar(prompt, PERPLEXITY_MODEL);
     await logCost({
       userId: user.id, serviceId: null, feature: FEATURE, serviceName: "perplexity",
-      units: 1, estimatedCostUsd: perplexityCostUsd(model),
+      units: 1, estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
     });
     const result = parseProfessionalResponse(raw, count);
 
@@ -228,7 +190,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { industry, profession: query.profession, professionCustom: query.professionCustom, county, city: query.city, radius: query.radius, count, deep },
+      input_data: { industry, profession: query.profession, professionCustom: query.professionCustom, county, city: query.city, radius: query.radius, count },
       output_file_url: pdfUrl,
       credits_charged: charge.bypassed ? 0 : credits,
     });
