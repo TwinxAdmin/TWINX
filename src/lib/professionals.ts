@@ -79,7 +79,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
   { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress a megadott fő fókuszra (pénzügy/adminisztráció – NTAK, leltár; HR és csapatépítés; vendégkapcsolatok/front-office) és üzlettípus-rutinra (szálloda, klub/bár, kávézó, étterem). Fontos a személyzet-irányítás, készletgazdálkodás, hatósági megfelelés (NTAK), értékesítési szemlélet és eredményfelelősség. Forrás: LinkedIn, szakmai vezetői közösségek, korábbi üzletek." },
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
-  { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress; fontos a hatósági megfelelés, dokumentáció és auditálási tapasztalat." },
+  { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
   { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress; nézd a közösségimédia-kezelést, ételfotózást, kampány-referenciákat." },
   { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress; fontos a gyors kiszállás, gyártói szakértelem, karbantartási szerződés lehetősége." },
@@ -489,6 +489,18 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       options: [
         { value: "pl", label: "P&L / eredményfelelősség" },
         { value: "cost_control", label: "Cost control / árrés-optimalizálás" },
+      ],
+    },
+  ],
+
+  // HACCP / élelmiszerbiztonsági tanácsadó
+  haccp: [
+    {
+      id: "szolgaltatas", label: "Szolgáltatás típusa", type: "chips",
+      options: [
+        { value: "kiepites", label: "Új üzlet HACCP kiépítése" },
+        { value: "audit", label: "Eseti audit / ellenőrzés" },
+        { value: "felugyelet", label: "Havi folyamatos felügyelet" },
       ],
     },
   ],
