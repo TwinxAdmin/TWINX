@@ -638,11 +638,34 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "gyakorisag", label: "Gyakoriság", type: "select",
+      options: [
+        { value: "napi", label: "Napi" },
+        { value: "heti", label: "Heti" },
+        { value: "eseti", label: "Eseti nagytakarítás" },
+      ],
+    },
+    {
+      id: "idoablak", label: "Időablak", type: "select",
+      options: [
+        { value: "zaras_utan", label: "Zárás utáni" },
+        { value: "hajnali", label: "Hajnali / nyitás előtti" },
+        { value: "rugalmas", label: "Rugalmas" },
+      ],
+    },
+    {
       id: "terulet", label: "Terület", type: "chips",
       options: [
         { value: "vendegter", label: "Vendégtér (napi takarítás)" },
         { value: "melytakaritas", label: "Konyhai mélytakarítás (zsíroldás, elszívók)" },
         { value: "ablak_homlokzat", label: "Ablak / Homlokzat" },
+      ],
+    },
+    {
+      id: "mosoda", label: "Mosodai szolgáltatás", type: "chips",
+      options: [
+        { value: "textil_mosas", label: "Asztalterítő / egyenruha mosás" },
+        { value: "textil_berles", label: "Textilbérlés (terítő, egyenruha)" },
       ],
     },
   ],
