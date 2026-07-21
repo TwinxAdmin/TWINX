@@ -539,10 +539,34 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "dijazas_modell", label: "Elszámolás / díjazás modell", type: "select",
+      options: [
+        { value: "havidij", label: "Havidíj (retainer)" },
+        { value: "projekt", label: "Projekt / egyszeri" },
+        { value: "sikerdij", label: "Sikerdíj / teljesítményalapú" },
+      ],
+    },
+    {
       id: "platform", label: "Platform fókusz", type: "chips",
       options: [
         { value: "social", label: "TikTok / Instagram (vizuális)" },
         { value: "reputacio", label: "TripAdvisor / Google (reputációkezelés)" },
+      ],
+    },
+    {
+      id: "fizetett_hirdetes", label: "Fizetett hirdetés kezelése", type: "chips",
+      options: [
+        { value: "meta_ads", label: "Meta Ads (Facebook / Instagram)" },
+        { value: "google_ads", label: "Google Ads" },
+      ],
+    },
+    {
+      id: "etterem_spec", label: "Étterem-specializáció", type: "chips",
+      options: [
+        { value: "fine_dining", label: "Fine dining" },
+        { value: "bisztro", label: "Bisztró" },
+        { value: "kavezo", label: "Kávézó" },
+        { value: "gyors_street", label: "Gyorsétterem / street food" },
       ],
     },
   ],
