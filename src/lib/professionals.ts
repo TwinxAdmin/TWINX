@@ -153,6 +153,21 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "rendszerepites", label: "Rendszerépítés (új konyha nyitása)" },
       ],
     },
+    {
+      id: "vendegszam", label: "Napi vendégszám / kapacitás", type: "select",
+      options: [
+        { value: "kis", label: "50 fő alatt" },
+        { value: "kozepes", label: "50–150 fő" },
+        { value: "nagy", label: "150 fő felett" },
+      ],
+    },
+    {
+      id: "catering", label: "Rendezvény- és catering-tapasztalat", type: "select",
+      options: [
+        { value: "alkalmi", label: "Alkalmi rendezvények" },
+        { value: "rendszeres", label: "Rendszeres catering / nagy rendezvények" },
+      ],
+    },
   ],
 };
 
