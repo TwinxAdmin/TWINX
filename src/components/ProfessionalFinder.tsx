@@ -11,7 +11,7 @@ import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
   AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, RATE_PERIODS, ratePeriodLabel, PROFESSIONAL_PLANS,
   detailFieldsFor,
-  professionsFor, professionLabel, creditsForCount,
+  professionsForTrack, professionLabel, creditsForCount,
   type Industry, type Professional, type ProfessionalExtras,
 } from "@/lib/professionals";
 
@@ -30,8 +30,14 @@ const FAV_KEY = "__fav__";
 const favKey = (name: string) => name.trim().toLowerCase();
 
 export default function ProfessionalFinder({ industry }: { industry: Industry }) {
-  // A szakmákat ABC-sorrendben kínáljuk a legördülőben.
-  const professions = [...professionsFor(industry)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
+  // Két fő mód: "finder" = online elérhető szolgáltatók keresése; "recruit" = toborzás
+  // (egyéni alkalmazottak — később kidolgozzuk).
+  const [tab, setTab] = useState<"finder" | "recruit">("finder");
+
+  // A keresőben CSAK a "finder" szakmák (online, nyilvános elérhetőségűek), ABC-sorrendben.
+  const professions = [...professionsForTrack(industry, "finder")].sort((a, b) => a.label.localeCompare(b.label, "hu"));
+  // Toborzás fül csak ott, ahol van egyéni (recruit) szakma — pl. vendéglátás; ingatlannál nincs.
+  const hasRecruit = professionsForTrack(industry, "recruit").length > 0;
 
   const [profession, setProfession] = useState(professions[0]?.value ?? "");
   const [professionCustom, setProfessionCustom] = useState("");
@@ -172,6 +178,41 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
 
   return (
     <section className="twx-card p-5 sm:p-6">
+      {/* Fő módválasztó: Szakember-kereső vs. Toborzás (csak ahol van egyéni szakma) */}
+      {hasRecruit && (
+      <div className="mb-5 flex gap-2 rounded-xl p-1" style={{ background: "var(--twx-coral-soft)" }}>
+        {[
+          { id: "finder" as const, label: "Szakember-kereső", desc: "Online elérhető szolgáltatók" },
+          { id: "recruit" as const, label: "Toborzás", desc: "Egyéni alkalmazottak" },
+        ].map((t) => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            className="flex-1 rounded-lg px-3 py-2 text-center transition"
+            style={tab === t.id
+              ? { background: "#fff", boxShadow: "0 1px 4px rgba(20,12,8,0.12)" }
+              : { background: "transparent" }}>
+            <span className="block text-sm font-semibold" style={{ color: tab === t.id ? "var(--twx-coral)" : "#7a2e17" }}>{t.label}</span>
+            <span className="block text-[11px]" style={{ color: "#7a2e17", opacity: 0.75 }}>{t.desc}</span>
+          </button>
+        ))}
+      </div>
+      )}
+
+      {tab === "recruit" ? (
+        <div className="rounded-xl border p-6 text-center" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--twx-coral-soft)" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--twx-coral)" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" aria-hidden>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M22 11h-6" />
+            </svg>
+          </div>
+          <h3 className="font-display text-lg font-semibold">Toborzás — hamarosan</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Az egyéni pozíciókat (séf, szakács, cukrász, felszolgáló, pultos, barista…) nem lehet kész
+            kontaktként megtalálni az interneten — ezeket külön toborzási folyamattal oldjuk meg.
+            Ezt a felületet a következő lépésben dolgozzuk ki: hol és hogyan érd el a jelölteket,
+            célzott álláshirdetéssel és jelentkezés-kezeléssel.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-4">
         {/* Szakma */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -380,6 +421,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
         )}
       </div>
+      )}
 
       {/* Felugró mappa */}
       <AnimatePresence>
@@ -430,7 +472,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       </AnimatePresence>
 
       {/* Friss találatok */}
-      {result && (
+      {tab === "finder" && result && (
         <div className="mt-6">
           <ResultBody result={result} pdfUrl={pdfUrl} isFav={isFav} onToggleFav={(s) => toggleFav(s, isCustom ? professionCustom : professionLabel(industry, profession))} />
         </div>
