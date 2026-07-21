@@ -422,10 +422,31 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "volumen", label: "Volumen / tempó", type: "select",
+      options: [
+        { value: "alap", label: "Alap forgalom" },
+        { value: "rush", label: "Reggeli rush / nagy forgalom bírása" },
+      ],
+    },
+    {
       id: "extra_tudas", label: "Extra tudás", type: "chips",
       options: [
         { value: "latte_art", label: "Latte art (tejhab minták)" },
         { value: "alternativ", label: "Alternatív kávékészítés (V60, Aeropress)" },
+      ],
+    },
+    {
+      id: "sca_verseny", label: "Képzés / versenytapasztalat", type: "chips",
+      options: [
+        { value: "sca", label: "SCA / barista képzés" },
+        { value: "verseny", label: "Versenytapasztalat" },
+      ],
+    },
+    {
+      id: "alapanyag", label: "Alapanyag-ismeret", type: "chips",
+      options: [
+        { value: "porkolo", label: "Pörkölő-kapcsolat / beszerzés" },
+        { value: "upsell", label: "Kávéajánlás / up-selling" },
       ],
     },
   ],
