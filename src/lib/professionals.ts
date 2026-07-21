@@ -78,7 +78,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "barista", label: "Barista", hint: "Baristát keress a megadott kávé-stílusra (újhullámos/specialty világos pörkölés vagy klasszikus olasz sötét pörkölés) és extra tudásra (latte art, alternatív kávékészítés: V60, Aeropress). Fontos az eszpresszógép-kezelés és -karbantartás, darálóbeállítás, tempó és vendégélmény. Forrás: specialty kávézók, barista-versenyek, szakmai közösségek, álláshirdetők." },
   { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
   { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress a megadott fő fókuszra (pénzügy/adminisztráció – NTAK, leltár; HR és csapatépítés; vendégkapcsolatok/front-office) és üzlettípus-rutinra (szálloda, klub/bár, kávézó, étterem). Fontos a személyzet-irányítás, készletgazdálkodás, hatósági megfelelés (NTAK), értékesítési szemlélet és eredményfelelősség. Forrás: LinkedIn, szakmai vezetői közösségek, korábbi üzletek." },
-  { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
+  { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress a megadott végzettségre/szintre (WSET diplomás vagy tapasztalati úton szerzett alap borismeret) és feladatkörre (borlap összeállítása beszerzéssel együtt, vagy kizárólag vendégtéri ajánlás). Fontos a borismeret, párosítási készség, pincészeti kapcsolatok, esetleges versenyeredmények. Forrás: WSET/sommelier közösségek, borversenyek, korábbi éttermek." },
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress a megadott szoftveres integrációra (NTAK adatszolgáltatás kezelése, vendéglátós szoftver – pl. r_keeper – összekötése a könyveléssel) és kapacitásra (bérszámfejtés, készletnyilvántartás ellenőrzése). Fontos a NAV-online, felszolgálási díj, KATA/áfa és a TEÁOR-specifikus vendéglátós tapasztalat, referenciák. Forrás: könyvelőirodák, kamarai listák, ajánlások." },
   { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
@@ -705,6 +705,24 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       options: [
         { value: "adooptimalizalas", label: "Adóoptimalizálás" },
         { value: "penzugyi_strategia", label: "Pénzügyi stratégia / tanácsadás" },
+      ],
+    },
+  ],
+
+  // Sommelier
+  sommelier: [
+    {
+      id: "vegzettseg", label: "Végzettség / Szint", type: "select",
+      options: [
+        { value: "wset", label: "WSET diplomás" },
+        { value: "alap", label: "Alap borismeret (tapasztalati úton)" },
+      ],
+    },
+    {
+      id: "feladatkor", label: "Feladatkör", type: "chips",
+      options: [
+        { value: "borlap_beszerzes", label: "Borlap összeállítása (beszerzés is)" },
+        { value: "vendegteri_ajanlas", label: "Kizárólag vendégtéri ajánlás" },
       ],
     },
   ],
