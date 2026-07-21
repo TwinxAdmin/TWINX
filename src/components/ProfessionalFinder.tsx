@@ -9,7 +9,7 @@ import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
 import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
-  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, PROFESSIONAL_PLANS,
+  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, RATE_PERIODS, ratePeriodLabel, PROFESSIONAL_PLANS,
   HOSPITALITY_STYLES, HOSPITALITY_SHIFTS, REALESTATE_PROPERTY_TYPES, REALESTATE_SERVICES,
   professionsFor, professionLabel, creditsForCount,
   type Industry, type Professional, type ProfessionalExtras,
@@ -38,15 +38,16 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [city, setCity] = useState("");
   const [radius, setRadius] = useState("50");
   const [employment, setEmployment] = useState("barmelyik");
-  const [arrangement, setArrangement] = useState<string[]>([]);
+  const [arrangement, setArrangement] = useState("");   // egy érték (legördülő)
   const [experience, setExperience] = useState("");
   const [availability, setAvailability] = useState("");
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [rate, setRate] = useState("");
-  const [styles, setStyles] = useState<string[]>([]);
+  const [language, setLanguage] = useState("");         // egy érték (legördülő)
+  const [rateAmount, setRateAmount] = useState("");     // szám
+  const [ratePeriod, setRatePeriod] = useState("ho");   // időszak (óra/nap/hét/hó/év)
+  const [style, setStyle] = useState("");               // konyha-stílus (legördülő)
   const [shift, setShift] = useState("");
-  const [propertyTypes, setPropertyTypes] = useState<string[]>([]);
-  const [services, setServices] = useState<string[]>([]);
+  const [propertyType, setPropertyType] = useState(""); // ingatlantípus (legördülő)
+  const [service, setService] = useState("");           // szolgáltatás (legördülő)
   const [needCredential, setNeedCredential] = useState(false);
   const [notes, setNotes] = useState("");
   const [count, setCount] = useState(3);
@@ -74,9 +75,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     })();
   }, [industry]);
 
-  const toggle = (list: string[], set: (v: string[]) => void, v: string) =>
-    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-
   const isCustom = !professions.some((p) => p.value === profession);
 
   const search = async () => {
@@ -84,13 +82,21 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     setRunning(true);
     setResult(null); setPdfUrl(null);
     try {
+      const rate = rateAmount.trim() ? `${rateAmount.trim()} ${ratePeriodLabel(ratePeriod)}` : "";
       const res = await fetch("/api/professionals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          industry, profession, professionCustom, county, city, radius, employment, arrangement,
-          experience, availability, languages, rate,
-          styles, shift, propertyTypes, services, needCredential, notes, count,
+          industry, profession, professionCustom, county, city, radius, employment,
+          arrangement: arrangement ? [arrangement] : [],
+          experience, availability,
+          languages: language ? [language] : [],
+          rate,
+          styles: style ? [style] : [],
+          shift,
+          propertyTypes: propertyType ? [propertyType] : [],
+          services: service ? [service] : [],
+          needCredential, notes, count,
         }),
       });
       const data = await res.json();
@@ -161,9 +167,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) +
     " · " + new Date(iso).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
 
-  const chip = (on: boolean) => on
-    ? { background: "var(--twx-coral)", color: "#fff" }
-    : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" };
 
   return (
     <section className="twx-card p-5 sm:p-6">
@@ -215,45 +218,37 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
             <SelectField className="mt-1 w-full" value={availability} onChange={setAvailability} options={AVAILABILITY_OPTIONS.map((a) => ({ value: a.value, label: a.label }))} />
           </div>
           <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tervezett bér / óradíj (opc.)</label>
-            <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="pl. bruttó 450 e Ft / 8 000 Ft/óra"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tervezett díjazás (opc.)</label>
+            <div className="mt-1 flex gap-2">
+              <input inputMode="numeric" value={rateAmount} onChange={(e) => setRateAmount(e.target.value)} placeholder="pl. 450000"
+                className="w-28 rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+              <SelectField className="flex-1" value={ratePeriod} onChange={setRatePeriod}
+                options={RATE_PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
+            </div>
           </div>
         </div>
 
-        {/* Foglalkoztatás (több) */}
-        <div>
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Foglalkoztatás</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {WORK_ARRANGEMENTS.map((a) => (
-              <button key={a.value} type="button" onClick={() => toggle(arrangement, setArrangement, a.value)}
-                className="rounded-full px-3 py-1 text-xs font-medium transition" style={chip(arrangement.includes(a.value))}>{a.label}</button>
-            ))}
+        {/* Foglalkoztatás + nyelvtudás (legördülő) */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Foglalkoztatás</label>
+            <SelectField className="mt-1 w-full" value={arrangement} onChange={setArrangement}
+              options={[{ value: "", label: "Mindegy" }, ...WORK_ARRANGEMENTS.map((a) => ({ value: a.value, label: a.label }))]} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Nyelvtudás</label>
+            <SelectField className="mt-1 w-full" value={language} onChange={setLanguage}
+              options={[{ value: "", label: "Mindegy" }, ...LANGUAGE_OPTIONS.map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))]} />
           </div>
         </div>
 
-        {/* Nyelvek (több) */}
-        <div>
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Nyelvtudás (opcionális)</label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {LANGUAGE_OPTIONS.map((l) => (
-              <button key={l} type="button" onClick={() => toggle(languages, setLanguages, l)}
-                className="rounded-full px-3 py-1 text-xs font-medium capitalize transition" style={chip(languages.includes(l))}>{l}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Iparág-specifikus szűrők */}
+        {/* Iparág-specifikus szűrők (legördülő) */}
         {industry === "hospitality" ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Konyha / profil</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {HOSPITALITY_STYLES.map((s) => (
-                  <button key={s} type="button" onClick={() => toggle(styles, setStyles, s)}
-                    className="rounded-full px-3 py-1 text-xs font-medium capitalize transition" style={chip(styles.includes(s))}>{s}</button>
-                ))}
-              </div>
+              <SelectField className="mt-1 w-full" value={style} onChange={setStyle}
+                options={[{ value: "", label: "Mindegy" }, ...HOSPITALITY_STYLES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
             </div>
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Műszak</label>
@@ -262,22 +257,16 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
         ) : (
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Ingatlantípus</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {REALESTATE_PROPERTY_TYPES.map((s) => (
-                  <button key={s} type="button" onClick={() => toggle(propertyTypes, setPropertyTypes, s)}
-                    className="rounded-full px-3 py-1 text-xs font-medium capitalize transition" style={chip(propertyTypes.includes(s))}>{s}</button>
-                ))}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Ingatlantípus</label>
+                <SelectField className="mt-1 w-full" value={propertyType} onChange={setPropertyType}
+                  options={[{ value: "", label: "Mindegy" }, ...REALESTATE_PROPERTY_TYPES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Kért szolgáltatás</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {REALESTATE_SERVICES.map((s) => (
-                  <button key={s} type="button" onClick={() => toggle(services, setServices, s)}
-                    className="rounded-full px-3 py-1 text-xs font-medium transition" style={chip(services.includes(s))}>{s}</button>
-                ))}
+              <div>
+                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Kért szolgáltatás</label>
+                <SelectField className="mt-1 w-full" value={service} onChange={setService}
+                  options={[{ value: "", label: "Mindegy" }, ...REALESTATE_SERVICES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">

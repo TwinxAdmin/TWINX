@@ -54,6 +54,17 @@ export const LANGUAGE_OPTIONS = [
   "angol", "német", "francia", "olasz", "spanyol", "orosz", "ukrán", "román", "kínai",
 ] as const;
 
+// A díjazás időszaka (a szám mellé).
+export const RATE_PERIODS = [
+  { value: "ora", label: "Ft / óra" },
+  { value: "nap", label: "Ft / nap" },
+  { value: "het", label: "Ft / hét" },
+  { value: "ho", label: "Ft / hó" },
+] as const;
+export function ratePeriodLabel(v: string): string {
+  return RATE_PERIODS.find((p) => p.value === v)?.label ?? "Ft / hó";
+}
+
 // --- Szakmák iparáganként (mindegyikhez saját prompt-specializáció) ---------
 export type Profession = { value: string; label: string; hint: string };
 
