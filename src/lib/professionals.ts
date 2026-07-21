@@ -503,6 +503,30 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "felugyelet", label: "Havi folyamatos felügyelet" },
       ],
     },
+    {
+      id: "uzlettipus_spec", label: "Üzlettípus-specializáció", type: "chips",
+      options: [
+        { value: "etterem", label: "Étterem" },
+        { value: "cukraszda", label: "Cukrászda" },
+        { value: "nagykonyha", label: "Nagykonyha" },
+        { value: "husfeldolgozo", label: "Húsfeldolgozó" },
+      ],
+    },
+    {
+      id: "oktatas", label: "Oktatás / tréning", type: "chips",
+      options: [
+        { value: "haccp_kepzes", label: "Dolgozói HACCP-képzés" },
+        { value: "higienia", label: "Higiéniai tréning" },
+      ],
+    },
+    {
+      id: "hatosagi", label: "Hatósági ügyintézés", type: "chips",
+      options: [
+        { value: "engedely", label: "Engedélyeztetés" },
+        { value: "nebih", label: "NÉBIH-kapcsolat" },
+        { value: "kifogas", label: "Kifogás-kezelés" },
+      ],
+    },
   ],
 };
 
