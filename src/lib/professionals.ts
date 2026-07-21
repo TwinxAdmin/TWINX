@@ -82,7 +82,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
   { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
-  { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress; fontos a gyors kiszállás, gyártói szakértelem, karbantartási szerződés lehetősége." },
+  { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress a megadott gépcsoportokra (hűtéstechnika: kamrák/pultok; hőtechnika: gázos/elektromos tűzhelyek; sütőkemencék pl. Rational) és kiszállás-típusra (S.O.S. 0–24 hibaelhárítás vagy tervezett karbantartás). Fontos a gyors kiszállás, gyártói szakértelem/jogosultság, alkatrész-ellátás és karbantartási szerződés lehetősége. Forrás: szerviz-cégek, gyártói partnerlisták, ajánlások." },
   { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress; fontos a higiéniai előírások ismerete és a rugalmas időbeosztás." },
   { value: "futar", label: "Futár", hint: "Kiszállító futárt keress; fontos a saját jármű, lefedett terület és a megbízhatóság." },
 ];
@@ -578,6 +578,25 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "vegan_healthy", label: "Vegán / egészséges" },
         { value: "rendezveny_catering", label: "Rendezvény / catering" },
         { value: "hotel", label: "Hotel / szálloda vendéglátás" },
+      ],
+    },
+  ],
+
+  // Konyhagép-szerelő
+  gepszerelo: [
+    {
+      id: "gepcsoport", label: "Gépcsoportok", type: "chips",
+      options: [
+        { value: "hutestechnika", label: "Hűtéstechnika (kamrák, pultok)" },
+        { value: "hotechnika", label: "Hőtechnika (gázos / elektromos tűzhelyek)" },
+        { value: "sutokemence", label: "Sütőkemencék (pl. Rational)" },
+      ],
+    },
+    {
+      id: "kiszallas", label: "Kiszállás", type: "chips",
+      options: [
+        { value: "sos", label: "S.O.S. (0–24 hibaelhárítás)" },
+        { value: "tervezett", label: "Tervezett karbantartás" },
       ],
     },
   ],
