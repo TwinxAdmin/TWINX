@@ -81,7 +81,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
   { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
-  { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress; nézd a közösségimédia-kezelést, ételfotózást, kampány-referenciákat." },
+  { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
   { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress; fontos a gyors kiszállás, gyártói szakértelem, karbantartási szerződés lehetősége." },
   { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress; fontos a higiéniai előírások ismerete és a rugalmas időbeosztás." },
   { value: "futar", label: "Futár", hint: "Kiszállító futárt keress; fontos a saját jármű, lefedett terület és a megbízhatóság." },
@@ -525,6 +525,24 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "engedely", label: "Engedélyeztetés" },
         { value: "nebih", label: "NÉBIH-kapcsolat" },
         { value: "kifogas", label: "Kifogás-kezelés" },
+      ],
+    },
+  ],
+
+  // Vendéglátó-marketinges
+  marketing: [
+    {
+      id: "tartalomgyartas", label: "Tartalomgyártás", type: "select",
+      options: [
+        { value: "helyszini", label: "Helyszíni fotó/videó készítés" },
+        { value: "kapott", label: "Csak kapott anyagokból dolgozik" },
+      ],
+    },
+    {
+      id: "platform", label: "Platform fókusz", type: "chips",
+      options: [
+        { value: "social", label: "TikTok / Instagram (vizuális)" },
+        { value: "reputacio", label: "TripAdvisor / Google (reputációkezelés)" },
       ],
     },
   ],
