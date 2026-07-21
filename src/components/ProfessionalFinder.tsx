@@ -10,7 +10,7 @@ import SelectField from "@/components/SelectField";
 import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
   AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, RATE_PERIODS, ratePeriodLabel, PROFESSIONAL_PLANS,
-  HOSPITALITY_STYLES, HOSPITALITY_SHIFTS, REALESTATE_PROPERTY_TYPES, REALESTATE_SERVICES,
+  detailFieldsFor,
   professionsFor, professionLabel, creditsForCount,
   type Industry, type Professional, type ProfessionalExtras,
 } from "@/lib/professionals";
@@ -43,12 +43,10 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [availability, setAvailability] = useState("");
   const [language, setLanguage] = useState("");         // egy érték (legördülő)
   const [rateAmount, setRateAmount] = useState("");     // szám
-  const [ratePeriod, setRatePeriod] = useState("ho");   // időszak (óra/nap/hét/hó/év)
-  const [style, setStyle] = useState("");               // konyha-stílus (legördülő)
-  const [shift, setShift] = useState("");
-  const [propertyType, setPropertyType] = useState(""); // ingatlantípus (legördülő)
-  const [service, setService] = useState("");           // szolgáltatás (legördülő)
-  const [needCredential, setNeedCredential] = useState(false);
+  const [ratePeriod, setRatePeriod] = useState("ho");   // időszak (óra/nap/hét/hó)
+  // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőben, szakma szerint változik).
+  const [details, setDetails] = useState<Record<string, string | string[]>>({});
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [count, setCount] = useState(3);
   const [running, setRunning] = useState(false);
@@ -76,6 +74,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   }, [industry]);
 
   const isCustom = !professions.some((p) => p.value === profession);
+  const detailFields = detailFieldsFor(profession);
 
   const search = async () => {
     if (isCustom && !professionCustom.trim()) { showToast("Add meg a keresett szakmát.", "error"); return; }
@@ -92,11 +91,8 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           experience, availability,
           languages: language ? [language] : [],
           rate,
-          styles: style ? [style] : [],
-          shift,
-          propertyTypes: propertyType ? [propertyType] : [],
-          services: service ? [service] : [],
-          needCredential, notes, count,
+          details,
+          notes, count,
         }),
       });
       const data = await res.json();
@@ -175,7 +171,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Milyen szakembert keresel?</label>
-            <SelectField className="mt-1 w-full" value={profession} onChange={setProfession} searchable
+            <SelectField className="mt-1 w-full" value={profession} onChange={(v) => { setProfession(v); setDetails({}); }} searchable
               options={[...professions.map((p) => ({ value: p.value, label: p.label })), { value: "egyeb", label: "Egyéb (beírom)…" }]} />
             {isCustom && (
               <input value={professionCustom} onChange={(e) => setProfessionCustom(e.target.value)}
@@ -242,40 +238,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
         </div>
 
-        {/* Iparág-specifikus szűrők (legördülő) */}
-        {industry === "hospitality" ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Konyha / profil</label>
-              <SelectField className="mt-1 w-full" value={style} onChange={setStyle}
-                options={[{ value: "", label: "Mindegy" }, ...HOSPITALITY_STYLES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Műszak</label>
-              <SelectField className="mt-1 w-full" value={shift} onChange={setShift} options={HOSPITALITY_SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Ingatlantípus</label>
-                <SelectField className="mt-1 w-full" value={propertyType} onChange={setPropertyType}
-                  options={[{ value: "", label: "Mindegy" }, ...REALESTATE_PROPERTY_TYPES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Kért szolgáltatás</label>
-                <SelectField className="mt-1 w-full" value={service} onChange={setService}
-                  options={[{ value: "", label: "Mindegy" }, ...REALESTATE_SERVICES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))]} />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={needCredential} onChange={(e) => setNeedCredential(e.target.checked)} />
-              Csak jogosultsággal / kamarai tagsággal rendelkező szakembert kérek
-            </label>
-          </div>
-        )}
-
         {/* Egyedi igény */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Egyedi igény (opcionális)</label>
@@ -283,6 +245,61 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
             placeholder={industry === "hospitality" ? "pl. rendezvény-tapasztalat, egészségügyi kiskönyv" : "pl. referencia + írásos árajánlat"}
             className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
         </div>
+
+        {/* Részletes keresés — szakma szerint változó, lenyíló. Csak akkor, ha a szakmához
+            van részletes szempont-készlet (szakmánként töltjük fel). */}
+        {detailFields.length > 0 && (
+          <div className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+            <button type="button" onClick={() => setDetailsOpen((o) => !o)}
+              className="flex w-full items-center justify-between p-3 text-left" style={{ background: "var(--twx-coral-soft)" }}>
+              <span className="text-sm font-semibold" style={{ color: "#7a2e17" }}>
+                Részletes keresés — {professionLabel(industry, profession)}
+              </span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full text-lg transition-transform duration-200"
+                style={{ color: "var(--twx-coral)", transform: detailsOpen ? "rotate(45deg)" : "none" }}>+</span>
+            </button>
+            <AnimatePresence initial={false}>
+              {detailsOpen && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: "hidden" }}>
+                  <div className="space-y-3 p-3">
+                    <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      Szakmára szabott szempontok — minél többet adsz meg, annál pontosabb a találat.
+                    </p>
+                    {detailFields.map((f) => (
+                      <div key={f.id}>
+                        <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{f.label}</label>
+                        {f.type === "select" ? (
+                          <SelectField className="mt-1 w-full" value={String(details[f.id] ?? "")}
+                            onChange={(v) => setDetails((d) => ({ ...d, [f.id]: v }))}
+                            options={[{ value: "", label: "Mindegy" }, ...f.options]} />
+                        ) : (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {f.options.map((o) => {
+                              const arr = (details[f.id] as string[]) ?? [];
+                              const on = arr.includes(o.value);
+                              return (
+                                <button key={o.value} type="button"
+                                  onClick={() => setDetails((d) => {
+                                    const cur = (d[f.id] as string[]) ?? [];
+                                    return { ...d, [f.id]: on ? cur.filter((x) => x !== o.value) : [...cur, o.value] };
+                                  })}
+                                  className="rounded-full px-3 py-1 text-xs font-medium transition"
+                                  style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
+                                  {o.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Találatszám = kredit */}
         <div>

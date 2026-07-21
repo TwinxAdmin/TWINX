@@ -69,7 +69,7 @@ export function ratePeriodLabel(v: string): string {
 export type Profession = { value: string; label: string; hint: string };
 
 const HOSPITALITY_PROFESSIONS: Profession[] = [
-  { value: "sef", label: "Séf / konyhafőnök", hint: "Tapasztalt séfet/konyhafőnököt keress, aki menütervezésben, konyhavezetésben és csapatirányításban is jártas; nézd a szakmai profilokat, korábbi éttermeket, esetleges díjakat." },
+  { value: "sef", label: "Séf / konyhafőnök", hint: "Tapasztalt séfet/konyhafőnököt keress. Nézd a korábbi éttermeket és azok színvonalát/stílusát, a vezetett brigád méretét, a menü- és étlaptervezési, valamint árukalkulációs (cost control) rutint, illetve új konyha beindításában szerzett tapasztalatot. Forrásként használd a szakmai közösségi profilokat (LinkedIn, szakmai csoportok), éttermi sajtót, díjakat/elismeréseket (pl. Gault&Millau, Michelin-említés), séf-adatbázisokat és álláshirdető felületeket. A megadott konyha-stílus, brigádméret és kiemelt kompetencia legyen a fő szűrő." },
   { value: "szakacs", label: "Szakács", hint: "Gyakorlott szakácsot keress adott konyhastílusra; fontos a megbízhatóság, műszakbírás és a HACCP-ismeret." },
   { value: "cukrasz", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress; nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát." },
   { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress (saláták, előételek, tálalás); fontos a gyorsaság és az esztétikus tálalás." },
@@ -112,6 +112,86 @@ export const PROFESSIONS: Record<Industry, Profession[]> = {
   hospitality: HOSPITALITY_PROFESSIONS,
   realestate: REALESTATE_PROFESSIONS,
 };
+
+// --- Szakmánkénti RÉSZLETES szempontok (a lenyíló "Részletes keresés" mezői) --------
+// Minden szakmához saját mező-készlet; a szakma kiválasztásakor ez változik. A prompt
+// ezekből épül tovább (formatDetails). Egyelőre szakmánként töltjük fel — amelyikhez még
+// nincs, ott a részletes sáv üres, a közös mezőkkel akkor is lehet keresni.
+export type DetailField = {
+  id: string;
+  label: string;
+  type: "select" | "chips"; // select = egy érték, chips = több érték
+  options: { value: string; label: string }[];
+};
+
+export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
+  // Séf / konyhafőnök
+  sef: [
+    {
+      id: "konyha_stilus", label: "Konyha stílusa", type: "select",
+      options: [
+        { value: "fine_dining", label: "Fine dining" },
+        { value: "bisztro", label: "Bisztró" },
+        { value: "csarda", label: "Csárda / Hagyományos" },
+        { value: "fuzios", label: "Fúziós" },
+        { value: "kozetkeztetes", label: "Menüztetés / Közétkeztetés" },
+      ],
+    },
+    {
+      id: "vezetoi_rutin", label: "Vezetői rutin (brigád mérete)", type: "select",
+      options: [
+        { value: "1-3", label: "1–3 fős brigád" },
+        { value: "4-10", label: "4–10 fős brigád" },
+        { value: "10+", label: "10+ fős brigád" },
+      ],
+    },
+    {
+      id: "kompetencia", label: "Kiemelt kompetencia", type: "chips",
+      options: [
+        { value: "cost_control", label: "Árukalkuláció / Cost control" },
+        { value: "etlaptervezes", label: "Étlaptervezés" },
+        { value: "rendszerepites", label: "Rendszerépítés (új konyha nyitása)" },
+      ],
+    },
+  ],
+};
+
+export function detailFieldsFor(profession: string): DetailField[] {
+  return PROFESSION_DETAILS[profession] ?? [];
+}
+
+// A részletes mezők értékeinek biztonságos szűrése (csak a szakmához tartozó mezők/értékek).
+export function sanitizeDetails(profession: string, raw: unknown): Record<string, string | string[]> {
+  const fields = detailFieldsFor(profession);
+  const out: Record<string, string | string[]> = {};
+  const src = (raw ?? {}) as Record<string, unknown>;
+  for (const f of fields) {
+    const v = src[f.id];
+    const valid = new Set(f.options.map((o) => o.value));
+    if (f.type === "chips") {
+      const arr = Array.isArray(v) ? (v as unknown[]).map(String).filter((x) => valid.has(x)).slice(0, 8) : [];
+      if (arr.length) out[f.id] = arr;
+    } else {
+      const s = String(v ?? "");
+      if (valid.has(s)) out[f.id] = s;
+    }
+  }
+  return out;
+}
+
+// A részletes mezők ember által olvasható sorai (a prompthoz).
+export function formatDetails(profession: string, details: Record<string, string | string[]> | undefined): string[] {
+  if (!details) return [];
+  const fields = detailFieldsFor(profession);
+  const lines: string[] = [];
+  for (const f of fields) {
+    const v = details[f.id];
+    if (!v || (Array.isArray(v) && !v.length)) continue;
+    const vals = (Array.isArray(v) ? v : [v]).map((x) => f.options.find((o) => o.value === x)?.label ?? x);
+    lines.push(`${f.label}: ${vals.join(", ")}`);
+  }
+  return lines;
+}
 
 export function professionsFor(industry: Industry): Profession[] {
   return PROFESSIONS[industry] ?? [];
@@ -159,6 +239,7 @@ export type ProfessionalQuery = {
   propertyTypes?: string[];    // ingatlan
   services?: string[];         // ingatlan
   needCredential?: boolean;    // engedély / kamarai tagság elvárt
+  details?: Record<string, string | string[]>; // szakma-specifikus részletes szempontok
   notes: string;
   count: number;
   exclude?: string[];
@@ -267,6 +348,13 @@ export function composeProfessionalPrompt(
     if (q.propertyTypes?.length) lines.push(`Ingatlantípus: ${q.propertyTypes.join(", ")}.`);
     if (q.services?.length) lines.push(`Kért szolgáltatás: ${q.services.join(", ")}.`);
     if (q.needCredential) lines.push(`FONTOS: csak megfelelő jogosultsággal / kamarai tagsággal rendelkező szakembert ajánlj, és jelezd ezt.`);
+  }
+
+  // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőből) — ezekre külön figyelj.
+  const detailLines = formatDetails(q.profession, q.details);
+  if (detailLines.length) {
+    lines.push(`Részletes elvárások (ezeknek KIEMELTEN feleljen meg a jelölt):`);
+    for (const d of detailLines) lines.push(`- ${d}`);
   }
 
   if (q.notes) lines.push(`Egyedi igény: ${q.notes}`);

@@ -13,7 +13,7 @@ import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { generateProfessionalsPdf } from "@/lib/pdf";
 import {
   COUNTIES, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS,
-  creditsForCount, isValidCount, isIndustry, professionsFor, parseProfessionalResponse,
+  creditsForCount, isValidCount, isIndustry, professionsFor, parseProfessionalResponse, sanitizeDetails,
   type ProfessionalQuery,
 } from "@/lib/professionals";
 
@@ -101,6 +101,7 @@ export async function POST(request: Request) {
     propertyTypes: industry === "realestate" ? arrFree(body.propertyTypes) : undefined,
     services: industry === "realestate" ? arrFree(body.services) : undefined,
     needCredential: industry === "realestate" ? Boolean(body.needCredential) : undefined,
+    details: sanitizeDetails(validProf ? profession : "egyeb", body.details),
     notes: str(body.notes, 300),
     count,
   };
