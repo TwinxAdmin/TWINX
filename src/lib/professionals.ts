@@ -71,7 +71,7 @@ export type Profession = { value: string; label: string; hint: string };
 const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "sef", label: "Séf / konyhafőnök", hint: "Tapasztalt séfet/konyhafőnököt keress. Nézd a korábbi éttermeket és azok színvonalát/stílusát, a vezetett brigád méretét, a menü- és étlaptervezési, valamint árukalkulációs (cost control) rutint, illetve új konyha beindításában szerzett tapasztalatot. Forrásként használd a szakmai közösségi profilokat (LinkedIn, szakmai csoportok), éttermi sajtót, díjakat/elismeréseket (pl. Gault&Millau, Michelin-említés), séf-adatbázisokat és álláshirdető felületeket. A megadott konyha-stílus, brigádméret és kiemelt kompetencia legyen a fő szűrő." },
   { value: "szakacs", label: "Szakács", hint: "Gyakorlott szakácsot keress a megadott poszt(ok)ra (melegkonyha, hidegkonyha, grill/húsok, tészta/pizza, köret) és szerviz-típusra (à la carte pörgős rendelés vagy menü/büfé nagy volumen). Fontos a megbízhatóság, műszakbírás, tempó és a HACCP-ismeret. Forrás: álláshirdető felületek, szakmai csoportok, korábbi munkahelyek." },
-  { value: "cukrasz", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress; nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát." },
+  { value: "cukrasz", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress a megadott szakterületre (francia cukrászat/tányérdesszert, hagyományos sütemények, kovászos pékáru, mentes/vegán) és technológiai rutinra (fagylaltfőzés, csokoládé temperálás, kézműves kenyérsütés). Nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát, versenyeredményeket. Forrás: Instagram/portfólió, szakmai csoportok, cukrász-versenyek." },
   { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress (saláták, előételek, tálalás); fontos a gyorsaság és az esztétikus tálalás." },
   { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress; fontos a vendégkezelés, nyelvtudás és a felszolgálási tapasztalat típusa (à la carte, fine dining, rendezvény)." },
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress; nézd a koktél-ismeretet, kávégép-kezelést, kasszakezelést." },
@@ -207,6 +207,27 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "betanitas", label: "Betanítással dolgozik" },
         { value: "onallo_poszt", label: "Önállóan visz egy posztot" },
         { value: "tobb_poszt", label: "Több posztot átlát / helyettesít" },
+      ],
+    },
+  ],
+
+  // Cukrász / pék
+  cukrasz: [
+    {
+      id: "szakterulet", label: "Szakterület", type: "chips",
+      options: [
+        { value: "francia", label: "Francia cukrászat / Tányérdesszert" },
+        { value: "hagyomanyos", label: "Hagyományos sütemények" },
+        { value: "kovaszos", label: "Kovászos pékáru" },
+        { value: "mentes_vegan", label: "Mentes / Vegán vonal" },
+      ],
+    },
+    {
+      id: "technologiai_rutin", label: "Technológiai rutin", type: "chips",
+      options: [
+        { value: "fagylalt", label: "Fagylaltfőzés" },
+        { value: "csoki_temperalas", label: "Csokoládé temperálás" },
+        { value: "kezmuves_kenyer", label: "Kézműves kenyérsütés" },
       ],
     },
   ],
