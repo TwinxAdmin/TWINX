@@ -30,7 +30,8 @@ const FAV_KEY = "__fav__";
 const favKey = (name: string) => name.trim().toLowerCase();
 
 export default function ProfessionalFinder({ industry }: { industry: Industry }) {
-  const professions = professionsFor(industry);
+  // A szakmákat ABC-sorrendben kínáljuk a legördülőben.
+  const professions = [...professionsFor(industry)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
 
   const [profession, setProfession] = useState(professions[0]?.value ?? "");
   const [professionCustom, setProfessionCustom] = useState("");
