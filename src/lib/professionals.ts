@@ -75,7 +75,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "hidegkonyhas", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress a megadott profilra (szállodai svédasztal/reggeliztetés, rendezvény/catering tálak és falatkák, à la carte előételek). Fontos a gyorsaság, az esztétikus tálalás, a nagy volumen bírása és a HACCP-fegyelem. Forrás: álláshirdetők, szállodai/catering háttér, szakmai csoportok." },
   { value: "felszolgalo", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress a megadott felszolgálási stílusra (tányérszerviz, francia/angol szerviz, bankett/rendezvény), kasszarendszer-ismeretre (HostWare, r_keeper, StandMágus vagy általános POS) és a hely tempójára (pörgős vs. elegáns). Fontos a vendégkezelés, ápolt megjelenés, nyelvtudás és a felszolgálási tapasztalat típusa. Forrás: álláshirdetők, szakmai csoportok, korábbi vendéglátóhelyek." },
   { value: "pultos", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress a megadott italismeretre (koktélkeverés/mixer, csapolt/kézműves sörök, alap italok) és a hely stílusára (pörgős klub, elegáns lobby bár, látványpult/flair). Fontos a tempó, kasszakezelés, up-selling és a vendégélmény. Forrás: szakmai közösségek, versenyek (flair/mixológia), álláshirdetők, korábbi helyek." },
-  { value: "barista", label: "Barista", hint: "Baristát keress; fontos a specialty kávé ismerete, latte art, gépkezelés és karbantartás." },
+  { value: "barista", label: "Barista", hint: "Baristát keress a megadott kávé-stílusra (újhullámos/specialty világos pörkölés vagy klasszikus olasz sötét pörkölés) és extra tudásra (latte art, alternatív kávékészítés: V60, Aeropress). Fontos az eszpresszógép-kezelés és -karbantartás, darálóbeállítás, tempó és vendégélmény. Forrás: specialty kávézók, barista-versenyek, szakmai közösségek, álláshirdetők." },
   { value: "kisegito", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
   { value: "uzletvezeto", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress; fontos a személyzet-irányítás, készletgazdálkodás, adminisztráció és értékesítési szemlélet." },
   { value: "sommelier", label: "Sommelier", hint: "Sommelier-t keress; nézd a borismeretet, esetleges WSET/sommelier képesítést, borlapkészítési tapasztalatot." },
@@ -408,6 +408,24 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "rkeeper", label: "r_keeper" },
         { value: "standmagus", label: "StandMágus" },
         { value: "altalanos_pos", label: "Általános POS rutin" },
+      ],
+    },
+  ],
+
+  // Barista
+  barista: [
+    {
+      id: "kave_stilus", label: "Kávé stílus", type: "select",
+      options: [
+        { value: "ujhullamos", label: "Újhullámos (Specialty – világos pörkölés)" },
+        { value: "klasszikus", label: "Klasszikus (Olasz – sötét pörkölés)" },
+      ],
+    },
+    {
+      id: "extra_tudas", label: "Extra tudás", type: "chips",
+      options: [
+        { value: "latte_art", label: "Latte art (tejhab minták)" },
+        { value: "alternativ", label: "Alternatív kávékészítés (V60, Aeropress)" },
       ],
     },
   ],
