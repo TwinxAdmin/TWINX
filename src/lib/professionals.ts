@@ -83,7 +83,7 @@ const HOSPITALITY_PROFESSIONS: Profession[] = [
   { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress; fontos a NAV-online, felszolgálási díj, TEÁOR-specifikus tapasztalat." },
   { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
   { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress a megadott gépcsoportokra (hűtéstechnika: kamrák/pultok; hőtechnika: gázos/elektromos tűzhelyek; sütőkemencék pl. Rational) és kiszállás-típusra (S.O.S. 0–24 hibaelhárítás vagy tervezett karbantartás). Fontos a gyors kiszállás, gyártói szakértelem/jogosultság, alkatrész-ellátás és karbantartási szerződés lehetősége. Forrás: szerviz-cégek, gyártói partnerlisták, ajánlások." },
-  { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress; fontos a higiéniai előírások ismerete és a rugalmas időbeosztás." },
+  { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress a megadott területre (vendégtér napi takarítás, konyhai mélytakarítás – zsíroldás/elszívók, ablak/homlokzat) és eszköz-igényre (saját ipari gép/vegyszer vagy helyi eszközök). Fontos a higiéniai előírások ismerete, rugalmas (zárás utáni/hajnali) időbeosztás, számlaképesség és referenciák. Forrás: takarító cégek, helyi szolgáltatók, ajánlások." },
   { value: "futar", label: "Futár", hint: "Kiszállító futárt keress; fontos a saját jármű, lefedett terület és a megbízhatóság." },
 ];
 
@@ -624,6 +624,25 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
         { value: "hobart", label: "Hobart" },
         { value: "meiko", label: "Meiko" },
         { value: "egyeb", label: "Egyéb / több márka" },
+      ],
+    },
+  ],
+
+  // Takarító / mosodai szolgáltató
+  takarito: [
+    {
+      id: "eszkozok", label: "Eszközök", type: "select",
+      options: [
+        { value: "sajat", label: "Saját ipari géppel / vegyszerrel érkezik" },
+        { value: "helyi", label: "A helyi eszközöket használja" },
+      ],
+    },
+    {
+      id: "terulet", label: "Terület", type: "chips",
+      options: [
+        { value: "vendegter", label: "Vendégtér (napi takarítás)" },
+        { value: "melytakaritas", label: "Konyhai mélytakarítás (zsíroldás, elszívók)" },
+        { value: "ablak_homlokzat", label: "Ablak / Homlokzat" },
       ],
     },
   ],
