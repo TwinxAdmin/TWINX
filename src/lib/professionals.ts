@@ -679,10 +679,32 @@ export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
       ],
     },
     {
+      id: "cegmeret", label: "Cégméret / tranzakciószám", type: "select",
+      options: [
+        { value: "kis", label: "Kis egység (pl. kávézó, 1 üzlet)" },
+        { value: "kozepes", label: "Közepes (több üzlet)" },
+        { value: "lanc", label: "Lánc / nagy tranzakciószám" },
+      ],
+    },
+    {
+      id: "dijazas_modell", label: "Díjazás modell", type: "select",
+      options: [
+        { value: "havidij", label: "Havidíj (átalány)" },
+        { value: "tranzakcio", label: "Tranzakcióalapú" },
+      ],
+    },
+    {
       id: "kapacitas", label: "Kapacitás", type: "chips",
       options: [
         { value: "berszamfejtes", label: "Bérszámfejtést is vállal" },
         { value: "keszletellenorzes", label: "Készletnyilvántartás ellenőrzése" },
+      ],
+    },
+    {
+      id: "ado_strategia", label: "Adótanácsadás / stratégia", type: "chips",
+      options: [
+        { value: "adooptimalizalas", label: "Adóoptimalizálás" },
+        { value: "penzugyi_strategia", label: "Pénzügyi stratégia / tanácsadás" },
       ],
     },
   ],
