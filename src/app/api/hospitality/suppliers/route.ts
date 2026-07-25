@@ -15,7 +15,7 @@ import {
   COUNTIES, SUPPLIER_TYPES, QTY_UNITS, FREQUENCIES,
   CERTIFICATIONS, ORIGIN_OPTIONS, DELIVERY_MODES, MIN_ORDER_OPTIONS,
   PROCESSING_OPTIONS, SEASON_OPTIONS, RANKING_PRIORITIES, COMMON_NEEDS,
-  creditsForCountPro, isValidCount, SUPPLIER_DEEP_MODEL,
+  creditsForCountPro, isValidCount, isValidRadius, SUPPLIER_DEEP_MODEL,
   type SupplierQuery,
 } from "@/lib/suppliers";
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     what,
     county,
     city: str(body.city, 60),
-    radius: ["25", "50", "100", "150", "orszagos"].includes(str(body.radius)) ? str(body.radius) : "50",
+    radius: isValidRadius(str(body.radius)) ? str(body.radius) : "50",
     types: Array.isArray(body.types)
       ? (body.types as unknown[]).map((t) => String(t)).filter((t) => validTypes.has(t)).slice(0, 5)
       : [],

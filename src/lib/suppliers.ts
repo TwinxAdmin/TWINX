@@ -13,12 +13,20 @@ export const COUNTIES = [
 
 // --- Körzet (a megadott településtől) --------------------------------------
 export const RADIUS_OPTIONS = [
+  { value: "5", label: "5 km-en belül" },
+  { value: "10", label: "10 km-en belül" },
   { value: "25", label: "25 km-en belül" },
   { value: "50", label: "50 km-en belül" },
   { value: "100", label: "100 km-en belül" },
   { value: "150", label: "150 km-en belül" },
   { value: "orszagos", label: "Országosan" },
 ] as const;
+
+// A körzet érvényes értékei (az API-validációhoz — így nem csúszik el a listától).
+export const RADIUS_VALUES = RADIUS_OPTIONS.map((r) => r.value) as string[];
+export function isValidRadius(v: string): boolean {
+  return RADIUS_VALUES.includes(v);
+}
 
 // --- Beszállító-típusok (többet is lehet választani) -----------------------
 export const SUPPLIER_TYPES = [

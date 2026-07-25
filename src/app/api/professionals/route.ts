@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     professionCustom: validProf ? "" : professionCustom,
     county,
     city: str(body.city, 60),
-    radius: ["25", "50", "100", "150", "orszagos"].includes(str(body.radius)) ? str(body.radius) : "50",
+    radius: ["5", "10", "25", "50", "100", "150", "orszagos"].includes(str(body.radius)) ? str(body.radius) : "50",
     employment: validEmp.has(str(body.employment)) ? str(body.employment) : "barmelyik",
     arrangement: arr(body.arrangement, validArr),
     experience: str(body.experience, 20),
