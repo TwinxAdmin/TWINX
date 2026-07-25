@@ -35,6 +35,10 @@ type FavSupplier = Supplier & { id?: string; source_what?: string | null };
 
 const FAV_KEY = "__fav__"; // a Kedvencek mappa kulcsa
 const favKey = (name: string) => name.trim().toLowerCase(); // azonosság névre
+// A Supabase publikus PDF-URL alapból új lapon nyílna; a ?download paraméterrel
+// a böngésző EGYBŐL letölti (a sima download attribútum cross-origin nem érvényesül).
+const pdfDownloadUrl = (url: string) =>
+  `${url}${url.includes("?") ? "&" : "?"}download=twinx-beszallitok.pdf`;
 
 export default function SupplierFinder({ ingredientNames }: { ingredientNames: string[] }) {
   const [scope, setScope] = useState<SupplierScope>("domestic"); // Belföld / Külföld (EU)
@@ -606,7 +610,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                             Megnyitás
                           </button>
                           {s.pdf_url && (
-                            <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download
+                            <a href={pdfDownloadUrl(s.pdf_url)} download="twinx-beszallitok.pdf"
                               className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>
                               PDF
                             </a>
@@ -784,7 +788,7 @@ function ResultBody({
 
       <div className="flex flex-wrap items-center gap-3">
         {pdfUrl && (
-          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+          <a href={pdfDownloadUrl(pdfUrl)} download="twinx-beszallitok.pdf"
             className="rounded-xl px-5 py-2.5 text-sm font-semibold"
             style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
             PDF letöltése
