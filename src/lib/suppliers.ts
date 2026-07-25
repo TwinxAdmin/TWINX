@@ -117,6 +117,54 @@ export const seasonOptLabel = (v: string) => labelOf(SEASON_OPTIONS, v);
 export const rankingLabel = (v: string) => labelOf(RANKING_PRIORITIES, v);
 export const commonNeedLabel = (v: string) => labelOf(COMMON_NEEDS, v);
 
+// --- Hatókör: belföld vs. külföld (EU) -------------------------------------
+// A kettő KÜLÖN keresés: eltérő mezők és TELJESEN külön Perplexity-prompt.
+export type SupplierScope = "domestic" | "eu";
+export function isSupplierScope(v: unknown): v is SupplierScope {
+  return v === "domestic" || v === "eu";
+}
+
+// EU-országok (a HORECA-importban leggyakoribbak elöl) — a külföldi kereséshez.
+export const EU_COUNTRIES = [
+  { value: "barmelyik", label: "Bármelyik EU-ország" },
+  { value: "olaszorszag", label: "Olaszország" },
+  { value: "spanyolorszag", label: "Spanyolország" },
+  { value: "franciaorszag", label: "Franciaország" },
+  { value: "nemetorszag", label: "Németország" },
+  { value: "ausztria", label: "Ausztria" },
+  { value: "gorogorszag", label: "Görögország" },
+  { value: "portugalia", label: "Portugália" },
+  { value: "hollandia", label: "Hollandia" },
+  { value: "belgium", label: "Belgium" },
+  { value: "lengyelorszag", label: "Lengyelország" },
+  { value: "csehorszag", label: "Csehország" },
+  { value: "szlovakia", label: "Szlovákia" },
+  { value: "szlovenia", label: "Szlovénia" },
+  { value: "horvatorszag", label: "Horvátország" },
+  { value: "romania", label: "Románia" },
+] as const;
+
+// EU-beszállító típusok (a külföldi keresésben mást jelentenek, mint belföldön).
+export const SUPPLIER_TYPES_EU = [
+  { value: "gyarto", label: "Gyártó / termelő" },
+  { value: "exportor", label: "Exportőr / nagykereskedő" },
+  { value: "importor_hu", label: "Magyar importőr / disztribútor" },
+] as const;
+
+// EU-specifikus gyakori igények (import-fókusz).
+export const COMMON_NEEDS_EU = [
+  { value: "magyar_disztributor", label: "Van magyar disztribútora" },
+  { value: "kozvetlen", label: "Közvetlen a gyártótól" },
+  { value: "eu_szallitas", label: "EU-szállítást megold" },
+  { value: "angol", label: "Angolul kommunikál" },
+  { value: "kis_tetel", label: "Kis tételt is vállal" },
+  { value: "minta", label: "Mintát ad" },
+] as const;
+
+export const euCountryLabel = (v: string) => labelOf(EU_COUNTRIES, v);
+export const supplierTypeEuLabel = (v: string) => labelOf(SUPPLIER_TYPES_EU, v);
+export const commonNeedEuLabel = (v: string) => labelOf(COMMON_NEEDS_EU, v);
+
 // --- PRO (mély kutatás) --------------------------------------------------
 // A PRO mód a Perplexity legmélyebb keresőmodelljét használja, aszinkron módon
 // (hosszabb futás, több forrás) — a kredit duplázódik.
@@ -178,11 +226,14 @@ export function isValidCount(count: unknown): boolean {
 
 // --- Típusok ---------------------------------------------------------------
 export type SupplierQuery = {
+  scope?: SupplierScope; // "domestic" (belföld) vagy "eu" (külföld, EU) — külön prompt
   what: string;          // mit keres (alapanyag vagy kategória)
-  county: string;        // megye
-  city: string;          // település (opcionális, a körzet ehhez képest értendő)
-  radius: string;        // km vagy "orszagos"
-  types: string[];       // beszállító-típusok
+  county: string;        // megye (belföld)
+  city: string;          // település (belföld; a körzet ehhez képest értendő)
+  radius: string;        // km vagy "orszagos" (belföld)
+  country?: string;      // EU-ország (külföld)
+  region?: string;       // régió/város (külföld, opcionális)
+  types: string[];       // beszállító-típusok (belföld/EU szerint más értékek)
   qty: number;           // mennyiség (szám)
   qtyUnit: string;       // mértékegység (kg / l / db / láda / raklap)
   frequency: string;     // gyakoriság (napi / heti / kétheti / havi / alkalmi)
@@ -278,6 +329,60 @@ export function composeSupplierPrompt(
       : "",
     // Változatosság: ne mindig ugyanaz a néhány, jól indexelt nagyker jöjjön vissza.
     `Merítsd a találatokat többféle forrásból: cégkatalógusok mellett nézd a helyi termelői piacok kiállítói listáit, agrárkamarai és őstermelői nyilvántartásokat, gazdaboltokat, termelői közösségeket és szakmai beszerzési csoportokat is. Kerüld, hogy csak a legnagyobb, legismertebb nagykereskedők szerepeljenek.`,
+  ].filter(Boolean);
+
+  return `${intro}\n\nKeresési feltételek:\n${lines.join("\n")}\n\n${task}`;
+}
+
+// =====================================================================
+// KÜLFÖLDI (EU) beszállító-kereső — TELJESEN KÜLÖN prompt.
+// Nem a belföldi változata: más a szerep, más a kontextus (EU-import),
+// más a forráskör és más a kész megkereső üzenet (idegen nyelv).
+// =====================================================================
+export const SUPPLIER_EU_DEFAULT_SEGMENTS = {
+  intro: `Te egy nemzetközi, EU-n belüli beszerzési szakértő vagy, aki MAGYARORSZÁGI éttermeknek segít külföldi (EU-s) alapanyag-beszállítókat felkutatni. Valós, ellenőrizhető forrásokból dolgozz: konkrét, LÉTEZŐ EU-s gyártókat / termelőket / exportőröket keress, és — ahol van — a márka MAGYARORSZÁGI importőrét / disztribútorát is. SOHA ne találj ki céget, telefonszámot vagy e-mailt — amit nem találsz, hagyd üresen. Minden találathoz adj forrás-URL-t. Fontos kontextus: a vevő magyar étterem, tehát az EU-n belüli beszerzés szabályai érvényesek — nincs vám, de kell közösségi adószám és áfa-kezelés (fordított adózás), nagyobb volumennél Intrastat; és kulcskérdés a szállítás/logisztika, a szállítási idő, valamint a jellemzően MAGASABB minimum rendelési mennyiség.`,
+  task: `Válaszolj KIZÁRÓLAG érvényes JSON-nal, magyarázó szöveg nélkül, ebben a szerkezetben:
+{"suppliers":[{"name":"","location":"","distance":"","offering":"","phone":"","email":"","website":"","why":"","source":""}],"extras":{"season":"","market":"","tips":["",""],"outreach":""}}
+A "location" tartalmazza az országot (és régiót/várost). A "why" mondja meg, miért illik (pl. közvetlen gyártó, vagy van magyar disztribútora). A "season" a termék elérhetőségéről / szállítási ütemről szóljon. A "market" adjon támpontot az EU-import jellemző minimum rendeléséről, a szállítási költségről/időről és arról, hol tájékozódhat az árakról. A "tips" 2-3 gyakorlati tanács kifejezetten az EU-importhoz (logisztika, közösségi adószám / fordított áfa, nyelv, minta kérése). Az "outreach" egy kész, udvarias megkereső üzenet: ha a beszállító NEM magyar, ANGOLUL (vagy a cég nyelvén) fogalmazd meg, hivatkozva a keresett termékre és a mennyiségre; ha magyar disztribútor, magyarul. Ahol csak lehet, a közvetlen külföldi gyártó mellé javasolj egy MAGYAR importőrt/disztribútort is alternatívaként.`,
+};
+
+export const SUPPLIER_EU_DATA_BLOCK_PREVIEW = `Keresési feltételek (EU):
+{mit keres + ország/régió + beszállító-típus + mennyiség + tanúsítvány/feldolgozottság/igények + találatszám}`;
+
+// A külföldi (EU) keresés adat-blokkja — SAJÁT mezőkészlettel.
+export function composeSupplierPromptEu(
+  q: SupplierQuery,
+  segments: { intro?: string; task?: string }
+): string {
+  const intro = (segments.intro ?? SUPPLIER_EU_DEFAULT_SEGMENTS.intro).trim();
+  const task = (segments.task ?? SUPPLIER_EU_DEFAULT_SEGMENTS.task).trim();
+
+  const countryLabelText =
+    !q.country || q.country === "barmelyik" ? "Bármelyik EU-ország" : euCountryLabel(q.country);
+  const rankPref = q.ranking ? rankingLabel(q.ranking) : "";
+
+  const lines = [
+    `Keresett alapanyag / termék: ${q.what}`,
+    `Ország: ${countryLabelText}${q.region ? ` — régió/város: ${q.region}` : ""}`,
+    q.country === "barmelyik" || !q.country
+      ? `Az egész EU-ban keress, de a magyar étterem számára logisztikailag kedvezőbb (közelebbi vagy magyar disztribútorral rendelkező) beszállítókat sorold előre.`
+      : `Elsősorban ${countryLabelText}${q.region ? ` (${q.region})` : ""} területén keress.`,
+    q.types.length
+      ? `Milyen típusú beszállító érdekli: ${q.types.map(supplierTypeEuLabel).join(", ")}.`
+      : `Gyártó/termelő, exportőr és magyar importőr/disztribútor egyaránt érdekli.`,
+    volumeLabel(q) ? `Tervezett beszerzési mennyiség: ${volumeLabel(q)}.` : "",
+    q.certifications?.length ? `Elvárt tanúsítvány(ok): ${q.certifications.map(certificationLabel).join(", ")}.` : "",
+    q.processing?.length ? `Feldolgozottság: ${q.processing.map(processingLabel).join(", ")}.` : "",
+    q.minOrder ? `Minimum rendelés: ${minOrderLabel(q.minOrder)}.` : "",
+    q.needs?.length ? `További elvárások: ${q.needs.map(commonNeedEuLabel).join(", ")}.` : "",
+    q.customCriteria?.length ? `Egyedi szempontok: ${q.customCriteria.join("; ")}.` : "",
+    `Ennyi találatot adj: PONTOSAN ${q.count} darab (ha kevesebb valódi találat van, inkább adj kevesebbet, mint kitaláltat).`,
+    `A vevő MAGYARORSZÁGI étterem — EU-n belüli, számlaképes (közösségi adószámos) beszerzésre alkalmas beszállítókat keress.`,
+    rankPref ? `A találatokat elsősorban a következő szempont szerint rangsorold: ${rankPref}.` : "",
+    q.exclude?.length
+      ? `FONTOS: az alábbiakat a partner MÁR ISMERI, ezeket NE sorold fel újra — keress helyettük MÁSOKAT: ${q.exclude.join("; ")}.`
+      : "",
+    `Merítsd a találatokat többféle forrásból: a gyártók hivatalos weboldalai és disztribútor-listái, EU-s B2B katalógusok (pl. Europages), szakmai kiállítások kiállítói, valamint magyar importőr-nyilvántartások. Ahol lehet, a közvetlen gyártó mellé adj magyar disztribútort is.`,
   ].filter(Boolean);
 
   return `${intro}\n\nKeresési feltételek:\n${lines.join("\n")}\n\n${task}`;

@@ -51,7 +51,10 @@ import {
 import {
   SUPPLIER_DEFAULT_SEGMENTS,
   SUPPLIER_DATA_BLOCK_PREVIEW,
+  SUPPLIER_EU_DEFAULT_SEGMENTS,
+  SUPPLIER_EU_DATA_BLOCK_PREVIEW,
   composeSupplierPrompt,
+  composeSupplierPromptEu,
   type SupplierQuery,
 } from "@/lib/suppliers";
 import {
@@ -255,6 +258,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
+    key: "supplier_search_eu",
+    label: "Beszállító-kereső — külföld (EU)",
+    dataBlockPreview: SUPPLIER_EU_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep (EU)",
+        hint: "A nemzetközi (EU) beszerzési szakértő szerepe: valós EU-s gyártók + magyar disztribútor, EU-import kontextus, ne találjon ki céget. Változó nem használható.",
+        default: SUPPLIER_EU_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet (JSON, EU)",
+        hint: "A kért JSON és a mezők tartalma EU-import fókusszal (idegen nyelvű megkereső üzenet, magyar disztribútor-alternatíva).",
+        default: SUPPLIER_EU_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
     key: "professional_hospitality",
     label: "Szakember-kereső (vendéglátás)",
     dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
@@ -421,6 +444,11 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
 }
 
 export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
+  // Külföld (EU) és belföld TELJESEN külön prompt-modult és compose-t használ.
+  if (query.scope === "eu") {
+    const segments = await getActiveSegments("supplier_search_eu");
+    return composeSupplierPromptEu(query, segments);
+  }
   const segments = await getActiveSegments("supplier_search");
   return composeSupplierPrompt(query, segments);
 }

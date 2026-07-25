@@ -14,8 +14,9 @@ import {
   COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES,
   CERTIFICATIONS, ORIGIN_OPTIONS, DELIVERY_MODES, MIN_ORDER_OPTIONS,
   PROCESSING_OPTIONS, SEASON_OPTIONS, RANKING_PRIORITIES, COMMON_NEEDS,
+  EU_COUNTRIES, SUPPLIER_TYPES_EU, COMMON_NEEDS_EU,
   creditsForCountPro,
-  type Supplier, type SupplierExtras,
+  type Supplier, type SupplierExtras, type SupplierScope,
 } from "@/lib/suppliers";
 
 const GOLD = "#d7b155"; // PRO (mély kutatás) kiemelő szín
@@ -36,10 +37,13 @@ const FAV_KEY = "__fav__"; // a Kedvencek mappa kulcsa
 const favKey = (name: string) => name.trim().toLowerCase(); // azonosság névre
 
 export default function SupplierFinder({ ingredientNames }: { ingredientNames: string[] }) {
+  const [scope, setScope] = useState<SupplierScope>("domestic"); // Belföld / Külföld (EU)
   const [what, setWhat] = useState("");
   const [county, setCounty] = useState<string>("Pest");
   const [city, setCity] = useState("");
   const [radius, setRadius] = useState("50");
+  const [country, setCountry] = useState("olaszorszag"); // EU-ország
+  const [region, setRegion] = useState("");               // EU régió/város
   const [types, setTypes] = useState<string[]>(["ostermelo"]);
   const [qty, setQty] = useState("");
   const [qtyUnit, setQtyUnit] = useState("kg");
@@ -81,6 +85,17 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
       } catch { /* előzmény nélkül is működik */ }
     })();
   }, []);
+
+  // Hatókör-váltáskor a scope-függő választások visszaállnak (más értékkészlet).
+  useEffect(() => {
+    setTypes(scope === "eu" ? [] : ["ostermelo"]);
+    setNeeds([]); setDeliveryModes([]); setOrigin(""); setSeason("");
+    setResult(null); setPdfUrl(null); setProStatus("");
+  }, [scope]);
+
+  // A scope szerinti opció-készletek.
+  const typeOptions = scope === "eu" ? SUPPLIER_TYPES_EU : SUPPLIER_TYPES;
+  const needOptions = scope === "eu" ? COMMON_NEEDS_EU : COMMON_NEEDS;
 
   // Egy KONKRÉT beszállító kedvenc-állapotának kapcsolása (egy kattintás, ingyenes).
   const favSet = new Set(favSuppliers.map((f) => favKey(f.name)));
@@ -168,7 +183,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          what, county, city, radius, types, qty, qtyUnit, frequency,
+          scope, what, county, city, radius, country, region, types, qty, qtyUnit, frequency,
           certifications, origin, deliveryModes, minOrder, processing, season, ranking, needs, customCriteria,
           count, pro,
         }),
@@ -236,6 +251,21 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
   return (
     <section className="twx-card p-5 sm:p-6">
+      {/* Hatókör: Belföld / Külföld (EU) — külön keresés, külön prompt */}
+      <div className="mb-5 flex gap-2 rounded-xl p-1" style={{ background: "var(--twx-coral-soft)" }}>
+        {[
+          { id: "domestic" as const, label: "Belföldi beszállító", desc: "Magyarországon" },
+          { id: "eu" as const, label: "Külföldi (EU)", desc: "Import az EU-ból" },
+        ].map((t) => (
+          <button key={t.id} type="button" onClick={() => setScope(t.id)}
+            className="flex-1 rounded-lg px-3 py-2 text-center transition"
+            style={scope === t.id ? { background: "#fff", boxShadow: "0 1px 4px rgba(20,12,8,0.12)" } : { background: "transparent" }}>
+            <span className="block text-sm font-semibold" style={{ color: scope === t.id ? "var(--twx-coral)" : "#7a2e17" }}>{t.label}</span>
+            <span className="block text-[11px]" style={{ color: "#7a2e17", opacity: 0.75 }}>{t.desc}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Űrlap */}
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -274,29 +304,45 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megye</label>
-            <SelectField className="mt-1 w-full" value={county} onChange={setCounty}
-              options={COUNTIES.map((c) => ({ value: c, label: c }))} />
+        {scope === "domestic" ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Megye</label>
+              <SelectField className="mt-1 w-full" value={county} onChange={setCounty}
+                options={COUNTIES.map((c) => ({ value: c, label: c }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Település</label>
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Kecskemét"
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Körzet</label>
+              <SelectField className="mt-1 w-full" value={radius} onChange={setRadius}
+                options={RADIUS_OPTIONS.map((r) => ({ value: r.value, label: r.label }))} />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Település</label>
-            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Kecskemét"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Ország (EU)</label>
+              <SelectField className="mt-1 w-full" value={country} onChange={setCountry}
+                options={EU_COUNTRIES.map((c) => ({ value: c.value, label: c.label }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Régió / város (opcionális)</label>
+              <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="pl. Campania, Nápoly"
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Körzet</label>
-            <SelectField className="mt-1 w-full" value={radius} onChange={setRadius}
-              options={RADIUS_OPTIONS.map((r) => ({ value: r.value, label: r.label }))} />
-          </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Milyen típusú beszállító?</label>
           <div className="mt-1 flex flex-wrap gap-2">
-            {SUPPLIER_TYPES.map((t) => {
+            {typeOptions.map((t) => {
               const on = types.includes(t.value);
               return (
                 <button key={t.value} type="button" onClick={() => toggleType(t.value)}
@@ -315,23 +361,28 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         <div className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "rgba(239,122,90,0.03)" }}>
           <p className="mb-2 text-xs font-semibold" style={{ color: "#7a2e17" }}>Részletes szűrés (opcionális)</p>
 
-          {/* Minden szűrő legördülőben — a többértékűeknél checkboxos, több is jelölhető. */}
+          {/* Minden szűrő legördülőben — a többértékűeknél checkboxos, több is jelölhető.
+              Belföldön extra: Eredet, Szezon, Szállítási mód; EU-nál ezek nem relevánsak. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Eredet</label>
-              <SelectField className="mt-1 w-full" value={origin} onChange={setOrigin}
-                options={ORIGIN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
-            </div>
+            {scope === "domestic" && (
+              <div>
+                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Eredet</label>
+                <SelectField className="mt-1 w-full" value={origin} onChange={setOrigin}
+                  options={ORIGIN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Minimum rendelés</label>
               <SelectField className="mt-1 w-full" value={minOrder} onChange={setMinOrder}
                 options={MIN_ORDER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
             </div>
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szezon / elérhetőség</label>
-              <SelectField className="mt-1 w-full" value={season} onChange={setSeason}
-                options={SEASON_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
-            </div>
+            {scope === "domestic" && (
+              <div>
+                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szezon / elérhetőség</label>
+                <SelectField className="mt-1 w-full" value={season} onChange={setSeason}
+                  options={SEASON_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Rangsorolás (mi a legfontosabb?)</label>
               <SelectField className="mt-1 w-full" value={ranking} onChange={setRanking}
@@ -341,17 +392,19 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tanúsítvány <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={certifications} onChange={setCertifications} options={CERTIFICATIONS} placeholder="Mindegy" />
             </div>
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szállítási mód <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
-              <MultiSelectField className="mt-1 w-full" values={deliveryModes} onChange={setDeliveryModes} options={DELIVERY_MODES} placeholder="Mindegy" />
-            </div>
+            {scope === "domestic" && (
+              <div>
+                <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szállítási mód <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
+                <MultiSelectField className="mt-1 w-full" values={deliveryModes} onChange={setDeliveryModes} options={DELIVERY_MODES} placeholder="Mindegy" />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Feldolgozottság <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={processing} onChange={setProcessing} options={PROCESSING_OPTIONS} placeholder="Mindegy" />
             </div>
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Gyakori igény <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
-              <MultiSelectField className="mt-1 w-full" values={needs} onChange={setNeeds} options={COMMON_NEEDS} placeholder="Mindegy" />
+              <MultiSelectField className="mt-1 w-full" values={needs} onChange={setNeeds} options={needOptions} placeholder="Mindegy" />
             </div>
           </div>
 

@@ -15,8 +15,9 @@ import {
   COUNTIES, SUPPLIER_TYPES, QTY_UNITS, FREQUENCIES,
   CERTIFICATIONS, ORIGIN_OPTIONS, DELIVERY_MODES, MIN_ORDER_OPTIONS,
   PROCESSING_OPTIONS, SEASON_OPTIONS, RANKING_PRIORITIES, COMMON_NEEDS,
+  EU_COUNTRIES, SUPPLIER_TYPES_EU, COMMON_NEEDS_EU, isSupplierScope,
   creditsForCountPro, isValidCount, isValidRadius, SUPPLIER_DEEP_MODEL,
-  type SupplierQuery,
+  type SupplierQuery, type SupplierScope,
 } from "@/lib/suppliers";
 
 export const runtime = "nodejs";
@@ -54,17 +55,24 @@ export async function POST(request: Request) {
   }
 
   const str = (v: unknown, max = 160) => String(v ?? "").trim().slice(0, max);
+  const scope: SupplierScope = isSupplierScope(body.scope) ? body.scope : "domestic";
   const what = str(body.what, 120);
   const county = str(body.county, 60);
+  const country = str(body.country, 40);
   const count = Number(body.count);
 
   if (!what) return NextResponse.json({ error: "Add meg, milyen alapanyagot keresel." }, { status: 422 });
-  if (!COUNTIES.includes(county as (typeof COUNTIES)[number])) {
-    return NextResponse.json({ error: "Válassz megyét." }, { status: 422 });
-  }
   if (!isValidCount(count)) return NextResponse.json({ error: "Érvénytelen találatszám." }, { status: 422 });
+  if (scope === "domestic") {
+    if (!COUNTIES.includes(county as (typeof COUNTIES)[number])) {
+      return NextResponse.json({ error: "Válassz megyét." }, { status: 422 });
+    }
+  } else {
+    if (!EU_COUNTRIES.some((c) => c.value === country)) {
+      return NextResponse.json({ error: "Válassz EU-országot." }, { status: 422 });
+    }
+  }
 
-  const validTypes = new Set(SUPPLIER_TYPES.map((t) => t.value as string));
   const validUnits = new Set(QTY_UNITS.map((u) => u.value as string));
   const validFreqs = new Set(FREQUENCIES.map((f) => f.value as string));
   const validCerts = new Set(CERTIFICATIONS.map((c) => c.value as string));
@@ -74,31 +82,34 @@ export async function POST(request: Request) {
   const validProcessing = new Set(PROCESSING_OPTIONS.map((p) => p.value as string));
   const validSeason = new Set(SEASON_OPTIONS.map((s) => s.value as string));
   const validRanking = new Set(RANKING_PRIORITIES.map((r) => r.value as string));
-  const validNeeds = new Set(COMMON_NEEDS.map((n) => n.value as string));
+  // A típusok és igények értékkészlete a hatókörtől függ (belföld vs. EU).
+  const validTypes = new Set((scope === "eu" ? SUPPLIER_TYPES_EU : SUPPLIER_TYPES).map((t) => t.value as string));
+  const validNeeds = new Set((scope === "eu" ? COMMON_NEEDS_EU : COMMON_NEEDS).map((n) => n.value as string));
 
   const arr = (v: unknown, valid: Set<string>, max = 8) =>
     Array.isArray(v) ? (v as unknown[]).map((x) => String(x)).filter((x) => valid.has(x)).slice(0, max) : [];
   const oneOf = (v: unknown, valid: Set<string>) => (valid.has(str(v)) ? str(v) : "");
 
   const query: SupplierQuery = {
+    scope,
     what,
-    county,
-    city: str(body.city, 60),
-    radius: isValidRadius(str(body.radius)) ? str(body.radius) : "50",
-    types: Array.isArray(body.types)
-      ? (body.types as unknown[]).map((t) => String(t)).filter((t) => validTypes.has(t)).slice(0, 5)
-      : [],
+    county: scope === "domestic" ? county : "",
+    city: scope === "domestic" ? str(body.city, 60) : "",
+    radius: scope === "domestic" ? (isValidRadius(str(body.radius)) ? str(body.radius) : "50") : "orszagos",
+    country: scope === "eu" ? country : undefined,
+    region: scope === "eu" ? str(body.region, 60) : undefined,
+    types: arr(body.types, validTypes, 5),
     // Mennyiség és gyakoriság strukturáltan — így a prompt egyértelmű mondatot kap.
     qty: Math.max(0, Math.floor(Number(body.qty) || 0)),
     qtyUnit: validUnits.has(str(body.qtyUnit)) ? str(body.qtyUnit) : "kg",
     frequency: validFreqs.has(str(body.frequency)) ? str(body.frequency) : "heti",
-    // Bővített szűrők.
+    // Bővített szűrők (a belföld-specifikusak EU-nál üresek maradnak).
     certifications: arr(body.certifications, validCerts),
-    origin: oneOf(body.origin, validOrigin),
-    deliveryModes: arr(body.deliveryModes, validDelivery),
+    origin: scope === "domestic" ? oneOf(body.origin, validOrigin) : "",
+    deliveryModes: scope === "domestic" ? arr(body.deliveryModes, validDelivery) : [],
     minOrder: oneOf(body.minOrder, validMinOrder),
     processing: arr(body.processing, validProcessing),
-    season: oneOf(body.season, validSeason),
+    season: scope === "domestic" ? oneOf(body.season, validSeason) : "",
     ranking: validRanking.has(str(body.ranking)) ? str(body.ranking) : "megbizhatosag",
     needs: arr(body.needs, validNeeds),
     customCriteria: Array.isArray(body.customCriteria)
