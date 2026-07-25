@@ -31,9 +31,9 @@ export default function SuppliersPage() {
       <ModuleIntro
         eyebrow="Vendéglátás · Beszerzés"
         title="Beszállító-kereső"
-        subtitle="A legtöbb étterem azért fizet túl az alapanyagért, mert nincs ideje beszállítót keresni. Add meg, mit keresel és hol — a Twinx élő webes kutatással összeszedi a környékbeli termelőket, nagykereskedőket és piacokat, forrásmegjelöléssel és elérhetőséggel. A végén kapsz egy letölthető PDF-et, benne egy kész megkereső üzenettel, amit csak el kell küldened."
+        subtitle="Add meg, mit keresel és hol — a Twinx élő webes kutatással összeszedi a beszállítókat elérhetőséggel és forrással, a végén letölthető PDF-fel és kész megkereső üzenettel. Kereshetsz belföldön (környékbeli termelők, nagykerek, piacok) vagy külföldön az EU-ban (import, a célország nyelvén, magyar+angol megkereséssel)."
         icon="supplier"
-        chips={["Környékbeli termelők", "Elérhetőségekkel", "Kész megkereső üzenet"]}
+        chips={["Belföld és EU-import", "Elérhetőségekkel", "Kész megkereső üzenet"]}
       />
 
       {loading ? (
