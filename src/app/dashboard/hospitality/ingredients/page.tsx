@@ -335,13 +335,13 @@ function CategoryModal({
 
         {/* Lábléc */}
         <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Mennyit vettél és mennyiért — az egységárat a rendszer számolja. Ingadozó árnál adj meg egy legdrágább árat is; az átlaggal számolunk.</span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
+          <span className="hidden min-w-0 flex-1 text-xs sm:block" style={{ color: "var(--twx-ink-muted)" }}>Mennyit vettél és mennyiért — az egységárat a rendszer számolja. Ingadozó árnál adj meg egy legdrágább árat is; az átlaggal számolunk.</span>
+          <div className="flex flex-none gap-2">
+            <button onClick={onClose} className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
             <button
               onClick={async () => { const ok = await save(); if (ok) { showToast("Alapanyagok mentve.", "success"); onClose(); } }}
               disabled={saving}
-              className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="whitespace-nowrap rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "var(--twx-coral)" }}
             >
               {saving ? "Mentés…" : "Mentés és vissza"}
