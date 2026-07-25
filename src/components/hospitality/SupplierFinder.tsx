@@ -42,7 +42,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [county, setCounty] = useState<string>("Pest");
   const [city, setCity] = useState("");
   const [radius, setRadius] = useState("50");
-  const [country, setCountry] = useState("olaszorszag"); // EU-ország
+  const [country, setCountry] = useState("barmelyik"); // EU-ország (alap: bármelyik)
   const [region, setRegion] = useState("");               // EU régió/város
   const [types, setTypes] = useState<string[]>(["ostermelo"]);
   const [qty, setQty] = useState("");
