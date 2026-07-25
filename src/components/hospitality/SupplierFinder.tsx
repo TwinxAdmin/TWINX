@@ -10,9 +10,14 @@ import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
 import { INGREDIENT_CATEGORIES } from "@/lib/recipes";
 import {
-  COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES, creditsForCount,
+  COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES,
+  CERTIFICATIONS, ORIGIN_OPTIONS, DELIVERY_MODES, MIN_ORDER_OPTIONS,
+  PROCESSING_OPTIONS, SEASON_OPTIONS, RANKING_PRIORITIES, COMMON_NEEDS,
+  creditsForCountPro,
   type Supplier, type SupplierExtras,
 } from "@/lib/suppliers";
+
+const GOLD = "#d7b155"; // PRO (mély kutatás) kiemelő szín
 
 type SavedSearch = {
   id: string;
@@ -38,8 +43,20 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [qty, setQty] = useState("");
   const [qtyUnit, setQtyUnit] = useState("kg");
   const [frequency, setFrequency] = useState("heti");
-  const [notes, setNotes] = useState("");
+  // Bővített szűrők
+  const [certifications, setCertifications] = useState<string[]>([]);
+  const [origin, setOrigin] = useState("");
+  const [deliveryModes, setDeliveryModes] = useState<string[]>([]);
+  const [minOrder, setMinOrder] = useState("");
+  const [processing, setProcessing] = useState<string[]>([]);
+  const [season, setSeason] = useState("");
+  const [ranking, setRanking] = useState("megbizhatosag");
+  const [needs, setNeeds] = useState<string[]>([]);
+  const [customCriteria, setCustomCriteria] = useState<string[]>([]);
+  const [customInput, setCustomInput] = useState("");
   const [count, setCount] = useState(3);
+  const [pro, setPro] = useState(false);         // PRO (mély kutatás) mód
+  const [proStatus, setProStatus] = useState(""); // állapotszöveg a PRO polling alatt
   const [running, setRunning] = useState(false);
 
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
@@ -102,25 +119,67 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const toggleType = (v: string) =>
     setTypes((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
 
+  // Egy találat (szinkron vagy PRO-kész) megjelenítése.
+  const applyResult = (data: { result?: { suppliers: Supplier[]; extras: SupplierExtras }; pdf_url?: string | null; search?: SavedSearch }) => {
+    if (data.result) setResult(data.result);
+    setPdfUrl(data.pdf_url ?? null);
+    if (data.search) setHistory((h) => [data.search as SavedSearch, ...h]);
+  };
+
+  // PRO (async) job pollingja a status végponton, amíg kész vagy hiba nem lesz.
+  const pollJob = (jobId: string) => {
+    setProStatus("Mély kutatás folyamatban… ez akár 1–2 perc is lehet, nyugodtan várj.");
+    const started = Date.now();
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/hospitality/suppliers/status?job=${encodeURIComponent(jobId)}`);
+        const data = await res.json();
+        if (data.status === "done") {
+          applyResult(data);
+          showToast("Mély kutatás kész.", "success");
+          setRunning(false); setProStatus("");
+          return;
+        }
+        if (data.status === "failed") {
+          showToast(data.error ?? "A PRO keresés nem sikerült.", "error");
+          setRunning(false); setProStatus("");
+          return;
+        }
+        if (Date.now() - started > 6 * 60 * 1000) {
+          showToast("A kutatás a vártnál tovább tart — később az előzményekben megnézheted.", "info");
+          setRunning(false); setProStatus("");
+          return;
+        }
+        setTimeout(tick, 4000);
+      } catch {
+        setTimeout(tick, 6000); // átmeneti hálózati hiba — próbáljuk újra
+      }
+    };
+    setTimeout(tick, 3000);
+  };
+
   const search = async () => {
     if (!what.trim()) { showToast("Add meg, milyen alapanyagot keresel.", "error"); return; }
     setRunning(true);
-    setResult(null); setPdfUrl(null);
+    setResult(null); setPdfUrl(null); setProStatus("");
     try {
       const res = await fetch("/api/hospitality/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ what, county, city, radius, types, qty, qtyUnit, frequency, notes, count }),
+        body: JSON.stringify({
+          what, county, city, radius, types, qty, qtyUnit, frequency,
+          certifications, origin, deliveryModes, minOrder, processing, season, ranking, needs, customCriteria,
+          count, pro,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); return; }
-      setResult(data.result);
-      setPdfUrl(data.pdf_url ?? null);
-      if (data.search) setHistory((h) => [data.search, ...h]);
+      if (!res.ok) { showToast(data.error ?? "A keresés nem sikerült.", "error"); setRunning(false); return; }
+      if (data.async && data.jobId) { pollJob(data.jobId); return; } // PRO: running marad a polling végéig
+      applyResult(data);
       showToast(data.charged ? `${data.credits} kredit levonva.` : "Keresés kész (ingyenes hozzáférés).", "success");
+      setRunning(false);
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
-    } finally {
       setRunning(false);
     }
   };
@@ -251,30 +310,106 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Egyedi igény (opcionális)</label>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="pl. bio tanúsítvány, számlaképes, házhoz szállít"
-            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+        {/* Részletes szűrés — előbb legördülők, utána chipek + saját szempont */}
+        <div className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "rgba(239,122,90,0.03)" }}>
+          <p className="mb-2 text-xs font-semibold" style={{ color: "#7a2e17" }}>Részletes szűrés (opcionális)</p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Eredet</label>
+              <SelectField className="mt-1 w-full" value={origin} onChange={setOrigin}
+                options={ORIGIN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Minimum rendelés</label>
+              <SelectField className="mt-1 w-full" value={minOrder} onChange={setMinOrder}
+                options={MIN_ORDER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szezon / elérhetőség</label>
+              <SelectField className="mt-1 w-full" value={season} onChange={setSeason}
+                options={SEASON_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Rangsorolás (mi a legfontosabb?)</label>
+              <SelectField className="mt-1 w-full" value={ranking} onChange={setRanking}
+                options={RANKING_PRIORITIES.map((o) => ({ value: o.value, label: o.label }))} />
+            </div>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            <ChipGroup label="Tanúsítvány" options={CERTIFICATIONS} selected={certifications}
+              onToggle={(v) => setCertifications((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
+            <ChipGroup label="Szállítási mód" options={DELIVERY_MODES} selected={deliveryModes}
+              onToggle={(v) => setDeliveryModes((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
+            <ChipGroup label="Feldolgozottság" options={PROCESSING_OPTIONS} selected={processing}
+              onToggle={(v) => setProcessing((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
+            <ChipGroup label="Gyakori igény" options={COMMON_NEEDS} selected={needs}
+              onToggle={(v) => setNeeds((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
+
+            {/* Saját szempont — bármit hozzáadhatsz */}
+            <div className="border-t pt-3" style={{ borderColor: "var(--twx-line)" }}>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Saját szempont hozzáadása</label>
+              <div className="mt-1 flex gap-2">
+                <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } } }}
+                  placeholder="pl. rövid szállítási határidő, hűtött szállítás"
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                <button type="button"
+                  onClick={() => { const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } }}
+                  className="flex-none rounded-lg px-3 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                  Hozzáad
+                </button>
+              </div>
+              {customCriteria.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {customCriteria.map((c, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs" style={{ background: "var(--twx-coral)", color: "#fff" }}>
+                      {c}
+                      <button type="button" onClick={() => setCustomCriteria((l) => l.filter((_, j) => j !== i))} aria-label="Törlés" className="text-sm leading-none">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Találatszám = kredit */}
+        {/* Találatszám = kredit + PRO (mély kutatás) kapcsoló */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány beszállítót keressünk?</label>
           <div className="mt-1 flex flex-wrap gap-2">
             {SUPPLIER_PLANS.map((p) => {
               const on = count === p.count;
+              const shown = pro ? p.credits * 2 : p.credits;
               return (
                 <button key={p.count} type="button" onClick={() => setCount(p.count)}
                   className="rounded-xl px-4 py-2 text-sm font-medium transition"
                   style={on
-                    ? { background: "var(--twx-coral)", color: "#fff" }
+                    ? { background: pro ? GOLD : "var(--twx-coral)", color: pro ? "#3a2c07" : "#fff" }
                     : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
-                  {p.label} · {p.credits} kredit
+                  {p.label} · {shown} kredit
                 </button>
               );
             })}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button type="button" role="switch" aria-checked={pro} onClick={() => setPro((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition"
+              style={pro
+                ? { background: GOLD, color: "#3a2c07", boxShadow: "0 2px 10px rgba(197,160,60,0.45)" }
+                : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill={pro ? "#3a2c07" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+                <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
+              </svg>
+              PRO · mély kutatás
+            </button>
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              {pro
+                ? "Bekapcsolva: a Perplexity legmélyebb kutatása, több forrás — dupla kredit, és 1–2 percig is eltarthat."
+                : "A legalaposabb kereséshez kapcsold be (dupla kredit, hosszabb, de sokkal alaposabb)."}
+            </span>
           </div>
         </div>
 
@@ -289,10 +424,13 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
         <div className="flex flex-wrap items-center gap-3">
           <button onClick={search} disabled={running}
-            className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            style={{ background: "var(--twx-coral)" }}>
-            {running ? "Keresés folyamatban…" : `Beszállítók keresése (${creditsForCount(count)} kredit)`}
+            className="rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
+            style={pro ? { background: GOLD, color: "#3a2c07" } : { background: "var(--twx-coral)", color: "#fff" }}>
+            {running
+              ? (pro ? "Mély kutatás folyamatban…" : "Keresés folyamatban…")
+              : `${pro ? "PRO keresés" : "Beszállítók keresése"} (${creditsForCountPro(count, pro)} kredit)`}
           </button>
+          {proStatus && <span className="text-xs" style={{ color: "#7a2e17" }}>{proStatus}</span>}
         </div>
 
         {/* Korábbi keresések — KATEGÓRIA szerinti mappákban (+ Kedvencek elöl) */}
@@ -467,6 +605,36 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         )}
       </AnimatePresence>
     </section>
+  );
+}
+
+// Chip-csoport: egy címke + kattintható opciók (több is választható).
+function ChipGroup({
+  label, options, selected, onToggle,
+}: {
+  label: string;
+  options: readonly { value: string; label: string }[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {options.map((o) => {
+          const on = selected.includes(o.value);
+          return (
+            <button key={o.value} type="button" onClick={() => onToggle(o.value)}
+              className="rounded-full px-3 py-1 text-xs font-medium transition"
+              style={on
+                ? { background: "var(--twx-coral)", color: "#fff" }
+                : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

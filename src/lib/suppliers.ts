@@ -33,6 +33,93 @@ export function supplierTypeLabel(v: string): string {
   return SUPPLIER_TYPES.find((t) => t.value === v)?.label ?? v;
 }
 
+// --- Bővített, strukturált szűrők (a Perplexity-prompt élesítéséhez) --------
+// Tanúsítvány (több is választható) + eredet (egy).
+export const CERTIFICATIONS = [
+  { value: "bio", label: "BIO (EU-tanúsított)" },
+  { value: "demeter", label: "Demeter / biodinamikus" },
+  { value: "haccp", label: "HACCP" },
+  { value: "globalgap", label: "GLOBALG.A.P." },
+  { value: "ifs_brc", label: "IFS / BRC" },
+  { value: "nebih", label: "NÉBIH-nyilvántartott" },
+] as const;
+export const ORIGIN_OPTIONS = [
+  { value: "", label: "Mindegy" },
+  { value: "magyar", label: "Magyar termék" },
+  { value: "helyi", label: "Helyi (rövid ellátási lánc)" },
+  { value: "import_ok", label: "Import is jöhet" },
+] as const;
+
+// Szállítás (mód – több is) + minimum rendelés (egy).
+export const DELIVERY_MODES = [
+  { value: "hazhoz", label: "Házhoz szállít" },
+  { value: "atvetel", label: "Átvételi pont" },
+  { value: "helyben", label: "Helyben átvehető" },
+] as const;
+export const MIN_ORDER_OPTIONS = [
+  { value: "", label: "Mindegy" },
+  { value: "kis_tetel", label: "Kis tételt is vállal" },
+  { value: "nincs_magas", label: "Nincs magas minimum" },
+  { value: "nagy_tetel", label: "Csak nagy tétel" },
+] as const;
+
+// Feldolgozottság (több is) + szezon/elérhetőség (egy).
+export const PROCESSING_OPTIONS = [
+  { value: "nyers", label: "Nyers" },
+  { value: "elokeszitett", label: "Előkészített (tisztított/szeletelt)" },
+  { value: "fagyasztott", label: "Fagyasztott" },
+] as const;
+export const SEASON_OPTIONS = [
+  { value: "", label: "Mindegy" },
+  { value: "szezonalis", label: "Most szezonális, helyi" },
+  { value: "egesz_ev", label: "Egész évben elérhető" },
+] as const;
+
+// Rangsorolási prioritás (a Perplexity-nek: mi szerint rendezze a listát).
+export const RANKING_PRIORITIES = [
+  { value: "megbizhatosag", label: "Megbízhatóság / folyamatosság" },
+  { value: "kozelseg", label: "Közelség" },
+  { value: "ar", label: "Ár-tájékozódás" },
+  { value: "bio", label: "Bio-minőség" },
+  { value: "helyi", label: "Helyi, történettel" },
+] as const;
+
+// Gyakori igények (a korábbi szabad „Egyedi igény" helyett, strukturáltan).
+export const COMMON_NEEDS = [
+  { value: "szamlakepes", label: "Számlaképes" },
+  { value: "halasztott", label: "Halasztott fizetés (15–30 nap)" },
+  { value: "utanvet", label: "Utánvét" },
+  { value: "horeca", label: "Éttermeknek is szállít" },
+  { value: "surgos", label: "Rugalmas / sürgős rendelés" },
+  { value: "keretszerzodes", label: "Keretszerződés lehetséges" },
+  { value: "minta", label: "Mintát ad" },
+] as const;
+
+// Egységes címke-kereső a fenti listákhoz.
+type Opt = { value: string; label: string };
+function labelOf(list: readonly Opt[], v: string): string {
+  return list.find((o) => o.value === v)?.label ?? v;
+}
+export const certificationLabel = (v: string) => labelOf(CERTIFICATIONS, v);
+export const originLabel = (v: string) => labelOf(ORIGIN_OPTIONS, v);
+export const deliveryModeLabel = (v: string) => labelOf(DELIVERY_MODES, v);
+export const minOrderLabel = (v: string) => labelOf(MIN_ORDER_OPTIONS, v);
+export const processingLabel = (v: string) => labelOf(PROCESSING_OPTIONS, v);
+export const seasonOptLabel = (v: string) => labelOf(SEASON_OPTIONS, v);
+export const rankingLabel = (v: string) => labelOf(RANKING_PRIORITIES, v);
+export const commonNeedLabel = (v: string) => labelOf(COMMON_NEEDS, v);
+
+// --- PRO (mély kutatás) --------------------------------------------------
+// A PRO mód a Perplexity legmélyebb keresőmodelljét használja, aszinkron módon
+// (hosszabb futás, több forrás) — a kredit duplázódik.
+export const SUPPLIER_DEEP_MODEL = "sonar-deep-research";
+export function proMultiplier(pro: boolean): number {
+  return pro ? 2 : 1;
+}
+export function creditsForCountPro(count: number, pro: boolean): number {
+  return creditsForCount(count) * proMultiplier(pro);
+}
+
 // --- Mennyiség és gyakoriság (strukturáltan, hogy a prompt egyértelmű legyen) ---
 export const QTY_UNITS = [
   { value: "kg", label: "kg" },
@@ -91,7 +178,17 @@ export type SupplierQuery = {
   qty: number;           // mennyiség (szám)
   qtyUnit: string;       // mértékegység (kg / l / db / láda / raklap)
   frequency: string;     // gyakoriság (napi / heti / kétheti / havi / alkalmi)
-  notes: string;         // egyedi igény (bio tanúsítvány, szállítás…)
+  // Bővített szűrők:
+  certifications?: string[]; // elvárt tanúsítványok (BIO, HACCP…)
+  origin?: string;           // eredet preferencia (magyar/helyi/import_ok)
+  deliveryModes?: string[];  // szállítási mód (házhoz/átvételi pont/helyben)
+  minOrder?: string;         // minimum rendelés preferencia
+  processing?: string[];     // feldolgozottság (nyers/előkészített/fagyasztott)
+  season?: string;           // szezon/elérhetőség
+  ranking?: string;          // rangsorolási prioritás
+  needs?: string[];          // strukturált gyakori igények (számlaképes, halasztott…)
+  customCriteria?: string[]; // saját szempontok (szabad szöveg)
+  notes?: string;            // régi szabad „egyedi igény" (visszafelé kompatibilitás)
   count: number;         // hány találatot kérünk
   exclude?: string[];    // már ismert beszállítók — ezeket NE adja vissza újra
 };
@@ -144,6 +241,8 @@ export function composeSupplierPrompt(
       ? "Országosan keress, de a földrajzilag közelebbieket sorold előre."
       : `Elsősorban ${q.city ? `${q.city} (${q.county})` : q.county} környékén, kb. ${q.radius} km-es körzetben keress.`;
 
+  const rankPref = q.ranking ? rankingLabel(q.ranking) : "";
+
   const lines = [
     `Keresett alapanyag / kategória: ${q.what}`,
     `Terület: ${q.county}${q.city ? `, ${q.city}` : ""}`,
@@ -152,9 +251,19 @@ export function composeSupplierPrompt(
       ? `Milyen típusú beszállító érdekli: ${q.types.map(supplierTypeLabel).join(", ")}.`
       : `Bármilyen típusú beszállító érdekli (termelő, nagyker, piac).`,
     volumeLabel(q) ? `Tervezett beszerzési mennyiség: ${volumeLabel(q)}.` : "",
-    q.notes ? `Egyedi igény: ${q.notes}` : "",
+    // Bővített szűrők — minél konkrétabb, annál élesebb a találat.
+    q.certifications?.length ? `Elvárt tanúsítvány(ok): ${q.certifications.map(certificationLabel).join(", ")}.` : "",
+    q.origin ? `Eredet preferencia: ${originLabel(q.origin)}.` : "",
+    q.deliveryModes?.length ? `Szállítási mód: ${q.deliveryModes.map(deliveryModeLabel).join(", ")}.` : "",
+    q.minOrder ? `Minimum rendelés: ${minOrderLabel(q.minOrder)}.` : "",
+    q.processing?.length ? `Feldolgozottság: ${q.processing.map(processingLabel).join(", ")}.` : "",
+    q.season ? `Szezon / elérhetőség: ${seasonOptLabel(q.season)}.` : "",
+    q.needs?.length ? `További elvárások: ${q.needs.map(commonNeedLabel).join(", ")}.` : "",
+    q.customCriteria?.length ? `Egyedi szempontok: ${q.customCriteria.join("; ")}.` : "",
+    q.notes ? `Megjegyzés: ${q.notes}` : "",
     `Ennyi találatot adj: PONTOSAN ${q.count} darab (ha kevesebb valódi találat van, inkább adj kevesebbet, mint kitaláltat).`,
     `A megrendelő egy étterem, tehát olyan beszállítókat keress, akik éttermeknek is szállítanak és számlaképesek.`,
+    rankPref ? `A találatokat elsősorban a következő szempont szerint rangsorold: ${rankPref}.` : "",
     // A partner ne fizessen kétszer ugyanazokért a nevekért: a már ismerteket kizárjuk.
     q.exclude?.length
       ? `FONTOS: az alábbi beszállítókat a partner MÁR ISMERI egy korábbi keresésből, ezeket NE sorold fel újra — keress helyettük MÁSOKAT: ${q.exclude.join("; ")}.`

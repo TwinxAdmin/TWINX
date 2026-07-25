@@ -4,24 +4,24 @@
 // és a keresés mentése (a visszanézés később INGYENES).
 // GET: a korábbi keresések listája.
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
-import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
+import { runSonar, submitSonarAsync, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSupplierPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
-import { generateSuppliersPdf } from "@/lib/pdf";
+import { finalizeSupplierSearch } from "@/lib/supplier-finalize";
 import {
   COUNTIES, SUPPLIER_TYPES, QTY_UNITS, FREQUENCIES,
-  creditsForCount, isValidCount, parseSupplierResponse,
+  CERTIFICATIONS, ORIGIN_OPTIONS, DELIVERY_MODES, MIN_ORDER_OPTIONS,
+  PROCESSING_OPTIONS, SEASON_OPTIONS, RANKING_PRIORITIES, COMMON_NEEDS,
+  creditsForCountPro, isValidCount, SUPPLIER_DEEP_MODEL,
   type SupplierQuery,
 } from "@/lib/suppliers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const FEATURE = "supplier_search";
-const BUCKET = "reports";
 
 export async function GET() {
   const supabase = await createClient();
@@ -67,6 +67,18 @@ export async function POST(request: Request) {
   const validTypes = new Set(SUPPLIER_TYPES.map((t) => t.value as string));
   const validUnits = new Set(QTY_UNITS.map((u) => u.value as string));
   const validFreqs = new Set(FREQUENCIES.map((f) => f.value as string));
+  const validCerts = new Set(CERTIFICATIONS.map((c) => c.value as string));
+  const validOrigin = new Set(ORIGIN_OPTIONS.map((o) => o.value as string));
+  const validDelivery = new Set(DELIVERY_MODES.map((d) => d.value as string));
+  const validMinOrder = new Set(MIN_ORDER_OPTIONS.map((m) => m.value as string));
+  const validProcessing = new Set(PROCESSING_OPTIONS.map((p) => p.value as string));
+  const validSeason = new Set(SEASON_OPTIONS.map((s) => s.value as string));
+  const validRanking = new Set(RANKING_PRIORITIES.map((r) => r.value as string));
+  const validNeeds = new Set(COMMON_NEEDS.map((n) => n.value as string));
+
+  const arr = (v: unknown, valid: Set<string>, max = 8) =>
+    Array.isArray(v) ? (v as unknown[]).map((x) => String(x)).filter((x) => valid.has(x)).slice(0, max) : [];
+  const oneOf = (v: unknown, valid: Set<string>) => (valid.has(str(v)) ? str(v) : "");
 
   const query: SupplierQuery = {
     what,
@@ -80,6 +92,18 @@ export async function POST(request: Request) {
     qty: Math.max(0, Math.floor(Number(body.qty) || 0)),
     qtyUnit: validUnits.has(str(body.qtyUnit)) ? str(body.qtyUnit) : "kg",
     frequency: validFreqs.has(str(body.frequency)) ? str(body.frequency) : "heti",
+    // Bővített szűrők.
+    certifications: arr(body.certifications, validCerts),
+    origin: oneOf(body.origin, validOrigin),
+    deliveryModes: arr(body.deliveryModes, validDelivery),
+    minOrder: oneOf(body.minOrder, validMinOrder),
+    processing: arr(body.processing, validProcessing),
+    season: oneOf(body.season, validSeason),
+    ranking: validRanking.has(str(body.ranking)) ? str(body.ranking) : "megbizhatosag",
+    needs: arr(body.needs, validNeeds),
+    customCriteria: Array.isArray(body.customCriteria)
+      ? (body.customCriteria as unknown[]).map((c) => String(c).trim().slice(0, 120)).filter(Boolean).slice(0, 10)
+      : [],
     notes: str(body.notes, 300),
     count,
   };
@@ -104,87 +128,67 @@ export async function POST(request: Request) {
   const exclude = [...known].slice(0, 40);
 
   const admin = createAdminClient();
-  const credits = creditsForCount(count);
+  const pro = Boolean(body.pro);
+  const credits = creditsForCountPro(count, pro);
 
   const charge = await chargeCredit({ userId: user.id, amount: credits });
   if (!charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }
+  const creditsCharged = charge.bypassed ? 0 : credits;
   const refund = async () => {
     if (!charge.bypassed && credits > 0) {
       await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
     }
   };
 
-  try {
-    // 1) Élő webes kutatás (a prompt tiltja a kitalált cégeket, forrást kér).
-    const prompt = await buildSupplierPromptActive({ ...query, exclude });
-    const raw = await runSonar(prompt, PERPLEXITY_MODEL);
-    // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort, sosem bukhat.
-    await logCost({
-      userId: user.id,
-      serviceId: null,
-      feature: FEATURE,
-      serviceName: "perplexity",
-      units: 1,
-      estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
-    });
-    const result = parseSupplierResponse(raw, count);
+  const prompt = await buildSupplierPromptActive({ ...query, exclude });
 
-    // Ha egyetlen értékelhető találat sincs, ne vegyük el a kreditet.
-    if (!result.suppliers.length) {
+  // ---- PRO: mély kutatás, ASZINKRON (több percig futhat, a Vercel nem vágja le) ----
+  if (pro) {
+    try {
+      const requestId = await submitSonarAsync(prompt, SUPPLIER_DEEP_MODEL);
+      const { data: job, error: jobErr } = await admin
+        .from("supplier_jobs")
+        .insert({
+          user_id: user.id,
+          status: "processing",
+          query,
+          request_id: requestId,
+          credits_charged: creditsCharged,
+        })
+        .select("id")
+        .single();
+      if (jobErr || !job) throw new Error(jobErr?.message ?? "A PRO keresés indítása nem sikerült.");
+      return NextResponse.json({
+        ok: true, async: true, jobId: job.id,
+        charged: !charge.bypassed, credits: creditsCharged,
+      });
+    } catch (err) {
+      await refund();
+      return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    }
+  }
+
+  // ---- NORMÁL: szinkron kutatás ----
+  try {
+    const raw = await runSonar(prompt, PERPLEXITY_MODEL);
+    // API-önköltség logolása (admin költség-kimutatáshoz) — best-effort.
+    await logCost({
+      userId: user.id, serviceId: null, feature: FEATURE, serviceName: "perplexity",
+      units: 1, estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
+    });
+    const fin = await finalizeSupplierSearch({ admin, db: supabase, userId: user.id, query, raw, creditsCharged });
+    if (!fin.ok) {
       await refund();
       return NextResponse.json(
         { error: "Ezekkel a feltételekkel nem találtunk igazolható beszállítót. Próbáld tágabb körzettel vagy más típussal — a kredit nem lett levonva." },
         { status: 422 }
       );
     }
-
-    // 2) TWINX PDF (elérhetőségek + megkereső sablon).
-    let pdfUrl: string | null = null;
-    try {
-      const bytes = await generateSuppliersPdf({ query, result });
-      const path = `suppliers/${user.id}/${randomUUID()}.pdf`;
-      const { error: upErr } = await admin.storage
-        .from(BUCKET)
-        .upload(path, bytes, { contentType: "application/pdf", upsert: false });
-      if (!upErr) pdfUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-    } catch {
-      pdfUrl = null;
-    }
-
-    // 3) Mentés — a visszanézés később ingyenes.
-    const { data: saved } = await supabase
-      .from("supplier_searches")
-      .insert({
-        user_id: user.id,
-        query,
-        results: result.suppliers,
-        extras: result.extras,
-        raw,
-        pdf_url: pdfUrl,
-        credits_charged: charge.bypassed ? 0 : credits,
-      })
-      .select("id, query, results, extras, pdf_url, credits_charged, created_at")
-      .single();
-
-    // 4) Előzmény.
-    await admin.from("usage_history").insert({
-      user_id: user.id,
-      service_id: null,
-      feature_used: FEATURE,
-      input_data: { what, county, city: query.city, radius: query.radius, types: query.types, count },
-      output_file_url: pdfUrl,
-      credits_charged: charge.bypassed ? 0 : credits,
-    });
-
     return NextResponse.json({
-      ok: true,
-      search: saved,
-      result,
-      pdf_url: pdfUrl,
-      charged: !charge.bypassed,
-      credits: charge.bypassed ? 0 : credits,
+      ok: true, search: fin.saved, result: fin.result, pdf_url: fin.pdfUrl,
+      charged: !charge.bypassed, credits: creditsCharged,
     });
   } catch (err) {
     await refund();
