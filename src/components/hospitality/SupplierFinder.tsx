@@ -1,4 +1,4 @@
-// SupplierFinder — beszállító-kereső blokk (az Alapanyagok & receptek oldal alján).
+// SupplierFinder — beszállító-kereső blokk (a Beszállító-kereső oldalon).
 // Vizuálisan KÜLÖNÁLLÓ, keretezett blokk, a tetején csalogató infósávval, hogy ne
 // folyjon össze a fenti árlistával és recept-táblával.
 // Árat szándékosan nem kérünk: az a partner és a beszállító megállapodása.

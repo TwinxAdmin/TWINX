@@ -1,168 +1,48 @@
-// dashboard/hospitality/ingredients — Alapanyagok & receptek.
-// (1) Alapanyagok kategória-kockákban (zöldség, hús, tejtermék…): a kockára kattintva
-//     felugró ablakban lehet tételeket hozzáadni/szerkeszteni, nyilakkal lépkedve a
-//     kategóriák között.
-// (2) Ételek kategória-kockákban (előétel, leves…): a kockára kattintva felugró ablakban
-//     látszanak a kategória ételei, és ott adható meg ételenként a RECEPT — melyik
-//     alapanyagból mennyi kell egy adaghoz.
-// FONTOS: itt csak az ALAPANYAG számít — rezsi, bér és minden más költség kimarad.
+// dashboard/hospitality/ingredients — Alapanyagok (beszerzési árlista).
+// Alapanyagok kategória-kockákban (zöldség, hús, tejtermék…): a kockára kattintva
+// felugró ablakban lehet tételeket hozzáadni/szerkeszteni (mennyiség + teljes ár →
+// egységár), nyilakkal lépkedve a kategóriák között.
+// FONTOS: itt csak az ALAPANYAG-árlista van. A recepteket (melyik ételhez melyik
+// alapanyagból mennyi kell) a Kínálat kezelőben, az adott ételnél adod meg.
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
-import DishRecipeModal from "@/components/hospitality/DishRecipeModal";
 import SelectField from "@/components/SelectField";
-import { DISH_CATEGORIES, type Dish } from "@/lib/hospitality";
 import {
   INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
-  ingredientCategoryUnit, ingredientCategoryUnits, recipeCost, unitLabel,
-  type Ingredient, type IngredientUnit, type RecipeItem,
+  ingredientCategoryUnit, ingredientCategoryUnits, unitLabel,
+  type Ingredient, type IngredientUnit,
 } from "@/lib/recipes";
-
-// Egy recept-sor vagy árlistás (ingredient_id), vagy EGYEDI: a partner ehhez az ételhez
-// adta meg a nevet és az árat, mert a hozzávaló nincs a közös listában.
-type RecipeRow = {
-  id: string;
-  dish_id: string;
-  ingredient_id: string | null;
-  quantity: number;
-  unit: string;
-  custom_name?: string | null;
-  custom_unit?: IngredientUnit | null;
-  custom_unit_price?: number | null;
-  custom_waste_pct?: number | null;
-};
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [dishes, setDishes] = useState<Dish[]>([]);
-  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [openCat, setOpenCat] = useState<string | null>(null);     // alapanyag-kategória (modal)
-  const [openDishCat, setOpenDishCat] = useState<string | null>(null); // étel-kategória (lenyíló)
-  const [applying, setApplying] = useState(false);
-
-  // A recept szerinti önköltség beírása az étel tárolt árába (a szerver újraszámolja).
-  // A tárolt ár CSAK így változik — az áremelés a partner döntése marad.
-  const applyCost = async (dishIds: string[], target: "etlap" | "menu") => {
-    if (!dishIds.length) return;
-    setApplying(true);
-    try {
-      const res = await fetch("/api/hospitality/recipes/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dish_ids: dishIds, target }),
-      });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error ?? "A frissítés nem sikerült.", "error"); return; }
-      const map = new Map<string, number>((data.updated ?? []).map((u: { dish_id: string; cost: number }) => [u.dish_id, u.cost]));
-      setDishes((prev) =>
-        prev.map((d) =>
-          map.has(d.id)
-            ? { ...d, [target === "menu" ? "menu_cost_price" : "cost_price"]: map.get(d.id) as number }
-            : d
-        )
-      );
-      showToast(`${map.size} étel ${target === "menu" ? "menü-költsége" : "étlap-ára"} frissítve.`, "success");
-    } catch {
-      showToast("Hálózati hiba. Próbáld újra.", "error");
-    } finally {
-      setApplying(false);
-    }
-  };
 
   useEffect(() => {
     (async () => {
       try {
-        const [iRes, dRes, rRes] = await Promise.all([
-          fetch("/api/hospitality/ingredients"),
-          fetch("/api/hospitality/dishes"),
-          fetch("/api/hospitality/recipes"),
-        ]);
-        const i = await iRes.json();
-        const d = await dRes.json();
-        const r = await rRes.json();
-        if (iRes.ok) setIngredients(i.ingredients ?? []);
-        if (dRes.ok) setDishes(d.dishes ?? []);
-        if (rRes.ok) setRecipes(r.items ?? []);
+        const res = await fetch("/api/hospitality/ingredients");
+        const data = await res.json();
+        if (res.ok) setIngredients(data.ingredients ?? []);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  // Receptek ételenként (a felugró ablak ebből tölti be a szerkesztőt).
-  const recipesByDish = useMemo(() => {
-    const byDish = new Map<string, RecipeItem[]>();
-    for (const r of recipes) {
-      const arr = byDish.get(r.dish_id) ?? [];
-      arr.push({
-        ingredient_id: r.ingredient_id,
-        quantity: r.quantity,
-        unit: r.unit,
-        custom_name: r.custom_name ?? null,
-        custom_unit: r.custom_unit ?? null,
-        custom_unit_price: r.custom_unit_price ?? null,
-        custom_waste_pct: r.custom_waste_pct ?? 0,
-      });
-      byDish.set(r.dish_id, arr);
-    }
-    return byDish;
-  }, [recipes]);
-
-  // Recept-költség ételenként.
-  const costByDish = useMemo(() => {
-    const out = new Map<string, { cost: number; items: number }>();
-    for (const [dishId, items] of recipesByDish) {
-      out.set(dishId, { cost: recipeCost(items, ingredients), items: items.length });
-    }
-    return out;
-  }, [recipesByDish, ingredients]);
-
-  // Az ablakban mentett recept azonnal frissüljön a lapon is (újratöltés nélkül).
-  const onRecipeSaved = (dishId: string, items: RecipeItem[]) => {
-    setRecipes((prev) => [
-      ...prev.filter((r) => r.dish_id !== dishId),
-      ...items.map((it, i) => ({ id: `${dishId}-${i}`, dish_id: dishId, ...it })),
-    ]);
-  };
-
-  // A recept-ablakból felvett új alapanyag azonnal jelenjen meg a közös listában is.
-  const onIngredientAdded = (ing: Ingredient) =>
-    setIngredients((prev) => [...prev, ing].sort((a, b) => a.name.localeCompare(b.name, "hu")));
-
-  // Azok az ételek, ahol a tárolt étlap-ár eltér a recept szerinti önköltségtől.
-  const staleEtlap = useMemo(
-    () =>
-      dishes.filter((d) => {
-        const rc = costByDish.get(d.id);
-        return rc && d.cost_price != null && Math.abs(rc.cost - d.cost_price) >= 1;
-      }),
-    [dishes, costByDish]
-  );
-
-  // CSAK étlapos ételek — a menüs ételek receptje a Kínálat kezelő menüs blokkjában készül.
-  const dishGroups = useMemo(
-    () =>
-      DISH_CATEGORIES.map((c) => ({
-        cat: c.value as string,
-        label: c.label,
-        items: dishes.filter((d) => d.category === c.value && !d.is_menu),
-      })).filter((g) => g.items.length),
-    [dishes]
-  );
-
   return (
     <main className="mx-auto max-w-3xl space-y-6">
       <ModuleIntro
         eyebrow="Vendéglátás · Önköltség"
-        title="Alapanyagok & receptek"
-        subtitle="Vidd fel egyszer, mennyiért szerzed be az alapanyagokat, és az ételekhez add meg az adagonkénti mennyiséget — a rendszer kiszámolja, mennyibe kerül egy adag elkészítése. Csak az alapanyag számít: rezsi, bér és minden más költség kimarad, azt a riport vetíti rá."
+        title="Alapanyagok"
+        subtitle="Vidd fel egy helyen, mennyiért szerzed be az alapanyagokat — mennyiség és teljes ár alapján (pl. 100 kg burgonya / 15 000 Ft), a rendszer kiszámolja az egységárat. Ez az árlista lesz az ételek önköltségének alapja. A recepteket — melyik ételhez melyik alapanyagból mennyi kell — a Kínálat kezelőben, az adott ételnél adod meg."
         icon="recipe"
-        chips={["Beszerzési árak", "Adagonkénti önköltség", "Ár-változás hatása"]}
+        chips={["Beszerzési árak", "Mennyiség + teljes ár", "Egységár automatikusan"]}
       />
 
       {loading ? (
@@ -198,85 +78,8 @@ export default function IngredientsPage() {
               })}
             </div>
           </section>
-
-          {/* ================= ÉTEL-KATEGÓRIÁK ================= */}
-          <section className="space-y-2">
-            <div>
-              <h2 className="font-display text-lg font-medium">Ételek recept-önköltsége</h2>
-              <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Kattints egy kategóriára: felugrik az ott mentett ételek listája, és ételenként megadhatod, melyik
-                alapanyagból mennyi kell <b>egy adaghoz</b>. A rendszer azonnal számolja az adag-költséget. A tárolt ár
-                csak akkor változik, ha te frissíted — az eladási ár emelése továbbra is a te döntésed.
-              </p>
-            </div>
-
-            {staleEtlap.length > 0 && (
-              <div className="twx-card flex flex-wrap items-center justify-between gap-3 p-4">
-                <span className="text-sm">
-                  <b>{staleEtlap.length}</b> ételnél eltér a recept szerinti önköltség a tárolt étlap-ártól.
-                </span>
-                <button
-                  onClick={() => applyCost(staleEtlap.map((d) => d.id), "etlap")}
-                  disabled={applying}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: "var(--twx-coral)" }}
-                >
-                  {applying ? "Frissítés…" : "Összes étlap-ár frissítése"}
-                </button>
-              </div>
-            )}
-
-            {dishGroups.length ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {dishGroups.map((g) => {
-                    const withRecipe = g.items.filter((d) => costByDish.has(d.id)).length;
-                    return (
-                      <button
-                        key={g.cat}
-                        onClick={() => setOpenDishCat(g.cat)}
-                        className="twx-card flex flex-col gap-1 p-4 text-left transition hover:shadow-md"
-                      >
-                        <span className="font-display text-base font-medium">{g.label}</span>
-                        <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                          {g.items.length} étel{withRecipe > 0 ? ` · ${withRecipe} recepttel` : ""}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  A zárójeles érték az eltérés a tárolt önköltséghez képest. Pirosan: a recept drágább, mint amivel az
-                  étel el van mentve.
-                </p>
-              </div>
-            ) : (
-              <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Még nincs ételed. Vidd fel őket a Kínálat kezelőben — utána itt tudod megadni hozzájuk a receptet.
-              </div>
-            )}
-          </section>
         </>
       )}
-
-      {/* Étel-kategória ablak: receptek megadása ételenként */}
-      <AnimatePresence>
-        {openDishCat && (
-          <DishRecipeModal
-            key={openDishCat}
-            label={dishGroups.find((g) => g.cat === openDishCat)?.label ?? "Ételek"}
-            dishes={dishGroups.find((g) => g.cat === openDishCat)?.items ?? []}
-            ingredients={ingredients}
-            recipesByDish={recipesByDish}
-            onRecipeSaved={onRecipeSaved}
-            onIngredientAdded={onIngredientAdded}
-            onApplyCost={applyCost}
-            onClose={() => setOpenDishCat(null)}
-          />
-        )}
-      </AnimatePresence>
-
 
       {/* Alapanyag-kategória szerkesztő ablak */}
       <AnimatePresence>

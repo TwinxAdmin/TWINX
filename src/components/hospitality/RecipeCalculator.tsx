@@ -30,7 +30,7 @@ export default function RecipeCalculator({
       .map((i) => ({ ingredient_id: String(i.ingredient_id), quantity: String(i.quantity), unit: i.unit }))
   );
   // Az ételhez felvitt EGYEDI hozzávalók (nincsenek a közös árlistában) változatlanul
-  // átmennek: itt csak megjelennek, szerkeszteni az Alapanyagok & receptek fülön lehet őket.
+  // átmennek: itt csak megjelennek, szerkeszteni az Alapanyagok fülön lehet őket.
   const [customItems] = useState<RecipeItem[]>(() => initialItems.filter((i) => !i.ingredient_id && i.custom_name));
 
   useEffect(() => {
@@ -100,7 +100,7 @@ export default function RecipeCalculator({
             <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
               Még nincs alapanyagod. Vidd fel a beszerzési árakat az{" "}
               <a href="/dashboard/hospitality/ingredients" className="underline" style={{ color: "var(--twx-coral)" }}>
-                Alapanyagok &amp; receptek
+                Alapanyagok
               </a>{" "}
               menüpontban, utána itt már csak a mennyiséget kell megadnod.
             </p>
@@ -172,7 +172,7 @@ export default function RecipeCalculator({
               </button>
               {customItems.length > 0 && (
                 <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Az egyedi hozzávalókat az Alapanyagok &amp; receptek fülön tudod módosítani.
+                  Az egyedi hozzávalókat az Alapanyagok fülön tudod módosítani.
                 </p>
               )}
             </div>

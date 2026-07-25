@@ -137,7 +137,7 @@ export default function InventoryPage() {
       <ModuleIntro
         eyebrow="Vendéglátás · Kínálat"
         title="Kínálat kezelő"
-        subtitle="Vidd fel az ételeidet a profitmarzzsal együtt — ez a saját, privát étlap-adatbázisod. A menü generátor kizárólag ezekből dolgozik, így az AI sosem talál ki nem létező fogást."
+        subtitle="Vidd fel az ételeidet a profitmarzzsal együtt, és add meg hozzájuk a receptet (melyik alapanyagból mennyi kell egy adaghoz) — az önköltséget a rendszer az Alapanyagok fülön megadott árakból számolja. Ez a saját, privát étlap-adatbázisod, amelyből a menü generátor kizárólag dolgozik, így az AI sosem talál ki nem létező fogást."
         icon="inventory"
         chips={["Privát adatbázis", "Profitmarzs", "RAG-forrás"]}
       />
@@ -201,12 +201,11 @@ export default function InventoryPage() {
                 </svg>
               </span>
               <div className="text-xs leading-relaxed" style={{ color: "var(--twx-ink)" }}>
-                <b>Az alapanyagokat itt még nem kell megadnod.</b> Most csak vidd fel az ételt a nevével, kategóriájával
-                és árával. Az összetevőket később, az <b>Alapanyagok &amp; receptek</b> fülön adod hozzá az ételhez —
-                ott megadod, melyik hozzávalóból mennyi kell egy adaghoz. Ez lesz az alapja annak, hogy a rendszer
-                <b> automatikusan kiszámolja az étel önköltségét</b>, jelezze, ha egy alapanyag drágulása miatt csökken
-                a profit, és pontos <b>költség- és profitkimutatásokat</b> adjon. Minél részletesebb a recept, annál
-                pontosabb lesz a kalkuláció — de ráérsz vele, amikor időd engedi.
+                <b>A beszerzési áraidat előbb az Alapanyagok fülön vidd fel.</b> Itt az ételhez lentebb, az „Árazás és
+                profit" résznél megadhatod a <b>receptet</b> is — melyik alapanyagból mennyi kell egy adaghoz —, és a
+                rendszer ebből <b>automatikusan kiszámolja az étel önköltségét</b>, jelzi, ha egy alapanyag drágulása
+                miatt csökken a profit, és pontos <b>költség- és profitkimutatásokat</b> ad. A recept opcionális és
+                bármikor bővíthető — ráérsz vele, amikor időd engedi.
               </div>
             </div>
           </div>
