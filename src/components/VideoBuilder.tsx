@@ -2,6 +2,7 @@
 // Formátum + zenei stílus + képszám-alapú kredit. Indítás -> job -> polling -> eredmény.
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
+import SelectField from "@/components/SelectField";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -157,6 +158,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
         chips={["Fotókból", "Zenével", "Social-kész"]}
       />
 
+      <div className="twx-card space-y-5 p-5 sm:p-6">
       {/* Korábbi látványtervek */}
       {historyImages.length > 0 && (
         <section>
@@ -224,38 +226,14 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
       {/* Formátum + zene */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="format" className="block text-sm">
-            Formátum
-          </label>
-          <select
-            id="format"
-            value={format}
-            onChange={(e) => setFormat(e.target.value)}
-            className="twx-input mt-1"
-          >
-            {VIDEO_FORMATS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Formátum</label>
+          <SelectField className="mt-1 w-full" value={format} onChange={setFormat}
+            options={VIDEO_FORMATS.map((f) => ({ value: f.value, label: f.label }))} />
         </div>
         <div>
-          <label htmlFor="music" className="block text-sm">
-            Zenei stílus
-          </label>
-          <select
-            id="music"
-            value={musicStyle}
-            onChange={(e) => setMusicStyle(e.target.value)}
-            className="twx-input mt-1"
-          >
-            {MUSIC_STYLES.map((s) => (
-              <option key={s.slug} value={s.slug}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Zenei stílus</label>
+          <SelectField className="mt-1 w-full" value={musicStyle} onChange={setMusicStyle}
+            options={MUSIC_STYLES.map((s) => ({ value: s.slug, label: s.label }))} />
         </div>
       </div>
 
@@ -280,6 +258,7 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
       </button>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
     </main>
   );
 }

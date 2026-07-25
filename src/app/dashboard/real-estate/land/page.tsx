@@ -124,13 +124,13 @@ export default function LandPage() {
         chips={["Beépíthetőség", "Övezet", "1 oldalas jelentés"]}
       />
 
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form onSubmit={onSubmit} noValidate className="twx-card space-y-5 p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {LAND_FIELDS.map((field) => (
             <div key={field.key} className={field.fullWidth ? "sm:col-span-2" : ""}>
-              <label htmlFor={field.key} className="block text-sm">
+              <label htmlFor={field.key} className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
                 {field.label}
-                {field.required && <span className="text-red-600"> *</span>}
+                {field.required && <span style={{ color: "var(--twx-coral)" }}> *</span>}
               </label>
               <input
                 id={field.key}
