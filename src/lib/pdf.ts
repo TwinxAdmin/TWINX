@@ -666,9 +666,15 @@ export async function generateSuppliersPdf(params: {
   );
   y -= 24;
 
-  // --- Szezonalitás / piaci helyzet ---
+  // --- Szezonalitás / piaci helyzet (rövidre vágva) ---
   if (result.extras.season || result.extras.market) {
-    const boxLines = [result.extras.season, result.extras.market].filter(Boolean) as string[];
+    const clip = (t: string) => {
+      const s = t.replace(/\[\d+\](?:\[\d+\])*/g, "").replace(/\s{2,}/g, " ").trim();
+      if (s.length <= 240) return s;
+      const cut = s.slice(0, 240); const d = cut.lastIndexOf(". ");
+      return d > 100 ? cut.slice(0, d + 1) : `${cut.trim()}…`;
+    };
+    const boxLines = ([result.extras.season, result.extras.market].filter(Boolean) as string[]).map(clip);
     const wrapped = boxLines.flatMap((t) => wrapText(t, 9, contentW - 20));
     const boxH = 16 + wrapped.length * 13;
     page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });

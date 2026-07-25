@@ -39,6 +39,15 @@ const favKey = (name: string) => name.trim().toLowerCase(); // azonosság névre
 // a böngésző EGYBŐL letölti (a sima download attribútum cross-origin nem érvényesül).
 const pdfDownloadUrl = (url: string) =>
   `${url}${url.includes("?") ? "&" : "?"}download=twinx-beszallitok.pdf`;
+// A piaci/szezon megjegyzést rövidre vágjuk (a mély kutatás bőbeszédű): hivatkozás-jelek
+// ([1][8]) törlése + mondathatárnál levágás, hogy csak egy tömör támpont maradjon.
+const shortenNote = (t: string, max = 240) => {
+  const s = String(t ?? "").replace(/\[\d+\](?:\[\d+\])*/g, "").replace(/\s{2,}/g, " ").trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const lastDot = cut.lastIndexOf(". ");
+  return lastDot > 100 ? cut.slice(0, lastDot + 1) : `${cut.trim()}…`;
+};
 
 export default function SupplierFinder({ ingredientNames }: { ingredientNames: string[] }) {
   const [scope, setScope] = useState<SupplierScope>("domestic"); // Belföld / Külföld (EU)
@@ -769,8 +778,8 @@ function ResultBody({
     <div className="space-y-3">
       {(result.extras.season || result.extras.market) && (
         <div className="rounded-xl p-3 text-sm" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-          {result.extras.season && <p>{result.extras.season}</p>}
-          {result.extras.market && <p className="mt-1">{result.extras.market}</p>}
+          {result.extras.season && <p>{shortenNote(result.extras.season)}</p>}
+          {result.extras.market && <p className="mt-1">{shortenNote(result.extras.market)}</p>}
         </div>
       )}
 
