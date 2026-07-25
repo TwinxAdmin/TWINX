@@ -72,23 +72,16 @@ export default function RecipeCalculator({
   };
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: "rgba(20,12,8,0.45)" }}
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose}
+    <motion.aside
+      initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+      transition={{ type: "spring", stiffness: 380, damping: 40 }}
+      className="fixed right-0 top-0 z-[70] flex h-full w-[92vw] max-w-md flex-col overflow-hidden"
+      style={{ background: "var(--twx-cream-card)", borderLeft: "1px solid var(--twx-line)", boxShadow: "-24px 0 60px rgba(0,0,0,0.22)" }}
     >
-      <motion.div
-        className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl"
-        style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
-        initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 26 }}
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
           <div>
-            <div className="font-display text-lg font-semibold">Önköltség kiszámolása</div>
-            <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Miből mennyi kell EGY adaghoz?</div>
+            <div className="font-display text-lg font-semibold">Recept — önköltség</div>
+            <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Miből mennyi kell egy adaghoz — az alapanyag átlag beszerzési árával számolunk.</div>
           </div>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
         </div>
@@ -194,7 +187,6 @@ export default function RecipeCalculator({
             </button>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+    </motion.aside>
   );
 }

@@ -258,16 +258,6 @@ export default function InventoryPage() {
               szériás kötegrecept alapján számoljuk az egy adagra jutó költséget.
             </div>
 
-            <button
-              type="button"
-              onClick={() => setCalcOpen(true)}
-              className="mb-3 text-sm font-medium underline"
-              style={{ color: "var(--twx-coral)" }}
-            >
-              Nem tudod fejből? Számoljuk ki az alapanyagokból
-              {recipeItems.length > 0 && ` (${recipeItems.length} alapanyag felvive)`}
-            </button>
-
             {/* ÉTLAP */}
             <div className="mb-3 rounded-lg p-3" style={{ border: "1px solid var(--twx-line)" }}>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Étlap (à la carte)</p>
@@ -291,7 +281,7 @@ export default function InventoryPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
+              <div>
                 <label className="block text-sm">Profitmarzs (opcionális)</label>
                 <SelectField
                   className="mt-1 w-full"
@@ -301,6 +291,20 @@ export default function InventoryPage() {
                   options={[{ value: "", label: "— nincs megadva —" }, ...PROFIT_MARGINS.map((m) => ({ value: m.value, label: m.label }))]}
                 />
                 {errors.profit_margin && <p className="mt-1 text-xs text-red-600">{errors.profit_margin}</p>}
+              </div>
+              <div>
+                <label className="block text-sm">Recept (alapanyagokból)</label>
+                <button
+                  type="button"
+                  onClick={() => setCalcOpen(true)}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition hover:bg-[rgba(239,122,90,0.06)]"
+                  style={{ borderColor: "var(--twx-coral)", color: "var(--twx-coral)", background: "#fff" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M9 3v6l-4 8a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-4-8V3" /><path d="M8 3h8" />
+                  </svg>
+                  {recipeItems.length > 0 ? `Recept — ${recipeItems.length} alapanyag` : "Recept megadása"}
+                </button>
               </div>
             </div>
           </fieldset>
