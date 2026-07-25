@@ -35,12 +35,12 @@ export async function runValuation(input: ValuationInput): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Perplexity hiba (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Üres válasz a Perplexity API-tól.");
+  if (!content) throw new Error("Üres válasz a keresőtől.");
   return content as string;
 }
 
@@ -77,11 +77,11 @@ export async function runSonar(
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Perplexity hiba (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
   }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Üres válasz a Perplexity API-tól.");
+  if (!content) throw new Error("Üres válasz a keresőtől.");
   return content as string;
 }
 
@@ -102,11 +102,11 @@ export async function submitSonarAsync(prompt: string, model: string): Promise<s
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Perplexity async hiba (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
   }
   const data = await res.json();
   const id = data?.id;
-  if (!id) throw new Error("A Perplexity async válasz nem tartalmaz request id-t.");
+  if (!id) throw new Error("A kutatás indítása nem adott vissza azonosítót.");
   return id as string;
 }
 
@@ -123,14 +123,14 @@ export async function getSonarAsync(requestId: string): Promise<SonarAsyncResult
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Perplexity async lekérdezés hiba (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Kutatás-lekérdezés hiba (${res.status}): ${text.slice(0, 300)}`);
   }
   const data = await res.json();
   const status = data?.status as string | undefined;
 
   if (status === "COMPLETED") {
     const content = data?.response?.choices?.[0]?.message?.content;
-    if (!content) return { status: "failed", error: "Üres válasz a Perplexity async API-tól." };
+    if (!content) return { status: "failed", error: "Üres válasz a kutatástól." };
     return { status: "completed", content: content as string };
   }
   if (status === "FAILED") {

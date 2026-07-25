@@ -479,7 +479,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
           <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             {pro
-              ? "PRO bekapcsolva: a Perplexity legmélyebb kutatása, több forrás — dupla kredit, és 1–2 percig is eltarthat."
+              ? "PRO bekapcsolva: a legmélyebb AI-kutatás, több forrás — dupla kredit, és 1–2 percig is eltarthat."
               : "A legalaposabb kereséshez kapcsold be a PRO-t (dupla kredit, hosszabb, de sokkal alaposabb)."}
           </p>
         </div>
