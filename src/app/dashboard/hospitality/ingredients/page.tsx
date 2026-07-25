@@ -121,6 +121,16 @@ const rowUnitPrices = (r: Row) => {
   return { min: p1, max: p1, avg: p1, hasRange: false };
 };
 const fmtFt = (n: number) => Math.round(n).toLocaleString("hu-HU");
+// Egy mentett alapanyagból sor (mentés után visszatöltjük, hogy megkapja az azonosítót).
+const ingredientToRow = (i: Ingredient): Row => ({
+  id: i.id,
+  name: i.name,
+  unit: i.unit,
+  qty: i.pack_qty != null ? String(i.pack_qty) : (i.unit_price ? "1" : ""),
+  total: i.pack_price != null ? String(i.pack_price) : (i.unit_price ? String(i.unit_price) : ""),
+  totalMax: i.pack_price_max != null ? String(i.pack_price_max) : "",
+  waste_pct: String(i.waste_pct ?? 0),
+});
 
 function CategoryModal({
   category, ingredients, onChange, onNavigate, onClose,
@@ -136,19 +146,7 @@ function CategoryModal({
   const next = INGREDIENT_CATEGORIES[(idx + 1) % INGREDIENT_CATEGORIES.length];
 
   const [rows, setRows] = useState<Row[]>(() =>
-    ingredients
-      .filter((i) => (i.category ?? "egyeb") === category)
-      .map((i) => ({
-        id: i.id,
-        name: i.name,
-        unit: i.unit,
-        // Ha van tárolt "csomag" (mennyiség + ár), azt mutatjuk; különben a régi egységárat
-        // 1 egységre vetítve (pl. 150 Ft/kg → 1 kg = 150 Ft).
-        qty: i.pack_qty != null ? String(i.pack_qty) : (i.unit_price ? "1" : ""),
-        total: i.pack_price != null ? String(i.pack_price) : (i.unit_price ? String(i.unit_price) : ""),
-        totalMax: i.pack_price_max != null ? String(i.pack_price_max) : "",
-        waste_pct: String(i.waste_pct ?? 0),
-      }))
+    ingredients.filter((i) => (i.category ?? "egyeb") === category).map(ingredientToRow)
   );
   const [saving, setSaving] = useState(false);
 
@@ -174,8 +172,10 @@ function CategoryModal({
     setSaving(true);
     try {
       let all = [...ingredients];
-      for (const r of rows) {
-        if (!r.name.trim()) continue;
+      const newRows: Row[] = [];       // a képernyőn maradó sorok — a mentettek megkapják az id-t
+      for (let k = 0; k < rows.length; k++) {
+        const r = rows[k];
+        if (!r.name.trim()) { newRows.push(r); continue; }   // üres/félbehagyott sor marad
         const qtyStr = r.qty.trim() === "" ? "" : String(parseNum(r.qty));
         const totalStr = r.total.trim() === "" ? "" : String(parseNum(r.total));
         const totalMaxStr = r.totalMax.trim() === "" ? "" : String(parseNum(r.totalMax));
@@ -194,25 +194,28 @@ function CategoryModal({
             String(orig.pack_price_max ?? "") === totalMaxStr &&
             Number(orig.unit_price) === avgUnit &&
             String(orig.waste_pct) === String(Number(r.waste_pct) || 0);
-          if (unchanged) continue;
+          if (unchanged) { newRows.push(r); continue; }
           const res = await fetch("/api/hospitality/ingredients", {
             method: "PATCH", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: r.id, ...payload }),
           });
           const data = await res.json();
-          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return false; }
+          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); setRows([...newRows, ...rows.slice(k)]); return false; }
           all = all.map((x) => (x.id === r.id ? data.ingredient : x));
+          newRows.push(ingredientToRow(data.ingredient));
         } else {
           const res = await fetch("/api/hospitality/ingredients", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
           const data = await res.json();
-          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); return false; }
+          if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); setRows([...newRows, ...rows.slice(k)]); return false; }
           all = [...all, data.ingredient];
+          newRows.push(ingredientToRow(data.ingredient));
         }
       }
       onChange(all.sort((a, b) => a.name.localeCompare(b.name, "hu")));
+      setRows(newRows);
       return true;
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
@@ -335,16 +338,16 @@ function CategoryModal({
 
         {/* Lábléc */}
         <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <span className="hidden min-w-0 flex-1 text-xs sm:block" style={{ color: "var(--twx-ink-muted)" }}>Mennyit vettél és mennyiért — az egységárat a rendszer számolja. Ingadozó árnál adj meg egy legdrágább árat is; az átlaggal számolunk.</span>
+          <span className="hidden min-w-0 flex-1 text-xs sm:block" style={{ color: "var(--twx-ink-muted)" }}>Mentés után itt maradsz — nyugodtan vidd fel a többi alapanyagot is. A „Bezár" visz vissza a kategóriákhoz.</span>
           <div className="flex flex-none gap-2">
             <button onClick={onClose} className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
             <button
-              onClick={async () => { const ok = await save(); if (ok) { showToast("Alapanyagok mentve.", "success"); onClose(); } }}
+              onClick={async () => { const ok = await save(); if (ok) showToast("Alapanyagok mentve.", "success"); }}
               disabled={saving}
               className="whitespace-nowrap rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: "var(--twx-coral)" }}
             >
-              {saving ? "Mentés…" : "Mentés és vissza"}
+              {saving ? "Mentés…" : "Mentés"}
             </button>
           </div>
         </div>
