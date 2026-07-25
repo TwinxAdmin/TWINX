@@ -56,7 +56,8 @@ export default function IngredientsPage() {
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Kattints egy kategóriára, és vedd fel a beszerzési árakat úgy, ahogy vásárolsz: add meg a
                 <b> mennyiséget és a teljes árat</b> (pl. <b>100 kg burgonya — 15 000 Ft</b>), a rendszer kiszámolja
-                az egységárat (150 Ft/kg). A hulladék% a tisztításkor elvesző részt pótolja.
+                az egységárat (150 Ft/kg). Ha az ár hetente ingadozik, megadhatsz egy <b>legolcsóbb–legdrágább
+                tartományt</b> is — ilyenkor az átlaggal számolunk. A hulladék% a tisztításkor elvesző részt pótolja.
               </p>
             </div>
 
@@ -102,10 +103,23 @@ export default function IngredientsPage() {
 // Felugró ablak: egy alapanyag-kategória tételeinek szerkesztése
 // =============================================================================
 // A partner úgy viszi fel, ahogy vásárol: mennyiség (qty) + teljes ár (total).
-// Az egységárat ebből számoljuk (unit_price = total / qty), és meg is jelenítjük.
-type Row = { id?: string; name: string; unit: IngredientUnit; qty: string; total: string; waste_pct: string };
+// Az ár ingadozhat, ezért megadható egy legdrágább ár is (totalMax, opcionális) — a
+// számítás ilyenkor a legolcsóbb és legdrágább egységár ÁTLAGÁVAL dolgozik.
+type Row = { id?: string; name: string; unit: IngredientUnit; qty: string; total: string; totalMax: string; waste_pct: string };
 const parseNum = (s: string) => { const n = Number(String(s ?? "").replace(",", ".")); return isNaN(n) ? 0 : n; };
-const rowUnitPrice = (r: Row) => { const q = parseNum(r.qty); return q > 0 ? parseNum(r.total) / q : 0; };
+// Egységár-tartomány a sorból: min/max/átlag + van-e valódi tartomány.
+const rowUnitPrices = (r: Row) => {
+  const q = parseNum(r.qty);
+  if (q <= 0) return { min: 0, max: 0, avg: 0, hasRange: false };
+  const p1 = parseNum(r.total) / q;
+  const maxTotal = parseNum(r.totalMax);
+  if (maxTotal > 0) {
+    const p2 = maxTotal / q;
+    const lo = Math.min(p1, p2), hi = Math.max(p1, p2);
+    return { min: lo, max: hi, avg: (lo + hi) / 2, hasRange: lo !== hi };
+  }
+  return { min: p1, max: p1, avg: p1, hasRange: false };
+};
 const fmtFt = (n: number) => Math.round(n).toLocaleString("hu-HU");
 
 function CategoryModal({
@@ -132,6 +146,7 @@ function CategoryModal({
         // 1 egységre vetítve (pl. 150 Ft/kg → 1 kg = 150 Ft).
         qty: i.pack_qty != null ? String(i.pack_qty) : (i.unit_price ? "1" : ""),
         total: i.pack_price != null ? String(i.pack_price) : (i.unit_price ? String(i.unit_price) : ""),
+        totalMax: i.pack_price_max != null ? String(i.pack_price_max) : "",
         waste_pct: String(i.waste_pct ?? 0),
       }))
   );
@@ -142,7 +157,7 @@ function CategoryModal({
 
   // Új sor a kategóriában jellemző mértékegységgel (zöldség → kg, ital → liter, egyéb → db).
   const addRow = () =>
-    setRows((s) => [...s, { name: "", unit: ingredientCategoryUnit(category), qty: "", total: "", waste_pct: "" }]);
+    setRows((s) => [...s, { name: "", unit: ingredientCategoryUnit(category), qty: "", total: "", totalMax: "", waste_pct: "" }]);
 
   const removeRow = async (i: number) => {
     const row = rows[i];
@@ -163,9 +178,11 @@ function CategoryModal({
         if (!r.name.trim()) continue;
         const qtyStr = r.qty.trim() === "" ? "" : String(parseNum(r.qty));
         const totalStr = r.total.trim() === "" ? "" : String(parseNum(r.total));
+        const totalMaxStr = r.totalMax.trim() === "" ? "" : String(parseNum(r.totalMax));
+        const avgUnit = rowUnitPrices(r).avg;
         const payload = {
           name: r.name.trim(), unit: r.unit,
-          unit_price: rowUnitPrice(r), pack_qty: r.qty, pack_price: r.total,
+          unit_price: avgUnit, pack_qty: r.qty, pack_price: r.total, pack_price_max: r.totalMax,
           waste_pct: r.waste_pct || 0, category,
         };
         if (r.id) {
@@ -174,7 +191,8 @@ function CategoryModal({
             orig && orig.name === payload.name && orig.unit === r.unit &&
             String(orig.pack_qty ?? "") === qtyStr &&
             String(orig.pack_price ?? "") === totalStr &&
-            Number(orig.unit_price) === rowUnitPrice(r) &&
+            String(orig.pack_price_max ?? "") === totalMaxStr &&
+            Number(orig.unit_price) === avgUnit &&
             String(orig.waste_pct) === String(Number(r.waste_pct) || 0);
           if (unchanged) continue;
           const res = await fetch("/api/hospitality/ingredients", {
@@ -254,6 +272,15 @@ function CategoryModal({
                   style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
                 />
               </div>
+              {/* Beszerzés: mennyiség → egység → ár (tól) → ár (ig, opc.) → hull.% */}
+              <div className="w-16">
+                <input
+                  inputMode="decimal" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })}
+                  placeholder="menny."
+                  className="w-full rounded-lg border px-3 py-2 text-right text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                />
+              </div>
               {/* Csak a kategóriában értelmes egységek — plusz a sor jelenlegi értéke,
                   hogy egy korábban máshogy rögzített tétel se essen ki a listából. */}
               <SelectField
@@ -263,24 +290,23 @@ function CategoryModal({
                 searchable={false}
                 options={Array.from(new Set([...ingredientCategoryUnits(category), r.unit])).map((u) => ({ value: u, label: unitLabel(u) }))}
               />
-              {/* Beszerzés: mennyi + mennyiért → egységár */}
-              <div className="w-20">
-                <input
-                  inputMode="decimal" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })}
-                  placeholder={`menny. (${unitLabel(r.unit)})`}
-                  className="w-full rounded-lg border px-3 py-2 text-right text-sm"
-                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
-                />
-              </div>
-              <div className="w-28">
+              <div className="w-24">
                 <input
                   inputMode="decimal" value={r.total} onChange={(e) => setRow(i, { total: e.target.value })}
-                  placeholder="teljes ár Ft"
+                  placeholder="ár Ft (-tól)"
                   className="w-full rounded-lg border px-3 py-2 text-right text-sm"
                   style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
                 />
               </div>
-              <div className="w-16">
+              <div className="w-24">
+                <input
+                  inputMode="decimal" value={r.totalMax} onChange={(e) => setRow(i, { totalMax: e.target.value })}
+                  placeholder="-ig (opc.)"
+                  className="w-full rounded-lg border px-3 py-2 text-right text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                />
+              </div>
+              <div className="w-14">
                 <input
                   inputMode="numeric" value={r.waste_pct} onChange={(e) => setRow(i, { waste_pct: e.target.value })}
                   placeholder="hull.%"
@@ -289,11 +315,16 @@ function CategoryModal({
                 />
               </div>
               <button onClick={() => removeRow(i)} className="pb-2 text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Törlés">×</button>
-              {/* Élő egységár a beírt mennyiség és ár alapján */}
+              {/* Élő egységár a beírt mennyiség és ár(ak) alapján */}
               <div className="w-full pl-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                 {parseNum(r.qty) > 0 && parseNum(r.total) > 0
-                  ? <>= <b style={{ color: "var(--twx-ink)" }}>{fmtFt(rowUnitPrice(r))} Ft/{unitLabel(r.unit)}</b> egységár</>
-                  : "Add meg a beszerzett mennyiséget és a teljes árat (pl. 100 kg / 15 000 Ft)."}
+                  ? (() => {
+                      const u = rowUnitPrices(r);
+                      return u.hasRange
+                        ? <>= <b style={{ color: "var(--twx-ink)" }}>{fmtFt(u.min)}–{fmtFt(u.max)} Ft/{unitLabel(r.unit)}</b> · a rendszer az átlaggal ({fmtFt(u.avg)} Ft/{unitLabel(r.unit)}) számol</>
+                        : <>= <b style={{ color: "var(--twx-ink)" }}>{fmtFt(u.avg)} Ft/{unitLabel(r.unit)}</b> egységár</>;
+                    })()
+                  : "Add meg a mennyiséget és a teljes árat (pl. 100 kg / 15 000 Ft). Ha ingadozik, a jobb mezőben egy legdrágább árat is megadhatsz."}
               </div>
             </div>
           ))}
@@ -304,7 +335,7 @@ function CategoryModal({
 
         {/* Lábléc */}
         <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Mennyit vettél és mennyiért — az egységárat (Ft/kg, Ft/liter, Ft/db) a rendszer számolja.</span>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Mennyit vettél és mennyiért — az egységárat a rendszer számolja. Ingadozó árnál adj meg egy legdrágább árat is; az átlaggal számolunk.</span>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
             <button

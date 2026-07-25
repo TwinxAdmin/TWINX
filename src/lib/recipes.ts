@@ -96,8 +96,9 @@ export type Ingredient = {
   unit_price: number; // Ft / alap-egység (a számítás mindig ebből dolgozik)
   waste_pct: number;  // tisztítási/hulladék veszteség (%)
   category: string;   // lásd INGREDIENT_CATEGORIES
-  pack_qty?: number | null;   // beszerzett mennyiség (pl. 100 kg) — kényelmi bevitelhez
-  pack_price?: number | null; // a teljes beszerzési ár (pl. 15 000 Ft) — unit_price = pack_price / pack_qty
+  pack_qty?: number | null;       // beszerzett mennyiség (pl. 100 kg) — kényelmi bevitelhez
+  pack_price?: number | null;     // teljes beszerzési ár (legolcsóbb/egyszeri) ehhez a mennyiséghez
+  pack_price_max?: number | null; // opcionális legdrágább teljes ár — ingadozó beszerzésnél; unit_price az átlag
 };
 
 // Egy recept-sor kétféle lehet:

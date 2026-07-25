@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { validateIngredient } from "@/lib/recipes";
 
 export const runtime = "nodejs";
-const SELECT = "id, name, unit, unit_price, waste_pct, category, pack_qty, pack_price";
+const SELECT = "id, name, unit, unit_price, waste_pct, category, pack_qty, pack_price, pack_price_max";
 
 // A "csomagos" bevitelből (mennyiség + teljes ár) számolt egységár. Ha nincs mennyiség/ár,
 // az explicit unit_price-t használjuk (kompatibilis a régi bevitellel).
@@ -17,10 +17,17 @@ const numOrNull = (v: unknown): number | null => {
 };
 function derivePricing(body: Record<string, unknown>) {
   const packQty = numOrNull(body.pack_qty);
-  const packPrice = numOrNull(body.pack_price);
-  const unitPrice =
-    packQty != null && packQty > 0 && packPrice != null ? packPrice / packQty : num(body.unit_price);
-  return { pack_qty: packQty, pack_price: packPrice, unit_price: unitPrice };
+  const packPrice = numOrNull(body.pack_price);        // legolcsóbb / egyszeri teljes ár
+  const packPriceMax = numOrNull(body.pack_price_max); // opcionális legdrágább teljes ár
+  let unitPrice: number;
+  if (packQty != null && packQty > 0 && packPrice != null) {
+    const upMin = packPrice / packQty;
+    const upMax = packPriceMax != null ? packPriceMax / packQty : upMin;
+    unitPrice = (Math.min(upMin, upMax) + Math.max(upMin, upMax)) / 2; // átlag (tartomány esetén)
+  } else {
+    unitPrice = num(body.unit_price);
+  }
+  return { pack_qty: packQty, pack_price: packPrice, pack_price_max: packPriceMax, unit_price: unitPrice };
 }
 
 async function requireUser() {
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
       unit_price: pricing.unit_price,
       pack_qty: pricing.pack_qty,
       pack_price: pricing.pack_price,
+      pack_price_max: pricing.pack_price_max,
       waste_pct: Math.min(90, num(body.waste_pct)),
       category: String(body.category ?? "egyeb").slice(0, 30),
     })
@@ -109,6 +117,7 @@ export async function PATCH(request: Request) {
       unit_price: pricing.unit_price,
       pack_qty: pricing.pack_qty,
       pack_price: pricing.pack_price,
+      pack_price_max: pricing.pack_price_max,
       waste_pct: Math.min(90, num(body.waste_pct)),
       category: String(body.category ?? "egyeb").slice(0, 30),
     })
