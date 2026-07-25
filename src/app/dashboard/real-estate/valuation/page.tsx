@@ -2,8 +2,9 @@
 // A partner bevált eszköze alapján. Sorrend: űrlap validáció -> API.
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
+import ComboField from "@/components/ComboField";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   VALUATION_FIELDS,
   EMPTY_VALUATION,
@@ -21,9 +22,6 @@ export default function ValuationPage() {
   const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
-  // Fókuszkor kiürítjük a mezőt (hogy a datalist MINDEN opciót mutasson), és
-  // ha üresen kattint el a user, visszaállítjuk a korábbi értéket.
-  const restoreRef = useRef<{ key: keyof ValuationInput; val: string } | null>(null);
 
   useEffect(() => {
     if (!viewerOpen) return;
@@ -90,51 +88,39 @@ export default function ValuationPage() {
 
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {VALUATION_FIELDS.map((field) => {
-            const listId = field.options ? `dl-${field.key}` : undefined;
-            return (
-              <div
-                key={field.key}
-                className={field.fullWidth ? "sm:col-span-2" : ""}
-              >
-                <label htmlFor={field.key} className="block text-sm">
-                  {field.label}
-                  {field.required && <span className="text-red-600"> *</span>}
-                </label>
+          {VALUATION_FIELDS.map((field) => (
+            <div
+              key={field.key}
+              className={field.fullWidth ? "sm:col-span-2" : ""}
+            >
+              <label htmlFor={field.key} className="block text-sm">
+                {field.label}
+                {field.required && <span className="text-red-600"> *</span>}
+              </label>
+              {field.options ? (
+                <ComboField
+                  id={field.key}
+                  className="mt-1 w-full"
+                  value={values[field.key]}
+                  onChange={(v) => setField(field.key, v)}
+                  options={field.options}
+                  placeholder={field.placeholder}
+                />
+              ) : (
                 <input
                   id={field.key}
                   type="text"
-                  list={listId}
                   value={values[field.key]}
                   onChange={(e) => setField(field.key, e.target.value)}
-                  onFocus={(e) => {
-                    if (!field.options) return;
-                    restoreRef.current = { key: field.key, val: e.currentTarget.value };
-                    setField(field.key, "");
-                  }}
-                  onBlur={(e) => {
-                    const r = restoreRef.current;
-                    if (r && r.key === field.key && e.currentTarget.value === "") {
-                      setField(field.key, r.val);
-                    }
-                    restoreRef.current = null;
-                  }}
                   placeholder={field.placeholder}
                   className="twx-input mt-1"
                 />
-                {field.options && (
-                  <datalist id={listId}>
-                    {field.options.map((o) => (
-                      <option key={o} value={o} />
-                    ))}
-                  </datalist>
-                )}
-                {errors[field.key] && (
-                  <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
-                )}
-              </div>
-            );
-          })}
+              )}
+              {errors[field.key] && (
+                <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
+              )}
+            </div>
+          ))}
         </div>
 
         <button
