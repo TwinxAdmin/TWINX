@@ -675,6 +675,23 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   );
 }
 
+// Kész megkereső üzenet doboza — másolás gombbal (belföld és EU-nyelvek egyaránt).
+function OutreachBox({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">{title}</h4>
+        <button
+          onClick={() => { navigator.clipboard.writeText(text); showToast("Vágólapra másolva.", "info"); }}
+          className="flex-none text-xs font-medium underline" style={{ color: "var(--twx-coral)" }}>
+          Másolás
+        </button>
+      </div>
+      <p className="whitespace-pre-wrap text-sm">{text}</p>
+    </div>
+  );
+}
+
 // Egy beszállító kártyája — csillaggal (kedvencnek jelöl / levesz egy kattintással).
 // Ugyanez jelenik meg a találatoknál és a Kedvencek mappában.
 function SupplierCard({
@@ -746,19 +763,15 @@ function ResultBody({
         ))}
       </div>
 
-      {result.extras.outreach && (
-        <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-          <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-sm font-semibold">Kész megkereső üzenet</h4>
-            <button
-              onClick={() => { navigator.clipboard.writeText(result.extras.outreach ?? ""); showToast("Vágólapra másolva.", "info"); }}
-              className="text-xs font-medium underline" style={{ color: "var(--twx-coral)" }}>
-              Másolás
-            </button>
-          </div>
-          <p className="whitespace-pre-wrap text-sm">{result.extras.outreach}</p>
-        </div>
-      )}
+      {/* Külföld (EU): angol + magyar üzenet külön. Belföld: egy magyar üzenet. */}
+      {(result.extras.outreachEn || result.extras.outreachHu) ? (
+        <>
+          {result.extras.outreachEn && <OutreachBox title="Megkereső üzenet — angol (a beszállítónak)" text={result.extras.outreachEn} />}
+          {result.extras.outreachHu && <OutreachBox title="Megkereső üzenet — magyar (a te példányod)" text={result.extras.outreachHu} />}
+        </>
+      ) : result.extras.outreach ? (
+        <OutreachBox title="Kész megkereső üzenet" text={result.extras.outreach} />
+      ) : null}
 
       {result.extras.tips?.length ? (
         <div className="rounded-xl border p-4" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>

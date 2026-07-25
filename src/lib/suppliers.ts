@@ -268,7 +268,9 @@ export type SupplierExtras = {
   season?: string;       // szezonalitási megjegyzés
   market?: string;       // piaci helyzet / hol nézhet árakat
   tips?: string[];       // tárgyalási tippek
-  outreach?: string;     // kész megkereső üzenet sablon
+  outreach?: string;     // kész megkereső üzenet (belföld, magyar)
+  outreachEn?: string;   // külföld (EU): angol nyelvű megkereső üzenet a beszállítónak
+  outreachHu?: string;   // külföld (EU): magyar nyelvű változat a partnernek
 };
 
 export type SupplierResult = {
@@ -342,8 +344,8 @@ export function composeSupplierPrompt(
 export const SUPPLIER_EU_DEFAULT_SEGMENTS = {
   intro: `Te egy nemzetközi, EU-n belüli beszerzési szakértő vagy, aki MAGYARORSZÁGI éttermeknek segít külföldi (EU-s) alapanyag-beszállítókat felkutatni. Valós, ellenőrizhető forrásokból dolgozz: konkrét, LÉTEZŐ EU-s gyártókat / termelőket / exportőröket keress, és — ahol van — a márka MAGYARORSZÁGI importőrét / disztribútorát is. SOHA ne találj ki céget, telefonszámot vagy e-mailt — amit nem találsz, hagyd üresen. Minden találathoz adj forrás-URL-t. Fontos kontextus: a vevő magyar étterem, tehát az EU-n belüli beszerzés szabályai érvényesek — nincs vám, de kell közösségi adószám és áfa-kezelés (fordított adózás), nagyobb volumennél Intrastat; és kulcskérdés a szállítás/logisztika, a szállítási idő, valamint a jellemzően MAGASABB minimum rendelési mennyiség.`,
   task: `Válaszolj KIZÁRÓLAG érvényes JSON-nal, magyarázó szöveg nélkül, ebben a szerkezetben:
-{"suppliers":[{"name":"","location":"","distance":"","offering":"","phone":"","email":"","website":"","why":"","source":""}],"extras":{"season":"","market":"","tips":["",""],"outreach":""}}
-A "location" tartalmazza az országot (és régiót/várost). A "why" mondja meg, miért illik (pl. közvetlen gyártó, vagy van magyar disztribútora). A "season" a termék elérhetőségéről / szállítási ütemről szóljon. A "market" adjon támpontot az EU-import jellemző minimum rendeléséről, a szállítási költségről/időről és arról, hol tájékozódhat az árakról. A "tips" 2-3 gyakorlati tanács kifejezetten az EU-importhoz (logisztika, közösségi adószám / fordított áfa, nyelv, minta kérése). Az "outreach" egy kész, udvarias megkereső üzenet: ha a beszállító NEM magyar, ANGOLUL (vagy a cég nyelvén) fogalmazd meg, hivatkozva a keresett termékre és a mennyiségre; ha magyar disztribútor, magyarul. Ahol csak lehet, a közvetlen külföldi gyártó mellé javasolj egy MAGYAR importőrt/disztribútort is alternatívaként.`,
+{"suppliers":[{"name":"","location":"","distance":"","offering":"","phone":"","email":"","website":"","why":"","source":""}],"extras":{"season":"","market":"","tips":["",""],"outreach_en":"","outreach_hu":""}}
+A "location" tartalmazza az országot (és régiót/várost). A "why" mondja meg, miért illik (pl. közvetlen gyártó, vagy van magyar disztribútora). A "season" a termék elérhetőségéről / szállítási ütemről szóljon. A "market" adjon támpontot az EU-import jellemző minimum rendeléséről, a szállítási költségről/időről és arról, hol tájékozódhat az árakról. A "tips" 2-3 gyakorlati tanács kifejezetten az EU-importhoz (logisztika, közösségi adószám / fordított áfa, nyelv, minta kérése). KÉT nyelven készíts kész, udvarias megkereső üzenetet ugyanazzal a tartalommal: az "outreach_en" ANGOL nyelvű (ezt küldi el a partner a külföldi beszállítónak; hivatkozzon a keresett termékre, a mennyiségre és arra, hogy magyar étterem közösségi adószámmal), az "outreach_hu" pedig ugyanennek a MAGYAR fordítása (hogy a partner pontosan lássa, mit küld). Ahol csak lehet, a közvetlen külföldi gyártó mellé javasolj egy MAGYAR importőrt/disztribútort is alternatívaként.`,
 };
 
 export const SUPPLIER_EU_DATA_BLOCK_PREVIEW = `Keresési feltételek (EU):
@@ -420,6 +422,8 @@ export function parseSupplierResponse(raw: string, max: number): SupplierResult 
       market: str(e.market) || undefined,
       tips: Array.isArray(e.tips) ? (e.tips as unknown[]).map(str).filter(Boolean).slice(0, 5) : undefined,
       outreach: str(e.outreach) || undefined,
+      outreachEn: str(e.outreach_en) || undefined,
+      outreachHu: str(e.outreach_hu) || undefined,
     };
     return { suppliers, extras };
   } catch {

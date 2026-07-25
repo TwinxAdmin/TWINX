@@ -723,16 +723,15 @@ export async function generateSuppliersPdf(params: {
     y -= 10;
   }
 
-  // --- Megkereső üzenet ---
-  if (result.extras.outreach) {
-    const lines = wrapText(result.extras.outreach, 9.5, innerW);
+  // --- Megkereső üzenet(ek) ---
+  const drawOutreach = (title: string, intro: string, text: string) => {
+    const lines = wrapText(text, 9.5, innerW);
     const boxH = 18 + lines.length * 13.5 + 12;
     // A cím, a bevezető és a doboz EGYÜTT férjen ki — különben új lapon kezdjük.
     if (y - (boxH + 60) < margin + 40) newPage();
-    sectionTitle("Kész megkereső üzenet");
-    write("Ezt kimásolhatod és elküldheted a kiválasztott beszállítónak:", margin, y - 10, 9, C.muted);
+    sectionTitle(title);
+    write(intro, margin, y - 10, 9, C.muted);
     y -= 22;
-
     page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.cream, borderColor: C.line, borderWidth: 1 });
     let oy = y - 18;
     for (const line of lines) {
@@ -741,6 +740,14 @@ export async function generateSuppliersPdf(params: {
       oy -= 13.5;
     }
     y -= boxH + 18;
+  };
+
+  if (result.extras.outreachEn || result.extras.outreachHu) {
+    // Külföldi (EU) rendelés: a beszállítónak angolul, a partnernek magyarul is.
+    if (result.extras.outreachEn) drawOutreach("Megkereső üzenet — angol (a beszállítónak)", "Ezt küldd el a külföldi beszállítónak:", result.extras.outreachEn);
+    if (result.extras.outreachHu) drawOutreach("Megkereső üzenet — magyar (a te példányod)", "Ugyanez magyarul, hogy pontosan lásd, mit küldesz:", result.extras.outreachHu);
+  } else if (result.extras.outreach) {
+    drawOutreach("Kész megkereső üzenet", "Ezt kimásolhatod és elküldheted a kiválasztott beszállítónak:", result.extras.outreach);
   }
 
   // --- Tippek ---
