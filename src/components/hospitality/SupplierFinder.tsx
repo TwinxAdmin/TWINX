@@ -338,19 +338,19 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                 options={RANKING_PRIORITIES.map((o) => ({ value: o.value, label: o.label }))} />
             </div>
             <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tanúsítvány <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tanúsítvány <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={certifications} onChange={setCertifications} options={CERTIFICATIONS} placeholder="Mindegy" />
             </div>
             <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szállítási mód <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szállítási mód <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={deliveryModes} onChange={setDeliveryModes} options={DELIVERY_MODES} placeholder="Mindegy" />
             </div>
             <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Feldolgozottság <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Feldolgozottság <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={processing} onChange={setProcessing} options={PROCESSING_OPTIONS} placeholder="Mindegy" />
             </div>
             <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Gyakori igény <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Gyakori igény <span style={{ opacity: 0.6 }}>(több is kiválasztható)</span></label>
               <MultiSelectField className="mt-1 w-full" values={needs} onChange={setNeeds} options={COMMON_NEEDS} placeholder="Mindegy" />
             </div>
           </div>
