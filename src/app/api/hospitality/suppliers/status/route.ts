@@ -60,7 +60,7 @@ export async function GET(request: Request) {
   }
 
   if (poll.status === "processing") {
-    return NextResponse.json({ status: "processing" });
+    return NextResponse.json({ status: "processing", raw: poll.raw ?? "" });
   }
 
   if (poll.status === "failed") {

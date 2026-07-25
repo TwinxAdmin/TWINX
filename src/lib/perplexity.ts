@@ -111,11 +111,29 @@ export async function submitSonarAsync(prompt: string, model: string): Promise<s
 }
 
 export type SonarAsyncResult =
-  | { status: "processing" }
+  | { status: "processing"; raw?: string }
   | { status: "completed"; content: string }
   | { status: "failed"; error: string };
 
-// Async állapot lekérdezése request id alapján.
+// A válaszból kinyerhető szöveges tartalom többféle helyről (robusztus a formátumra).
+function extractSonarContent(data: unknown): string {
+  const d = (data ?? {}) as Record<string, unknown>;
+  const resp = (d.response ?? {}) as Record<string, unknown>;
+  const fromChoices = (o: Record<string, unknown>) => {
+    const ch = o.choices as Array<Record<string, unknown>> | undefined;
+    const msg = ch?.[0]?.message as Record<string, unknown> | undefined;
+    return typeof msg?.content === "string" ? (msg.content as string) : "";
+  };
+  return (
+    fromChoices(resp) ||
+    fromChoices(d) ||
+    (typeof resp.output_text === "string" ? (resp.output_text as string) : "") ||
+    (typeof d.output_text === "string" ? (d.output_text as string) : "")
+  );
+}
+
+// Async állapot lekérdezése request id alapján. A státuszt kis/nagybetűtől függetlenül
+// értékeljük (a Perplexity hol nagy-, hol kisbetűs státuszt ad vissza).
 export async function getSonarAsync(requestId: string): Promise<SonarAsyncResult> {
   const apiKey = apiKeyOrThrow();
   const res = await fetch(`${PPLX_BASE}/v1/async/sonar/${encodeURIComponent(requestId)}`, {
@@ -126,16 +144,16 @@ export async function getSonarAsync(requestId: string): Promise<SonarAsyncResult
     throw new Error(`Kutatás-lekérdezés hiba (${res.status}): ${text.slice(0, 300)}`);
   }
   const data = await res.json();
-  const status = data?.status as string | undefined;
+  const status = String(data?.status ?? "").toUpperCase();
 
-  if (status === "COMPLETED") {
-    const content = data?.response?.choices?.[0]?.message?.content;
+  if (status === "COMPLETED" || status === "COMPLETE" || status === "SUCCEEDED") {
+    const content = extractSonarContent(data);
     if (!content) return { status: "failed", error: "Üres válasz a kutatástól." };
-    return { status: "completed", content: content as string };
+    return { status: "completed", content };
   }
-  if (status === "FAILED") {
-    return { status: "failed", error: data?.error_message ?? "A kutatás sikertelen." };
+  if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
+    return { status: "failed", error: (data?.error_message as string) ?? "A kutatás sikertelen." };
   }
-  // CREATED | IN_PROGRESS | egyéb
-  return { status: "processing" };
+  // CREATED | IN_PROGRESS | PROCESSING | QUEUED | egyéb → még fut
+  return { status: "processing", raw: status || "PROCESSING" };
 }

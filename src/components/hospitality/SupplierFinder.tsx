@@ -169,12 +169,15 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           setRunning(false); setProStatus("");
           return;
         }
-        if (Date.now() - started > 6 * 60 * 1000) {
+        // Nyers állapot kiírása (diagnosztika): pl. IN_PROGRESS.
+        const elapsed = Math.round((Date.now() - started) / 1000);
+        setProStatus(`Mély kutatás folyamatban… ${data.raw ? `(${data.raw}) ` : ""}${elapsed}s`);
+        if (Date.now() - started > 10 * 60 * 1000) {
           showToast("A kutatás a vártnál tovább tart — később az előzményekben megnézheted.", "info");
           setRunning(false); setProStatus("");
           return;
         }
-        setTimeout(tick, 4000);
+        setTimeout(tick, 5000);
       } catch {
         setTimeout(tick, 6000); // átmeneti hálózati hiba — próbáljuk újra
       }
