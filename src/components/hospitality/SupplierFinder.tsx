@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
+import MultiSelectField from "@/components/MultiSelectField";
 import { INGREDIENT_CATEGORIES } from "@/lib/recipes";
 import {
   COUNTIES, RADIUS_OPTIONS, SUPPLIER_TYPES, SUPPLIER_PLANS, QTY_UNITS, FREQUENCIES,
@@ -314,6 +315,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         <div className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "rgba(239,122,90,0.03)" }}>
           <p className="mb-2 text-xs font-semibold" style={{ color: "#7a2e17" }}>Részletes szűrés (opcionális)</p>
 
+          {/* Minden szűrő legördülőben — a többértékűeknél checkboxos, több is jelölhető. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Eredet</label>
@@ -335,18 +337,25 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               <SelectField className="mt-1 w-full" value={ranking} onChange={setRanking}
                 options={RANKING_PRIORITIES.map((o) => ({ value: o.value, label: o.label }))} />
             </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tanúsítvány <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <MultiSelectField className="mt-1 w-full" values={certifications} onChange={setCertifications} options={CERTIFICATIONS} placeholder="Mindegy" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Szállítási mód <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <MultiSelectField className="mt-1 w-full" values={deliveryModes} onChange={setDeliveryModes} options={DELIVERY_MODES} placeholder="Mindegy" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Feldolgozottság <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <MultiSelectField className="mt-1 w-full" values={processing} onChange={setProcessing} options={PROCESSING_OPTIONS} placeholder="Mindegy" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Gyakori igény <span style={{ opacity: 0.6 }}>(több is)</span></label>
+              <MultiSelectField className="mt-1 w-full" values={needs} onChange={setNeeds} options={COMMON_NEEDS} placeholder="Mindegy" />
+            </div>
           </div>
 
           <div className="mt-3 space-y-3">
-            <ChipGroup label="Tanúsítvány" options={CERTIFICATIONS} selected={certifications}
-              onToggle={(v) => setCertifications((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
-            <ChipGroup label="Szállítási mód" options={DELIVERY_MODES} selected={deliveryModes}
-              onToggle={(v) => setDeliveryModes((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
-            <ChipGroup label="Feldolgozottság" options={PROCESSING_OPTIONS} selected={processing}
-              onToggle={(v) => setProcessing((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
-            <ChipGroup label="Gyakori igény" options={COMMON_NEEDS} selected={needs}
-              onToggle={(v) => setNeeds((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} />
-
             {/* Saját szempont — bármit hozzáadhatsz */}
             <div className="border-t pt-3" style={{ borderColor: "var(--twx-line)" }}>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Saját szempont hozzáadása</label>
@@ -375,10 +384,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           </div>
         </div>
 
-        {/* Találatszám = kredit + PRO (mély kutatás) kapcsoló */}
+        {/* Találatszám = kredit + PRO (mély kutatás) — egy sorban */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány beszállítót keressünk?</label>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             {SUPPLIER_PLANS.map((p) => {
               const on = count === p.count;
               const shown = pro ? p.credits * 2 : p.credits;
@@ -392,11 +401,11 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                 </button>
               );
             })}
-          </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-3">
+            {/* Elválasztó + PRO kapcsoló, ugyanabban a sorban */}
+            <span className="mx-1 hidden h-6 w-px sm:block" style={{ background: "var(--twx-line)" }} aria-hidden />
             <button type="button" role="switch" aria-checked={pro} onClick={() => setPro((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition"
               style={pro
                 ? { background: GOLD, color: "#3a2c07", boxShadow: "0 2px 10px rgba(197,160,60,0.45)" }
                 : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
@@ -405,12 +414,13 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               </svg>
               PRO · mély kutatás
             </button>
-            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              {pro
-                ? "Bekapcsolva: a Perplexity legmélyebb kutatása, több forrás — dupla kredit, és 1–2 percig is eltarthat."
-                : "A legalaposabb kereséshez kapcsold be (dupla kredit, hosszabb, de sokkal alaposabb)."}
-            </span>
           </div>
+
+          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            {pro
+              ? "PRO bekapcsolva: a Perplexity legmélyebb kutatása, több forrás — dupla kredit, és 1–2 percig is eltarthat."
+              : "A legalaposabb kereséshez kapcsold be a PRO-t (dupla kredit, hosszabb, de sokkal alaposabb)."}
+          </p>
         </div>
 
         {/* Ha ugyanerre már keresett: jelezzük, hogy a korábbiakat kizárva keresünk újakat. */}
@@ -605,36 +615,6 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         )}
       </AnimatePresence>
     </section>
-  );
-}
-
-// Chip-csoport: egy címke + kattintható opciók (több is választható).
-function ChipGroup({
-  label, options, selected, onToggle,
-}: {
-  label: string;
-  options: readonly { value: string; label: string }[];
-  selected: string[];
-  onToggle: (v: string) => void;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
-      <div className="mt-1 flex flex-wrap gap-2">
-        {options.map((o) => {
-          const on = selected.includes(o.value);
-          return (
-            <button key={o.value} type="button" onClick={() => onToggle(o.value)}
-              className="rounded-full px-3 py-1 text-xs font-medium transition"
-              style={on
-                ? { background: "var(--twx-coral)", color: "#fff" }
-                : { border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)", background: "#fff" }}>
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
