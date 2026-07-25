@@ -152,7 +152,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
   // PRO (async) job pollingja a status végponton, amíg kész vagy hiba nem lesz.
   const pollJob = (jobId: string) => {
-    setProStatus("Mély kutatás folyamatban… ez akár 1–2 perc is lehet, nyugodtan várj.");
+    setProStatus("Elindult a mély kutatás — akár 4–5 perc is lehet, nyugodtan várj.");
     const started = Date.now();
     const tick = async () => {
       try {
@@ -169,9 +169,14 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
           setRunning(false); setProStatus("");
           return;
         }
-        // Nyers állapot kiírása (diagnosztika): pl. IN_PROGRESS.
+        // Szép állapot: fázis (magyarul) + eltelt idő perc:mp formátumban.
         const elapsed = Math.round((Date.now() - started) / 1000);
-        setProStatus(`Mély kutatás folyamatban… ${data.raw ? `(${data.raw}) ` : ""}${elapsed}s`);
+        const clock = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+        const r = String(data.raw ?? "").toUpperCase();
+        const phase = r.includes("QUEUE") || r === "CREATED" ? "sorban áll"
+          : r.includes("PROGRESS") || r === "PROCESSING" ? "kutatás folyamatban"
+          : "folyamatban";
+        setProStatus(`Mély kutatás · ${phase} · ${clock}`);
         if (Date.now() - started > 10 * 60 * 1000) {
           showToast("A kutatás a vártnál tovább tart — később az előzményekben megnézheted.", "info");
           setRunning(false); setProStatus("");
@@ -482,7 +487,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
           <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             {pro
-              ? "PRO bekapcsolva: a legmélyebb AI-kutatás, több forrás — dupla kredit, és 1–2 percig is eltarthat."
+              ? "PRO bekapcsolva: a legmélyebb AI-kutatás, több forrás — dupla kredit, és akár 4–5 perc is lehet."
               : "A legalaposabb kereséshez kapcsold be a PRO-t (dupla kredit, hosszabb, de sokkal alaposabb)."}
           </p>
         </div>
@@ -504,7 +509,16 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
               ? (pro ? "Mély kutatás folyamatban…" : "Keresés folyamatban…")
               : `${pro ? "PRO keresés" : "Beszállítók keresése"} (${creditsForCountPro(count, pro)} kredit)`}
           </button>
-          {proStatus && <span className="text-xs" style={{ color: "#7a2e17" }}>{proStatus}</span>}
+          {proStatus && (
+            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+              style={{ background: "rgba(215,177,85,0.16)", color: "#7a5a12", border: "1px solid rgba(215,177,85,0.5)" }}>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: GOLD }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: GOLD }} />
+              </span>
+              {proStatus}
+            </span>
+          )}
         </div>
 
         {/* Korábbi keresések — KATEGÓRIA szerinti mappákban (+ Kedvencek elöl) */}
