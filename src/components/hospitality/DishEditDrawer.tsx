@@ -283,12 +283,12 @@ export default function DishEditDrawer({
           {calcOpen && (
             <RecipeCalculator
               initialItems={recipeItems}
+              dishId={dish.id}
               onClose={() => setCalcOpen(false)}
               onApply={(cost, _target, items) => {
                 setRecipeItems(items);
-                set("cost_price", String(cost));
+                if (items.length) set("cost_price", String(cost));
                 setCalcOpen(false);
-                showToast(`Étlapos önköltség beírva: ${formatHuf(cost)}`, "success");
               }}
             />
           )}

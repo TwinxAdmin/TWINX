@@ -516,9 +516,13 @@ export default function InventoryPage() {
             onClose={() => setCalcOpen(false)}
             onApply={(cost, _target, items) => {
               setRecipeItems(items);
-              set("cost_price", String(cost));
+              if (items.length) {
+                set("cost_price", String(cost));
+                showToast(`Recept beállítva · étlapos önköltség: ${formatHuf(cost)}`, "success");
+              } else {
+                showToast("Recept törölve.", "info");
+              }
               setCalcOpen(false);
-              showToast(`Étlapos önköltség beírva: ${formatHuf(cost)}`, "success");
             }}
           />
         )}

@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { showToast } from "@/components/Toast";
 import { formatHuf } from "@/lib/hospitality";
 import {
   ENTRY_UNITS, DEFAULT_ENTRY_UNIT, INGREDIENT_CATEGORIES, itemCost, recipeCost, unitLabel,
@@ -15,14 +16,16 @@ import {
 type Row = { ingredient_id: string; quantity: string; unit: string };
 
 export default function RecipeCalculator({
-  initialItems, onApply, onClose,
+  initialItems, dishId, onApply, onClose,
 }: {
   initialItems: RecipeItem[];
+  dishId?: string; // ha van, a "Recept mentése" közvetlenül elmenti a receptet (add/remove is)
   onApply: (cost: number, target: "etlap" | "menu", items: RecipeItem[]) => void;
   onClose: () => void;
 }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   // Csak az árlistás sorok szerkeszthetők itt.
   const [rows, setRows] = useState<Row[]>(() =>
     initialItems
@@ -66,9 +69,30 @@ export default function RecipeCalculator({
     setRows((s) => s.map((r, i) => (i === idx ? { ...r, ingredient_id: id, unit: ing ? DEFAULT_ENTRY_UNIT[ing.unit] : r.unit } : r)));
   };
 
-  const apply = (target: "etlap" | "menu") => {
-    if (!items.length) return;
-    onApply(Math.round(total), target, items);
+  // Recept mentése: ha létező ételről van szó (dishId), közvetlenül elmentjük (a szerver
+  // felülírja a sorokat — az üres recept is érvényes, azaz törli a receptet). Mindig
+  // frissítjük a szülő önköltségét is (onApply).
+  const apply = async (target: "etlap" | "menu") => {
+    setSaving(true);
+    try {
+      if (dishId) {
+        const res = await fetch("/api/hospitality/recipes", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dish_id: dishId, items }),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          showToast(d.error ?? "A recept mentése nem sikerült.", "error");
+          return;
+        }
+        showToast(items.length ? "Recept mentve." : "Recept törölve.", "success");
+      }
+      onApply(Math.round(total), target, items);
+    } catch {
+      showToast("Hálózati hiba. Próbáld újra.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -181,9 +205,9 @@ export default function RecipeCalculator({
               külön, kézzel adja meg (nagy szériás előállítás), ezért ide nem tesszük. */}
           <div className="flex flex-wrap justify-end gap-2">
             <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>Bezár</button>
-            <button onClick={() => apply("etlap")} disabled={!items.length}
-              className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "var(--twx-coral)" }}>
-              Beírom étlapos önköltségnek
+            <button onClick={() => apply("etlap")} disabled={saving}
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+              {saving ? "Mentés…" : "Recept mentése"}
             </button>
           </div>
         </div>
