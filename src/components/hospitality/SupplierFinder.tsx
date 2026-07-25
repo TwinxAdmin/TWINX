@@ -23,7 +23,7 @@ const GOLD = "#d7b155"; // PRO (mély kutatás) kiemelő szín
 
 type SavedSearch = {
   id: string;
-  query: { what: string; county: string; city: string; radius: string; count: number };
+  query: { what: string; county: string; city: string; radius: string; count: number; scope?: SupplierScope; country?: string; region?: string };
   results: Supplier[];
   extras: SupplierExtras;
   pdf_url: string | null;
@@ -91,7 +91,11 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
     setTypes(scope === "eu" ? [] : ["ostermelo"]);
     setNeeds([]); setDeliveryModes([]); setOrigin(""); setSeason("");
     setResult(null); setPdfUrl(null); setProStatus("");
+    setOpenFolder(null); setViewSearch(null); // a másik hatókör mappái/keresései záruljanak
   }, [scope]);
+
+  // A korábbi keresések a MOSTANI hatókörhöz tartozzanak (a régi, scope nélküli = belföld).
+  const scopedHistory = history.filter((s) => (s.query?.scope ?? "domestic") === scope);
 
   // A scope szerinti opció-készletek.
   const typeOptions = scope === "eu" ? SUPPLIER_TYPES_EU : SUPPLIER_TYPES;
@@ -211,7 +215,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const norm = (v: string) => v.trim().toLowerCase();
   const categories = (() => {
     const map = new Map<string, { label: string; items: SavedSearch[] }>();
-    for (const s of history) {
+    for (const s of scopedHistory) {
       const label = (s.query?.what ?? "").trim() || "Egyéb";
       const key = norm(label);
       const g = map.get(key) ?? { label, items: [] };
@@ -242,7 +246,7 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
     const key = what.trim().toLowerCase();
     if (!key) return 0;
     const names = new Set<string>();
-    for (const s of history) {
+    for (const s of scopedHistory) {
       if ((s.query?.what ?? "").trim().toLowerCase() !== key) continue;
       for (const r of s.results ?? []) if (r?.name) names.add(r.name.trim());
     }

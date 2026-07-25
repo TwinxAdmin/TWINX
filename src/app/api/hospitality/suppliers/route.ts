@@ -130,7 +130,8 @@ export async function POST(request: Request) {
   const norm = (v: string) => v.trim().toLowerCase();
   const known = new Set<string>();
   for (const row of prevRows ?? []) {
-    const q = (row.query ?? {}) as { what?: string };
+    const q = (row.query ?? {}) as { what?: string; scope?: string };
+    if ((q.scope ?? "domestic") !== scope) continue; // csak azonos hatókör számít
     if (norm(String(q.what ?? "")) !== norm(what)) continue;
     for (const s of (row.results ?? []) as { name?: string }[]) {
       if (s?.name) known.add(String(s.name).trim());

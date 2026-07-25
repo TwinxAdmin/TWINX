@@ -124,24 +124,24 @@ export function isSupplierScope(v: unknown): v is SupplierScope {
   return v === "domestic" || v === "eu";
 }
 
-// EU-országok (a HORECA-importban leggyakoribbak elöl) — a külföldi kereséshez.
+// EU-országok — a "Bármelyik" marad elöl, a többi ABC-sorrendben.
 export const EU_COUNTRIES = [
   { value: "barmelyik", label: "Bármelyik EU-ország" },
-  { value: "olaszorszag", label: "Olaszország" },
-  { value: "spanyolorszag", label: "Spanyolország" },
-  { value: "franciaorszag", label: "Franciaország" },
-  { value: "nemetorszag", label: "Németország" },
   { value: "ausztria", label: "Ausztria" },
-  { value: "gorogorszag", label: "Görögország" },
-  { value: "portugalia", label: "Portugália" },
-  { value: "hollandia", label: "Hollandia" },
   { value: "belgium", label: "Belgium" },
-  { value: "lengyelorszag", label: "Lengyelország" },
   { value: "csehorszag", label: "Csehország" },
+  { value: "franciaorszag", label: "Franciaország" },
+  { value: "gorogorszag", label: "Görögország" },
+  { value: "hollandia", label: "Hollandia" },
+  { value: "horvatorszag", label: "Horvátország" },
+  { value: "lengyelorszag", label: "Lengyelország" },
+  { value: "nemetorszag", label: "Németország" },
+  { value: "olaszorszag", label: "Olaszország" },
+  { value: "portugalia", label: "Portugália" },
+  { value: "romania", label: "Románia" },
+  { value: "spanyolorszag", label: "Spanyolország" },
   { value: "szlovakia", label: "Szlovákia" },
   { value: "szlovenia", label: "Szlovénia" },
-  { value: "horvatorszag", label: "Horvátország" },
-  { value: "romania", label: "Románia" },
 ] as const;
 
 // EU-beszállító típusok (a külföldi keresésben mást jelentenek, mint belföldön).
