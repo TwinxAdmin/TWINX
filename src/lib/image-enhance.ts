@@ -58,10 +58,10 @@ export const ENHANCE_OPTIONS = [
     prompt: "warm, cozy and inviting homely atmosphere, gentle warm tones, welcoming tasteful ambiance",
   },
   {
-    value: "furniture",
-    label: "Bútorzat kiemelése",
-    desc: "A meglévő bútorok élesebbek, tisztábbak, gazdagabb textúrával — de nem cseréljük ki.",
-    prompt: "enhance the appearance of the EXISTING furniture: crisp clean surfaces, rich detailed wood and fabric textures, well-defined edges, refined and tidy look — keep exactly the same furniture pieces in the same positions, do NOT replace, add or restyle any furniture",
+    value: "upscale",
+    label: "Képfelbontás növelő (AI Upscaler)",
+    desc: "Homályos, kisméretű, pixeles képből tűéles, nagy felbontású (4K) verzió — nyomdába, weboldalra.",
+    prompt: "ultra sharp high resolution upscale, crisp clean edges, restore fine details, remove pixelation and blur, remove jpeg and compression artifacts, print-ready 4K quality",
   },
 ] as const;
 
@@ -69,6 +69,9 @@ export type EnhanceOption = (typeof ENHANCE_OPTIONS)[number]["value"];
 export function isEnhanceOption(v: unknown): v is EnhanceOption {
   return ENHANCE_OPTIONS.some((o) => o.value === v);
 }
+
+// Az az opció, amely a valós felbontás-növelést (nagyobb upscale_factor) kapcsolja be.
+export const ENHANCE_UPSCALE_OPTION: EnhanceOption = "upscale";
 
 // --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.

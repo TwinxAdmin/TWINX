@@ -9,6 +9,7 @@ export type FalEnhanceParams = {
   dataUri: string;        // base64 data URI (data:image/jpeg;base64,...)
   prompt: string;
   negativePrompt?: string;
+  upscaleFactor?: number; // felülírja az alap upscale_factor-t (pl. AI Upscaler opció)
 };
 
 export async function enhanceImageFal(
@@ -28,7 +29,7 @@ export async function enhanceImageFal(
       creativity: Number(process.env.FAL_ENHANCE_CREATIVITY || 0.3),
       // resemblance = mennyire tartsa az eredeti szerkezetet (magasabb -> hűbb).
       resemblance: Number(process.env.FAL_ENHANCE_RESEMBLANCE || 0.8),
-      upscale_factor: Number(process.env.FAL_ENHANCE_UPSCALE || 1),
+      upscale_factor: params.upscaleFactor ?? Number(process.env.FAL_ENHANCE_UPSCALE || 1),
       guidance_scale: 4,
       num_inference_steps: Number(process.env.FAL_ENHANCE_STEPS || 18),
       enable_safety_checker: true,
