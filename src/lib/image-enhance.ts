@@ -33,15 +33,12 @@ export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
   // KÖTELEZŐEN látható legyen; a szoba tartalma nem változhat.
   feljavitas: `You are a world-class real-estate and interior photographer. RE-EDIT and RE-LIGHT this amateur phone photo into a magazine-quality, professionally photographed listing image. The visual upgrade MUST be clearly and obviously visible — returning a near-identical image is a FAILURE.
 
-Transform the LOOK strongly and confidently:
-- Re-light the room to bright, clean, natural daylight; open up and brighten every dark or shadowed area so the space looks airy, spacious and welcoming.
-- Professional HDR window balancing: keep the interior bright while recovering the outside view so the windows are not blown out.
-- Make the walls look clean and bright; give the whole scene a warm, cozy, inviting real-estate ambiance.
-- Rich, natural, true-to-life colors; pleasing contrast, depth and micro-contrast; crisp, sharp detail; remove noise, haze and dullness.
-- Correct the perspective so vertical lines are straight (professional architectural look).
+Target look (apply strongly): professional real estate photography of a beautiful interior, bright and airy natural daylight, soft natural illumination, well-lit / opened-up shadows, perfectly balanced HDR lighting, Architectural Digest style, high-end listing, sharp focus, crisp textures, true-to-life colors, clean bright walls, warm and inviting atmosphere, photorealistic.
 
-KEEP IT THE SAME REAL PROPERTY — only the lighting, color, clarity and mood may change:
-- The room, its architecture, layout, furniture, objects, decorations and materials must stay exactly the same and in the same positions. Do NOT add, remove, move, replace, redecorate, renovate or repaint anything, and do NOT change the scene visible outside the windows or the season.
+Avoid at all costs: amateur or phone-camera look, blur, darkness, underexposure, grain/noise, distortion or fisheye, bad or flat lighting, blown-out windows (recover the outside view instead), dinginess, messy look, 3D render, digital art or illustration.
+
+KEEP IT THE SAME REAL PROPERTY — ONLY the lighting, color, clarity and mood may change:
+- The room, its architecture, layout, furniture, objects, decorations and materials must stay exactly the same and in the same positions. Do NOT change the layout, do NOT move/alter/add/remove furniture or objects, do NOT redecorate, renovate or repaint, and do NOT change the scene visible outside the windows or the season.
 
 Output exactly one photorealistic image that looks like the SAME room professionally re-photographed and edited — clearly brighter, cleaner, sharper, warmer and more inviting than the input. Return only the image.`,
 
