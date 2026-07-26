@@ -8,8 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
+import { buildEnhancePromptActive } from "@/lib/prompts";
 import {
-  ENHANCE_PROMPTS, isEnhanceMode, validateImageFiles, enhanceModeLabel,
+  isEnhanceMode, validateImageFiles, enhanceModeLabel,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prompt = ENHANCE_PROMPTS[mode];
+    const prompt = await buildEnhancePromptActive(mode); // admin-szerkeszthető, fallback a kód default
     const items: Array<{ original: string; enhanced: string }> = [];
 
     for (const file of files) {

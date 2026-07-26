@@ -63,6 +63,7 @@ import {
   composeProfessionalPrompt,
   type ProfessionalQuery,
 } from "@/lib/professionals";
+import { ENHANCE_PROMPTS, type EnhanceMode } from "@/lib/image-enhance";
 
 export type PromptSegments = Record<string, string>;
 
@@ -120,6 +121,34 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
         label: "Kimeneti struktúra",
         hint: "A jelentés pontjai és formátuma. Változó nem használható.",
         default: VALUATION_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
+    key: "image_enhance_feljavitas",
+    label: "Képjavító — Feljavítás",
+    dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek.)",
+    dataBlockAfter: "prompt",
+    segments: [
+      {
+        id: "prompt",
+        label: "Prompt (feljavítás)",
+        hint: "A feltöltött képre menő teljes utasítás. Cél: profi, látványos minőségjavítás úgy, hogy a szoba tartalma NE változzon. Változó nem használható.",
+        default: ENHANCE_PROMPTS.feljavitas,
+      },
+    ],
+  },
+  {
+    key: "image_enhance_rendrakas",
+    label: "Képjavító — Rendrakás",
+    dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek.)",
+    dataBlockAfter: "prompt",
+    segments: [
+      {
+        id: "prompt",
+        label: "Prompt (rendrakás)",
+        hint: "A feltöltött képre menő teljes utasítás. Cél: minőségjavítás + a mozdítható rendetlenség eltakarítása, a rögzített elemek és a bútor VÁLTOZATLAN. Változó nem használható.",
+        default: ENHANCE_PROMPTS.rendrakas,
       },
     ],
   },
@@ -441,6 +470,12 @@ export async function buildCostingPromptActive(summaryText: string): Promise<str
 export async function buildSimulationPromptActive(summaryText: string): Promise<string> {
   const segments = await getActiveSegments("profit_plan");
   return composeSimulationPrompt(summaryText, segments);
+}
+
+export async function buildEnhancePromptActive(mode: EnhanceMode): Promise<string> {
+  const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas";
+  const segments = await getActiveSegments(key);
+  return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
 }
 
 export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
