@@ -49,19 +49,19 @@ ONLY improve these technical qualities:
 
 The result must look like the SAME photograph, just professionally, realistically corrected. Output exactly one photorealistic image and nothing else.`,
 
-  // 2) RENDRAKÁS — minőségjavítás + CSAK apró rendetlenség eltakarítása.
-  rendrakas: `You are a professional real-estate photo retoucher. Do exactly TWO things and NOTHING else.
+  // 2) RENDRAKÁS — alapos virtuális rendrakás (staging) + minőségjavítás. A mozdítható
+  // személyes holmi ELTŰNIK, a rögzített elemek és a bútor VÁLTOZATLAN.
+  rendrakas: `You are a professional real-estate photo editor performing VIRTUAL DECLUTTERING (tidy-up) and quality enhancement. Make this exact room look clean, tidy and listing-ready — as if the owner had put away ALL personal belongings before a professional photoshoot. Be THOROUGH, not shy: empty shelves and surfaces should end up genuinely clean.
 
-(1) Improve the TECHNICAL image quality: exposure/brightness, white balance and natural true-to-life colors, contrast, sharpness/clarity, noise reduction, and gently straighten tilted vertical/horizontal lines if the shot is slightly crooked.
+DO (be thorough and complete):
+- Remove ALL movable, everyday and personal items from open shelves, countertops, the sink/basin area, hooks, radiators, window sills and the floor: toiletries, cosmetics, bottles, tubes, jars, soap, sponges, toothbrushes and holders, hairdryer and cables, chargers, cleaning supplies, towels in use, laundry, papers, magazines, bins and rubbish, small clutter. Leave those shelves and surfaces CLEAN and essentially EMPTY, like a staged listing photo. Reconstruct the real, already-visible surface/material behind the removed items.
+- Improve technical quality: exposure/brightness, white balance and natural true-to-life colors, contrast, sharpness/clarity, noise reduction, and gently straighten slightly tilted vertical/horizontal lines.
 
-(2) Lightly DECLUTTER the room: remove ONLY small, clearly out-of-place everyday mess and personal clutter — for example loose cables, scattered small items, dishes, laundry, stray papers, bins, rubbish, and personal toiletries. Fill the freed spots with the realistic surface/floor that is already there.
+DO NOT (keep it truthful — this is a REAL property):
+- Do NOT remove, move, replace, resize or add any FIXED element or piece of FURNITURE: keep the shelving unit / cabinet itself, mirror, sink, faucet, toilet, bath/shower, radiator, washing machine, tiles, walls, floor, ceiling, windows and doors exactly as they are, in the same place, with the same materials and colors.
+- Do NOT renovate, repaint, re-tile, or change any surface material or color.
+- Do NOT add new furniture, plants, artwork or decorations to fill the emptied space.
+- Do NOT change the room layout, proportions, the view through the windows, or the time of day/season.
 
-ABSOLUTE RULES — the image shows a REAL property, keep it truthful:
-- Do NOT alter the property itself: keep the exact same architecture, room layout, walls, floor, ceiling, windows, doors and built-in elements.
-- Keep the existing FURNITURE and appliances in the SAME positions — do NOT add, remove, replace or move furniture.
-- Do NOT add any new furniture, decoration, plants or objects that were not there.
-- Do NOT renovate, repaint, restage, or change the materials/colors of any surface.
-- Do NOT change what is visible through the windows, nor the time of day or season.
-
-The result must remain an honest representation of the real property — simply tidy, clean and well-photographed. Output exactly one photorealistic image and nothing else.`,
+The result must be the SAME room, clearly recognizable, just thoroughly tidied and professionally photographed. Output exactly one photorealistic image and nothing else.`,
 };
