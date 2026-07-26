@@ -26,7 +26,15 @@ export function enhanceModeLabel(v: string): string {
   return ENHANCE_MODES.find((m) => m.value === v)?.label ?? v;
 }
 
-// --- NAGYON SZIGORÚ promptok (image-to-image) ------------------------------
+// --- FELJAVÍTÁS (fal.ai clarity-upscaler) — pozitív + negatív prompt --------
+// A fal img2img-nél a szerkezet megtartását a creativity/resemblance paraméterek adják,
+// a látványt pedig ez a rövid, kulcsszavas pozitív + negatív prompt.
+export const ENHANCE_FAL_PROMPT =
+  "professional real estate photography of a beautiful interior, bright and airy natural daylight, soft natural illumination, well-lit shadows, perfectly balanced HDR lighting, Architectural Digest style, high-end real estate listing, sharp focus, crisp textures, true-to-life colors, clean bright walls, warm and inviting atmosphere, photorealistic";
+export const ENHANCE_FAL_NEGATIVE =
+  "amateur, phone camera, blurry, dark, underexposed, grainy, noisy, distorted, fisheye, bad lighting, blown out windows, messy, changed layout, altered furniture, added objects, 3d render, digital art, illustration, worst quality, low quality";
+
+// --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
 export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
   // 1) FELJAVÍTÁS — pozitív átalakítás: profi újrafényelés/színkezelés. A javulás

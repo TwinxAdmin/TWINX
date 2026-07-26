@@ -8,7 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
-import { buildEnhancePromptActive } from "@/lib/prompts";
+import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
+import { enhanceImageFal } from "@/lib/fal";
 import {
   isEnhanceMode, validateImageFiles, enhanceModeLabel,
 } from "@/lib/image-enhance";
@@ -73,35 +74,40 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prompt = await buildEnhancePromptActive(mode); // admin-szerkeszthető, fallback a kód default
-    const items: Array<{ original: string; enhanced: string }> = [];
+    // Motor a mód szerint: Feljavítás = fal.ai (clarity-upscaler), Rendrakás = Nano Banana.
+    const nanoPrompt = mode === "rendrakas" ? await buildEnhancePromptActive("rendrakas") : "";
+    const falCfg = mode === "feljavitas" ? await buildEnhanceFalActive() : null;
 
-    for (const file of files) {
+    // Párhuzamos feldolgozás — a 4 kép ne fusson a 60 mp-es limitbe egymás után.
+    const items = await Promise.all(files.map(async (file) => {
       const inputBytes = new Uint8Array(await file.arrayBuffer());
+      const mime = file.type || "image/jpeg";
 
-      // Eredeti kép mentése (a before/after nézethez és az előzményhez).
+      // Eredeti kép mentése (before/after + előzmény).
       const origPath = `image-enhance/${user.id}/orig-${randomUUID()}.jpg`;
       const { error: origErr } = await admin.storage
-        .from(BUCKET)
-        .upload(origPath, inputBytes, { contentType: file.type || "image/jpeg", upsert: false });
+        .from(BUCKET).upload(origPath, inputBytes, { contentType: mime, upsert: false });
       if (origErr) throw new Error(`Storage feltöltés hiba: ${origErr.message}`);
-      const originalUrl = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
+      const original = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
 
-      const result = await generateImage({
-        source: { bytes: inputBytes, mimeType: file.type },
-        prompt,
-      });
+      // Javítás a mód szerinti motorral.
+      let result: { bytes: Buffer; mimeType: string };
+      if (falCfg) {
+        const dataUri = `data:${mime};base64,${Buffer.from(inputBytes).toString("base64")}`;
+        result = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative });
+      } else {
+        result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt: nanoPrompt });
+      }
 
       const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
       const filePath = `image-enhance/${user.id}/${randomUUID()}.${ext}`;
-      const { error: uploadError } = await admin.storage
-        .from(BUCKET)
-        .upload(filePath, result.bytes, { contentType: result.mimeType, upsert: false });
-      if (uploadError) throw new Error(`Storage feltöltés hiba: ${uploadError.message}`);
+      const { error: upErr } = await admin.storage
+        .from(BUCKET).upload(filePath, result.bytes, { contentType: result.mimeType, upsert: false });
+      if (upErr) throw new Error(`Storage feltöltés hiba: ${upErr.message}`);
+      const enhanced = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
 
-      const enhancedUrl = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
-      items.push({ original: originalUrl, enhanced: enhancedUrl });
-    }
+      return { original, enhanced };
+    }));
 
     // Job mentése (dátum-mappák + before/after) — a saját sorába (RLS).
     const { data: job } = await supabase
@@ -123,9 +129,9 @@ export async function POST(request: Request) {
       userId: user.id,
       serviceId: service.id,
       feature: FEATURE,
-      serviceName: "google-studio",
+      serviceName: mode === "feljavitas" ? "fal" : "google-studio",
       units: files.length,
-      estimatedCostUsd: googleImageCostUsd(files.length),
+      estimatedCostUsd: mode === "feljavitas" ? 0.05 * files.length : googleImageCostUsd(files.length),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });

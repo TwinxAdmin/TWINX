@@ -63,7 +63,7 @@ import {
   composeProfessionalPrompt,
   type ProfessionalQuery,
 } from "@/lib/professionals";
-import { ENHANCE_PROMPTS, type EnhanceMode } from "@/lib/image-enhance";
+import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, type EnhanceMode } from "@/lib/image-enhance";
 
 export type PromptSegments = Record<string, string>;
 
@@ -126,15 +126,21 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
   },
   {
     key: "image_enhance_feljavitas",
-    label: "Képjavító — Feljavítás",
-    dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek.)",
-    dataBlockAfter: "prompt",
+    label: "Képjavító — Feljavítás (fal.ai)",
+    dataBlockPreview: "(A képet a fal.ai clarity-upscaler dolgozza fel; a szerkezet-megtartást a creativity/resemblance paraméterek adják — ezek env-ből állíthatók.)",
+    dataBlockAfter: "negative",
     segments: [
       {
         id: "prompt",
-        label: "Prompt (feljavítás)",
-        hint: "A feltöltött képre menő teljes utasítás. Cél: profi, látványos minőségjavítás úgy, hogy a szoba tartalma NE változzon. Változó nem használható.",
-        default: ENHANCE_PROMPTS.feljavitas,
+        label: "Pozitív prompt",
+        hint: "Rövid, kulcsszavas leírás a kívánt look-ról (profi ingatlanfotó, világos, HDR, éles…). Változó nem használható.",
+        default: ENHANCE_FAL_PROMPT,
+      },
+      {
+        id: "negative",
+        label: "Negatív prompt (mit kerüljön)",
+        hint: "Amit el akarunk kerülni (amatőr, homályos, sötét, kiégett ablak, elrendezés-változás…). Változó nem használható.",
+        default: ENHANCE_FAL_NEGATIVE,
       },
     ],
   },
@@ -472,10 +478,20 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
   return composeSimulationPrompt(summaryText, segments);
 }
 
+// Rendrakás (Nano Banana) — egy szöveges prompt.
 export async function buildEnhancePromptActive(mode: EnhanceMode): Promise<string> {
   const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas";
   const segments = await getActiveSegments(key);
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
+}
+
+// Feljavítás (fal.ai) — pozitív + negatív prompt.
+export async function buildEnhanceFalActive(): Promise<{ prompt: string; negative: string }> {
+  const segments = await getActiveSegments("image_enhance_feljavitas");
+  return {
+    prompt: (segments.prompt ?? ENHANCE_FAL_PROMPT).trim(),
+    negative: (segments.negative ?? ENHANCE_FAL_NEGATIVE).trim(),
+  };
 }
 
 export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
