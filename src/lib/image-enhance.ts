@@ -8,7 +8,7 @@ export const ENHANCE_MODES = [
   {
     value: "feljavitas",
     label: "Feljavítás",
-    desc: "Csak a képminőség javul (fény, szín, élesség) — a képen semmi más nem változik.",
+    desc: "Élesebb, tisztább, jobb minőségű és nagyobb felbontású kép — a képen semmi más nem változik.",
   },
   {
     value: "rendrakas",
@@ -29,53 +29,12 @@ export function enhanceModeLabel(v: string): string {
 // --- FELJAVÍTÁS (fal.ai clarity-upscaler) — pozitív + negatív prompt --------
 // A fal img2img-nél a szerkezet megtartását a creativity/resemblance paraméterek adják,
 // a látványt pedig ez a rövid, kulcsszavas pozitív + negatív prompt.
-// Bázis (mindig alkalmazzuk): tiszta minőségjavítás, semleges. A látvány-rétegeket
-// (fények, ég, hangulat) a bekapcsolható OPCIÓK adják hozzá.
+// Feljavítás = egyszerű felbontás- és minőségnövelés (nagyobb upscale_factor), a
+// tartalom változtatása nélkül. A prompt csak az élesség/tisztaság irányát adja meg.
 export const ENHANCE_FAL_PROMPT =
-  "professional real estate listing photograph, sharp focus, crisp fine textures, high detail, clean and clear, true-to-life natural colors, well-balanced exposure, photorealistic, high quality";
+  "sharp high resolution photo, crisp fine details, clean and clear, restore fine textures, remove blur and pixelation, remove jpeg and compression artifacts, true-to-life natural colors, well-balanced exposure, photorealistic, high quality";
 export const ENHANCE_FAL_NEGATIVE =
   "amateur, phone camera, blurry, dark, underexposed, grainy, noisy, distorted, fisheye, bad lighting, blown out windows, messy, changed layout, altered furniture, added objects, 3d render, digital art, illustration, worst quality, low quality";
-
-// Bekapcsolható feljavítás-opciók — mindegyiknek saját (admin-szerkeszthető) prompt-
-// rétege, amit engedélyezéskor a bázishoz fűzünk.
-export const ENHANCE_OPTIONS = [
-  {
-    value: "lighting",
-    label: "Szép fények",
-    desc: "Profi, kiegyensúlyozott világítás — levegős, világos tér (HDR).",
-    prompt: "bright and airy professional interior lighting, soft natural daylight, well-lit and opened-up shadows, perfectly balanced HDR lighting, luminous inviting space",
-  },
-  {
-    value: "elegant",
-    label: "Elegáns, prémium összkép",
-    desc: "Magazinszerű, igényes, letisztult hatás — ápolt, exkluzív megjelenés.",
-    prompt: "elegant upscale premium interior look, refined magazine-quality styling, sophisticated tasteful color grading, clean and polished high-end real estate presentation",
-  },
-  {
-    value: "warm",
-    label: "Meleg, otthonos hangulat",
-    desc: "Barátságos, hívogató, meleg tónusú összkép.",
-    prompt: "warm, cozy and inviting homely atmosphere, gentle warm tones, welcoming tasteful ambiance",
-  },
-  {
-    value: "upscale",
-    label: "Képfelbontás növelő (AI Upscaler)",
-    desc: "Homályos, kisméretű, pixeles képből tűéles, nagy felbontású (4K) verzió — nyomdába, weboldalra.",
-    prompt: "ultra sharp high resolution upscale, crisp clean edges, restore fine details, remove pixelation and blur, remove jpeg and compression artifacts, print-ready 4K quality",
-  },
-] as const;
-
-export type EnhanceOption = (typeof ENHANCE_OPTIONS)[number]["value"];
-export function isEnhanceOption(v: unknown): v is EnhanceOption {
-  return ENHANCE_OPTIONS.some((o) => o.value === v);
-}
-
-// Az az opció, amely a valós felbontás-növelést (nagyobb upscale_factor) kapcsolja be.
-export const ENHANCE_UPSCALE_OPTION: EnhanceOption = "upscale";
-
-// Látvány-módosító opciók: ezeknél a fal.ai-nak több szabadságot adunk (magasabb
-// creativity, alacsonyabb resemblance), különben a fény/stílus prompt alig érvényesül.
-export const ENHANCE_STYLE_OPTIONS: EnhanceOption[] = ["lighting", "elegant", "warm"];
 
 // --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
