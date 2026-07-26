@@ -29,24 +29,21 @@ export function enhanceModeLabel(v: string): string {
 // --- NAGYON SZIGORÚ promptok (image-to-image) ------------------------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
 export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
-  // 1) FELJAVÍTÁS — látványos, PROFI ingatlanfotó-hatás, de NULLA tartalmi változás.
-  feljavitas: `You are a top professional real-estate and interior photographer and photo editor. Turn this ordinary snapshot into a POLISHED, PROFESSIONAL-LOOKING listing photo with a clearly VISIBLE quality improvement — bright, clean, airy and inviting — as if it was shot with a professional camera and edited by a pro. The upgrade should be obvious, not subtle.
+  // 1) FELJAVÍTÁS — pozitív átalakítás: profi újrafényelés/színkezelés. A javulás
+  // KÖTELEZŐEN látható legyen; a szoba tartalma nem változhat.
+  feljavitas: `You are a world-class real-estate and interior photographer. RE-EDIT and RE-LIGHT this amateur phone photo into a magazine-quality, professionally photographed listing image. The visual upgrade MUST be clearly and obviously visible — returning a near-identical image is a FAILURE.
 
-Apply strong but natural, photorealistic improvements:
-- Brighten the overall image and lift the dark shadows so the whole room looks well-lit, airy and welcoming; remove gloom and dinginess.
-- Balance the exposure between the interior and the windows (HDR-style): keep the room bright while recovering detail so the window view is visible and not blown out.
-- Clean, neutral to slightly warm white balance; make the walls look clean; give the space a pleasant, inviting warmth.
-- Richer yet natural, true-to-life colors; pleasing contrast and a sense of depth.
-- Crisp sharpness and clarity; reduce noise and any haze.
-- Straighten tilted vertical/horizontal lines (perspective correction) if the shot is slightly crooked.
+Transform the LOOK strongly and confidently:
+- Re-light the room to bright, clean, natural daylight; open up and brighten every dark or shadowed area so the space looks airy, spacious and welcoming.
+- Professional HDR window balancing: keep the interior bright while recovering the outside view so the windows are not blown out.
+- Make the walls look clean and bright; give the whole scene a warm, cozy, inviting real-estate ambiance.
+- Rich, natural, true-to-life colors; pleasing contrast, depth and micro-contrast; crisp, sharp detail; remove noise, haze and dullness.
+- Correct the perspective so vertical lines are straight (professional architectural look).
 
-STRICT RULES — this is a REAL property, so it must stay truthful:
-- Do NOT add, remove, move, replace or reinterpret anything in the scene: keep the exact same room, architecture, walls, floor, ceiling, windows, doors, furniture, appliances, decorations, objects, textures, materials and their real colors — in the same positions and proportions.
-- Do NOT redecorate, renovate, repaint, restage, or add/remove any furniture or objects.
-- Do NOT change what is visible through the windows (you may only recover its detail), and do NOT change the season.
-- Do NOT crop out meaningful content.
+KEEP IT THE SAME REAL PROPERTY — only the lighting, color, clarity and mood may change:
+- The room, its architecture, layout, furniture, objects, decorations and materials must stay exactly the same and in the same positions. Do NOT add, remove, move, replace, redecorate, renovate or repaint anything, and do NOT change the scene visible outside the windows or the season.
 
-The result must be the SAME room, clearly recognizable — just noticeably brighter, cleaner, sharper and more inviting, like a professional real-estate listing photo. Output exactly one photorealistic image and nothing else.`,
+Output exactly one photorealistic image that looks like the SAME room professionally re-photographed and edited — clearly brighter, cleaner, sharper, warmer and more inviting than the input. Return only the image.`,
 
   // 2) RENDRAKÁS — alapos virtuális rendrakás (staging) + minőségjavítás. A mozdítható
   // személyes holmi ELTŰNIK, a rögzített elemek és a bútor VÁLTOZATLAN.
