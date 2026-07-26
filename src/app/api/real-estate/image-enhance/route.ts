@@ -11,7 +11,8 @@ import { logCost, googleImageCostUsd } from "@/lib/costs";
 import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
 import { enhanceImageFal } from "@/lib/fal";
 import {
-  isEnhanceMode, isEnhanceOption, ENHANCE_UPSCALE_OPTION, validateImageFiles, enhanceModeLabel,
+  isEnhanceMode, isEnhanceOption, ENHANCE_UPSCALE_OPTION, ENHANCE_STYLE_OPTIONS,
+  validateImageFiles, enhanceModeLabel,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -95,6 +96,11 @@ export async function POST(request: Request) {
     const upscaleFactor = enabledOptions.includes(ENHANCE_UPSCALE_OPTION)
       ? Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4)
       : undefined;
+    // Látvány-módosító opció (fény/elegáns/hangulat) → több szabadság, hogy a fény
+    // ténylegesen változzon (a szerkezetet a negatív prompt védi).
+    const hasStyle = enabledOptions.some((v) => ENHANCE_STYLE_OPTIONS.includes(v));
+    const creativity = hasStyle ? Number(process.env.FAL_ENHANCE_CREATIVITY_STYLE || 0.55) : undefined;
+    const resemblance = hasStyle ? Number(process.env.FAL_ENHANCE_RESEMBLANCE_STYLE || 0.5) : undefined;
 
     // Párhuzamos feldolgozás — a 4 kép ne fusson a 60 mp-es limitbe egymás után.
     const items = await Promise.all(files.map(async (file) => {
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
       let result: { bytes: Buffer; mimeType: string };
       if (falCfg) {
         const dataUri = `data:${mime};base64,${Buffer.from(inputBytes).toString("base64")}`;
-        result = await enhanceImageFal({ dataUri, prompt: falPrompt, negativePrompt: falCfg.negative, upscaleFactor });
+        result = await enhanceImageFal({ dataUri, prompt: falPrompt, negativePrompt: falCfg.negative, upscaleFactor, creativity, resemblance });
       } else {
         result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt: nanoPrompt });
       }

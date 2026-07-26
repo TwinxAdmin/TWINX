@@ -10,6 +10,8 @@ export type FalEnhanceParams = {
   prompt: string;
   negativePrompt?: string;
   upscaleFactor?: number; // felülírja az alap upscale_factor-t (pl. AI Upscaler opció)
+  creativity?: number;    // denoise strength — magasabb: a prompt (fény/stílus) jobban érvényesül
+  resemblance?: number;   // szerkezet-hűség — alacsonyabb: több szabadság a látványnak
 };
 
 export async function enhanceImageFal(
@@ -26,9 +28,9 @@ export async function enhanceImageFal(
       prompt: params.prompt,
       negative_prompt: params.negativePrompt ?? "",
       // creativity = denoise strength: alacsony -> hű az eredetihez, mégis feljavít.
-      creativity: Number(process.env.FAL_ENHANCE_CREATIVITY || 0.3),
+      creativity: params.creativity ?? Number(process.env.FAL_ENHANCE_CREATIVITY || 0.3),
       // resemblance = mennyire tartsa az eredeti szerkezetet (magasabb -> hűbb).
-      resemblance: Number(process.env.FAL_ENHANCE_RESEMBLANCE || 0.8),
+      resemblance: params.resemblance ?? Number(process.env.FAL_ENHANCE_RESEMBLANCE || 0.8),
       upscale_factor: params.upscaleFactor ?? Number(process.env.FAL_ENHANCE_UPSCALE || 1),
       guidance_scale: 4,
       num_inference_steps: Number(process.env.FAL_ENHANCE_STEPS || 18),

@@ -73,6 +73,10 @@ export function isEnhanceOption(v: unknown): v is EnhanceOption {
 // Az az opció, amely a valós felbontás-növelést (nagyobb upscale_factor) kapcsolja be.
 export const ENHANCE_UPSCALE_OPTION: EnhanceOption = "upscale";
 
+// Látvány-módosító opciók: ezeknél a fal.ai-nak több szabadságot adunk (magasabb
+// creativity, alacsonyabb resemblance), különben a fény/stílus prompt alig érvényesül.
+export const ENHANCE_STYLE_OPTIONS: EnhanceOption[] = ["lighting", "elegant", "warm"];
+
 // --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
 export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
