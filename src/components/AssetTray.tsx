@@ -96,15 +96,15 @@ export default function AssetTray({
               onClick={() => setOpen(FAV_KEY)}
               className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
               style={{
-                borderColor: "var(--twx-coral)",
-                background: open === FAV_KEY ? "var(--twx-coral)" : "var(--twx-coral-soft)",
+                borderColor: open === FAV_KEY ? "var(--twx-coral)" : "var(--twx-line)",
+                background: open === FAV_KEY ? "var(--twx-coral-soft)" : "#fff",
               }}
             >
               <span className="flex items-center gap-2">
                 <StarIcon />
-                <span className="font-display text-sm font-semibold" style={{ color: open === FAV_KEY ? "#1c1005" : "#7a2e17" }}>Kedvencek</span>
+                <span className="font-display text-sm font-semibold">Kedvencek</span>
               </span>
-              <span className="text-xs" style={{ color: open === FAV_KEY ? "#1c1005" : "#7a2e17" }}>{favorites.length}</span>
+              <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{favorites.length}</span>
             </button>
           )}
           {folders.map((f) => {
