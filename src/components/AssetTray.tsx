@@ -53,6 +53,14 @@ export default function AssetTray({
     })();
   }, [reloadKey]);
 
+  // A jobb oldali panel bezárása Esc-re.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const selected = new Set(selectedUrls);
   const openUrls =
     open === FAV_KEY ? favorites : (folders.find((f) => f.key === open)?.urls ?? []);
@@ -95,121 +103,111 @@ export default function AssetTray({
   };
 
   return (
-    <section className="twx-card p-5 sm:p-6">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{note}</p>
+    <>
+      <section className="twx-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{note}</p>
 
-      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,240px)_1fr]">
-        {/* Mappák + Kedvencek — max 9 látszik, felette kereső, alatta Továbbiak */}
-        <div>
-          {entries.length > LIMIT && (
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Keresés a mappák közt…"
-              className="twx-input mb-2 w-full text-sm"
-            />
-          )}
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
-            {visibleEntries.map((e) => {
-              const on = open === e.key;
-              return (
-                <button
-                  key={e.key}
-                  type="button"
-                  onClick={() => setOpen(e.key)}
-                  className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
-                  style={{ borderColor: on ? "var(--twx-coral)" : "var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}
-                >
-                  <span className="flex items-center gap-2">
-                    {e.fav ? (
-                      <StarIcon />
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
-                        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
-                      </svg>
-                    )}
-                    <span className="font-display text-sm font-semibold">{e.label}</span>
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{e.count}</span>
-                </button>
-              );
-            })}
-          </div>
-          {visibleEntries.length === 0 && (
-            <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</p>
-          )}
-          {filtered.length > LIMIT && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-2 w-full rounded-xl border px-3 py-2 text-xs font-medium transition hover:shadow-sm"
-              style={{ borderColor: "var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
-            >
-              {expanded ? "Kevesebb" : `Továbbiak (${filtered.length - LIMIT})`}
-            </button>
-          )}
-        </div>
+        {entries.length > LIMIT && (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Keresés a mappák közt…"
+            className="twx-input mt-3 w-full text-sm"
+          />
+        )}
 
-        {/* Jobb oldali panel — a kiválasztott mappa tartalma animálva */}
-        <div
-          className="min-h-[9rem] max-h-[26rem] overflow-y-auto rounded-xl p-3"
-          style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}
-        >
-          <AnimatePresence mode="wait">
-            {open ? (
-              <motion.div
-                key={open}
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
+        {/* Mappák + Kedvencek — rácsban, hogy 9 elférjen; a tartalom jobb oldalt nyílik */}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {visibleEntries.map((e) => {
+            const on = open === e.key;
+            return (
+              <button
+                key={e.key}
+                type="button"
+                onClick={() => setOpen((cur) => (cur === e.key ? null : e.key))}
+                className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
+                style={{ borderColor: on ? "var(--twx-coral)" : "var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}
               >
-                <div className="mb-2 text-xs font-semibold" style={{ color: "var(--twx-ink)" }}>{openLabel} · {openUrls.length} kép</div>
-                {openUrls.length === 0 ? (
-                  <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {openUrls.map((url) => {
-                      const isSel = selected.has(url);
-                      return (
-                        <button
-                          key={url}
-                          type="button"
-                          draggable
-                          onDragStart={(e) => dragStart(e, url)}
-                          onClick={() => onPick?.(url)}
-                          title={onPick ? "Kattints a hozzáadáshoz, vagy húzd a munkádba" : "Húzd a munkádba"}
-                          className="relative cursor-grab overflow-hidden rounded-lg border-2 transition hover:opacity-90 active:cursor-grabbing"
-                          style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt="Korábbi kép" draggable={false} className="h-20 w-full object-cover" />
-                          {isSel && (
-                            <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.p
-                key="hint"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex h-24 items-center justify-center text-center text-sm"
-                style={{ color: "var(--twx-ink-muted)" }}
-              >
-                Kattints egy mappára a képek megtekintéséhez.
-              </motion.p>
-            )}
-          </AnimatePresence>
+                <span className="flex min-w-0 items-center gap-2">
+                  {e.fav ? (
+                    <StarIcon />
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" className="shrink-0" style={{ color: "var(--twx-coral)" }} aria-hidden>
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+                    </svg>
+                  )}
+                  <span className="truncate font-display text-sm font-semibold">{e.label}</span>
+                </span>
+                <span className="shrink-0 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{e.count}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
-    </section>
+        {visibleEntries.length === 0 && (
+          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</p>
+        )}
+        {filtered.length > LIMIT && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-2 rounded-xl border px-4 py-2 text-xs font-medium transition hover:shadow-sm"
+            style={{ borderColor: "var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
+          >
+            {expanded ? "Kevesebb" : `Továbbiak (${filtered.length - LIMIT})`}
+          </button>
+        )}
+      </section>
+
+      {/* Jobb oldalt becsúszó panel — a lap margójában, a kiválasztott mappa képeivel */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="drawer"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 40 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="fixed right-4 top-28 z-40 flex max-h-[74vh] w-[min(360px,92vw)] flex-col overflow-hidden rounded-2xl"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}
+          >
+            <div className="flex items-center justify-between border-b p-3" style={{ borderColor: "var(--twx-line)" }}>
+              <div className="font-display text-sm font-semibold">{openLabel} · {openUrls.length} kép</div>
+              <button onClick={() => setOpen(null)} className="rounded-lg px-2 text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {openUrls.length === 0 ? (
+                <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {openUrls.map((url) => {
+                    const isSel = selected.has(url);
+                    return (
+                      <button
+                        key={url}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => dragStart(e, url)}
+                        onClick={() => onPick?.(url)}
+                        title={onPick ? "Kattints a hozzáadáshoz, vagy húzd a munkádba" : "Húzd a munkádba"}
+                        className="relative cursor-grab overflow-hidden rounded-lg border-2 transition hover:opacity-90 active:cursor-grabbing"
+                        style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="Korábbi kép" draggable={false} className="h-20 w-full object-cover" />
+                        {isSel && (
+                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
