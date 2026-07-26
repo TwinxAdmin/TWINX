@@ -160,61 +160,9 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
       />
 
       <div className="twx-card space-y-5 p-5 sm:p-6">
-      {/* Korábbi látványtervek */}
-      {historyImages.length > 0 && (
-        <section>
-          <h2 className="font-display text-sm font-medium">Korábbi látványtervekből</h2>
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {historyImages.map((url) => (
-              <button
-                key={url}
-                type="button"
-                onClick={() => toggleHistory(url)}
-                className="relative rounded-lg border-2"
-                style={{ borderColor: selected.has(url) ? "var(--twx-coral)" : "transparent" }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="Látványterv" className="h-20 w-full object-cover" />
-                {selected.has(url) && (
-                  <span className="absolute left-0 top-0 px-1 text-xs" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    ✓
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Feljavított / rendberakott képek a Képjavítóból */}
-      {enhancedImages.length > 0 && (
-        <section>
-          <h2 className="font-display text-sm font-medium">Feljavított képeimből</h2>
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {enhancedImages.map((url) => (
-              <button
-                key={url}
-                type="button"
-                onClick={() => toggleHistory(url)}
-                className="relative rounded-lg border-2"
-                style={{ borderColor: selected.has(url) ? "var(--twx-coral)" : "transparent" }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="Feljavított kép" className="h-20 w-full object-cover" />
-                {selected.has(url) && (
-                  <span className="absolute left-0 top-0 px-1 text-xs" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    ✓
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Feltöltés */}
+      {/* Feltöltés — korábbi munkák az alábbi tálcából választhatók */}
       <section>
-        <h2 className="font-display text-sm font-medium">Vagy tölts fel eredeti képeket</h2>
+        <h2 className="font-display text-sm font-medium">Tölts fel képeket, vagy válassz a korábbi munkáidból (lent)</h2>
         <div
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
