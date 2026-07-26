@@ -152,7 +152,10 @@ export default function AssetTray({
         </div>
 
         {/* Jobb oldali panel — a kiválasztott mappa tartalma animálva */}
-        <div className="min-h-[7rem] rounded-xl p-1">
+        <div
+          className="min-h-[9rem] max-h-[26rem] overflow-y-auto rounded-xl p-3"
+          style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}
+        >
           <AnimatePresence mode="wait">
             {open ? (
               <motion.div
@@ -162,7 +165,7 @@ export default function AssetTray({
                 exit={{ opacity: 0, x: 24 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
-                <div className="mb-2 text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{openLabel} · {openUrls.length} kép</div>
+                <div className="mb-2 text-xs font-semibold" style={{ color: "var(--twx-ink)" }}>{openLabel} · {openUrls.length} kép</div>
                 {openUrls.length === 0 ? (
                   <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
                 ) : (
