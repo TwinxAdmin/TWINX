@@ -46,10 +46,10 @@ export const ENHANCE_OPTIONS = [
     prompt: "bright and airy professional interior lighting, soft natural daylight, well-lit and opened-up shadows, perfectly balanced HDR lighting, luminous inviting space",
   },
   {
-    value: "sky",
-    label: "Kék ég az ablakban",
-    desc: "Az ablakban látszó fakó/borús eget derült kék égre cseréli.",
-    prompt: "replace the dull, grey or overcast sky visible through the windows with a clear natural blue sky with a few soft clouds, bright pleasant daylight outside the windows",
+    value: "elegant",
+    label: "Elegáns, prémium összkép",
+    desc: "Magazinszerű, igényes, letisztult hatás — ápolt, exkluzív megjelenés.",
+    prompt: "elegant upscale premium interior look, refined magazine-quality styling, sophisticated tasteful color grading, clean and polished high-end real estate presentation",
   },
   {
     value: "warm",
