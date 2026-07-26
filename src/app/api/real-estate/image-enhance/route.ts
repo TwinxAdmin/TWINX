@@ -19,6 +19,23 @@ const SERVICE_SLUG = "real-estate";
 const FEATURE = "image_enhance";
 const BUCKET = "reports";
 
+// Korábbi képjavító feldolgozások (dátum-mappákhoz).
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  const { data, error } = await supabase
+    .from("image_enhance_jobs")
+    .select("id, mode, items, created_at")
+    .order("created_at", { ascending: false })
+    .limit(60);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ jobs: data ?? [] });
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -56,10 +73,19 @@ export async function POST(request: Request) {
 
   try {
     const prompt = ENHANCE_PROMPTS[mode];
-    const urls: string[] = [];
+    const items: Array<{ original: string; enhanced: string }> = [];
 
     for (const file of files) {
       const inputBytes = new Uint8Array(await file.arrayBuffer());
+
+      // Eredeti kép mentése (a before/after nézethez és az előzményhez).
+      const origPath = `image-enhance/${user.id}/orig-${randomUUID()}.jpg`;
+      const { error: origErr } = await admin.storage
+        .from(BUCKET)
+        .upload(origPath, inputBytes, { contentType: file.type || "image/jpeg", upsert: false });
+      if (origErr) throw new Error(`Storage feltöltés hiba: ${origErr.message}`);
+      const originalUrl = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
+
       const result = await generateImage({
         source: { bytes: inputBytes, mimeType: file.type },
         prompt,
@@ -72,15 +98,23 @@ export async function POST(request: Request) {
         .upload(filePath, result.bytes, { contentType: result.mimeType, upsert: false });
       if (uploadError) throw new Error(`Storage feltöltés hiba: ${uploadError.message}`);
 
-      urls.push(admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl);
+      const enhancedUrl = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
+      items.push({ original: originalUrl, enhanced: enhancedUrl });
     }
+
+    // Job mentése (dátum-mappák + before/after) — a saját sorába (RLS).
+    const { data: job } = await supabase
+      .from("image_enhance_jobs")
+      .insert({ user_id: user.id, mode, items })
+      .select("id, mode, items, created_at")
+      .single();
 
     await admin.from("usage_history").insert({
       user_id: user.id,
       service_id: service.id,
       feature_used: FEATURE,
-      input_data: { mode, mode_label: enhanceModeLabel(mode), image_count: files.length, outputs: urls },
-      output_file_url: urls[0] ?? null,
+      input_data: { mode, mode_label: enhanceModeLabel(mode), image_count: files.length, outputs: items.map((i) => i.enhanced) },
+      output_file_url: items[0]?.enhanced ?? null,
       credits_charged: charge.bypassed ? 0 : 1,
     });
 
@@ -93,7 +127,7 @@ export async function POST(request: Request) {
       estimatedCostUsd: googleImageCostUsd(files.length),
     });
 
-    return NextResponse.json({ ok: true, urls, charged: !charge.bypassed });
+    return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });
   } catch (err) {
     // Nem sikerült MIND -> teljes visszatérítés.
     if (!charge.bypassed) {
