@@ -74,11 +74,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Motor a mód szerint: Feljavítás = fal.ai (clarity-upscaler), Rendrakás = Nano Banana.
-    const nanoPrompt = mode === "rendrakas" ? await buildEnhancePromptActive("rendrakas") : "";
-    const falCfg = mode === "feljavitas" ? await buildEnhanceFalActive() : null;
+    // Lánc a mód szerint:
+    //  - feljavitas: fal.ai (felbontás/minőség)
+    //  - rendrakas:  Nano Banana (rendrakás)
+    //  - teljes:     ELŐSZÖR feljavítás (fal.ai), UTÁNA rendrakás (Nano Banana) a javított képen
+    const useFal = mode === "feljavitas" || mode === "teljes";
+    const useNano = mode === "rendrakas" || mode === "teljes";
+    const falCfg = useFal ? await buildEnhanceFalActive() : null;
+    const nanoPrompt = useNano ? await buildEnhancePromptActive("rendrakas") : "";
 
-    // Feljavítás = felbontásnövelés: mindig nagyobb upscale_factor, a szerkezet hű marad.
+    // Feljavítás = felbontásnövelés: nagyobb upscale_factor, a szerkezet hű marad.
     const upscaleFactor = Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4);
 
     // Párhuzamos feldolgozás — a 4 kép ne fusson a 60 mp-es limitbe egymás után.
@@ -93,13 +98,24 @@ export async function POST(request: Request) {
       if (origErr) throw new Error(`Storage feltöltés hiba: ${origErr.message}`);
       const original = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
 
-      // Javítás a mód szerinti motorral.
-      let result: { bytes: Buffer; mimeType: string };
+      // Munkakép — lépésről lépésre halad végig a láncon.
+      let workBytes: Uint8Array = inputBytes;
+      let workMime = mime;
+
+      // 1) Feljavítás (fal.ai) — élesebb, nagyobb felbontású alap.
       if (falCfg) {
-        const dataUri = `data:${mime};base64,${Buffer.from(inputBytes).toString("base64")}`;
-        result = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative, upscaleFactor });
+        const dataUri = `data:${workMime};base64,${Buffer.from(workBytes).toString("base64")}`;
+        const r = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative, upscaleFactor });
+        workBytes = new Uint8Array(r.bytes);
+        workMime = r.mimeType;
+      }
+
+      // 2) Rendrakás (Nano Banana) — a már feljavított képen takarítja el a rendetlenséget.
+      let result: { bytes: Buffer; mimeType: string };
+      if (useNano) {
+        result = await generateImage({ source: { bytes: workBytes, mimeType: workMime }, prompt: nanoPrompt });
       } else {
-        result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt: nanoPrompt });
+        result = { bytes: Buffer.from(workBytes), mimeType: workMime };
       }
 
       const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
@@ -132,9 +148,9 @@ export async function POST(request: Request) {
       userId: user.id,
       serviceId: service.id,
       feature: FEATURE,
-      serviceName: mode === "feljavitas" ? "fal" : "google-studio",
+      serviceName: mode === "feljavitas" ? "fal" : mode === "rendrakas" ? "google-studio" : "fal+google-studio",
       units: files.length,
-      estimatedCostUsd: mode === "feljavitas" ? 0.05 * files.length : googleImageCostUsd(files.length),
+      estimatedCostUsd: (useFal ? 0.05 * files.length : 0) + (useNano ? googleImageCostUsd(files.length) : 0),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });

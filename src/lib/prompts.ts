@@ -63,7 +63,7 @@ import {
   composeProfessionalPrompt,
   type ProfessionalQuery,
 } from "@/lib/professionals";
-import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, type EnhanceMode } from "@/lib/image-enhance";
+import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, type EnhanceCoreMode } from "@/lib/image-enhance";
 
 export type PromptSegments = Record<string, string>;
 
@@ -479,7 +479,7 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
 }
 
 // Rendrakás (Nano Banana) — egy szöveges prompt.
-export async function buildEnhancePromptActive(mode: EnhanceMode): Promise<string> {
+export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<string> {
   const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas";
   const segments = await getActiveSegments(key);
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();

@@ -6,6 +6,11 @@ export { MAX_IMAGES, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, validateImageFiles } 
 
 export const ENHANCE_MODES = [
   {
+    value: "teljes",
+    label: "Hirdetésre kész",
+    desc: "Rendrakás + minőség- és felbontásnövelés egy lépésben — a látható rendetlenség eltűnik, a kép élesebb és nagyobb felbontású lesz.",
+  },
+  {
     value: "feljavitas",
     label: "Feljavítás",
     desc: "Élesebb, tisztább, jobb minőségű és nagyobb felbontású kép — a képen semmi más nem változik.",
@@ -13,14 +18,16 @@ export const ENHANCE_MODES = [
   {
     value: "rendrakas",
     label: "Rendrakás",
-    desc: "Minőségjavítás + a látható apró rendetlenség (kábelek, szanaszét tárgyak) eltakarítása.",
+    desc: "A látható apró rendetlenség (kábelek, szanaszét tárgyak) eltakarítása — a bútor és a szerkezet marad.",
   },
 ] as const;
 
 export type EnhanceMode = (typeof ENHANCE_MODES)[number]["value"];
+// A lánc két magja: rendrakás (Nano Banana) és feljavítás (fal.ai). A "teljes" mindkettőt futtatja.
+export type EnhanceCoreMode = "feljavitas" | "rendrakas";
 
 export function isEnhanceMode(v: unknown): v is EnhanceMode {
-  return v === "feljavitas" || v === "rendrakas";
+  return ENHANCE_MODES.some((m) => m.value === v);
 }
 export function enhanceModeLabel(v: string): string {
   return ENHANCE_MODES.find((m) => m.value === v)?.label ?? v;
@@ -38,7 +45,7 @@ export const ENHANCE_FAL_NEGATIVE =
 
 // --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
-export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
+export const ENHANCE_PROMPTS: Record<EnhanceCoreMode, string> = {
   // 1) FELJAVÍTÁS — pozitív átalakítás: profi újrafényelés/színkezelés. A javulás
   // KÖTELEZŐEN látható legyen; a szoba tartalma nem változhat.
   feljavitas: `You are a world-class real-estate and interior photographer. RE-EDIT and RE-LIGHT this amateur phone photo into a magazine-quality, professionally photographed listing image. The visual upgrade MUST be clearly and obviously visible — returning a near-identical image is a FAILURE.

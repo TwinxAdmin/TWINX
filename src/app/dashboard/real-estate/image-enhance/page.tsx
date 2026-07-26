@@ -26,7 +26,7 @@ const dayLabel = (iso: string) =>
 
 export default function ImageEnhancePage() {
   const [picks, setPicks] = useState<Pick[]>([]);
-  const [mode, setMode] = useState<EnhanceMode>("feljavitas");
+  const [mode, setMode] = useState<EnhanceMode>("teljes");
   const [loading, setLoading] = useState(false);
   const [current, setCurrent] = useState<Item[]>([]);
   const [history, setHistory] = useState<Job[]>([]);
@@ -159,7 +159,7 @@ export default function ImageEnhancePage() {
         {/* Mód-választó */}
         <div>
           <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mit csináljunk a képpel?</label>
-          <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {ENHANCE_MODES.map((m) => {
               const on = mode === m.value;
               return (
