@@ -16,7 +16,7 @@ import { compressImage } from "@/lib/image-compress";
 
 type Upload = { file: File; url: string };
 
-export default function VideoBuilder({ historyImages }: { historyImages: string[] }) {
+export default function VideoBuilder({ historyImages, enhancedImages = [] }: { historyImages: string[]; enhancedImages?: string[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [uploads, setUploads] = useState<Upload[]>([]);
@@ -174,6 +174,32 @@ export default function VideoBuilder({ historyImages }: { historyImages: string[
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="Látványterv" className="h-20 w-full object-cover" />
+                {selected.has(url) && (
+                  <span className="absolute left-0 top-0 px-1 text-xs" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                    ✓
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Feljavított / rendberakott képek a Képjavítóból */}
+      {enhancedImages.length > 0 && (
+        <section>
+          <h2 className="font-display text-sm font-medium">Feljavított képeimből</h2>
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {enhancedImages.map((url) => (
+              <button
+                key={url}
+                type="button"
+                onClick={() => toggleHistory(url)}
+                className="relative rounded-lg border-2"
+                style={{ borderColor: selected.has(url) ? "var(--twx-coral)" : "transparent" }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="Feljavított kép" className="h-20 w-full object-cover" />
                 {selected.has(url) && (
                   <span className="absolute left-0 top-0 px-1 text-xs" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
                     ✓

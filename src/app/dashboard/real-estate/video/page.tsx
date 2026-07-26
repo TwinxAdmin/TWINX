@@ -9,12 +9,19 @@ export const runtime = "nodejs";
 export default async function VideoPage() {
   const supabase = await createClient();
 
-  const { data: history } = await supabase
-    .from("usage_history")
-    .select("input_data, output_file_url")
-    .eq("feature_used", "visualization")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data: history }, { data: enh }] = await Promise.all([
+    supabase
+      .from("usage_history")
+      .select("input_data, output_file_url")
+      .eq("feature_used", "visualization")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("image_enhance_jobs")
+      .select("items")
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
   // Az összes korábbi látványterv-kép URL kigyűjtése (per-room és batch modell is).
   const set = new Set<string>();
@@ -32,5 +39,12 @@ export default async function VideoPage() {
     if (h.output_file_url) set.add(h.output_file_url);
   }
 
-  return <VideoBuilder historyImages={[...set]} />;
+  // Feljavított / rendberakott képek a Képjavítóból.
+  const enhSet = new Set<string>();
+  for (const j of enh ?? []) {
+    const items = (j.items ?? []) as Array<{ enhanced?: string }>;
+    for (const it of items) if (it?.enhanced) enhSet.add(it.enhanced);
+  }
+
+  return <VideoBuilder historyImages={[...set]} enhancedImages={[...enhSet]} />;
 }
