@@ -32,6 +32,8 @@ export default function AssetTray({
   const [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -56,6 +58,16 @@ export default function AssetTray({
     open === FAV_KEY ? favorites : (folders.find((f) => f.key === open)?.urls ?? []);
   const openLabel =
     open === FAV_KEY ? "Kedvencek" : (folders.find((f) => f.key === open)?.label ?? "");
+
+  // Egységes lista: Kedvencek + dátum-mappák. Alapból max 9 látszik; felette kereső + Továbbiak.
+  const entries: { key: string; label: string; count: number; fav?: boolean }[] = [
+    ...(favorites.length > 0 ? [{ key: FAV_KEY, label: "Kedvencek", count: favorites.length, fav: true }] : []),
+    ...folders.map((f) => ({ key: f.key, label: f.label, count: f.urls.length })),
+  ];
+  const q = query.trim().toLowerCase();
+  const filtered = q ? entries.filter((e) => e.label.toLowerCase().includes(q)) : entries;
+  const LIMIT = 9;
+  const visibleEntries = expanded ? filtered : filtered.slice(0, LIMIT);
 
   if (loading) {
     return (
@@ -88,45 +100,55 @@ export default function AssetTray({
       <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{note}</p>
 
       <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,240px)_1fr]">
-        {/* Mappák + Kedvencek */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
-          {favorites.length > 0 && (
+        {/* Mappák + Kedvencek — max 9 látszik, felette kereső, alatta Továbbiak */}
+        <div>
+          {entries.length > LIMIT && (
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Keresés a mappák közt…"
+              className="twx-input mb-2 w-full text-sm"
+            />
+          )}
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
+            {visibleEntries.map((e) => {
+              const on = open === e.key;
+              return (
+                <button
+                  key={e.key}
+                  type="button"
+                  onClick={() => setOpen(e.key)}
+                  className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
+                  style={{ borderColor: on ? "var(--twx-coral)" : "var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}
+                >
+                  <span className="flex items-center gap-2">
+                    {e.fav ? (
+                      <StarIcon />
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
+                        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+                      </svg>
+                    )}
+                    <span className="font-display text-sm font-semibold">{e.label}</span>
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{e.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {visibleEntries.length === 0 && (
+            <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</p>
+          )}
+          {filtered.length > LIMIT && (
             <button
               type="button"
-              onClick={() => setOpen(FAV_KEY)}
-              className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
-              style={{
-                borderColor: open === FAV_KEY ? "var(--twx-coral)" : "var(--twx-line)",
-                background: open === FAV_KEY ? "var(--twx-coral-soft)" : "#fff",
-              }}
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-2 w-full rounded-xl border px-3 py-2 text-xs font-medium transition hover:shadow-sm"
+              style={{ borderColor: "var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
             >
-              <span className="flex items-center gap-2">
-                <StarIcon />
-                <span className="font-display text-sm font-semibold">Kedvencek</span>
-              </span>
-              <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{favorites.length}</span>
+              {expanded ? "Kevesebb" : `Továbbiak (${filtered.length - LIMIT})`}
             </button>
           )}
-          {folders.map((f) => {
-            const on = open === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setOpen(f.key)}
-                className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition hover:shadow-sm"
-                style={{ borderColor: on ? "var(--twx-coral)" : "var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}
-              >
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
-                  </svg>
-                  <span className="font-display text-sm font-semibold">{f.label}</span>
-                </span>
-                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{f.urls.length}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* Jobb oldali panel — a kiválasztott mappa tartalma animálva */}
