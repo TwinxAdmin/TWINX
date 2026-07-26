@@ -20,6 +20,7 @@ import {
 import { toDownloadUrl } from "@/lib/files";
 import ModuleIntro from "@/components/ModuleIntro";
 import SelectField from "@/components/SelectField";
+import AssetTray from "@/components/AssetTray";
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -497,68 +498,14 @@ export default function FlyerPage() {
             </div>
           )}
 
-          <div className="mt-5 mb-3 border-t pt-4" style={{ borderColor: "var(--twx-line)" }}>
-            <p className="text-sm font-medium">Galéria — korábbi munkák képei</p>
-            <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Kattints egy képre, hogy hozzáadd a hirdetéshez (max {MAX_FLYER_IMAGES}). A sorrendet fentebb állíthatod.
-            </p>
+          <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--twx-line)" }}>
+            <AssetTray
+              onPick={(u) => toggleImage(u)}
+              selectedUrls={selectedImages}
+              title="Galéria — korábbi munkák"
+              note={`Válassz egy mappát, majd kattints egy képre a hirdetéshez adáshoz (max ${MAX_FLYER_IMAGES}). A képek sorrendjét fentebb állíthatod.`}
+            />
           </div>
-
-          {libraryImages.length === 0 ? (
-            <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-              Nincs korábbi képed. Tölts fel sajátot a „Saját kép feltöltése" gombbal.
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {libraryImages.slice(0, visibleCount).map((url) => {
-                  const active = selectedImages.includes(url);
-                  const blocked = !active && total >= MAX_FLYER_IMAGES;
-                  return (
-                    <button
-                      key={url}
-                      onClick={() => toggleImage(url)}
-                      disabled={blocked}
-                      className="relative overflow-hidden rounded-xl transition-opacity"
-                      style={{ border: `2px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`, opacity: blocked ? 0.4 : 1, cursor: blocked ? "not-allowed" : "pointer" }}
-                    >
-                      <img src={url} alt="" className="aspect-[4/3] w-full object-cover" />
-                      {active && (
-                        <span
-                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold"
-                          style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                        >
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {(libraryImages.length > visibleCount || visibleCount > 8) && (
-                <div className="mt-3 flex gap-2">
-                  {libraryImages.length > visibleCount && (
-                    <button
-                      onClick={() => setVisibleCount((c) => c + 8)}
-                      className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                      style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-                    >
-                      Továbbiak betöltése ({libraryImages.length - visibleCount})
-                    </button>
-                  )}
-                  {visibleCount > 8 && (
-                    <button
-                      onClick={() => setVisibleCount((c) => Math.max(8, c - 8))}
-                      className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                      style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }}
-                    >
-                      Kevesebb kép
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </div>
       </section>
 

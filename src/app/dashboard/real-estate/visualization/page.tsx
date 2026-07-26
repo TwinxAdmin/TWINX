@@ -4,6 +4,7 @@
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
 import SelectField from "@/components/SelectField";
+import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
@@ -114,16 +115,15 @@ export default function VisualizationPage() {
   const toggleEnh = (u: string) =>
     setEnhSel((s) => (s.includes(u) ? s.filter((x) => x !== u) : [...s, u]));
 
-  // A kiválasztott feljavított képeket letölti és felveszi a feldolgozandók közé.
-  async function addSelectedEnh() {
+  // URL-ekből letölti a képeket és felveszi a feldolgozandók közé (Képjavító/tálca átvétel).
+  async function importUrls(urls: string[]) {
     const room = MAX_IMAGES - items.length;
     if (room <= 0) {
       setServerError(`Legfeljebb ${MAX_IMAGES} kép dolgozható fel egyszerre.`);
-      setPickerOpen(false);
-      return;
+      return 0;
     }
-    const chosen = enhSel.slice(0, room);
-    if (!chosen.length) { setPickerOpen(false); return; }
+    const chosen = urls.filter((u) => !items.some((it) => it.url === u)).slice(0, room);
+    if (!chosen.length) return 0;
     setImporting(true);
     try {
       const newItems: Item[] = [];
@@ -132,7 +132,7 @@ export default function VisualizationPage() {
           const r = await fetch(chosen[i]);
           if (!r.ok) continue;
           const blob = await r.blob();
-          const file = new File([blob], `feljavitott-${Date.now()}-${i}.jpg`, { type: blob.type || "image/jpeg" });
+          const file = new File([blob], `atvett-${Date.now()}-${i}.jpg`, { type: blob.type || "image/jpeg" });
           newItems.push({ file, url: chosen[i], config: { ...EMPTY_ROOM_CONFIG } });
         } catch { /* egy kép kihagyása ne állítsa meg a többit */ }
       }
@@ -142,16 +142,25 @@ export default function VisualizationPage() {
       } else {
         setServerError("A kiválasztott képek betöltése nem sikerült.");
       }
+      return newItems.length;
     } finally {
       setImporting(false);
-      setEnhSel([]);
-      setPickerOpen(false);
     }
+  }
+
+  // A választó ablakból kijelölt feljavított képek hozzáadása.
+  async function addSelectedEnh() {
+    await importUrls(enhSel);
+    setEnhSel([]);
+    setPickerOpen(false);
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDragOver(false);
+    // Tálcából húzott kép (URL) VAGY a gépről húzott fájlok.
+    const url = readTwxDragUrl(e.dataTransfer);
+    if (url) { void importUrls([url]); return; }
     addFiles(e.dataTransfer.files);
   }
 
@@ -445,6 +454,13 @@ export default function VisualizationPage() {
           </div>
         </div>
       )}
+
+      {/* Közös tálca: korábbi munkák mappákban + kedvencek */}
+      <AssetTray
+        onPick={(u) => void importUrls([u])}
+        selectedUrls={items.map((it) => it.url)}
+        note="Válassz egy mappát, majd húzd a képet a fenti feltöltőre, vagy kattints rá a hozzáadáshoz."
+      />
 
       {/* Feljavított képek választó ablak */}
       {pickerOpen && (

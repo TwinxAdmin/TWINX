@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
+import AssetTray from "@/components/AssetTray";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import {
@@ -42,6 +43,7 @@ export default function ImageEnhancePage() {
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ items: Item[]; index: number } | null>(null);
   const [view, setView] = useState<"enhanced" | "original">("enhanced");
+  const [assetsReload, setAssetsReload] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export default function ImageEnhancePage() {
       setResults(data.items ?? []);
       setProducedMode(m);
       if (data.job) setHistory((h) => [data.job as Job, ...h]);
+      setAssetsReload((n) => n + 1);
       showToast(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)", "success");
       return true;
     } catch {
@@ -226,35 +229,12 @@ export default function ImageEnhancePage() {
         </div>
       </section>
 
-      {/* Korábbi munkáim — dátum-mappák + Kedvencek */}
-      {(folders.length > 0 || favs.length > 0) && (
-        <section className="twx-card space-y-2 p-5 sm:p-6">
-          <h3 className="mb-1 text-sm font-semibold">Korábbi munkáim</h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {favs.length > 0 && (
-              <button onClick={() => setOpenFolder(FAV_KEY)}
-                className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
-                style={{ borderColor: "var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
-                <span className="flex items-center gap-2"><StarIcon filled /><span className="font-display text-sm font-semibold" style={{ color: "#7a2e17" }}>Kedvencek</span></span>
-                <span className="text-xs" style={{ color: "#7a2e17" }}>{favs.length} kép</span>
-              </button>
-            )}
-            {folders.map((f) => (
-              <button key={f.key} onClick={() => setOpenFolder(f.key)}
-                className="flex flex-col gap-1 rounded-xl border p-4 text-left transition hover:shadow-md"
-                style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                <span className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }} aria-hidden>
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
-                  </svg>
-                  <span className="font-display text-sm font-semibold">{f.label}</span>
-                </span>
-                <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{f.items.length} kép</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Közös tálca: korábbi munkák mappákban + kedvencek (kattintásra nagy nézet) */}
+      <AssetTray
+        onPick={(u) => openLightbox([{ original: u, enhanced: u }], 0)}
+        reloadKey={assetsReload}
+        note="Válassz egy mappát, majd kattints egy képre a nagy nézethez, letöltéshez vagy kedvencnek jelöléshez."
+      />
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
       {session && (
@@ -350,34 +330,6 @@ export default function ImageEnhancePage() {
                     A kép hű marad a valósághoz — publikálás előtt érdemes átnézni.
                   </p>
                 </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mappa felugró: az adott nap (vagy Kedvencek) képei */}
-      {openFolder && (
-        <div onClick={() => setOpenFolder(null)} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.45)" }}>
-          <div onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
-            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
-            <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
-              <div className="font-display text-lg font-semibold">{folderTitle}</div>
-              <button onClick={() => setOpenFolder(null)} className="rounded-lg px-2 py-1 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {folderItems.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {folderItems.map((it, i) => (
-                    <button key={it.enhanced + i} type="button" onClick={() => openLightbox(folderItems, i)}
-                      className="relative overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={it.enhanced} alt="Kép" className="h-24 w-full object-cover" />
-                    </button>
-                  ))}
-                </div>
               )}
             </div>
           </div>

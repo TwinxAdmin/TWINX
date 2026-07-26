@@ -3,6 +3,7 @@
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
 import SelectField from "@/components/SelectField";
+import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -216,10 +217,17 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
         <h2 className="font-display text-sm font-medium">Vagy tölts fel eredeti képeket</h2>
         <div
           onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const url = readTwxDragUrl(e.dataTransfer);
+            if (url) { toggleHistory(url); return; }
+            addUploads(e.dataTransfer.files);
+          }}
           className="mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-sm"
           style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
         >
-          Kattints a tallózáshoz (JPG / PNG / WEBP)
+          Kattints a tallózáshoz, vagy húzz ide egy korábbi képet (JPG / PNG / WEBP)
           <input
             ref={fileInputRef}
             type="file"
@@ -285,6 +293,13 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
+
+      {/* Közös tálca: korábbi munkák mappákban + kedvencek */}
+      <AssetTray
+        onPick={(u) => toggleHistory(u)}
+        selectedUrls={[...selected]}
+        note="Válassz egy mappát, majd húzd a képet a feltöltőre, vagy kattints rá a videóhoz adáshoz."
+      />
     </main>
   );
 }
