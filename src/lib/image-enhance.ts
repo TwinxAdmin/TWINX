@@ -29,25 +29,24 @@ export function enhanceModeLabel(v: string): string {
 // --- NAGYON SZIGORÚ promptok (image-to-image) ------------------------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
 export const ENHANCE_PROMPTS: Record<EnhanceMode, string> = {
-  // 1) FELJAVÍTÁS — kizárólag technikai képminőség, NULLA tartalmi változás.
-  feljavitas: `You are a professional real-estate photo retoucher. Your ONLY task is to improve the TECHNICAL image quality of this exact photo.
+  // 1) FELJAVÍTÁS — látványos, PROFI ingatlanfotó-hatás, de NULLA tartalmi változás.
+  feljavitas: `You are a top professional real-estate and interior photographer and photo editor. Turn this ordinary snapshot into a POLISHED, PROFESSIONAL-LOOKING listing photo with a clearly VISIBLE quality improvement — bright, clean, airy and inviting — as if it was shot with a professional camera and edited by a pro. The upgrade should be obvious, not subtle.
 
-ABSOLUTE RULES — the image shows a REAL property, so misrepresenting it is strictly forbidden:
-- Do NOT add, remove, move, replace, or reinterpret ANYTHING in the scene.
-- Keep the exact same room, architecture, walls, floor, ceiling, windows, doors, furniture, appliances, decorations, objects, textures, materials, patterns and their real colors — identical to the original, in the same positions and proportions.
-- Do NOT redecorate, renovate, repaint, stage, or add/remove furniture or objects.
-- Do NOT change what is visible through the windows, and do NOT change the time of day or season.
+Apply strong but natural, photorealistic improvements:
+- Brighten the overall image and lift the dark shadows so the whole room looks well-lit, airy and welcoming; remove gloom and dinginess.
+- Balance the exposure between the interior and the windows (HDR-style): keep the room bright while recovering detail so the window view is visible and not blown out.
+- Clean, neutral to slightly warm white balance; make the walls look clean; give the space a pleasant, inviting warmth.
+- Richer yet natural, true-to-life colors; pleasing contrast and a sense of depth.
+- Crisp sharpness and clarity; reduce noise and any haze.
+- Straighten tilted vertical/horizontal lines (perspective correction) if the shot is slightly crooked.
+
+STRICT RULES — this is a REAL property, so it must stay truthful:
+- Do NOT add, remove, move, replace or reinterpret anything in the scene: keep the exact same room, architecture, walls, floor, ceiling, windows, doors, furniture, appliances, decorations, objects, textures, materials and their real colors — in the same positions and proportions.
+- Do NOT redecorate, renovate, repaint, restage, or add/remove any furniture or objects.
+- Do NOT change what is visible through the windows (you may only recover its detail), and do NOT change the season.
 - Do NOT crop out meaningful content.
 
-ONLY improve these technical qualities:
-- exposure and brightness (fix under/overexposed areas),
-- white balance and natural, true-to-life color accuracy,
-- contrast and dynamic range,
-- sharpness and clarity,
-- noise reduction,
-- gently straighten tilted vertical/horizontal lines (lens/perspective correction) if the shot is slightly crooked.
-
-The result must look like the SAME photograph, just professionally, realistically corrected. Output exactly one photorealistic image and nothing else.`,
+The result must be the SAME room, clearly recognizable — just noticeably brighter, cleaner, sharper and more inviting, like a professional real-estate listing photo. Output exactly one photorealistic image and nothing else.`,
 
   // 2) RENDRAKÁS — alapos virtuális rendrakás (staging) + minőségjavítás. A mozdítható
   // személyes holmi ELTŰNIK, a rögzített elemek és a bútor VÁLTOZATLAN.
