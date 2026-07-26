@@ -6,11 +6,6 @@ export { MAX_IMAGES, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, validateImageFiles } 
 
 export const ENHANCE_MODES = [
   {
-    value: "teljes",
-    label: "Hirdetésre kész",
-    desc: "Rendrakás + minőség- és felbontásnövelés egy lépésben — a látható rendetlenség eltűnik, a kép élesebb és nagyobb felbontású lesz.",
-  },
-  {
     value: "feljavitas",
     label: "Feljavítás",
     desc: "Élesebb, tisztább, jobb minőségű és nagyobb felbontású kép — a képen semmi más nem változik.",
@@ -23,8 +18,7 @@ export const ENHANCE_MODES = [
 ] as const;
 
 export type EnhanceMode = (typeof ENHANCE_MODES)[number]["value"];
-// A lánc két magja: rendrakás (Nano Banana) és feljavítás (fal.ai). A "teljes" mindkettőt futtatja.
-export type EnhanceCoreMode = "feljavitas" | "rendrakas";
+export type EnhanceCoreMode = EnhanceMode;
 
 export function isEnhanceMode(v: unknown): v is EnhanceMode {
   return ENHANCE_MODES.some((m) => m.value === v);

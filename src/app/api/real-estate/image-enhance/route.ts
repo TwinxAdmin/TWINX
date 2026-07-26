@@ -74,12 +74,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Lánc a mód szerint:
+    // Motor a mód szerint:
     //  - feljavitas: fal.ai (felbontás/minőség)
     //  - rendrakas:  Nano Banana (rendrakás)
-    //  - teljes:     ELŐSZÖR feljavítás (fal.ai), UTÁNA rendrakás (Nano Banana) a javított képen
-    const useFal = mode === "feljavitas" || mode === "teljes";
-    const useNano = mode === "rendrakas" || mode === "teljes";
+    // Az "átjátszás" (a másik művelet az elkészült képen) kliensoldalról jön: az eredmény
+    // képet új feltöltésként küldi vissza a másik móddal — így itt nincs külön lánc-logika.
+    const useFal = mode === "feljavitas";
+    const useNano = mode === "rendrakas";
     const falCfg = useFal ? await buildEnhanceFalActive() : null;
     const nanoPrompt = useNano ? await buildEnhancePromptActive("rendrakas") : "";
 
@@ -148,9 +149,9 @@ export async function POST(request: Request) {
       userId: user.id,
       serviceId: service.id,
       feature: FEATURE,
-      serviceName: mode === "feljavitas" ? "fal" : mode === "rendrakas" ? "google-studio" : "fal+google-studio",
+      serviceName: mode === "feljavitas" ? "fal" : "google-studio",
       units: files.length,
-      estimatedCostUsd: (useFal ? 0.05 * files.length : 0) + (useNano ? googleImageCostUsd(files.length) : 0),
+      estimatedCostUsd: mode === "feljavitas" ? 0.05 * files.length : googleImageCostUsd(files.length),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });
