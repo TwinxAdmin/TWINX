@@ -317,14 +317,14 @@ export default function ImageEnhancePage() {
               <button onClick={() => setLightbox(null)} aria-label="Bezár" className="flex h-9 w-9 items-center justify-center rounded-full text-lg" style={{ border: "1px solid rgba(255,255,255,0.35)", color: "#fff" }}>×</button>
             </div>
           </div>
-          <div className="relative flex flex-1 items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 py-4" onClick={() => setLightbox(null)}>
             {lightbox!.items.length > 1 && (
               <button onClick={(e) => { e.stopPropagation(); step(-1); }} aria-label="Előző"
                 className="absolute left-3 flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>‹</button>
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={view === "enhanced" ? cur.enhanced : cur.original} alt="Nagy nézet" onClick={(e) => e.stopPropagation()}
-              className="max-h-full max-w-full rounded-lg object-contain" />
+              className="rounded-lg object-contain" style={{ maxHeight: "calc(100vh - 96px)", maxWidth: "100%" }} />
             {lightbox!.items.length > 1 && (
               <button onClick={(e) => { e.stopPropagation(); step(1); }} aria-label="Következő"
                 className="absolute right-3 flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>›</button>
