@@ -12,7 +12,7 @@ import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
 import { enhanceImageFal } from "@/lib/fal";
 import {
   isEnhanceMode, isEnhanceOption, ENHANCE_UPSCALE_OPTION, ENHANCE_STYLE_OPTIONS,
-  validateImageFiles, enhanceModeLabel,
+  validateImageFiles, enhanceModeLabel, type EnhanceOption,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   }
 
   // Bekapcsolt feljavítás-opciók (csak Feljavítás módban van jelentőségük).
-  let enabledOptions: string[] = [];
+  let enabledOptions: EnhanceOption[] = [];
   try {
     const raw = JSON.parse(String(form.get("options") ?? "[]"));
     if (Array.isArray(raw)) enabledOptions = raw.map(String).filter(isEnhanceOption);
