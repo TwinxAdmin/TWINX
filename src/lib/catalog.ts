@@ -25,7 +25,7 @@ export const CATEGORIES: Category[] = [
     modules: [
       { label: "Ingatlan értékbecslés", href: "/dashboard/real-estate/valuation", icon: "valuation", desc: "Adatalapú piaci ár percek alatt" },
       { label: "Telek ellenőrzés", href: "/dashboard/real-estate/land", icon: "land", desc: "Beépíthetőség és övezet ellenőrzése" },
-      { label: "Képjavító", href: "/dashboard/real-estate/image-enhance", icon: "visualization", desc: "Ingatlanfotók feljavítása (max 4 kép)" },
+      { label: "Képjavító", href: "/dashboard/real-estate/image-enhance", icon: "visualization", desc: "Ingatlanfotók feljavítása" },
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization", icon: "visualization", desc: "Fotórealisztikus belsőépítészet" },
       { label: "Videó generálás", href: "/dashboard/real-estate/video", icon: "video", desc: "Profi bemutató videó a fotókból" },
       { label: "Hirdetéskészítő", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott ingatlanhirdetés" },
