@@ -9,8 +9,8 @@ import ModuleIntro from "@/components/ModuleIntro";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import {
-  ENHANCE_MODES, MAX_IMAGES, ALLOWED_IMAGE_TYPES,
-  type EnhanceMode,
+  ENHANCE_MODES, ENHANCE_OPTIONS, MAX_IMAGES, ALLOWED_IMAGE_TYPES,
+  type EnhanceMode, type EnhanceOption,
 } from "@/lib/image-enhance";
 
 type Pick = { file: File; url: string };
@@ -27,6 +27,7 @@ const dayLabel = (iso: string) =>
 export default function ImageEnhancePage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [mode, setMode] = useState<EnhanceMode>("feljavitas");
+  const [options, setOptions] = useState<EnhanceOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [current, setCurrent] = useState<Item[]>([]);
   const [history, setHistory] = useState<Job[]>([]);
@@ -63,6 +64,8 @@ export default function ImageEnhancePage() {
     });
   }
   const removePick = (i: number) => setPicks((prev) => prev.filter((_, j) => j !== i));
+  const toggleOption = (v: EnhanceOption) =>
+    setOptions((prev) => (prev.includes(v) ? prev.filter((o) => o !== v) : [...prev, v]));
 
   async function run() {
     if (!picks.length) { showToast("Tölts fel legalább egy képet.", "error"); return; }
@@ -71,6 +74,7 @@ export default function ImageEnhancePage() {
     try {
       const fd = new FormData();
       fd.append("mode", mode);
+      fd.append("options", JSON.stringify(mode === "feljavitas" ? options : []));
       for (const p of picks) fd.append("images", await compressImage(p.file, 1600, 0.85));
       const res = await fetch("/api/real-estate/image-enhance", { method: "POST", body: fd });
       const data = await res.json();
@@ -173,6 +177,33 @@ export default function ImageEnhancePage() {
             })}
           </div>
         </div>
+
+        {/* Feljavítás-opciók — külön bekapcsolható rétegek (csak Feljavítás módban) */}
+        {mode === "feljavitas" && (
+          <div>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+              Extra opciók <span style={{ color: "var(--twx-ink-muted)" }}>(a képminőség alap-javítása mindig fut)</span>
+            </label>
+            <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ENHANCE_OPTIONS.map((o) => {
+                const on = options.includes(o.value);
+                return (
+                  <button key={o.value} type="button" onClick={() => toggleOption(o.value)}
+                    className="flex items-start gap-3 rounded-xl p-3 text-left transition"
+                    style={on ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+                    <span className="mt-0.5 flex h-5 w-9 flex-none items-center rounded-full transition" style={{ background: on ? "var(--twx-coral)" : "var(--twx-line)", padding: 2 }}>
+                      <span className="h-4 w-4 rounded-full bg-white transition" style={{ transform: on ? "translateX(16px)" : "translateX(0)" }} />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{o.label}</span>
+                      <span className="mt-0.5 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>{o.desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Feltöltő */}
         <div>

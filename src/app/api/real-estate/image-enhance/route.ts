@@ -11,7 +11,7 @@ import { logCost, googleImageCostUsd } from "@/lib/costs";
 import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
 import { enhanceImageFal } from "@/lib/fal";
 import {
-  isEnhanceMode, validateImageFiles, enhanceModeLabel,
+  isEnhanceMode, isEnhanceOption, validateImageFiles, enhanceModeLabel,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -57,6 +57,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Válassz feldolgozási módot." }, { status: 422 });
   }
 
+  // Bekapcsolt feljavítás-opciók (csak Feljavítás módban van jelentőségük).
+  let enabledOptions: string[] = [];
+  try {
+    const raw = JSON.parse(String(form.get("options") ?? "[]"));
+    if (Array.isArray(raw)) enabledOptions = raw.map(String).filter(isEnhanceOption);
+  } catch {
+    enabledOptions = [];
+  }
+
   const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
   const imagesError = validateImageFiles(files);
   if (imagesError) {
@@ -78,6 +87,11 @@ export async function POST(request: Request) {
     const nanoPrompt = mode === "rendrakas" ? await buildEnhancePromptActive("rendrakas") : "";
     const falCfg = mode === "feljavitas" ? await buildEnhanceFalActive() : null;
 
+    // Végleges fal prompt: bázis + a bekapcsolt opciók prompt-rétegei.
+    const falPrompt = falCfg
+      ? [falCfg.prompt, ...enabledOptions.map((v) => falCfg.options[v]).filter(Boolean)].join(", ")
+      : "";
+
     // Párhuzamos feldolgozás — a 4 kép ne fusson a 60 mp-es limitbe egymás után.
     const items = await Promise.all(files.map(async (file) => {
       const inputBytes = new Uint8Array(await file.arrayBuffer());
@@ -94,7 +108,7 @@ export async function POST(request: Request) {
       let result: { bytes: Buffer; mimeType: string };
       if (falCfg) {
         const dataUri = `data:${mime};base64,${Buffer.from(inputBytes).toString("base64")}`;
-        result = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative });
+        result = await enhanceImageFal({ dataUri, prompt: falPrompt, negativePrompt: falCfg.negative });
       } else {
         result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt: nanoPrompt });
       }
@@ -120,7 +134,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: service.id,
       feature_used: FEATURE,
-      input_data: { mode, mode_label: enhanceModeLabel(mode), image_count: files.length, outputs: items.map((i) => i.enhanced) },
+      input_data: { mode, mode_label: enhanceModeLabel(mode), options: mode === "feljavitas" ? enabledOptions : [], image_count: files.length, outputs: items.map((i) => i.enhanced) },
       output_file_url: items[0]?.enhanced ?? null,
       credits_charged: charge.bypassed ? 0 : 1,
     });

@@ -63,7 +63,7 @@ import {
   composeProfessionalPrompt,
   type ProfessionalQuery,
 } from "@/lib/professionals";
-import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, type EnhanceMode } from "@/lib/image-enhance";
+import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, ENHANCE_OPTIONS, type EnhanceMode } from "@/lib/image-enhance";
 
 export type PromptSegments = Record<string, string>;
 
@@ -132,8 +132,8 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     segments: [
       {
         id: "prompt",
-        label: "Pozitív prompt",
-        hint: "Rövid, kulcsszavas leírás a kívánt look-ról (profi ingatlanfotó, világos, HDR, éles…). Változó nem használható.",
+        label: "Alap pozitív prompt (mindig)",
+        hint: "A bázis minőségjavítás (mindig fut). Rövid, kulcsszavas. Változó nem használható.",
         default: ENHANCE_FAL_PROMPT,
       },
       {
@@ -142,6 +142,13 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
         hint: "Amit el akarunk kerülni (amatőr, homályos, sötét, kiégett ablak, elrendezés-változás…). Változó nem használható.",
         default: ENHANCE_FAL_NEGATIVE,
       },
+      // Bekapcsolható opciók promptjai — csak bekapcsolt állapotban fűződnek a bázishoz.
+      ...ENHANCE_OPTIONS.map((o) => ({
+        id: `opt_${o.value}`,
+        label: `Opció: ${o.label}`,
+        hint: `Csak akkor fut, ha a felhasználó bekapcsolja ezt az opciót. ${o.desc}`,
+        default: o.prompt,
+      })),
     ],
   },
   {
@@ -485,12 +492,19 @@ export async function buildEnhancePromptActive(mode: EnhanceMode): Promise<strin
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
 }
 
-// Feljavítás (fal.ai) — pozitív + negatív prompt.
-export async function buildEnhanceFalActive(): Promise<{ prompt: string; negative: string }> {
+// Feljavítás (fal.ai) — bázis pozitív + negatív + opciónkénti prompt-rétegek.
+export async function buildEnhanceFalActive(): Promise<{
+  prompt: string; negative: string; options: Record<string, string>;
+}> {
   const segments = await getActiveSegments("image_enhance_feljavitas");
+  const options: Record<string, string> = {};
+  for (const o of ENHANCE_OPTIONS) {
+    options[o.value] = (segments[`opt_${o.value}`] ?? o.prompt).trim();
+  }
   return {
     prompt: (segments.prompt ?? ENHANCE_FAL_PROMPT).trim(),
     negative: (segments.negative ?? ENHANCE_FAL_NEGATIVE).trim(),
+    options,
   };
 }
 

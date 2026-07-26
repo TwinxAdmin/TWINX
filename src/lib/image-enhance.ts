@@ -29,10 +29,46 @@ export function enhanceModeLabel(v: string): string {
 // --- FELJAVÍTÁS (fal.ai clarity-upscaler) — pozitív + negatív prompt --------
 // A fal img2img-nél a szerkezet megtartását a creativity/resemblance paraméterek adják,
 // a látványt pedig ez a rövid, kulcsszavas pozitív + negatív prompt.
+// Bázis (mindig alkalmazzuk): tiszta minőségjavítás, semleges. A látvány-rétegeket
+// (fények, ég, hangulat) a bekapcsolható OPCIÓK adják hozzá.
 export const ENHANCE_FAL_PROMPT =
-  "professional real estate photography of a beautiful interior, bright and airy natural daylight, soft natural illumination, well-lit shadows, perfectly balanced HDR lighting, Architectural Digest style, high-end real estate listing, sharp focus, crisp textures, true-to-life colors, clean bright walls, warm and inviting atmosphere, photorealistic";
+  "professional real estate listing photograph, sharp focus, crisp fine textures, high detail, clean and clear, true-to-life natural colors, well-balanced exposure, photorealistic, high quality";
 export const ENHANCE_FAL_NEGATIVE =
   "amateur, phone camera, blurry, dark, underexposed, grainy, noisy, distorted, fisheye, bad lighting, blown out windows, messy, changed layout, altered furniture, added objects, 3d render, digital art, illustration, worst quality, low quality";
+
+// Bekapcsolható feljavítás-opciók — mindegyiknek saját (admin-szerkeszthető) prompt-
+// rétege, amit engedélyezéskor a bázishoz fűzünk.
+export const ENHANCE_OPTIONS = [
+  {
+    value: "lighting",
+    label: "Szép fények",
+    desc: "Profi, kiegyensúlyozott világítás — levegős, világos tér (HDR).",
+    prompt: "bright and airy professional interior lighting, soft natural daylight, well-lit and opened-up shadows, perfectly balanced HDR lighting, luminous inviting space",
+  },
+  {
+    value: "sky",
+    label: "Kék ég az ablakban",
+    desc: "Az ablakban látszó fakó/borús eget derült kék égre cseréli.",
+    prompt: "replace the dull, grey or overcast sky visible through the windows with a clear natural blue sky with a few soft clouds, bright pleasant daylight outside the windows",
+  },
+  {
+    value: "warm",
+    label: "Meleg, otthonos hangulat",
+    desc: "Barátságos, hívogató, meleg tónusú összkép.",
+    prompt: "warm, cozy and inviting homely atmosphere, gentle warm tones, welcoming tasteful ambiance",
+  },
+  {
+    value: "furniture",
+    label: "Bútorzat kiemelése",
+    desc: "A meglévő bútorok élesebbek, tisztábbak, gazdagabb textúrával — de nem cseréljük ki.",
+    prompt: "enhance the appearance of the EXISTING furniture: crisp clean surfaces, rich detailed wood and fabric textures, well-defined edges, refined and tidy look — keep exactly the same furniture pieces in the same positions, do NOT replace, add or restyle any furniture",
+  },
+] as const;
+
+export type EnhanceOption = (typeof ENHANCE_OPTIONS)[number]["value"];
+export function isEnhanceOption(v: unknown): v is EnhanceOption {
+  return ENHANCE_OPTIONS.some((o) => o.value === v);
+}
 
 // --- NAGYON SZIGORÚ promptok (image-to-image, Nano Banana) -----------------
 // A modell angolul követi legpontosabban a képre vonatkozó megkötéseket.
