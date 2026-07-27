@@ -3,7 +3,6 @@
 // Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
-import SelectField from "@/components/SelectField";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
@@ -23,7 +22,6 @@ import {
   validateImageFiles,
   isRoomConfigReady,
   type RoomConfig,
-  type Option,
 } from "@/lib/visualization";
 
 type Item = { file: File; url: string; config: RoomConfig };
@@ -270,103 +268,91 @@ export default function VisualizationPage() {
 
       {/* Konfig panel a kiválasztott képhez */}
       {current && (
-        <div className="twx-card space-y-3 p-4">
-          <h2 className="font-display font-medium">
-            {(selected ?? 0) + 1}. kép beállításai
-          </h2>
+        <div className="twx-card space-y-5 p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg font-medium">{(selected ?? 0) + 1}. kép beállításai</h2>
+            <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+              style={isRoomConfigReady(current.config)
+                ? { background: "rgba(22,163,74,0.12)", color: "#15803d" }
+                : { background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+              {isRoomConfigReady(current.config) ? "Kész a generálásra" : "Válassz helységet"}
+            </span>
+          </div>
 
-          <Field label="Helység típusa (kötelező)">
-            <SelectField
+          {/* Helység — kötelező, chipes választás */}
+          <Section title="Helység típusa" required>
+            <ChipRow
+              options={ROOM_TYPES.map((r) => ({ value: r.value, label: r.label }))}
               value={current.config.roomType}
               onChange={(v) => updateConfig({ roomType: v })}
-              placeholder="— Válassz helységet —"
-              options={[{ value: "", label: "— Válassz helységet —" }, ...ROOM_TYPES.map((r) => ({ value: r.value, label: r.label }))]}
             />
-          </Field>
+          </Section>
 
-          <Field label="Stílus (opcionális)">
-            <SelectField
-              value={current.config.style}
-              onChange={(v) => updateConfig({ style: v })}
-              options={STYLE_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
-            />
-            {current.config.style && SUPABASE_URL && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`${SUPABASE_URL}/storage/v1/object/public/references/${current.config.style}/nappali.png`}
-                alt="Stílus minta"
-                className="mt-2 max-h-28 object-contain"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-            )}
-          </Field>
-
-          <Field label="Falszín (opcionális)">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => updateConfig({ wallColor: "" })}
-                className="h-7 rounded border px-2 text-xs"
-                style={{ borderColor: current.config.wallColor === "" ? "var(--twx-coral)" : "var(--twx-line)" }}
-              >
-                nincs
-              </button>
-              {WALL_COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  title={c.label}
-                  onClick={() => updateConfig({ wallColor: c.value })}
-                  className="h-7 w-7 rounded-full border-2"
-                  style={{
-                    backgroundColor: c.hex,
-                    borderColor:
-                      current.config.wallColor === c.value
-                        ? "var(--twx-coral)"
-                        : "var(--twx-line)",
-                  }}
+          {/* Stílus — képes kártyák */}
+          <Section title="Stílus" hint="Válassz hangulatot, vagy hagyd üresen, ha csak a lenti módosításokat kéred.">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+              {STYLE_OPTIONS.map((s) => (
+                <StyleCard
+                  key={s.value || "none"}
+                  label={s.value ? s.label : "Nincs stílus"}
+                  styleSlug={s.value}
+                  roomSlug={ROOM_TYPES.find((r) => r.value === current.config.roomType)?.slug ?? "nappali"}
+                  active={current.config.style === s.value}
+                  onClick={() => updateConfig({ style: s.value })}
                 />
               ))}
             </div>
-          </Field>
+          </Section>
 
-          <OptionSelect
-            label="Falburkolat (opcionális)"
-            options={WALL_COVERINGS}
-            value={current.config.wallCovering}
-            onChange={(v) => updateConfig({ wallCovering: v })}
-          />
-          <OptionSelect
-            label="Padlóburkolat (opcionális)"
-            options={FLOORINGS}
-            value={current.config.flooring}
-            onChange={(v) => updateConfig({ flooring: v })}
-          />
-          <OptionSelect
-            label="Berendezettség (opcionális)"
-            options={FURNISHINGS}
-            value={current.config.furnishing}
-            onChange={(v) => updateConfig({ furnishing: v })}
-          />
-          <OptionSelect
-            label="Fény-hangulat (opcionális)"
-            options={LIGHT_MOODS}
-            value={current.config.lightMood}
-            onChange={(v) => updateConfig({ lightMood: v })}
-          />
+          {/* Falszín — színkorongok névvel */}
+          <Section title="Falszín">
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => updateConfig({ wallColor: "" })}
+                className="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                style={current.config.wallColor === ""
+                  ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" }
+                  : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                Nincs
+              </button>
+              {WALL_COLORS.map((c) => {
+                const on = current.config.wallColor === c.value;
+                return (
+                  <button key={c.value} type="button" title={c.label} onClick={() => updateConfig({ wallColor: c.value })}
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full transition"
+                    style={{ backgroundColor: c.hex, border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)", boxShadow: on ? "0 0 0 3px rgba(239,122,90,0.18)" : "none" }}>
+                    {on && <span className="text-sm font-bold" style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.5)" }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
 
-          <Field label="Megjegyzés (opcionális)">
+          {/* További opciók — chipek */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Section title="Falburkolat">
+              <ChipRow options={WALL_COVERINGS} value={current.config.wallCovering} onChange={(v) => updateConfig({ wallCovering: v })} allowEmpty />
+            </Section>
+            <Section title="Padlóburkolat">
+              <ChipRow options={FLOORINGS} value={current.config.flooring} onChange={(v) => updateConfig({ flooring: v })} allowEmpty />
+            </Section>
+            <Section title="Berendezettség">
+              <ChipRow options={FURNISHINGS} value={current.config.furnishing} onChange={(v) => updateConfig({ furnishing: v })} allowEmpty />
+            </Section>
+            <Section title="Fény-hangulat">
+              <ChipRow options={LIGHT_MOODS} value={current.config.lightMood} onChange={(v) => updateConfig({ lightMood: v })} allowEmpty />
+            </Section>
+          </div>
+
+          <Section title="Megjegyzés" hint="Bármi egyedi kérés — pl. növények, meleg tónusok.">
             <textarea
               value={current.config.note}
               onChange={(e) => updateConfig({ note: e.target.value })}
               rows={2}
               maxLength={MAX_NOTE_LENGTH}
-              className="twx-input"
+              className="twx-input w-full"
               placeholder="pl. növények, meleg tónusok"
             />
-          </Field>
+          </Section>
         </div>
       )}
 
@@ -522,34 +508,78 @@ export default function VisualizationPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Beállítás-szekció címmel és opcionális magyarázattal. */
+function Section({ title, hint, required, children }: { title: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm">{label}</label>
-      <div className="mt-1">{children}</div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-sm font-semibold">{title}</span>
+        {required && <span className="text-[11px] font-medium" style={{ color: "var(--twx-coral)" }}>kötelező</span>}
+      </div>
+      {hint && <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{hint}</p>}
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
 
-function OptionSelect({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Option[];
+/** Chipes választás — egy kattintás, jól látható kiválasztás. */
+function ChipRow({ options, value, onChange, allowEmpty }: {
+  options: { value: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
+  allowEmpty?: boolean;
 }) {
+  const chip = (v: string, label: string) => {
+    const on = value === v;
+    return (
+      <button key={v || "none"} type="button" onClick={() => onChange(on && allowEmpty ? "" : v)}
+        className="rounded-full px-3 py-1.5 text-xs font-medium transition hover:shadow-sm"
+        style={on
+          ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" }
+          : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+        {label}
+      </button>
+    );
+  };
   return (
-    <Field label={label}>
-      <SelectField
-        value={value}
-        onChange={onChange}
-        placeholder="— Válassz —"
-        options={[{ value: "", label: "— Válassz —" }, ...options.map((o) => ({ value: o.value, label: o.label }))]}
-      />
-    </Field>
+    <div className="flex flex-wrap gap-2">
+      {allowEmpty && chip("", "Nincs")}
+      {options.filter((o) => o.value).map((o) => chip(o.value, o.label))}
+    </div>
+  );
+}
+
+/** Képes stílus-kártya — a referencia-képből mintát mutat, ha van. */
+function StyleCard({ label, styleSlug, roomSlug, active, onClick }: {
+  label: string; styleSlug: string; roomSlug: string; active: boolean; onClick: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  const src = styleSlug && SUPABASE_URL
+    ? `${SUPABASE_URL}/storage/v1/object/public/references/${styleSlug}/${roomSlug}.png`
+    : "";
+  return (
+    <button type="button" onClick={onClick}
+      className="group overflow-hidden rounded-xl text-left transition hover:shadow-md"
+      style={{
+        border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
+        boxShadow: active ? "0 4px 16px rgba(239,122,90,0.18)" : "none",
+        background: "#fff",
+      }}>
+      <div className="relative aspect-[4/3] w-full overflow-hidden" style={{ background: "var(--twx-cream)" }}>
+        {src && !failed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={label} className="h-full w-full object-cover" onError={() => setFailed(true)} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+            {styleSlug ? "nincs minta" : "eredeti stílus"}
+          </div>
+        )}
+        {active && (
+          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
+        )}
+      </div>
+      <div className="px-2 py-1.5 text-[11px] font-semibold" style={{ color: active ? "#7a2e17" : "var(--twx-ink)" }}>{label}</div>
+    </button>
   );
 }
