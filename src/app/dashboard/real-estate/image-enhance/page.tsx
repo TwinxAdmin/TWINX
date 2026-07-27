@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import AssetTray from "@/components/AssetTray";
+import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import {
@@ -44,6 +45,8 @@ export default function ImageEnhancePage() {
   const [favs, setFavs] = useState<Fav[]>([]);
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ items: Item[]; index: number } | null>(null);
+  // A nagy nézetben megjelenő munkatípus-jelölések (url -> milyen munkák mentek végbe).
+  const [lightboxBadges, setLightboxBadges] = useState<Record<string, WorkKind[]>>({});
   const [view, setView] = useState<"enhanced" | "original">("enhanced");
   const [assetsReload, setAssetsReload] = useState(0);
 
@@ -325,7 +328,13 @@ export default function ImageEnhancePage() {
             <button key={m.value} type="button" onClick={() => openSession(m.value)}
               className="rounded-xl p-5 text-left transition hover:shadow-md"
               style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-              <div className="font-display text-lg font-semibold" style={{ color: "var(--twx-ink)" }}>{m.label}</div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg"
+                  style={{ background: WORK_META[m.value as WorkKind].soft, color: WORK_META[m.value as WorkKind].color }}>
+                  <WorkIcon kind={m.value as WorkKind} size={18} />
+                </span>
+                <div className="font-display text-lg font-semibold" style={{ color: "var(--twx-ink)" }}>{m.label}</div>
+              </div>
               <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
               <span className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--twx-coral)" }}>Indítás →</span>
             </button>
@@ -335,12 +344,13 @@ export default function ImageEnhancePage() {
 
       {/* Közös tálca: korábbi munkák mappákban + kedvencek (kattintásra nagy nézet) */}
       <AssetTray
-        onPick={(u, folderUrls, index) =>
+        onPick={(u, folderUrls, index, trayBadges) => {
+          setLightboxBadges(trayBadges ?? {});
           openLightbox(
             (folderUrls?.length ? folderUrls : [u]).map((x) => ({ original: originalOf(x), enhanced: x })),
             index ?? 0
-          )
-        }
+          );
+        }}
         reloadKey={assetsReload}
         note="Válassz egy mappát, majd kattints egy képre a nagy nézethez, letöltéshez vagy kedvencnek jelöléshez."
       />
@@ -471,6 +481,12 @@ export default function ImageEnhancePage() {
                   className="mx-auto max-h-[52vh] w-auto rounded-xl object-contain"
                   style={{ border: "1px solid var(--twx-line)" }}
                 />
+                {/* Jobb felső sarok: milyen munka történt ezen a képen */}
+                {producedMode && reviewView === "enhanced" && (
+                  <div className="absolute right-2 top-2">
+                    <WorkChips kinds={[producedMode as WorkKind]} light />
+                  </div>
+                )}
                 {/* Bal felső sarok: eredeti / elkészült váltás */}
                 <div className="absolute left-2 top-2 flex overflow-hidden rounded-full text-xs shadow"
                   style={{ background: "rgba(255,255,255,0.95)", border: "1px solid var(--twx-line)" }}>
@@ -588,9 +604,18 @@ export default function ImageEnhancePage() {
               <button onClick={(e) => { e.stopPropagation(); step(-1); }} aria-label="Előző"
                 className="absolute left-3 flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>‹</button>
             )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={view === "enhanced" ? cur.enhanced : cur.original} alt="Nagy nézet" onClick={(e) => e.stopPropagation()}
-              className="rounded-lg object-contain" style={{ maxHeight: "calc(100vh - 96px)", maxWidth: "100%" }} />
+            <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={view === "enhanced" ? cur.enhanced : cur.original} alt="Nagy nézet"
+                className="rounded-lg object-contain" style={{ maxHeight: "calc(100vh - 96px)", maxWidth: "100%" }} />
+              {/* Elvégzett munkák jelölése — elegánsan a kép alsó szélén */}
+              {(lightboxBadges[cur.enhanced] ?? []).length > 0 && view === "enhanced" && (
+                <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 rounded-b-lg p-2"
+                  style={{ background: "linear-gradient(to top, rgba(12,11,10,0.6), transparent)" }}>
+                  <WorkChips kinds={lightboxBadges[cur.enhanced] ?? []} light />
+                </div>
+              )}
+            </div>
             {lightbox!.items.length > 1 && (
               <button onClick={(e) => { e.stopPropagation(); step(1); }} aria-label="Következő"
                 className="absolute right-3 flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>›</button>

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
+import { WorkDot, isWorkKind, type WorkKind } from "@/components/WorkBadge";
 
 export const TWX_DRAG_TYPE = "application/x-twinx-url";
 export function readTwxDragUrl(dt: DataTransfer): string {
@@ -26,8 +27,9 @@ export default function AssetTray({
   note = "Válassz egy mappát, majd húzd a képet a munkádba, vagy kattints rá a hozzáadáshoz.",
   reloadKey = 0,
 }: {
-  // onPick: a kattintott kép + a mappa teljes képlistája és az index (lapozáshoz)
-  onPick?: (url: string, folderUrls: string[], index: number) => void;
+  // onPick: a kattintott kép + a mappa teljes képlistája, az index (lapozáshoz)
+  // és a munkatípus-jelölések (url -> milyen munkák mentek végbe rajta)
+  onPick?: (url: string, folderUrls: string[], index: number, badges?: Record<string, WorkKind[]>) => void;
   selectedUrls?: string[];
   title?: string;
   note?: string;
@@ -35,6 +37,7 @@ export default function AssetTray({
 }) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [badges, setBadges] = useState<Record<string, WorkKind[]>>({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -56,6 +59,10 @@ export default function AssetTray({
       if (res.ok) {
         setFolders(data.folders ?? []);
         setFavorites(data.favorites ?? []);
+        const raw = (data.badges ?? {}) as Record<string, string[]>;
+        const clean: Record<string, WorkKind[]> = {};
+        for (const [url, ks] of Object.entries(raw)) clean[url] = ks.filter(isWorkKind);
+        setBadges(clean);
       }
     } catch {
       /* tálca nélkül is működik a modul */
@@ -399,13 +406,19 @@ export default function AssetTray({
                           type="button"
                           draggable
                           onDragStart={(e) => dragStart(e, url)}
-                          onClick={() => onPick?.(url, openUrls, idx)}
+                          onClick={() => onPick?.(url, openUrls, idx, badges)}
                           title={onPick ? "Kattints a hozzáadáshoz, vagy húzd a munkádba / egy mappára" : "Húzd a munkádba vagy egy mappára"}
                           className="block w-full cursor-grab active:cursor-grabbing"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={url} alt="Korábbi kép" draggable={false} className="h-20 w-full object-cover" />
                         </button>
+                        {/* Munkatípus-jelölések: milyen munka ment végbe ezen a képen */}
+                        {(badges[url] ?? []).length > 0 && (
+                          <span className="pointer-events-none absolute bottom-1 left-1 flex gap-1">
+                            {(badges[url] ?? []).map((k) => <WorkDot key={k} kind={k} size={20} />)}
+                          </span>
+                        )}
                         {/* Áthelyezés gomb */}
                         <button type="button" title="Áthelyezés mappába" aria-label="Áthelyezés mappába"
                           onClick={() => setAssignFor(assignFor === url ? null : url)}

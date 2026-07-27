@@ -23,7 +23,7 @@ export async function GET() {
 
   const [{ data: jobs }, { data: viz }, { data: favs }, { data: named }, { data: items }, { data: labels }, { data: hidden }] =
     await Promise.all([
-      supabase.from("image_enhance_jobs").select("items, created_at").order("created_at", { ascending: false }).limit(80),
+      supabase.from("image_enhance_jobs").select("items, mode, created_at").order("created_at", { ascending: false }).limit(80),
       supabase.from("usage_history").select("input_data, output_file_url, created_at").eq("feature_used", "visualization").order("created_at", { ascending: false }).limit(80),
       supabase.from("image_enhance_favorites").select("enhanced, created_at").order("created_at", { ascending: false }).limit(120),
       supabase.from("asset_folders").select("id, name, created_at").order("created_at", { ascending: false }),
@@ -60,15 +60,32 @@ export async function GET() {
     if (iso > g.latest) g.latest = iso;
     map.set(key, g);
   };
+  // Melyik képen milyen munka ment végbe (jelölések a bélyegképekhez és a nagy nézethez).
+  const works = new Map<string, Set<string>>();
+  const mark = (url?: string | null, kind?: string) => {
+    if (!url || !kind) return;
+    const s = works.get(url) ?? new Set<string>();
+    s.add(kind);
+    works.set(url, s);
+  };
+
   for (const j of jobs ?? []) {
-    const its = (j.items ?? []) as Array<{ enhanced?: string }>;
-    for (const it of its) add(j.created_at as string, it?.enhanced);
+    const its = (j.items ?? []) as Array<{ enhanced?: string; original?: string }>;
+    for (const it of its) {
+      add(j.created_at as string, it?.enhanced);
+      mark(it?.enhanced, j.mode as string);
+      // Ha egy kép egy korábbi eredményből készült (átjátszás), a lánc előző lépése is látszik.
+      if (it?.original && works.has(it.original)) {
+        for (const k of works.get(it.original)!) mark(it.enhanced, k);
+      }
+    }
   }
   for (const h of viz ?? []) {
     const data = (h.input_data ?? {}) as { rooms?: Array<{ output?: string }>; outputs?: string[] };
-    if (Array.isArray(data.rooms)) for (const r of data.rooms) add(h.created_at as string, r?.output);
-    if (Array.isArray(data.outputs)) for (const u of data.outputs) add(h.created_at as string, u);
+    if (Array.isArray(data.rooms)) for (const r of data.rooms) { add(h.created_at as string, r?.output); mark(r?.output, "visualization"); }
+    if (Array.isArray(data.outputs)) for (const u of data.outputs) { add(h.created_at as string, u); mark(u, "visualization"); }
     add(h.created_at as string, h.output_file_url as string | null);
+    mark(h.output_file_url as string | null, "visualization");
   }
   // A partner által "törölt" (elrejtett) dátum-mappák nem jelennek meg — a képek megmaradnak.
   const hiddenKeys = new Set((hidden ?? []).map((h) => h.date_key as string));
@@ -81,5 +98,9 @@ export async function GET() {
 
   const favorites = [...new Set((favs ?? []).map((f) => f.enhanced as string).filter(Boolean))];
 
-  return NextResponse.json({ favorites, folders: [...namedFolders, ...dateFolders] });
+  // url -> munkatípusok (feljavitas | rendrakas | visualization)
+  const badges: Record<string, string[]> = {};
+  for (const [url, set] of works.entries()) badges[url] = [...set];
+
+  return NextResponse.json({ favorites, folders: [...namedFolders, ...dateFolders], badges });
 }
