@@ -189,9 +189,17 @@ export function fitSize(len: number, comfortable: number, base: number, min = 0.
  * (A -webkit-line-clamp-ot szándékosan NEM használjuk: a böngészőben renderelő
  * html2canvas nem támogatja megbízhatóan, és kilóghatna a szöveg a sávból.)
  */
-export function boxCss(lines: number, fontSize: number, lineHeight = 1.2): string {
-  const max = Math.ceil(lines * fontSize * lineHeight);
-  return `max-height:${max}px;overflow:hidden;line-height:${lineHeight};overflow-wrap:anywhere;word-break:break-word;`;
+export function boxCss(lines: number, fontSize: number, lineHeight = 1.3): string {
+  // Fontos: a magyar ékezetek (Ő, Ű) és a leszálló szárak (g, j, y) miatt kell
+  // ráhagyás, különben a betűk alja levágódik. Ezért a sormagasság mellé
+  // fél sor tartalékot és alsó belső margót is adunk.
+  const max = Math.ceil(lines * fontSize * lineHeight + fontSize * 0.22);
+  return `max-height:${max}px;overflow:hidden;line-height:${lineHeight};padding-bottom:${Math.ceil(fontSize * 0.12)}px;overflow-wrap:anywhere;word-break:break-word;`;
+}
+
+/** Egysoros felirat biztonságos CSS-e (nem vágja le az ékezetet, nem tördel). */
+export function lineCss(fontSize: number): string {
+  return `line-height:1.45;padding-bottom:${Math.ceil(fontSize * 0.1)}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
 }
 
 /** Túl hosszú szöveg levágása (a fitSize mellé, végső biztosíték). */
