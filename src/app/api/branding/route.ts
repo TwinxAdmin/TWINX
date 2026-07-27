@@ -98,10 +98,16 @@ export async function POST(request: Request) {
   const logoUrl = logoRes as string | undefined;
   const agentUrl = agentRes as string | undefined;
 
+  // A kliens jelezheti, hogy a meglévő logót / fotót törölni kell (a fájl a tárhelyen marad).
+  const removeLogo = String(form.get("remove_logo") ?? "") === "1";
+  const removeAgent = String(form.get("remove_agent_photo") ?? "") === "1";
+
   if (id) {
     const patch: Record<string, unknown> = { ...fields };
     if (logoUrl) patch.logo_url = logoUrl;
+    else if (removeLogo) patch.logo_url = null;
     if (agentUrl) patch.agent_photo_url = agentUrl;
+    else if (removeAgent) patch.agent_photo_url = null;
     const { error } = await admin.from("branding_profiles").update(patch).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, id });

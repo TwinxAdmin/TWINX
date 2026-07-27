@@ -12,6 +12,7 @@ import {
 } from "@/lib/branding";
 import { compressImage } from "@/lib/image-compress";
 import { makeLogoTransparent } from "@/lib/logo-transparent";
+import { cropToSquare, DEFAULT_CROP, type CropState } from "@/lib/crop-image";
 
 // Gyors színpaletta az arculathoz (egyedi szín továbbra is választható).
 const PRESET_COLORS = ["#ef7a5a", "#c2410c", "#b45309", "#15803d", "#0e7490", "#1d4ed8", "#6d28d9", "#be123c", "#1f2937"];
@@ -34,8 +35,11 @@ export default function BrandingPage() {
   const [logoOriginal, setLogoOriginal] = useState<File | null>(null); // tisztítás visszavonásához
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [agentFile, setAgentFile] = useState<File | null>(null);
   const [agentPreview, setAgentPreview] = useState<string | null>(null);
+  const [removeAgent, setRemoveAgent] = useState(false);
+  const [crop, setCrop] = useState<CropState>(DEFAULT_CROP); // portré-kivágás
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -63,6 +67,9 @@ export default function BrandingPage() {
     setLogoPreview(null);
     setAgentFile(null);
     setAgentPreview(null);
+    setRemoveLogo(false);
+    setRemoveAgent(false);
+    setCrop(DEFAULT_CROP);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -88,10 +95,17 @@ export default function BrandingPage() {
     setLogoPreview(null);
     setAgentFile(null);
     setAgentPreview(null);
+    setRemoveLogo(false);
+    setRemoveAgent(false);
+    setCrop(DEFAULT_CROP);
     setErrors({});
     setServerError(null);
     setShowForm(true);
   }
+
+  // Amit épp mutatunk: az új feltöltés, vagy a meglévő (ha nem törölték).
+  const logoSrc = logoPreview ?? (removeLogo ? null : editing?.logo_url ?? null);
+  const agentSrc = agentPreview ?? (removeAgent ? null : editing?.agent_photo_url ?? null);
 
   function setField<K extends keyof BrandingInput>(key: K, val: BrandingInput[K]) {
     setValues((prev) => ({ ...prev, [key]: val }));
@@ -112,8 +126,11 @@ export default function BrandingPage() {
         const keepAsIs = logoFile.type.includes("svg") || logoFile.type.includes("png");
         fd.append("logo", keepAsIs ? logoFile : await compressImage(logoFile, 800, 0.9));
       }
-      // Ügynök-fotó: mindig kicsinyítve (portré).
-      if (agentFile) fd.append("agent_photo", await compressImage(agentFile, 800, 0.88));
+      // Ügynök-fotó: a beállított kivágással, négyzetes portréként.
+      if (agentFile) fd.append("agent_photo", await cropToSquare(agentFile, crop, 800));
+      // Törlés-jelzések a szervernek.
+      if (removeLogo && !logoFile) fd.append("remove_logo", "1");
+      if (removeAgent && !agentFile) fd.append("remove_agent_photo", "1");
 
       const res = await fetch("/api/branding", { method: "POST", body: fd });
       const data = await res.json();
@@ -232,8 +249,8 @@ export default function BrandingPage() {
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg"
                 style={{ background: values.theme === "dark" ? "rgba(255,255,255,0.06)" : "var(--twx-cream)" }}>
-                {logoPreview || editing?.logo_url ? (
-                  <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain p-1" />
+                {logoSrc ? (
+                  <img src={logoSrc ?? ""} alt="" className="h-full w-full object-contain p-1" />
                 ) : (
                   <span className="text-lg" style={{ color: "var(--twx-line)" }}>▦</span>
                 )}
@@ -249,8 +266,8 @@ export default function BrandingPage() {
                   {[values.phone, values.email].filter(Boolean).join(" · ") || "telefon · e-mail"}
                 </p>
               </div>
-              {(agentPreview || editing?.agent_photo_url) && (
-                <img src={agentPreview ?? editing?.agent_photo_url ?? ""} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover"
+              {agentSrc && (
+                <img src={agentSrc ?? ""} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover"
                   style={{ border: `2px solid ${values.accent_color}` }} />
               )}
             </div>
@@ -349,8 +366,8 @@ export default function BrandingPage() {
                 {(["light", "dark"] as const).map((bg) => (
                   <div key={bg} className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl"
                     style={{ border: "1px solid var(--twx-line)", background: bg === "dark" ? "#141210" : "#fff" }}>
-                    {logoPreview || editing?.logo_url ? (
-                      <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain p-1.5" />
+                    {logoSrc ? (
+                      <img src={logoSrc ?? ""} alt="" className="h-full w-full object-contain p-1.5" />
                     ) : (
                       <span className="text-2xl" style={{ color: "var(--twx-line)" }}>▦</span>
                     )}
@@ -363,8 +380,15 @@ export default function BrandingPage() {
                   className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
                   style={{ border: "1px solid var(--twx-line)", background: "#fff", color: "var(--twx-ink)" }}
                 >
-                  {logoFile || editing?.logo_url ? "Logó cseréje" : "Logó feltöltése"}
+                  {logoSrc ? "Logó cseréje" : "Logó feltöltése"}
                 </label>
+                {logoSrc && (
+                  <button type="button"
+                    onClick={() => { setLogoFile(null); setLogoOriginal(null); setLogoPreview(null); setRemoveLogo(true); }}
+                    className="ml-2 rounded-full px-3 py-1.5 text-xs font-medium" style={{ border: "1px solid var(--twx-line)", color: "#dc2626" }}>
+                    Logó törlése
+                  </button>
+                )}
                 <input
                   id="logo-input"
                   type="file"
@@ -432,28 +456,65 @@ export default function BrandingPage() {
             </div>
           </div>
 
-          {/* Ügynök-fotó (a partner saját képe — a hirdetésen körképként jelenik meg) */}
+          {/* Ügynök-fotó — kivágható: egészalakos képből is lehet mellkép */}
           <div>
-            <label className="block text-sm">Saját fotó (ügynök)</label>
-            <div className="mt-1 flex items-center gap-4">
+            <label className="block text-sm font-semibold">Saját fotó</label>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              A hirdetésen és a videó végkártyáján körben jelenik meg. Nagyítsd és húzd a képet, hogy a megfelelő rész látszódjon.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              {/* Körelőnézet — húzással mozgatható */}
               <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full"
+                className="relative h-28 w-28 shrink-0 cursor-move overflow-hidden rounded-full"
                 style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
+                onPointerDown={(e) => {
+                  if (!agentSrc) return;
+                  const el = e.currentTarget;
+                  el.setPointerCapture(e.pointerId);
+                  const start = { px: e.clientX, py: e.clientY, ...crop };
+                  const onMove = (ev: PointerEvent) => {
+                    setCrop({
+                      zoom: start.zoom,
+                      x: Math.max(-1, Math.min(1, start.x - (ev.clientX - start.px) / 60)),
+                      y: Math.max(-1, Math.min(1, start.y - (ev.clientY - start.py) / 60)),
+                    });
+                  };
+                  const onUp = () => { el.removeEventListener("pointermove", onMove); el.removeEventListener("pointerup", onUp); };
+                  el.addEventListener("pointermove", onMove);
+                  el.addEventListener("pointerup", onUp);
+                }}
               >
-                {agentPreview || editing?.agent_photo_url ? (
-                  <img src={agentPreview ?? editing?.agent_photo_url ?? ""} alt="" className="h-full w-full object-cover" />
+                {agentSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={agentSrc}
+                    alt=""
+                    draggable={false}
+                    className="h-full w-full select-none object-cover"
+                    style={{ transform: `scale(${crop.zoom})`, objectPosition: `${50 + crop.x * 50}% ${50 + crop.y * 50}%` }}
+                  />
                 ) : (
-                  <span className="text-2xl" style={{ color: "var(--twx-line)" }}>☺</span>
+                  <span className="flex h-full w-full items-center justify-center text-2xl" style={{ color: "var(--twx-line)" }}>☺</span>
                 )}
               </div>
-              <div>
-                <label
-                  htmlFor="agent-input"
-                  className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-                >
-                  {agentFile || editing?.agent_photo_url ? "Fotó cseréje" : "Fotó feltöltése"}
-                </label>
+
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label
+                    htmlFor="agent-input"
+                    className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                    style={{ border: "1px solid var(--twx-line)", background: "#fff", color: "var(--twx-ink)" }}
+                  >
+                    {agentSrc ? "Fotó cseréje" : "Fotó feltöltése"}
+                  </label>
+                  {agentSrc && (
+                    <button type="button"
+                      onClick={() => { setAgentFile(null); setAgentPreview(null); setRemoveAgent(true); setCrop(DEFAULT_CROP); }}
+                      className="rounded-full px-3 py-1.5 text-xs font-medium" style={{ border: "1px solid var(--twx-line)", color: "#dc2626" }}>
+                      Fotó törlése
+                    </button>
+                  )}
+                </div>
                 <input
                   id="agent-input"
                   type="file"
@@ -462,12 +523,31 @@ export default function BrandingPage() {
                     const f = e.target.files?.[0] ?? null;
                     setAgentFile(f);
                     setAgentPreview(f ? URL.createObjectURL(f) : null);
+                    setRemoveAgent(false);
+                    setCrop(DEFAULT_CROP);
                   }}
                   className="hidden"
                 />
-                <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {agentFile ? agentFile.name : "Portré / arckép — a hirdetésen körben jelenik meg."}
-                </p>
+
+                {/* Nagyítás csúszka — csak új feltöltésnél tudjuk újravágni */}
+                {agentFile && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                      Nagyítás ({crop.zoom.toFixed(1)}×)
+                    </label>
+                    <input type="range" min={1} max={3} step={0.1} value={crop.zoom}
+                      onChange={(e) => setCrop((c) => ({ ...c, zoom: Number(e.target.value) }))}
+                      className="mt-1 w-full max-w-xs" />
+                    <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      Húzd a kör alakú előnézetet a kép mozgatásához.
+                    </p>
+                  </div>
+                )}
+                {!agentFile && editing?.agent_photo_url && !removeAgent && (
+                  <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Az újravágáshoz tölts fel újra egy fotót.
+                  </p>
+                )}
               </div>
             </div>
           </div>
