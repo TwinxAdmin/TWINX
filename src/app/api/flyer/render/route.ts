@@ -54,11 +54,22 @@ export async function POST(request: Request) {
   try {
     const images = await Promise.all(files.map(toDataUri));
 
+    // A hirdetésen előforduló karakterek (a betű glyph-lefedettségéhez) + alapkészlet.
+    const used = [
+      text.title, text.subtitle, text.price, text.badge, ...text.chips,
+      profile.display_name, profile.company, profile.title, profile.phone, profile.email, profile.website,
+      "ELADÓ IRÁNYÁR ELŐNÉZET TWINX",
+      "AÁBCDEÉFGHIÍJKLMNOÓÖŐPQRSTUÚÜŰVWXYZ",
+      "aábcdeéfghiíjklmnoóöőpqrstuúüűvwxyz",
+      "0123456789.,:;·-–—/()%²+&@ ",
+    ].join(" ");
+    const charset = Array.from(new Set(used.split(""))).join("");
+
     // Betűk: az arculati család, tartalékkal.
     const wanted = googleFamilyOf(getBrandingFont(profile.font).family);
     let family = wanted;
-    let loaded = await loadGoogleFont(wanted).catch(() => null);
-    if (!loaded) { family = FALLBACK_FAMILY; loaded = await loadGoogleFont(FALLBACK_FAMILY); }
+    let loaded = await loadGoogleFont(wanted, charset).catch(() => null);
+    if (!loaded) { family = FALLBACK_FAMILY; loaded = await loadGoogleFont(FALLBACK_FAMILY, charset); }
     const fonts = loaded.map((f) => ({
       name: family, data: f.data, style: "normal" as const,
       weight: (f.weight >= 700 ? 700 : 400) as 400 | 700,
