@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
-import { FLYER_CREDITS } from "@/lib/flyer";
+import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
 export const runtime = "nodejs";
 const BUCKET = "reports";
@@ -32,27 +32,20 @@ export async function POST(request: Request) {
   }
   const file = image as File;
   const profileId = String(form.get("profileId") ?? "");
+  const format = FLYER_FORMATS.find((f) => f.value === String(form.get("format") ?? "")) ?? FLYER_FORMATS[0];
   const title = String(form.get("title") ?? "");
-  // Új sablonrendszer: stílus + arány (a régi "format" visszafelé kompatibilisen megmarad).
-  const style = String(form.get("style") ?? "");
-  const ratio = String(form.get("ratio") ?? "");
-  const imageCount = Number(form.get("imageCount") ?? 0) || 0;
 
   const admin = createAdminClient();
   const { data: service } = await admin.from("services").select("id").eq("slug", "real-estate").single();
 
-  // Az arculat NEM kötelező: a partner megadhatja az adatokat egyszer, mentés nélkül is.
-  let profileLabel = "egyszeri arculat";
-  if (profileId) {
-    const { data: profile } = await admin
-      .from("branding_profiles")
-      .select("id, label, user_id")
-      .eq("id", profileId)
-      .single();
-    if (!profile || profile.user_id !== user.id) {
-      return NextResponse.json({ error: "Válassz érvényes arculatot." }, { status: 400 });
-    }
-    profileLabel = profile.label;
+  // Az arculat a felhasználóé-e (címke az előzményhez).
+  const { data: profile } = await admin
+    .from("branding_profiles")
+    .select("id, label, user_id")
+    .eq("id", profileId)
+    .single();
+  if (!profile || profile.user_id !== user.id) {
+    return NextResponse.json({ error: "Válassz érvényes arculatot." }, { status: 400 });
   }
 
   // 1) Kredit (admin/sales megkerüli). Hibánál visszatérítjük.
@@ -75,12 +68,12 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: service?.id ?? null,
       feature_used: FEATURE,
-      input_data: { title, style, ratio, image_count: imageCount, profile: profileLabel },
+      input_data: { title, format: format.value, profile: profile.label },
       output_file_url: url,
       credits_charged: charge && !charge.bypassed ? FLYER_CREDITS : 0,
     });
 
-    return NextResponse.json({ ok: true, url, kind: ext === "pdf" ? "pdf" : "image", charged: charge ? !charge.bypassed : false });
+    return NextResponse.json({ ok: true, url, kind: format.kind, charged: charge ? !charge.bypassed : false });
   } catch (err) {
     if (charge && !charge.bypassed) {
       await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: FLYER_CREDITS });
