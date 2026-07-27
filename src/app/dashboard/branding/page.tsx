@@ -7,6 +7,8 @@ import {
   BRANDING_FONTS,
   BRANDING_THEMES,
   EMPTY_BRANDING,
+  FONT_CATEGORIES,
+  getBrandingFont,
   type BrandingInput,
   type BrandingProfile,
 } from "@/lib/branding";
@@ -36,15 +38,6 @@ function previewBox(img: { w: number; h: number }, zoom: number) {
   };
 }
 
-// A betűtípus-kártyák mintájához (a render Google Fontsból tölti a végleges betűt).
-const FONT_STACK: Record<string, string> = {
-  inter: "Inter, system-ui, sans-serif",
-  montserrat: "Montserrat, system-ui, sans-serif",
-  playfair: "'Playfair Display', Georgia, serif",
-  poppins: "Poppins, system-ui, sans-serif",
-  clash: "'Space Grotesk', system-ui, sans-serif",
-};
-
 export default function BrandingPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +55,7 @@ export default function BrandingPage() {
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
   // Képtár: több logó / fotó egy profilhoz, közülük egy az aktív.
   const [assets, setAssets] = useState<{ id: string; kind: string; url: string }[]>([]);
+  const [fontFilter, setFontFilter] = useState<string>("all");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,6 +74,22 @@ export default function BrandingPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // A választható betűtípusok betöltése, hogy a minták a saját betűjükkel látszódjanak.
+  useEffect(() => {
+    if (!showForm) return;
+    const added: HTMLLinkElement[] = [];
+    for (const f of BRANDING_FONTS) {
+      if (document.querySelector(`link[data-twx-font="${f.value}"]`)) continue;
+      const el = document.createElement("link");
+      el.rel = "stylesheet";
+      el.href = f.link;
+      el.dataset.twxFont = f.value;
+      document.head.appendChild(el);
+      added.push(el);
+    }
+    return () => { /* a betöltött fontokat meghagyjuk a további megnyitásokhoz */ };
+  }, [showForm]);
 
   function openNew() {
     setEditing(null);
@@ -367,30 +377,58 @@ export default function BrandingPage() {
             {errors.accent_color && <p className="mt-1 text-xs text-red-600">{errors.accent_color}</p>}
           </div>
 
-          {/* Betűtípus — kártyák a betű mintájával */}
+          {/* Betűtípus — kompakt, kategóriákra bontott, görgethető lista */}
           <div>
-            <label className="block text-sm font-semibold">Betűtípus</label>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Minden választható betűtípus tartalmazza a magyar ékezeteket.
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {BRANDING_FONTS.map((f) => {
-                const on = values.font === f.value;
-                const [name, desc] = f.label.split(" — ");
+            <div className="flex items-baseline justify-between gap-2">
+              <label className="block text-sm font-semibold">Betűtípus</label>
+              <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                {BRANDING_FONTS.length} betűtípus · mind ékezetes
+              </span>
+            </div>
+
+            {/* Kategória-szűrő */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[{ value: "all", label: "Mind" }, ...FONT_CATEGORIES].map((c) => {
+                const on = fontFilter === c.value;
                 return (
-                  <button key={f.value} type="button" onClick={() => setField("font", f.value)}
-                    className="rounded-xl p-3 text-left transition hover:shadow-sm"
+                  <button key={c.value} type="button" onClick={() => setFontFilter(c.value)}
+                    className="rounded-full px-3 py-1 text-[11px] font-medium transition"
                     style={on
-                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }
-                      : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                    <span className="block text-base font-semibold" style={{ fontFamily: FONT_STACK[f.value] ?? "inherit", color: on ? "#7a2e17" : "var(--twx-ink)" }}>
-                      Árvíztűrő {name}
-                    </span>
-                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{desc}</span>
+                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" }
+                      : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                    {c.label}
                   </button>
                 );
               })}
             </div>
+
+            {/* Kompakt lista — a minta a saját betűjével, egy sorban */}
+            <div className="mt-2 max-h-56 overflow-y-auto rounded-xl p-2"
+              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {BRANDING_FONTS
+                  .filter((f) => fontFilter === "all" || f.category === fontFilter)
+                  .map((f) => {
+                    const on = values.font === f.value;
+                    return (
+                      <button key={f.value} type="button" onClick={() => setField("font", f.value)}
+                        title={f.label}
+                        className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left transition hover:shadow-sm"
+                        style={on
+                          ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }
+                          : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+                        <span className="truncate text-sm" style={{ fontFamily: f.family, color: on ? "#7a2e17" : "var(--twx-ink)" }}>
+                          Árvíztűrő
+                        </span>
+                        <span className="shrink-0 text-[10px]" style={{ color: "var(--twx-ink-muted)" }}>{f.label}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+            <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              Kiválasztva: <strong style={{ fontFamily: getBrandingFont(values.font).family }}>{getBrandingFont(values.font).label}</strong>
+            </p>
           </div>
 
           {/* Téma — chipek */}

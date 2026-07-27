@@ -2,6 +2,7 @@
 // Testreszabható: akcentszín, betűtípus, világos/sötét téma, szekciók ki/be, méret.
 // A HTML-t a flyer-render.ts rendereli PDF/PNG-be (puppeteer).
 import type { FlyerFormat, FlyerText } from "@/lib/flyer";
+import { getBrandingFont } from "@/lib/branding";
 
 export type FlyerProfileData = {
   display_name: string;
@@ -36,13 +37,7 @@ export type FlyerSections = {
   transport: boolean;
 };
 
-const FONT_MAP: Record<string, { family: string; link: string }> = {
-  inter: { family: "'Inter', sans-serif", link: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" },
-  montserrat: { family: "'Montserrat', sans-serif", link: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" },
-  playfair: { family: "'Playfair Display', serif", link: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;600&display=swap" },
-  poppins: { family: "'Poppins', sans-serif", link: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" },
-  clash: { family: "'Clash Display', sans-serif", link: "https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" },
-};
+// A betűtípusok egy helyen élnek (lib/branding.ts) — a hirdetés és a videó is onnan dolgozik.
 
 function esc(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -79,7 +74,7 @@ export function buildFlyerHtml(opts: {
   const isOverlay = opts.layout === "overlay";
   const accent = /^#[0-9a-fA-F]{6}$/.test(profile.accent_color) ? profile.accent_color : "#ef7a5a";
   const onAccent = contrastText(accent); // olvasható szöveg az accent dobozokon
-  const font = FONT_MAP[profile.font] ?? FONT_MAP.inter;
+  const font = getBrandingFont(profile.font);
   const dark = profile.theme === "dark";
 
   const bg = dark ? "#12100e" : "#f7f3ec";
