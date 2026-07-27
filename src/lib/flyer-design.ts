@@ -9,7 +9,7 @@
 //  2) Nincs túlcsordulás: minden szövegdoboznak sorkorlátja van (clamp) és a
 //     hosszú szöveg automatikusan kisebb betűvel jelenik meg (fitSize()).
 
-export type FlyerStyleId = "klasszikus" | "modern" | "minimal" | "magazin" | "bold" | "premium";
+export type FlyerStyleId = "premium";
 export type FlyerRatioId = "9:16" | "1:1" | "4:3" | "3:2";
 
 export type FlyerStyle = {
@@ -41,61 +41,6 @@ export const FLYER_STYLES: FlyerStyle[] = [
     titleWeight: 700,
     titleUpper: false,
     accentStrength: 0.7,
-  },
-  {
-    id: "klasszikus",
-    label: "Klasszikus",
-    desc: "Nagy főkép, alatta letisztult adatsáv — a bevált ingatlanos elrendezés.",
-    surface: "panel",
-    radius: 14,
-    chip: "solid",
-    titleWeight: 800,
-    titleUpper: true,
-    accentStrength: 0.6,
-  },
-  {
-    id: "modern",
-    label: "Modern",
-    desc: "A szöveg a képre úszik, finom sötétítéssel — látványos, mai hatás.",
-    surface: "overlay",
-    radius: 18,
-    chip: "outline",
-    titleWeight: 800,
-    titleUpper: false,
-    accentStrength: 0.8,
-  },
-  {
-    id: "minimal",
-    label: "Minimál",
-    desc: "Sok fehér tér, vékony vonalak, csendes tipográfia — prémium érzet.",
-    surface: "panel",
-    radius: 8,
-    chip: "underline",
-    titleWeight: 700,
-    titleUpper: false,
-    accentStrength: 0.35,
-  },
-  {
-    id: "magazin",
-    label: "Magazin",
-    desc: "Két hasáb, szerkesztőségi ritmus — részletes adatokhoz a legjobb.",
-    surface: "panel",
-    radius: 10,
-    chip: "underline",
-    titleWeight: 700,
-    titleUpper: true,
-    accentStrength: 0.45,
-  },
-  {
-    id: "bold",
-    label: "Erőteljes",
-    desc: "Nagy színmezők, vastag betűk — kiugrik a hirdetési felületek közül.",
-    surface: "overlay",
-    radius: 0,
-    chip: "solid",
-    titleWeight: 900,
-    titleUpper: true,
-    accentStrength: 1,
   },
 ];
 
