@@ -90,6 +90,17 @@ export default function AccountMenu({
         {/* Linkek */}
         <div className="mt-2 space-y-0.5">
           <a
+            href="/dashboard/branding"
+            onClick={() => setOpen(false)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Arculatom
+            <span className="block text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
+              Logó, szín, elérhetőség — a hirdetésekhez és videókhoz
+            </span>
+          </a>
+          <a
             href="/dashboard/settings"
             onClick={() => setOpen(false)}
             className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"

@@ -126,6 +126,9 @@ export default function MobileNav({
               ))}
 
               <div className="mt-auto space-y-2 border-t pt-4" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                <a href="/dashboard/branding" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  Arculatom
+                </a>
                 {isAdmin && (
                   <a href="/admin/analytics" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                     Admin

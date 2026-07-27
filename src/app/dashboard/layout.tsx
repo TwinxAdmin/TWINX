@@ -59,8 +59,19 @@ export default async function DashboardLayout({
           <DashboardNav />
         </div>
 
-        {/* Jobb: fiók-menü + kilépés (csak desktop) */}
+        {/* Jobb: arculat + fiók-menü + kilépés (csak desktop) */}
         <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
+          {/* Az arculat fiók-szintű: minden hirdetés és videó ebből dolgozik. */}
+          <a
+            href="/dashboard/branding"
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3 4 7v6c0 4.4 3.4 7.3 8 8 4.6-.7 8-3.6 8-8V7l-8-4Z" />
+            </svg>
+            Arculatom
+          </a>
           <AccountMenu email={user?.email ?? ""} role={me?.role ?? "user"} balance={balance} />
           <LogoutButton />
         </div>
