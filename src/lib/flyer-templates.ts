@@ -69,10 +69,10 @@ export function buildAdHtml(opts: BuildOpts): string {
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{width:${W}px;height:${H}px}
-  .ad{position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${pal.paper};color:${pal.ink};font-family:${font.family};-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .flyer{position:relative;width:${W}px;height:${H}px;overflow:hidden;background:${pal.paper};color:${pal.ink};font-family:${font.family};-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .img{background-size:cover;background-position:center;background-repeat:no-repeat}
 </style></head><body>
-<div class="ad">${body}${wm}</div>
+<div class="flyer">${body}${wm}</div>
 </body></html>`;
 }
 

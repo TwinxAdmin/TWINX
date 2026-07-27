@@ -1,896 +1,115 @@
-// dashboard/flyer — Hirdetéskészítő.
-// F2: adatforrás — arculat-profil választás + munkakönyvtár (korábbi munkák képei/adatai)
-// VAGY saját feltöltés. A szöveg (F3) és a layout/render (F4) külön fázisban jön.
+// dashboard/flyer — Hirdetéskészítő: rövid indítóoldal + varázsló ablak.
+// A hosszú, görgetős űrlap helyett a hirdetés egy felugró ablakban készül el,
+// lépésről lépésre: Arculat → Sablon → Képek → Adatok → Előnézet (vízjeles) → elfogadás.
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { BrandingProfile } from "@/lib/branding";
-import { buildFlyerHtml, type FlyerProfileData } from "@/lib/flyer-template";
-import { renderFlyerToBlob } from "@/lib/flyer-client-render";
-import {
-  MAX_FLYER_IMAGES,
-  FLYER_TONES,
-  FLYER_FORMATS,
-  EMPTY_FACTS,
-  EMPTY_TEXT,
-  type FlyerFacts,
-  type FlyerText,
-  type LibraryItem,
-} from "@/lib/flyer";
-import { toDownloadUrl } from "@/lib/files";
+import { useEffect, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
-import SelectField from "@/components/SelectField";
-import AssetTray from "@/components/AssetTray";
+import FlyerWizard from "@/components/flyer/FlyerWizard";
+import { toDownloadUrl } from "@/lib/files";
+import type { BrandingProfile } from "@/lib/branding";
+import { FLYER_STYLES, FLYER_RATIOS } from "@/lib/flyer-design";
+import { MAX_FLYER_IMAGES } from "@/lib/flyer";
+
+type HistoryItem = { url: string; title: string; created_at: string };
 
 export default function FlyerPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
-  const [profileId, setProfileId] = useState<string>("");
-  const [library, setLibrary] = useState<LibraryItem[]>([]);
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [uploads, setUploads] = useState<{ file: File; url: string }[]>([]);
-  const [prefill, setPrefill] = useState<LibraryItem["data"] | null>(null);
-  const [visibleCount, setVisibleCount] = useState(8); // 2 sor (4 oszlop) alapból
-  const [dataVisibleCount, setDataVisibleCount] = useState(6); // adat-chipek alapból
-  const [infoItem, setInfoItem] = useState<LibraryItem | null>(null); // összefoglaló ablak
-
-  // 3) Szöveg
-  const [tone, setTone] = useState("marketinges");
-  const [facts, setFacts] = useState<FlyerFacts>({ ...EMPTY_FACTS });
-  const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
-  const [genLoading, setGenLoading] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
-
-  // 4) Elrendezés + generálás
-  const layout = "keys"; // egyetlen véglegesített elrendezés
-  const [format, setFormat] = useState("poster");
-  const [imgOrder, setImgOrder] = useState<string[]>([]); // a képek sorrendje (0. = fő kép)
-  const [dragIdx, setDragIdx] = useState<number | null>(null); // épp húzott kép indexe
-  const [sections, setSections] = useState({
-    highlights: true,
-    characteristics: true,
-    gallery: true,
-    infra: true,
-    transport: true,
-  });
-  const [flyerLoading, setFlyerLoading] = useState(false);
-  const [flyerError, setFlyerError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; kind: string; renderData: Record<string, unknown> } | null>(null);
-  const [accepting, setAccepting] = useState(false);
-  const [acceptError, setAcceptError] = useState<string | null>(null);
-  const [finalUrl, setFinalUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [pRes, lRes] = await Promise.all([
-          fetch("/api/branding"),
-          fetch("/api/flyer/library"),
-        ]);
-        const p = await pRes.json();
-        const l = await lRes.json();
-        if (pRes.ok) {
-          setProfiles(p.profiles ?? []);
-          if ((p.profiles ?? []).length) setProfileId(p.profiles[0].id);
-        }
-        if (lRes.ok) setLibrary(l.items ?? []);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const libraryImages = useMemo(
-    () => Array.from(new Set(library.flatMap((i) => i.images))),
-    [library]
-  );
-  const dataItems = useMemo(() => library.filter((i) => i.data), [library]);
-
-  // Az összes kiválasztott kép (könyvtári + feltöltött).
-  const chosenImages = [...selectedImages, ...uploads.map((u) => u.url)];
-
-  // A sorrend-állapotot szinkronban tartjuk a kiválasztott képekkel:
-  // az új képek a végére kerülnek, a törölteket kivesszük, a meglévő sorrend marad.
-  useEffect(() => {
-    setImgOrder((prev) => {
-      const kept = prev.filter((u) => chosenImages.includes(u));
-      const added = chosenImages.filter((u) => !kept.includes(u));
-      const next = [...kept, ...added];
-      if (next.length === prev.length && next.every((u, i) => u === prev[i])) return prev;
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chosenImages.join("|")]);
-
-  // Húzás: a húzott képet a cél pozícióba tesszük (a 0. index a fő kép).
-  function moveImage(from: number, to: number) {
-    setImgOrder((prev) => {
-      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
-  }
-
-  function toggleImage(url: string) {
-    setSelectedImages((prev) => {
-      if (prev.includes(url)) return prev.filter((u) => u !== url);
-      if (prev.length + uploads.length >= MAX_FLYER_IMAGES) return prev; // max elérve
-      return [...prev, url];
-    });
-  }
-
-  function onUpload(files: FileList | null) {
-    if (!files) return;
-    setUploads((prev) => {
-      const remaining = MAX_FLYER_IMAGES - prev.length - selectedImages.length;
-      if (remaining <= 0) return prev;
-      const next = Array.from(files)
-        .slice(0, remaining)
-        .map((file) => ({ file, url: URL.createObjectURL(file) }));
-      return [...prev, ...next];
-    });
-  }
-
-  function removeUpload(idx: number) {
-    setUploads((prev) => prev.filter((_, i) => i !== idx));
-  }
-
-  // Alapadatok előtöltése a kiválasztott korábbi munkából.
-  useEffect(() => {
-    if (!prefill) return;
-    setFacts((prev) => ({
-      ...prev,
-      location: [prefill.telepules, prefill.utca].filter(Boolean).join(", "),
-      propertyType: prefill.tipus ?? prev.propertyType,
-      size: prefill.meret ?? prev.size,
-      rooms: prefill.szobak ?? prev.rooms,
-    }));
-  }, [prefill]);
-
-  function setFact<K extends keyof FlyerFacts>(key: K, val: FlyerFacts[K]) {
-    setFacts((prev) => ({ ...prev, [key]: val }));
-  }
-  function setTextField<K extends keyof FlyerText>(key: K, val: FlyerText[K]) {
-    setText((prev) => ({ ...prev, [key]: val }));
-  }
-
-  // A hirdetés HTML-jét a böngészőben állítjuk össze (a feltöltött fotók helyi blobként).
-  function buildLocalFlyer(watermark: boolean) {
-    const profile = profiles.find((p) => p.id === profileId);
-    if (!profile) return null;
-    const fmt = FLYER_FORMATS.find((f) => f.value === format) ?? FLYER_FORMATS[0];
-    const profileData: FlyerProfileData = {
-      display_name: profile.display_name,
-      title: profile.title,
-      phone: profile.phone,
-      email: profile.email,
-      company: profile.company,
-      website: profile.website,
-      slogan: profile.slogan,
-      logo_url: profile.logo_url,
-      agent_photo_url: profile.agent_photo_url,
-      accent_color: profile.accent_color,
-      font: profile.font,
-      theme: profile.theme === "dark" ? "dark" : "light",
-    };
-    // A képek a felhasználó által beállított sorrendben (0. = fő/hero kép).
-    const images = imgOrder.length ? imgOrder : [...selectedImages, ...uploads.map((u) => u.url)];
-    // Strukturált alapadatok az ikonos oszlophoz (Keys elrendezés).
-    const keyFacts = {
-      rooms: facts.rooms,
-      bathrooms: facts.bathrooms,
-      size: facts.size,
-      propertyType: facts.propertyType,
-      condition: facts.condition,
-      extras: [facts.custom1, facts.custom2].filter((s) => s && s.trim()),
-    };
-    const html = buildFlyerHtml({ format: fmt, profile: profileData, text, images, sections, layout, watermark, facts: keyFacts });
-    return { html, fmt };
-  }
-
-  // Előnézet: teljesen böngészőoldali render (vízjeles, ingyenes, nincs szerver-Chromium).
-  async function generateFlyer() {
-    setFlyerError(null);
-    setFinalUrl(null);
-    setAcceptError(null);
-    if (!profileId) {
-      setFlyerError("Válassz arculatot a hirdetéshez.");
-      return;
-    }
-    setFlyerLoading(true);
+  async function load() {
     try {
-      const built = buildLocalFlyer(true);
-      if (!built) {
-        setFlyerError("Válassz érvényes arculatot.");
-        return;
+      const [pRes, hRes] = await Promise.all([
+        fetch("/api/branding"),
+        fetch("/api/flyer/history"),
+      ]);
+      const p = await pRes.json();
+      if (pRes.ok) setProfiles(p.profiles ?? []);
+      if (hRes.ok) {
+        const h = await hRes.json();
+        setItems(h.items ?? []);
       }
-      const { blob } = await renderFlyerToBlob(
-        built.html,
-        built.fmt.width,
-        built.fmt.height,
-        built.fmt.kind,
-        built.fmt.mode === "poster"
-      );
-      const url = URL.createObjectURL(blob);
-      setPreview({ url, kind: built.fmt.kind, renderData: {} });
-    } catch (e) {
-      setFlyerError("Nem sikerült az előnézet elkészítése. " + (e as Error).message);
-    } finally {
-      setFlyerLoading(false);
-    }
-  }
-
-  // Elfogadás: vízjel nélküli render a böngészőben, majd a kész képet feltöltjük + kredit.
-  async function acceptFlyer() {
-    if (!preview) return;
-    setAcceptError(null);
-    setAccepting(true);
-    try {
-      const built = buildLocalFlyer(false);
-      if (!built) {
-        setAcceptError("Válassz érvényes arculatot.");
-        return;
-      }
-      const { blob, ext, contentType } = await renderFlyerToBlob(
-        built.html,
-        built.fmt.width,
-        built.fmt.height,
-        built.fmt.kind,
-        built.fmt.mode === "poster"
-      );
-      const fd = new FormData();
-      fd.append("image", new File([blob], `flyer.${ext}`, { type: contentType }));
-      fd.append("profileId", profileId);
-      fd.append("format", format);
-      fd.append("title", text.title ?? "");
-      const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setAcceptError(data.error ?? "Hiba az elfogadáskor.");
-        return;
-      }
-      setFinalUrl(data.url as string);
-      setPreview(null);
-    } catch (e) {
-      setAcceptError("Nem sikerült a mentés. " + (e as Error).message);
-    } finally {
-      setAccepting(false);
-    }
-  }
-
-  async function generateText() {
-    setGenError(null);
-    setGenLoading(true);
-    try {
-      const res = await fetch("/api/flyer/text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facts, tone }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setGenError(data.error ?? "Hiba a szöveg generálásakor.");
-        return;
-      }
-      setText(data.text as FlyerText);
     } catch {
-      setGenError("Hálózati hiba. Próbáld újra.");
+      /* lista nélkül is használható */
     } finally {
-      setGenLoading(false);
+      setLoading(false);
     }
   }
-
-  const total = selectedImages.length + uploads.length;
+  useEffect(() => { void load(); }, []);
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8">
+    <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro
         eyebrow="Ingatlan · Marketing"
         title="Hirdetéskészítő"
-        subtitle="Percek alatt kész, márkázott ingatlanhirdetés a saját arculatoddal — profi elrendezés, AI-szöveg és a te képeid. Töltsd fel a fotókat, a többit ránk bízhatod."
+        subtitle={`Percek alatt kész, márkázott ingatlanhirdetés: válassz sablont, tölts fel 1–${MAX_FLYER_IMAGES} képet, a szöveget az AI megírja. Az előnézet ingyenes, csak az elfogadott hirdetés kerül kreditbe.`}
         icon="flyer"
-        chips={["Saját arculat", "AI-szöveg", "Letölthető poszter"]}
+        chips={[`${FLYER_STYLES.length} sablon`, `${FLYER_RATIOS.length} méret`, "AI-szöveg"]}
       />
 
-      {/* 1) Arculat-profil */}
-      <section className="space-y-3">
-        <h2 className="font-display text-xl font-medium">1. Arculat</h2>
-        {loading ? (
-          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
-        ) : profiles.length === 0 ? (
-          <div className="twx-card p-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Még nincs arculatod.{" "}
-            <a href="/dashboard/branding" className="underline" style={{ color: "var(--twx-coral)" }}>
-              Hozz létre egyet
-            </a>{" "}
-            a hirdetéshez.
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {profiles.map((p) => {
-              const active = profileId === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setProfileId(p.id)}
-                  className="flex items-center gap-3 rounded-xl p-3 text-left transition-colors"
-                  style={{
-                    border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                    background: active ? "var(--twx-coral-soft)" : "var(--twx-cream-card)",
-                  }}
-                >
-                  {p.logo_url ? (
-                    <img src={p.logo_url} alt="" className="h-9 w-9 rounded object-contain" style={{ border: "1px solid var(--twx-line)" }} />
-                  ) : (
-                    <span className="h-9 w-9 rounded" style={{ background: p.accent_color }} />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium">{p.label}</p>
-                    <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{p.display_name}</p>
-                  </div>
-                </button>
-              );
-            })}
-
-            {/* + Új arculat */}
-            <a
-              href="/dashboard/branding"
-              title="Új arculat létrehozása"
-              className="flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-black/[0.03]"
-              style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
-            >
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold"
-                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-              >
-                +
-              </span>
-              <span className="text-sm font-medium">Új arculat</span>
-            </a>
-          </div>
-        )}
-      </section>
-
-      {/* 2) Adatforrás */}
-      <section className="space-y-4">
-        <h2 className="font-display text-xl font-medium">2. Képek és adatok</h2>
-
-        {/* Adat-előtöltés */}
-        {dataItems.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-medium">Adatok betöltése egy korábbi munkából</p>
-            <div className="flex flex-wrap gap-2">
-              {dataItems.slice(0, dataVisibleCount).map((i) => {
-                const active = prefill === i.data;
-                return (
-                  <button
-                    key={i.id}
-                    onClick={() => setInfoItem(i)}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors"
-                    style={{
-                      border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                      background: active ? "var(--twx-coral-soft)" : "var(--twx-cream-card)",
-                      color: "var(--twx-ink)",
-                    }}
-                  >
-                    {active && <span style={{ color: "var(--twx-coral)" }}>✓</span>}
-                    {i.title}
-                    <span style={{ color: "var(--twx-ink-muted)" }}>ⓘ</span>
-                  </button>
-                );
-              })}
-            </div>
-            {(dataItems.length > dataVisibleCount || dataVisibleCount > 6) && (
-              <div className="mt-2 flex gap-2">
-                {dataItems.length > dataVisibleCount && (
-                  <button
-                    onClick={() => setDataVisibleCount((c) => c + 6)}
-                    className="rounded-full px-4 py-2 text-xs font-medium transition-colors"
-                    style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-                  >
-                    Továbbiak betöltése ({dataItems.length - dataVisibleCount})
-                  </button>
-                )}
-                {dataVisibleCount > 6 && (
-                  <button
-                    onClick={() => setDataVisibleCount((c) => Math.max(6, c - 6))}
-                    className="rounded-full px-4 py-2 text-xs font-medium transition-colors"
-                    style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }}
-                  >
-                    Kevesebb
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Kép-választó: könyvtár mindig látszik + saját feltöltés felugró ablakban */}
+      {/* Indítás */}
+      <section className="twx-card flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium">Képek kiválasztása</p>
-            <span className="text-xs" style={{ color: total >= MAX_FLYER_IMAGES ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
-              {total}/{MAX_FLYER_IMAGES} kép (egyoldalas hirdetés)
-            </span>
-          </div>
-
-          <button
-            onClick={() => setUploadOpen(true)}
-            disabled={total >= MAX_FLYER_IMAGES}
-            className="mb-3 rounded-full px-4 py-2 text-sm font-medium transition-opacity"
-            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)", opacity: total >= MAX_FLYER_IMAGES ? 0.5 : 1 }}
-          >
-            + Saját kép feltöltése
-          </button>
-
-          {/* Feltöltött képek (a fő nézetben is látszanak) */}
-          {uploads.length > 0 && (
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {uploads.map((u, idx) => (
-                <div key={idx} className="relative overflow-hidden rounded-xl" style={{ border: "2px solid var(--twx-coral)" }}>
-                  <img src={u.url} alt="" className="aspect-[4/3] w-full object-cover" />
-                  <button
-                    onClick={() => removeUpload(idx)}
-                    aria-label="Törlés"
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
-                    style={{ background: "rgba(12,11,10,0.7)", color: "#fff" }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Fő kép + sorrend — húzd a képeket! A bal első (nagy) a fő kép, a többi galéria. */}
-          {imgOrder.length > 1 && (
-            <div className="mb-4">
-              <p className="mb-1 text-sm font-medium">Képek sorrendje</p>
-              <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Húzd a képeket az egérrel! A <b>bal első, nagy</b> kép lesz a <b>fő kép</b> a hirdetésen, a többi a galéria.
-              </p>
-              <div className="flex flex-wrap items-end gap-3">
-                {imgOrder.map((url, idx) => {
-                  const isMain = idx === 0;
-                  return (
-                    <div
-                      key={url}
-                      draggable
-                      onDragStart={() => setDragIdx(idx)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        if (dragIdx !== null) moveImage(dragIdx, idx);
-                        setDragIdx(null);
-                      }}
-                      onDragEnd={() => setDragIdx(null)}
-                      className="cursor-grab active:cursor-grabbing"
-                      style={{ opacity: dragIdx === idx ? 0.4 : 1 }}
-                    >
-                      <div
-                        className="mb-1 text-center text-[11px] font-bold uppercase tracking-wide"
-                        style={{ color: isMain ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}
-                      >
-                        {isMain ? "Főkép" : idx}
-                      </div>
-                      <div
-                        className="relative overflow-hidden rounded-xl"
-                        style={{
-                          width: isMain ? 132 : 92,
-                          border: `3px solid ${isMain ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                          boxShadow: isMain ? "0 4px 14px rgba(0,0,0,.18)" : "none",
-                        }}
-                      >
-                        <img
-                          src={url}
-                          alt=""
-                          draggable={false}
-                          className="aspect-[4/3] w-full object-cover"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--twx-line)" }}>
-            <AssetTray
-              onPick={(u) => toggleImage(u)}
-              selectedUrls={selectedImages}
-              title="Galéria — korábbi munkák"
-              note={`Válassz egy mappát, majd kattints egy képre a hirdetéshez adáshoz (max ${MAX_FLYER_IMAGES}). A képek sorrendjét fentebb állíthatod.`}
-            />
-          </div>
+          <h2 className="font-display text-lg font-semibold">Új hirdetés</h2>
+          <p className="mt-0.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Öt lépés, néhány perc. Arculat nélkül is működik — a neved és elérhetőséged elég.
+          </p>
         </div>
-      </section>
-
-      {/* 3) Szöveg */}
-      <section className="space-y-5">
-        <h2 className="font-display text-xl font-medium">3. Szöveg</h2>
-
-        {/* Alapadatok */}
-        <div>
-          <p className="mb-2 text-sm font-medium">Alapadatok (ezekből dolgozik a Twinx)</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm">Elhelyezkedés</label>
-              <input value={facts.location} onChange={(e) => setFact("location", e.target.value)} className="twx-input mt-1" placeholder="pl. Budapest, XIV. kerület, Zugló" />
-            </div>
-            <div>
-              <label className="block text-sm">Ár</label>
-              <input value={facts.price} onChange={(e) => setFact("price", e.target.value)} className="twx-input mt-1" placeholder="pl. 46,5 millió Ft" />
-            </div>
-            <div>
-              <label className="block text-sm">Típus</label>
-              <input value={facts.propertyType} onChange={(e) => setFact("propertyType", e.target.value)} className="twx-input mt-1" placeholder="pl. tégla lakás" />
-            </div>
-            <div>
-              <label className="block text-sm">Méret</label>
-              <input value={facts.size} onChange={(e) => setFact("size", e.target.value)} className="twx-input mt-1" placeholder="pl. 34 nm" />
-            </div>
-            <div>
-              <label className="block text-sm">Szobák</label>
-              <input value={facts.rooms} onChange={(e) => setFact("rooms", e.target.value)} className="twx-input mt-1" placeholder="pl. 1 szoba" />
-            </div>
-            <div>
-              <label className="block text-sm">Fürdőszobák</label>
-              <input value={facts.bathrooms} onChange={(e) => setFact("bathrooms", e.target.value)} className="twx-input mt-1" placeholder="pl. 1 vagy 2" />
-            </div>
-            <div>
-              <label className="block text-sm">Állapot</label>
-              <input value={facts.condition} onChange={(e) => setFact("condition", e.target.value)} className="twx-input mt-1" placeholder="pl. felújított" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm">Egyedi jellemző 1 (rákerül a hirdetésre)</label>
-              <input value={facts.custom1} onChange={(e) => setFact("custom1", e.target.value)} className="twx-input mt-1" placeholder="pl. Hatalmas kert" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm">Egyedi jellemző 2 (rákerül a hirdetésre)</label>
-              <input value={facts.custom2} onChange={(e) => setFact("custom2", e.target.value)} className="twx-input mt-1" placeholder="pl. Panorámás terasz" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm">Egyéb tudnivaló (amit az AI tudjon)</label>
-              <textarea value={facts.extra} onChange={(e) => setFact("extra", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. alacsony rezsi, közel a metró, tehermentes, azonnal költözhető" />
-            </div>
-          </div>
-        </div>
-
-        {/* Hangnem + generálás */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-sm">Hangnem</label>
-            <SelectField className="mt-1 w-56" value={tone} onChange={setTone}
-              options={FLYER_TONES.map((t) => ({ value: t.value, label: t.label }))} />
-          </div>
-          <button onClick={generateText} disabled={genLoading} className="twx-btn">
-            {genLoading ? "Generálás…" : "Szöveg generálása"}
-          </button>
-          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            A generált szöveget alább kézzel is átírhatod.
-          </span>
-        </div>
-        {genError && <p className="text-sm text-red-600">{genError}</p>}
-
-        {/* Szerkeszthető szövegek */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <label className="block text-sm">Főcím</label>
-            <input value={text.title} onChange={(e) => setTextField("title", e.target.value)} className="twx-input mt-1" />
-          </div>
-          <div>
-            <label className="block text-sm">Ár (megjelenő)</label>
-            <input value={text.price} onChange={(e) => setTextField("price", e.target.value)} className="twx-input mt-1" />
-          </div>
-          <div className="sm:col-span-3">
-            <label className="block text-sm">Alcím / lokáció</label>
-            <input value={text.subtitle} onChange={(e) => setTextField("subtitle", e.target.value)} className="twx-input mt-1" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm">Kiemelések (soronként egy, max 4)</label>
-            <textarea
-              value={text.highlights.join("\n")}
-              onChange={(e) => setTextField("highlights", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 4))}
-              rows={4}
-              className="twx-input mt-1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm">Jellemzők (soronként egy)</label>
-            <textarea
-              value={text.characteristics.join("\n")}
-              onChange={(e) => setTextField("characteristics", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))}
-              rows={4}
-              className="twx-input mt-1"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm">Infrastruktúra</label>
-            <textarea value={text.infra} onChange={(e) => setTextField("infra", e.target.value)} rows={3} className="twx-input mt-1" />
-          </div>
-          <div>
-            <label className="block text-sm">Közlekedés</label>
-            <textarea value={text.transport} onChange={(e) => setTextField("transport", e.target.value)} rows={3} className="twx-input mt-1" />
-          </div>
-        </div>
-      </section>
-
-      {/* 4) Elrendezés + generálás */}
-      <section className="space-y-4">
-        <h2 className="font-display text-xl font-medium">4. Elrendezés és formátum</h2>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm">Formátum</label>
-            <SelectField className="mt-1 w-full" value={format} onChange={setFormat}
-              options={FLYER_FORMATS.map((f) => ({ value: f.value, label: f.label }))} />
-            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              A színt, betűt és a témát a kiválasztott arculat adja.
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm">Szekciók</label>
-            <div className="mt-1 flex flex-wrap gap-3 text-sm">
-              {([
-                ["highlights", "Kiemelések"],
-                ["characteristics", "Jellemzők"],
-                ["gallery", "Galéria"],
-                ["infra", "Infrastruktúra"],
-                ["transport", "Közlekedés"],
-              ] as const).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={sections[key]}
-                    onChange={(e) => setSections((s) => ({ ...s, [key]: e.target.checked }))}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <button onClick={generateFlyer} disabled={flyerLoading} className="twx-btn w-full">
-          {flyerLoading ? "Előnézet készül… (10-20 mp)" : "Előnézet készítése (ingyenes)"}
+        <button type="button" onClick={() => setOpen(true)}
+          className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+          Hirdetés készítése
         </button>
-        {flyerError && <p className="text-sm text-red-600">{flyerError}</p>}
+      </section>
 
-        {finalUrl && (
-          <div className="space-y-3">
-            <p className="text-sm text-green-700">Kész! A hirdetés elfogadva és mentve.</p>
-            {finalUrl.endsWith(".pdf") ? null : (
-              <img src={finalUrl} alt="Hirdetés" className="w-full max-w-sm rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-            )}
-            <div className="flex flex-wrap gap-3">
-              <a href={finalUrl} target="_blank" rel="noreferrer" className="twx-btn">Megnyitás</a>
-              <a
-                href={toDownloadUrl(finalUrl)}
-                className="rounded-full px-5 py-2.5 text-sm font-medium"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-              >
-                Letöltés
-              </a>
+      {/* Sablonok bemutatása — hogy lássa, mit kap */}
+      <section className="twx-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold">Választható stílusok</h3>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FLYER_STYLES.map((s) => (
+            <div key={s.id} className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+              <p className="text-sm font-semibold">{s.label}</p>
+              <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{s.desc}</p>
             </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Minden stílus elérhető {FLYER_RATIOS.map((r) => r.id).join(" · ")} méretben, 1–{MAX_FLYER_IMAGES} képes elrendezésben.
+        </p>
+      </section>
+
+      {/* Korábbi hirdetések */}
+      <section className="twx-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold">Korábbi hirdetéseim</h3>
+        {loading ? (
+          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
+        ) : items.length === 0 ? (
+          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Még nincs elkészült hirdetésed.
+          </p>
+        ) : (
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {items.map((it) => (
+              <a key={it.url} href={toDownloadUrl(it.url)} className="group overflow-hidden rounded-xl bg-white transition hover:shadow-md"
+                style={{ border: "1px solid var(--twx-line)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={it.url} alt={it.title || "Hirdetés"} className="aspect-[3/4] w-full object-cover" />
+                <span className="block truncate px-2 py-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  {it.title || new Date(it.created_at).toLocaleDateString("hu-HU")}
+                </span>
+              </a>
+            ))}
           </div>
         )}
       </section>
 
-      {/* Előnézet ablak — vízjeles, elfogadás 1 kredit */}
-      {preview && (
-        <div
-          onClick={() => !accepting && setPreview(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(12,11,10,0.85)" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
-            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
-          >
-            <div className="flex items-center justify-between p-5 pb-3">
-              <h3 className="font-display text-xl font-semibold">Előnézet</h3>
-              <button
-                onClick={() => setPreview(null)}
-                disabled={accepting}
-                aria-label="Bezárás"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
-                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-auto px-5" style={{ background: "var(--twx-cream)" }}>
-              {preview.kind === "pdf" ? (
-                <iframe src={preview.url} title="Előnézet" className="h-[62vh] w-full rounded-lg bg-white" />
-              ) : (
-                <img src={preview.url} alt="Előnézet" className="mx-auto max-h-[70vh] w-auto rounded-lg" style={{ border: "1px solid var(--twx-line)" }} />
-              )}
-            </div>
-
-            <div className="space-y-2 p-5">
-              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Ez vízjeles előnézet. Az <b>elfogadás 1 kredit</b>, és tiszta, letölthető hirdetést ad.
-              </p>
-              {acceptError && <p className="text-sm text-red-600">{acceptError}</p>}
-              <div className="flex flex-wrap gap-3">
-                <button onClick={acceptFlyer} disabled={accepting} className="twx-btn">
-                  {accepting ? "Feldolgozás…" : "Elfogadom (1 kredit)"}
-                </button>
-                <button
-                  onClick={() => setPreview(null)}
-                  disabled={accepting}
-                  className="rounded-full px-5 py-2.5 text-sm font-medium"
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-                >
-                  Módosítok még
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Saját kép feltöltése — felugró ablak (a könyvtár mögötte marad) */}
-      {uploadOpen && (
-        <div
-          onClick={() => setUploadOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(12,11,10,0.82)" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6"
-            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-semibold">Saját kép feltöltése</h3>
-              <button
-                onClick={() => setUploadOpen(false)}
-                aria-label="Bezárás"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
-                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <label
-                htmlFor="flyer-upload"
-                className="inline-block rounded-full px-4 py-2 text-sm font-medium"
-                style={{
-                  border: "1px solid var(--twx-line)",
-                  background: "var(--twx-cream)",
-                  color: "var(--twx-ink)",
-                  cursor: total >= MAX_FLYER_IMAGES ? "not-allowed" : "pointer",
-                  opacity: total >= MAX_FLYER_IMAGES ? 0.5 : 1,
-                }}
-              >
-                Tallózás…
-              </label>
-              <span className="text-xs" style={{ color: total >= MAX_FLYER_IMAGES ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
-                {total}/{MAX_FLYER_IMAGES} kép
-              </span>
-            </div>
-            <input
-              id="flyer-upload"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              disabled={total >= MAX_FLYER_IMAGES}
-              className="hidden"
-              onChange={(e) => onUpload(e.target.files)}
-            />
-
-            {uploads.length > 0 && (
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {uploads.map((u, idx) => (
-                  <div key={idx} className="relative overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
-                    <img src={u.url} alt="" className="aspect-[4/3] w-full object-cover" />
-                    <button
-                      onClick={() => removeUpload(idx)}
-                      aria-label="Törlés"
-                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
-                      style={{ background: "rgba(12,11,10,0.7)", color: "#fff" }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <button onClick={() => setUploadOpen(false)} className="twx-btn mt-5">
-              Kész
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Összefoglaló ablak egy korábbi munka adatairól */}
-      {infoItem && (
-        <div
-          onClick={() => setInfoItem(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(12,11,10,0.82)" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl p-6"
-            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-display text-xl font-semibold">{infoItem.title}</h3>
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {infoItem.typeLabel} · {new Date(infoItem.createdAt).toLocaleDateString("hu-HU")}
-                </p>
-              </div>
-              <button
-                onClick={() => setInfoItem(null)}
-                aria-label="Bezárás"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg"
-                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
-              >
-                ×
-              </button>
-            </div>
-
-            {infoItem.details.length > 0 ? (
-              <dl className="mt-4 space-y-1.5">
-                {infoItem.details.map((d) => (
-                  <div key={d.label} className="flex gap-3 text-sm">
-                    <dt className="min-w-[130px] shrink-0" style={{ color: "var(--twx-ink-muted)" }}>{d.label}</dt>
-                    <dd className="flex-1">{d.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="mt-4 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Ehhez a munkához nincs részletes adat.
-              </p>
-            )}
-
-            {infoItem.pdfUrl && (
-              <a href={infoItem.pdfUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm underline" style={{ color: "var(--twx-coral)" }}>
-                Eredeti PDF megnyitása
-              </a>
-            )}
-
-            <div className="mt-5 flex gap-3">
-              {infoItem.data && (
-                <button
-                  onClick={() => {
-                    setPrefill(prefill === infoItem.data ? null : infoItem.data);
-                    setInfoItem(null);
-                  }}
-                  className="twx-btn"
-                >
-                  {prefill === infoItem.data ? "Betöltés visszavonása" : "Adatok betöltése"}
-                </button>
-              )}
-              <button
-                onClick={() => setInfoItem(null)}
-                className="rounded-full px-5 py-2.5 text-sm font-medium"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }}
-              >
-                Bezárás
-              </button>
-            </div>
-          </div>
-        </div>
+      {open && (
+        <FlyerWizard
+          profiles={profiles}
+          onClose={() => setOpen(false)}
+          onDone={() => void load()}
+        />
       )}
     </main>
   );
