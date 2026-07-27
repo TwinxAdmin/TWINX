@@ -13,10 +13,11 @@ import {
   FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS,
   type FlyerFacts, type FlyerText,
 } from "@/lib/flyer";
-import { FLYER_MOODS, FLYER_SIZES, getFlyerSize } from "@/lib/flyer-poster";
+import { FLYER_SIZES, getFlyerSize } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-const STEPS = ["Arculat", "Képek", "Adatok", "Stílus", "Előnézet"] as const;
+const STEPS = ["Arculat", "Képek", "Adatok", "Méret", "Előnézet"] as const;
+const FLYER_MOOD = "luxus"; // egyetlen, prémium megjelenés (a fő szín az arculatból)
 const SIZES = FLYER_SIZES;
 
 export default function AdWizard({
@@ -44,8 +45,8 @@ export default function AdWizard({
   const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
   const [genLoading, setGenLoading] = useState(false);
 
-  // 4) Stílus
-  const [mood, setMood] = useState<string>(FLYER_MOODS[0].value);
+  // 4) Méret (a megjelenés egységes: FLYER_MOOD)
+  const mood = FLYER_MOOD;
   const [size, setSize] = useState<string>(SIZES[0].value);
 
   // 5) Előnézet
@@ -161,7 +162,7 @@ export default function AdWizard({
     if (step === 4 && !preview && !rendering) void makePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-  useEffect(() => { setPreview(null); setFinalUrl(null); }, [mood, size, images.length]);
+  useEffect(() => { setPreview(null); setFinalUrl(null); }, [size, images.length]);
 
   function next() {
     if (step === 0) {
@@ -360,30 +361,14 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 4) STÍLUS */}
+          {/* 4) MÉRET */}
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <p className="text-sm font-semibold">Hangulat</p>
-                <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Ez adja a hirdetés színvilágát és stílusát — a képeidet ebbe a sablonba rendezzük.
-                </p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {FLYER_MOODS.map((m) => {
-                    const on = mood === m.value;
-                    return (
-                      <button key={m.value} type="button" onClick={() => setMood(m.value)}
-                        className="rounded-xl p-3 text-left transition hover:shadow-sm"
-                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</span>
-                        <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
                 <p className="text-sm font-semibold">Méret</p>
+                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Válaszd ki, hova készül a hirdetés. A megjelenés egységes, prémium — a fő szín az arculatodból jön.
+                </p>
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {SIZES.map((s) => {
                     const on = size === s.value;

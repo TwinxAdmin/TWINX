@@ -9,7 +9,6 @@ import AdWizard from "@/components/flyer/AdWizard";
 import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { MAX_FLYER_IMAGES, FLYER_CREDITS } from "@/lib/flyer";
-import { FLYER_MOODS } from "@/lib/flyer-poster";
 
 type HistoryItem = { url: string; title: string; created_at: string };
 
@@ -60,18 +59,11 @@ export default function FlyerPage() {
       </section>
 
       <section className="twx-card p-5 sm:p-6">
-        <h3 className="text-sm font-semibold">Választható hangulatok</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {FLYER_MOODS.map((m) => (
-            <div key={m.value} className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-              <p className="text-sm font-semibold">{m.label}</p>
-              <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+        <h3 className="text-sm font-semibold">Hogyan működik</h3>
+        <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Egységes, prémium megjelenés: teljes-képes fotó, ráúsztatott tipográfia és arculati színű sáv.
           A feliratok — cím, ár, elérhetőség — mindig élesen, hibátlan ékezetekkel kerülnek a képre.
-          A fotóidat egy kész sablonba rendezzük. Egy elfogadott hirdetés {FLYER_CREDITS} kredit.
+          A fő szín az arculatodból jön. Egy elfogadott hirdetés {FLYER_CREDITS} kredit.
         </p>
       </section>
 
