@@ -25,6 +25,7 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
   const [musicStyle, setMusicStyle] = useState(MUSIC_STYLES[0]?.slug ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -165,17 +166,25 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
         <h2 className="font-display text-sm font-medium">Tölts fel képeket, vagy válassz a korábbi munkáidból (lent)</h2>
         <div
           onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
           onDrop={(e) => {
             e.preventDefault();
+            setDragOver(false);
             const url = readTwxDragUrl(e.dataTransfer);
             if (url) { toggleHistory(url); return; }
             addUploads(e.dataTransfer.files);
           }}
-          className="mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-sm"
-          style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
+          className="mt-2 cursor-pointer rounded-xl border-2 border-dashed p-4 text-center text-sm transition-colors"
+          style={{
+            borderColor: dragOver ? "var(--twx-coral)" : "var(--twx-line)",
+            background: dragOver ? "rgba(239,122,90,0.06)" : "transparent",
+            color: dragOver ? "var(--twx-coral)" : "var(--twx-ink-muted)",
+          }}
         >
-          Kattints a tallózáshoz, vagy húzz ide egy korábbi képet (JPG / PNG / WEBP)
+          {dragOver
+            ? "Engedd el a képet a hozzáadáshoz"
+            : "Kattints a tallózáshoz, vagy húzz ide egy korábbi képet (JPG / PNG / WEBP)"}
           <input
             ref={fileInputRef}
             type="file"
