@@ -53,7 +53,19 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const { supabase, user } = await getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
-  const id = new URL(request.url).searchParams.get("id");
+  const sp = new URL(request.url).searchParams;
+  const id = sp.get("id");
+  const dateKey = sp.get("dateKey");
+
+  // Dátum-mappa: fizikailag nem törlünk (a képek megmaradnak), csak elrejtjük a listából.
+  if (dateKey) {
+    const { error } = await supabase
+      .from("asset_hidden_dates")
+      .upsert({ user_id: user.id, date_key: dateKey }, { onConflict: "user_id,date_key" });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   if (!id) return NextResponse.json({ error: "Hiányzó mappa-azonosító." }, { status: 422 });
   const { error } = await supabase.from("asset_folders").delete().eq("id", id).eq("user_id", user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

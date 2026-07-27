@@ -21,7 +21,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [{ data: jobs }, { data: viz }, { data: favs }, { data: named }, { data: items }, { data: labels }] =
+  const [{ data: jobs }, { data: viz }, { data: favs }, { data: named }, { data: items }, { data: labels }, { data: hidden }] =
     await Promise.all([
       supabase.from("image_enhance_jobs").select("items, created_at").order("created_at", { ascending: false }).limit(80),
       supabase.from("usage_history").select("input_data, output_file_url, created_at").eq("feature_used", "visualization").order("created_at", { ascending: false }).limit(80),
@@ -29,6 +29,7 @@ export async function GET() {
       supabase.from("asset_folders").select("id, name, created_at").order("created_at", { ascending: false }),
       supabase.from("asset_folder_items").select("folder_id, url, created_at").order("created_at", { ascending: false }),
       supabase.from("asset_date_labels").select("date_key, name"),
+      supabase.from("asset_hidden_dates").select("date_key"),
     ]);
 
   // --- Elnevezett mappák (címkézés) ---
@@ -69,7 +70,11 @@ export async function GET() {
     if (Array.isArray(data.outputs)) for (const u of data.outputs) add(h.created_at as string, u);
     add(h.created_at as string, h.output_file_url as string | null);
   }
+  // A partner által "törölt" (elrejtett) dátum-mappák nem jelennek meg — a képek megmaradnak.
+  const hiddenKeys = new Set((hidden ?? []).map((h) => h.date_key as string));
+
   const dateFolders: Folder[] = [...map.entries()]
+    .filter(([key]) => !hiddenKeys.has(key))
     .map(([key, g]) => ({ key, latest: g.latest, label: labelMap.get(key) ?? g.label, urls: g.urls }))
     .sort((a, b) => (a.latest < b.latest ? 1 : -1))
     .map(({ key, label, urls }) => ({ id: null, key: `date:${key}`, kind: "date" as const, label, urls }));

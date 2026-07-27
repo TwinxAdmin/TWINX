@@ -108,15 +108,25 @@ export default function AssetTray({
     } catch { showToast("Nem sikerült átnevezni.", "error"); }
   }
   async function deleteFolder(f: Folder) {
-    if (f.kind !== "named" || !f.id) return;
+    // Elnevezett mappa: valódi törlés. Dátum-mappa: elrejtés (a képek megmaradnak).
+    const qs = f.kind === "named" && f.id
+      ? `id=${encodeURIComponent(f.id)}`
+      : `dateKey=${encodeURIComponent(f.key.replace(/^date:/, ""))}`;
     try {
-      const res = await fetch(`${API}/folders?id=${encodeURIComponent(f.id)}`, { method: "DELETE" });
+      const res = await fetch(`${API}/folders?${qs}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       if (open === f.key) setOpen(null);
       showToast("Mappa törölve.", "info");
       await fetchAssets();
     } catch { showToast("Nem sikerült törölni.", "error"); }
   }
+  // Megerősítő szöveg mappa-típus szerint.
+  const confirmDelete = (f: Folder) =>
+    confirm(
+      f.kind === "named"
+        ? `Törlöd a(z) „${f.label}" mappát? A képek megmaradnak.`
+        : `Eltávolítod a(z) „${f.label}" mappát a listából? A képek megmaradnak a fiókodban.`
+    );
   async function assignToFolder(folderId: string, url: string) {
     try {
       const res = await fetch(`${API}/folders/items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderId, url }) });
@@ -263,9 +273,7 @@ export default function AssetTray({
                         <div className="fixed inset-0 z-10" onClick={(ev) => { ev.stopPropagation(); setMenuFor(null); }} />
                         <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-lg border text-sm shadow-lg" style={{ borderColor: "var(--twx-line)", background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
                           <button type="button" onClick={() => { setRenaming(e.key); setRenameValue(e.label); setMenuFor(null); }} className="block w-full px-3 py-2 text-left hover:bg-black/[0.04]">Átnevezés</button>
-                          {e.kind === "named" && (
-                            <button type="button" onClick={() => { const f = folders.find((x) => x.key === e.key); setMenuFor(null); if (f && confirm(`Törlöd a(z) „${f.label}" mappát? (a képek megmaradnak)`)) void deleteFolder(f); }} className="block w-full px-3 py-2 text-left text-red-600 hover:bg-black/[0.04]">Törlés</button>
-                          )}
+                          <button type="button" onClick={() => { const f = folders.find((x) => x.key === e.key); setMenuFor(null); if (f && confirmDelete(f)) void deleteFolder(f); }} className="block w-full px-3 py-2 text-left text-red-600 hover:bg-black/[0.04]">Törlés</button>
                         </div>
                       </>
                     )}
@@ -334,8 +342,8 @@ export default function AssetTray({
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink-muted)" }}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
                   </button>
                 )}
-                {openFolder?.kind === "named" && (
-                  <button type="button" title="Törlés" aria-label="Törlés" onClick={() => { if (openFolder && confirm(`Törlöd a(z) „${openFolder.label}" mappát? (a képek megmaradnak)`)) void deleteFolder(openFolder); }}
+                {openFolder && (
+                  <button type="button" title="Törlés" aria-label="Törlés" onClick={() => { if (confirmDelete(openFolder)) void deleteFolder(openFolder); }}
                     className="flex h-7 w-7 items-center justify-center rounded-full" style={{ border: "1px solid var(--twx-line)" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#dc2626" }}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
                   </button>
