@@ -38,14 +38,19 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: service } = await admin.from("services").select("id").eq("slug", "real-estate").single();
 
-  // Az arculat a felhasználóé-e (címke az előzményhez).
-  const { data: profile } = await admin
-    .from("branding_profiles")
-    .select("id, label, user_id")
-    .eq("id", profileId)
-    .single();
-  if (!profile || profile.user_id !== user.id) {
-    return NextResponse.json({ error: "Válassz érvényes arculatot." }, { status: 400 });
+  // Az arculat OPCIONÁLIS: mentett profil vagy egyszeri (mentés nélküli) arculat.
+  // Ha van profileId, ellenőrizzük, hogy a felhasználóé (címke az előzményhez).
+  let profileLabel = "egyszeri arculat";
+  if (profileId) {
+    const { data: profile } = await admin
+      .from("branding_profiles")
+      .select("id, label, user_id")
+      .eq("id", profileId)
+      .single();
+    if (!profile || profile.user_id !== user.id) {
+      return NextResponse.json({ error: "Válassz érvényes arculatot." }, { status: 400 });
+    }
+    profileLabel = profile.label;
   }
 
   // 1) Kredit (admin/sales megkerüli). Hibánál visszatérítjük.
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: service?.id ?? null,
       feature_used: FEATURE,
-      input_data: { title, format: format.value, profile: profile.label },
+      input_data: { title, format: format.value, profile: profileLabel },
       output_file_url: url,
       credits_charged: charge && !charge.bypassed ? FLYER_CREDITS : 0,
     });

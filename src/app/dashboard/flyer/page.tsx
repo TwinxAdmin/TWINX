@@ -1,6 +1,6 @@
 // dashboard/flyer — Hirdetéskészítő: rövid indítóoldal + varázsló ablak.
 // A hirdetés lépésről lépésre készül: Arculat → Képek → Adatok → Stílus → Előnézet.
-// A hátteret az AI komponálja a fotókból, a feliratokat élesen mi írjuk rá.
+// A hirdetést kódból rajzoljuk (nincs AI): a fotókat sablonba rendezzük, a feliratokat élesen írjuk rá.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ import AdWizard from "@/components/flyer/AdWizard";
 import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { MAX_FLYER_IMAGES, FLYER_CREDITS } from "@/lib/flyer";
-import { FLYER_MOODS } from "@/lib/flyer-compose";
+import { FLYER_MOODS } from "@/lib/flyer-poster";
 
 type HistoryItem = { url: string; title: string; created_at: string };
 
@@ -43,7 +43,7 @@ export default function FlyerPage() {
         title="Hirdetéskészítő"
         subtitle={`Profi, márkázott ingatlanhirdetés percek alatt: tölts fel 1–${MAX_FLYER_IMAGES} képet, add meg az adatokat, a többit a Twinx elvégzi. Az előnézet ingyenes, csak az elfogadott hirdetés kerül kreditbe.`}
         icon="flyer"
-        chips={["AI-elrendezés", "Saját arculat", "Social méretek"]}
+        chips={["Kész sablon", "Saját arculat", "Social méretek"]}
       />
 
       <section className="twx-card flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
@@ -71,7 +71,7 @@ export default function FlyerPage() {
         </div>
         <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           A feliratok — cím, ár, elérhetőség — mindig élesen, hibátlan ékezetekkel kerülnek a képre.
-          Egy elfogadott hirdetés {FLYER_CREDITS} kredit.
+          A fotóidat egy kész sablonba rendezzük. Egy elfogadott hirdetés {FLYER_CREDITS} kredit.
         </p>
       </section>
 

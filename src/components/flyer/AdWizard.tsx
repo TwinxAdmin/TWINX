@@ -1,12 +1,11 @@
 // Hirdetés-varázsló: Arculat → Képek → Adatok → Stílus → Előnézet.
-// A hátteret a Nano Banana komponálja a partner fotóiból (szöveg nélkül), a feliratokat
-// mi írjuk rá élesen — így az ékezetek, a telefonszám és az e-mail mindig hibátlan.
+// A hirdetést kódból rajzoljuk (nincs AI): a fotókat egy igényes sablonba rendezzük,
+// a feliratokat élesen írjuk rá — így az ékezetek, a telefonszám és az e-mail mindig hibátlan.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
-import { compressImage } from "@/lib/image-compress";
 import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
@@ -14,19 +13,12 @@ import {
   FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS,
   type FlyerFacts, type FlyerText,
 } from "@/lib/flyer";
-import { FLYER_MOODS } from "@/lib/flyer-compose";
-import { ZONES, readZone, type ZoneReading } from "@/lib/flyer-zones";
-import { buildOverlayHtml } from "@/lib/flyer-overlay";
+import { FLYER_MOODS, FLYER_SIZES, getFlyerSize, buildPosterHtml } from "@/lib/flyer-poster";
 import { renderFlyerToBlob } from "@/lib/flyer-client-render";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 const STEPS = ["Arculat", "Képek", "Adatok", "Stílus", "Előnézet"] as const;
-
-const SIZES = [
-  { value: "1:1", label: "Négyzet 1:1", hint: "Instagram, Facebook", w: 1080, h: 1080, en: "square 1:1" },
-  { value: "9:16", label: "Álló 9:16", hint: "Story, Reels", w: 1080, h: 1920, en: "vertical 9:16" },
-  { value: "4:3", label: "Fekvő 4:3", hint: "Portálok, e-mail", w: 1440, h: 1080, en: "landscape 4:3" },
-];
+const SIZES = FLYER_SIZES;
 
 export default function AdWizard({
   profiles, onClose, onDone,
@@ -54,18 +46,16 @@ export default function AdWizard({
   const [genLoading, setGenLoading] = useState(false);
 
   // 4) Stílus
-  const [mood, setMood] = useState(FLYER_MOODS[0].value);
-  const [size, setSize] = useState(SIZES[0].value);
+  const [mood, setMood] = useState<string>(FLYER_MOODS[0].value);
+  const [size, setSize] = useState<string>(SIZES[0].value);
 
-  // 5) Háttér + előnézet
-  const [bgUrl, setBgUrl] = useState<string | null>(null);
-  const [composing, setComposing] = useState(false);
+  // 5) Előnézet
   const [preview, setPreview] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
 
-  const sizeDef = SIZES.find((s) => s.value === size)!;
+  const sizeDef = getFlyerSize(size);
 
   const profileData: FlyerProfileData = (() => {
     const p = brandMode === "saved" ? profiles.find((x) => x.id === profileId) : null;
@@ -117,42 +107,14 @@ export default function AdWizard({
     } finally { setGenLoading(false); }
   }
 
-  // --- AI háttér (Nano Banana) ---
-  async function composeBackground() {
-    setComposing(true); setError(null); setPreview(null); setFinalUrl(null);
-    try {
-      const fd = new FormData();
-      for (const u of images) {
-        const blob = await (await fetch(u)).blob();
-        const file = new File([blob], "kep.jpg", { type: blob.type || "image/jpeg" });
-        fd.append("images", await compressImage(file, 1400, 0.9));
-      }
-      fd.append("accent", profileData.accent_color);
-      fd.append("mood", mood);
-      fd.append("ratioLabel", sizeDef.en);
-      const res = await fetch("/api/flyer/compose", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setBgUrl(data.url as string);
-      return data.url as string;
-    } catch (e) {
-      setError("A háttér elkészítése nem sikerült: " + (e as Error).message);
-      return null;
-    } finally { setComposing(false); }
-  }
-
-  // --- Szövegréteg a háttérre ---
-  async function buildPreview(bg: string, watermark = true) {
-    const [header, price, facts2] = await Promise.all([
-      readZone(bg, ZONES.header), readZone(bg, ZONES.price), readZone(bg, ZONES.facts),
-    ]);
+  // --- A hirdetés kódból: fotók a sablonba + éles feliratok ---
+  async function buildBlob(watermark: boolean) {
     const chips = [facts.rooms, facts.size, facts.propertyType, facts.condition].filter(Boolean);
-    const html = buildOverlayHtml({
-      bgUrl: bg, width: sizeDef.w, height: sizeDef.h,
+    const html = buildPosterHtml({
+      images, width: sizeDef.w, height: sizeDef.h,
       profile: profileData,
       text: { title: text.title, subtitle: text.subtitle, price: text.price, chips },
-      readings: { header, price, facts: facts2 } as { header: ZoneReading; price: ZoneReading; facts: ZoneReading },
-      watermark,
+      mood, watermark,
     });
     return renderFlyerToBlob(html, sizeDef.w, sizeDef.h, "image", false);
   }
@@ -160,9 +122,7 @@ export default function AdWizard({
   async function makePreview() {
     setRendering(true); setError(null);
     try {
-      const bg = bgUrl ?? (await composeBackground());
-      if (!bg) return;
-      const { blob } = await buildPreview(bg, true);
+      const { blob } = await buildBlob(true);
       setPreview(URL.createObjectURL(blob));
     } catch (e) {
       setError("Nem sikerült az előnézet: " + (e as Error).message);
@@ -170,10 +130,9 @@ export default function AdWizard({
   }
 
   async function accept() {
-    if (!bgUrl) return;
     setAccepting(true); setError(null);
     try {
-      const { blob, ext, contentType } = await buildPreview(bgUrl, false);
+      const { blob, ext, contentType } = await buildBlob(false);
       const fd = new FormData();
       fd.append("image", new File([blob], `hirdetes.${ext}`, { type: contentType }));
       if (brandMode === "saved") fd.append("profileId", profileId);
@@ -189,12 +148,12 @@ export default function AdWizard({
     } finally { setAccepting(false); }
   }
 
-  // Az előnézet lépésre lépve indul a folyamat.
+  // Az előnézet lépésre lépve renderel.
   useEffect(() => {
-    if (step === 4 && !preview && !rendering && !composing) void makePreview();
+    if (step === 4 && !preview && !rendering) void makePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-  useEffect(() => { setBgUrl(null); setPreview(null); setFinalUrl(null); }, [mood, size, images.length]);
+  useEffect(() => { setPreview(null); setFinalUrl(null); }, [mood, size, images.length]);
 
   function next() {
     if (step === 0) {
@@ -217,7 +176,7 @@ export default function AdWizard({
   const setT = <K extends keyof FlyerText>(k: K, v: FlyerText[K]) => setText({ ...text, [k]: v });
 
   return (
-    <div onClick={() => !accepting && !rendering && !composing && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
+    <div onClick={() => !accepting && !rendering && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
       <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
 
@@ -399,7 +358,7 @@ export default function AdWizard({
               <div>
                 <p className="text-sm font-semibold">Hangulat</p>
                 <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Ez adja a hirdetés dizájnját — a képeidet ebben a stílusban rendezi el az AI.
+                  Ez adja a hirdetés színvilágát és stílusát — a képeidet ebbe a sablonba rendezzük.
                 </p>
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {FLYER_MOODS.map((m) => {
@@ -437,10 +396,10 @@ export default function AdWizard({
           {/* 5) ELŐNÉZET */}
           {step === 4 && (
             <div className="space-y-3 text-center">
-              {composing || rendering ? (
+              {rendering ? (
                 <div className="py-12">
-                  <p className="text-sm font-medium">{composing ? "A hirdetés készül…" : "Feliratok elhelyezése…"}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Ez fél percig is eltarthat.</p>
+                  <p className="text-sm font-medium">A hirdetés készül…</p>
+                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Néhány másodperc.</p>
                 </div>
               ) : finalUrl ? (
                 <>
@@ -455,10 +414,9 @@ export default function AdWizard({
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                     Vízjeles előnézet, ingyenes. Az elfogadás {FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.
                   </p>
-                  <button type="button" onClick={async () => { setBgUrl(null); setPreview(null); await makePreview(); }}
-                    className="text-xs underline" style={{ color: "var(--twx-coral)" }}>
-                    Nem tetszik? Új változat kérése
-                  </button>
+                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Módosítanál? Lépj vissza a <strong>Stílus</strong> vagy az <strong>Adatok</strong> lépésre.
+                  </p>
                 </>
               ) : (
                 <p className="py-10 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs előnézet.</p>
@@ -485,7 +443,7 @@ export default function AdWizard({
               <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>
             </div>
           ) : (
-            <button type="button" onClick={accept} disabled={accepting || rendering || composing || !preview}
+            <button type="button" onClick={accept} disabled={accepting || rendering || !preview}
               className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
               {accepting ? "Feldolgozás…" : `Elfogadom (${FLYER_CREDITS} kredit)`}
             </button>
