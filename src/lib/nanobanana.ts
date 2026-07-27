@@ -8,7 +8,9 @@ type InlineImage = { bytes: Uint8Array; mimeType: string };
 export type GenerateImageParams = {
   source: InlineImage; // a feltöltött szobakép
   prompt: string;
-  reference?: InlineImage; // opcionális stílus-referenciakép (később)
+  reference?: InlineImage; // opcionális stílus-referenciakép
+  /** További képek (pl. hirdetés-kompozícióhoz több fotó). A source után jönnek. */
+  extra?: InlineImage[];
 };
 
 export async function generateImage(
@@ -24,6 +26,14 @@ export async function generateImage(
       data: Buffer.from(params.source.bytes).toString("base64"),
     },
   });
+  for (const img of params.extra ?? []) {
+    parts.push({
+      inline_data: {
+        mime_type: img.mimeType,
+        data: Buffer.from(img.bytes).toString("base64"),
+      },
+    });
+  }
   if (params.reference) {
     parts.push({
       inline_data: {
