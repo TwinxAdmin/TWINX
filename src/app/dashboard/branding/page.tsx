@@ -17,6 +17,25 @@ import { cropToSquare, DEFAULT_CROP, type CropState } from "@/lib/crop-image";
 // Gyors színpaletta az arculathoz (egyedi szín továbbra is választható).
 const PRESET_COLORS = ["#ef7a5a", "#c2410c", "#b45309", "#15803d", "#0e7490", "#1d4ed8", "#6d28d9", "#be123c", "#1f2937"];
 
+// A portré-előnézet mérete (px) — a kivágás számítása ehhez igazodik.
+const PREVIEW = 128;
+
+/** A kivágás geometriája: ugyanaz a képlet, mint a mentésnél (cropToSquare). */
+function previewBox(img: { w: number; h: number }, zoom: number) {
+  const base = Math.max(PREVIEW / img.w, PREVIEW / img.h);
+  const scale = base * Math.max(1, zoom);
+  const drawW = img.w * scale;
+  const drawH = img.h * scale;
+  return {
+    drawW,
+    drawH,
+    dx: (PREVIEW - drawW) / 2,
+    dy: (PREVIEW - drawH) / 2,
+    freeX: Math.max(0, drawW - PREVIEW) / 2,
+    freeY: Math.max(0, drawH - PREVIEW) / 2,
+  };
+}
+
 // A betűtípus-kártyák mintájához (a render Google Fontsból tölti a végleges betűt).
 const FONT_STACK: Record<string, string> = {
   inter: "Inter, system-ui, sans-serif",
@@ -40,6 +59,9 @@ export default function BrandingPage() {
   const [agentPreview, setAgentPreview] = useState<string | null>(null);
   const [removeAgent, setRemoveAgent] = useState(false);
   const [crop, setCrop] = useState<CropState>(DEFAULT_CROP); // portré-kivágás
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  // Képtár: több logó / fotó egy profilhoz, közülük egy az aktív.
+  const [assets, setAssets] = useState<{ id: string; kind: string; url: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,6 +83,7 @@ export default function BrandingPage() {
 
   function openNew() {
     setEditing(null);
+    setAssets([]);
     setValues({ ...EMPTY_BRANDING });
     setLogoFile(null);
     setLogoOriginal(null);
@@ -70,6 +93,7 @@ export default function BrandingPage() {
     setRemoveLogo(false);
     setRemoveAgent(false);
     setCrop(DEFAULT_CROP);
+    setImgSize(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
@@ -77,6 +101,8 @@ export default function BrandingPage() {
 
   function openEdit(p: BrandingProfile) {
     setEditing(p);
+    setAssets([]);
+    void loadAssets(p.id);
     setValues({
       label: p.label,
       display_name: p.display_name,
@@ -98,9 +124,40 @@ export default function BrandingPage() {
     setRemoveLogo(false);
     setRemoveAgent(false);
     setCrop(DEFAULT_CROP);
+    setImgSize(null);
     setErrors({});
     setServerError(null);
     setShowForm(true);
+  }
+
+  // Képtár betöltése a megnyitott profilhoz.
+  async function loadAssets(profileId: string) {
+    try {
+      const res = await fetch(`/api/branding/assets?profileId=${encodeURIComponent(profileId)}`);
+      const data = await res.json();
+      if (res.ok) setAssets(data.assets ?? []);
+    } catch { setAssets([]); }
+  }
+  // Egy korábbi kép aktívvá tétele (ez lesz a hirdetéseken/videókon).
+  async function activateAsset(kind: "logo" | "agent", url: string) {
+    if (!editing) return;
+    try {
+      const res = await fetch("/api/branding/assets", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: editing.id, kind, url }),
+      });
+      if (!res.ok) throw new Error();
+      setEditing({ ...editing, ...(kind === "logo" ? { logo_url: url } : { agent_photo_url: url }) });
+      if (kind === "logo") { setLogoFile(null); setLogoPreview(null); setRemoveLogo(false); }
+      else { setAgentFile(null); setAgentPreview(null); setRemoveAgent(false); setImgSize(null); }
+      await load();
+    } catch { setServerError("Nem sikerült aktiválni a képet."); }
+  }
+  async function deleteAsset(id: string) {
+    try {
+      await fetch(`/api/branding/assets?id=${id}`, { method: "DELETE" });
+      setAssets((a) => a.filter((x) => x.id !== id));
+    } catch { /* néma */ }
   }
 
   // Amit épp mutatunk: az új feltöltés, vagy a meglévő (ha nem törölték).
@@ -454,6 +511,16 @@ export default function BrandingPage() {
                 )}
               </div>
             </div>
+
+            {/* Korábbi logóim — kattintással bármelyik aktívvá tehető */}
+            <AssetPicker
+              items={assets.filter((a) => a.kind === "logo")}
+              activeUrl={editing?.logo_url ?? null}
+              round={false}
+              label="Korábbi logóim"
+              onActivate={(url) => activateAsset("logo", url)}
+              onDelete={deleteAsset}
+            />
           </div>
 
           {/* Ügynök-fotó — kivágható: egészalakos képből is lehet mellkép */}
@@ -465,18 +532,23 @@ export default function BrandingPage() {
             <div className="mt-2 flex flex-wrap items-center gap-4">
               {/* Körelőnézet — húzással mozgatható */}
               <div
-                className="relative h-28 w-28 shrink-0 cursor-move overflow-hidden rounded-full"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
+                className="relative shrink-0 cursor-move overflow-hidden rounded-full"
+                style={{ width: PREVIEW, height: PREVIEW, border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
                 onPointerDown={(e) => {
-                  if (!agentSrc) return;
+                  if (!agentSrc || !imgSize) return;
                   const el = e.currentTarget;
                   el.setPointerCapture(e.pointerId);
+                  const { freeX, freeY } = previewBox(imgSize, crop.zoom);
                   const start = { px: e.clientX, py: e.clientY, ...crop };
                   const onMove = (ev: PointerEvent) => {
+                    // Pixelben mozgatunk, majd visszaváltjuk a -1..1 tartományra —
+                    // így vízszintesen és függőlegesen is pontosan követi az egeret.
+                    const nx = freeX > 0 ? start.x - (ev.clientX - start.px) / freeX : start.x;
+                    const ny = freeY > 0 ? start.y - (ev.clientY - start.py) / freeY : start.y;
                     setCrop({
                       zoom: start.zoom,
-                      x: Math.max(-1, Math.min(1, start.x - (ev.clientX - start.px) / 60)),
-                      y: Math.max(-1, Math.min(1, start.y - (ev.clientY - start.py) / 60)),
+                      x: Math.max(-1, Math.min(1, nx)),
+                      y: Math.max(-1, Math.min(1, ny)),
                     });
                   };
                   const onUp = () => { el.removeEventListener("pointermove", onMove); el.removeEventListener("pointerup", onUp); };
@@ -485,14 +557,25 @@ export default function BrandingPage() {
                 }}
               >
                 {agentSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={agentSrc}
-                    alt=""
-                    draggable={false}
-                    className="h-full w-full select-none object-cover"
-                    style={{ transform: `scale(${crop.zoom})`, objectPosition: `${50 + crop.x * 50}% ${50 + crop.y * 50}%` }}
-                  />
+                  (() => {
+                    const box = imgSize ? previewBox(imgSize, crop.zoom) : null;
+                    return (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={agentSrc}
+                        alt=""
+                        draggable={false}
+                        onLoad={(e) => {
+                          const el = e.currentTarget;
+                          setImgSize({ w: el.naturalWidth, h: el.naturalHeight });
+                        }}
+                        className="absolute max-w-none select-none"
+                        style={box
+                          ? { width: box.drawW, height: box.drawH, left: box.dx + crop.x * box.freeX, top: box.dy + crop.y * box.freeY }
+                          : { width: PREVIEW, height: PREVIEW, objectFit: "cover" }}
+                      />
+                    );
+                  })()
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-2xl" style={{ color: "var(--twx-line)" }}>☺</span>
                 )}
@@ -525,6 +608,7 @@ export default function BrandingPage() {
                     setAgentPreview(f ? URL.createObjectURL(f) : null);
                     setRemoveAgent(false);
                     setCrop(DEFAULT_CROP);
+    setImgSize(null);
                   }}
                   className="hidden"
                 />
@@ -550,6 +634,16 @@ export default function BrandingPage() {
                 )}
               </div>
             </div>
+
+            {/* Korábbi fotóim — kattintással bármelyik aktívvá tehető */}
+            <AssetPicker
+              items={assets.filter((a) => a.kind === "agent")}
+              activeUrl={editing?.agent_photo_url ?? null}
+              round
+              label="Korábbi fotóim"
+              onActivate={(url) => activateAsset("agent", url)}
+              onDelete={deleteAsset}
+            />
           </div>
 
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
@@ -575,6 +669,55 @@ export default function BrandingPage() {
         </div>
       )}
     </main>
+  );
+}
+
+/** Képtár-választó: a korábban feltöltött logók / fotók közül lehet aktívat választani. */
+function AssetPicker({
+  items, activeUrl, round, label, onActivate, onDelete,
+}: {
+  items: { id: string; url: string }[];
+  activeUrl: string | null;
+  round?: boolean;
+  label: string;
+  onActivate: (url: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+        {label} — kattints arra, amelyiket használni szeretnéd
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {items.map((a) => {
+          const on = activeUrl === a.url;
+          return (
+            <div key={a.id} className="group relative">
+              <button type="button" onClick={() => onActivate(a.url)} title={on ? "Ez az aktív" : "Beállítás aktívként"}
+                className={`flex h-14 w-14 items-center justify-center overflow-hidden transition ${round ? "rounded-full" : "rounded-lg"}`}
+                style={{
+                  border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
+                  background: "#fff",
+                  boxShadow: on ? "0 0 0 3px rgba(239,122,90,0.18)" : "none",
+                }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt="" className={`h-full w-full ${round ? "object-cover" : "object-contain p-1"}`} />
+              </button>
+              {on && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 text-[9px] font-bold"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}>aktív</span>
+              )}
+              {!on && (
+                <button type="button" aria-label="Eltávolítás" onClick={() => onDelete(a.id)}
+                  className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full text-[11px] group-hover:flex"
+                  style={{ background: "rgba(20,12,8,0.75)", color: "#fff" }}>×</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

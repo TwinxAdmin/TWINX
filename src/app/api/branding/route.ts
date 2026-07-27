@@ -110,6 +110,7 @@ export async function POST(request: Request) {
     else if (removeAgent) patch.agent_photo_url = null;
     const { error } = await admin.from("branding_profiles").update(patch).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await saveAssets(admin, user.id, id, logoUrl, agentUrl);
     return NextResponse.json({ ok: true, id });
   }
 
@@ -119,7 +120,24 @@ export async function POST(request: Request) {
     .select("id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await saveAssets(admin, user.id, data.id, logoUrl, agentUrl);
   return NextResponse.json({ ok: true, id: data.id });
+}
+
+/** A feltöltött logó/fotó bekerül a képtárba is, hogy később visszaválasztható legyen. */
+async function saveAssets(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  profileId: string,
+  logoUrl?: string,
+  agentUrl?: string
+) {
+  const rows: Array<{ user_id: string; profile_id: string; kind: string; url: string }> = [];
+  if (logoUrl) rows.push({ user_id: userId, profile_id: profileId, kind: "logo", url: logoUrl });
+  if (agentUrl) rows.push({ user_id: userId, profile_id: profileId, kind: "agent", url: agentUrl });
+  if (!rows.length) return;
+  // Best-effort: ha a képtár-tábla még nincs meg, a mentés akkor is sikeres marad.
+  await admin.from("branding_assets").insert(rows);
 }
 
 export async function DELETE(request: Request) {
