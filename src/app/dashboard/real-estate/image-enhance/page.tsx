@@ -42,8 +42,10 @@ export default function ImageEnhancePage() {
   const [dragOver, setDragOver] = useState(false);
   // Melyik mód-kártya fölött húzunk épp egy képet a tálcából.
   const [dropMode, setDropMode] = useState<EnhanceMode | null>(null);
-  // A tálcából behúzott, épp feldolgozás alatt lévő kép előnézete.
+  // A tálcából behúzott, épp feldolgozás alatt lévő képek előnézete.
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
+  // Módonként előkészített (ráhúzott) képek — a partner indítja a folyamatot.
+  const [staged, setStaged] = useState<Record<EnhanceMode, string[]>>({ feljavitas: [], rendrakas: [] });
 
   const [history, setHistory] = useState<Job[]>([]);
   const [favs, setFavs] = useState<Fav[]>([]);
@@ -156,20 +158,37 @@ export default function ImageEnhancePage() {
     if (ok) setPicks([]);
   }
 
-  // A tálcából ráhúzott kép feldolgozása: megnyitja a mód ablakát és rögtön indít.
-  async function startWithUrl(m: EnhanceMode, url: string) {
+  // Ráhúzott kép előkészítése (nem indul azonnal) — több mappából is gyűjthető.
+  function stageUrl(m: EnhanceMode, url: string) {
+    setStaged((prev) => {
+      const list = prev[m];
+      if (list.includes(url)) return prev;
+      if (list.length >= MAX_IMAGES) { showToast(`Legfeljebb ${MAX_IMAGES} kép.`, "info"); return prev; }
+      return { ...prev, [m]: [...list, url] };
+    });
+  }
+  const unstageUrl = (m: EnhanceMode, url: string) =>
+    setStaged((prev) => ({ ...prev, [m]: prev[m].filter((u) => u !== url) }));
+
+  // Az előkészített képekkel indítja a folyamatot.
+  async function startStaged(m: EnhanceMode) {
+    const urls = staged[m];
+    if (!urls.length) { openSession(m); return; }
     openSession(m);
-    setSourcePreview(url);
+    setSourcePreview(urls[0]);
     setLoading(true);
     try {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error();
-      const blob = await r.blob();
-      const file = new File([blob], "twinx-korabbi.jpg", { type: blob.type || "image/jpeg" });
-      await process(m, [file]);
+      const files = await Promise.all(urls.map(async (u, i) => {
+        const r = await fetch(u);
+        if (!r.ok) throw new Error();
+        const blob = await r.blob();
+        return new File([blob], `twinx-korabbi-${i}.jpg`, { type: blob.type || "image/jpeg" });
+      }));
+      setStaged((prev) => ({ ...prev, [m]: [] }));
+      await process(m, files);
     } catch {
       setLoading(false);
-      showToast("Nem sikerült betölteni a képet.", "error");
+      showToast("Nem sikerült betölteni a képeket.", "error");
     }
   }
 
@@ -349,33 +368,57 @@ export default function ImageEnhancePage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {ENHANCE_MODES.map((m) => {
             const over = dropMode === m.value;
+            const list = staged[m.value];
             return (
-              <button key={m.value} type="button" onClick={() => openSession(m.value)}
-                // A korábbi munkákból ráhúzott kép azonnal ezzel a művelettel indul.
+              <div key={m.value}
+                // A korábbi munkákból ráhúzott képek itt gyűlnek — te indítod a folyamatot.
                 onDragOver={(e) => { e.preventDefault(); setDropMode(m.value); }}
                 onDragLeave={() => setDropMode((cur) => (cur === m.value ? null : cur))}
                 onDrop={(e) => {
                   e.preventDefault();
                   setDropMode(null);
                   const url = readTwxDragUrl(e.dataTransfer);
-                  if (url) void startWithUrl(m.value, url);
+                  if (url) stageUrl(m.value, url);
                 }}
                 className="relative rounded-xl p-5 text-left transition hover:shadow-md"
                 style={over
                   ? { background: "var(--twx-coral-soft)", border: "2px dashed var(--twx-coral)", boxShadow: "0 6px 20px rgba(239,122,90,0.20)" }
                   : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg"
-                    style={{ background: WORK_META[m.value as WorkKind].soft, color: WORK_META[m.value as WorkKind].color }}>
-                    <WorkIcon kind={m.value as WorkKind} size={18} />
-                  </span>
-                  <div className="font-display text-lg font-semibold" style={{ color: over ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</div>
+                <button type="button" onClick={() => startStaged(m.value)} className="block w-full text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg"
+                      style={{ background: WORK_META[m.value as WorkKind].soft, color: WORK_META[m.value as WorkKind].color }}>
+                      <WorkIcon kind={m.value as WorkKind} size={18} />
+                    </span>
+                    <div className="font-display text-lg font-semibold" style={{ color: over ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</div>
+                  </div>
+                  <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
+                </button>
+
+                {/* Előkészített képek — apró bélyegképek, egyenként törölhetők */}
+                <div className="mt-3 flex items-center gap-2">
+                  <button type="button" onClick={() => startStaged(m.value)}
+                    className="text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
+                    {over ? "Engedd el ide" : list.length ? `Indítás (${list.length} kép) →` : "Indítás →"}
+                  </button>
+                  {list.length > 0 && (
+                    <span className="flex flex-wrap items-center gap-1">
+                      {list.map((u) => (
+                        <span key={u} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={u} alt="" className="h-8 w-10 rounded object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                          <button type="button" aria-label="Eltávolítás" onClick={() => unstageUrl(m.value, u)}
+                            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] leading-none shadow"
+                            style={{ background: "rgba(20,12,8,0.75)", color: "#fff" }}>×</button>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {list.length > 0 && (
+                    <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{list.length}/{MAX_IMAGES}</span>
+                  )}
                 </div>
-                <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
-                <span className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
-                  {over ? "Engedd el — indul a folyamat" : "Indítás →"}
-                </span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -391,7 +434,7 @@ export default function ImageEnhancePage() {
           );
         }}
         reloadKey={assetsReload}
-        note="Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzd rá a Feljavítás / Rendrakás kártyára, és rögtön indul a folyamat."
+        note={`Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzz rá képeket (akár több mappából, max ${MAX_IMAGES}) a Feljavítás / Rendrakás kártyára, és te indítod a folyamatot.`}
       />
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
