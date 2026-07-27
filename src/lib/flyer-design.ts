@@ -9,7 +9,7 @@
 //  2) Nincs túlcsordulás: minden szövegdoboznak sorkorlátja van (clamp) és a
 //     hosszú szöveg automatikusan kisebb betűvel jelenik meg (fitSize()).
 
-export type FlyerStyleId = "klasszikus" | "modern" | "minimal" | "magazin" | "bold";
+export type FlyerStyleId = "klasszikus" | "modern" | "minimal" | "magazin" | "bold" | "premium";
 export type FlyerRatioId = "9:16" | "1:1" | "4:3" | "3:2";
 
 export type FlyerStyle = {
@@ -30,6 +30,18 @@ export type FlyerStyle = {
 };
 
 export const FLYER_STYLES: FlyerStyle[] = [
+  {
+    // Saját tervezésű prémium sablon: nagy hero, vékony tipográfia, arculati ügynök-sáv.
+    id: "premium",
+    label: "Prémium",
+    desc: "Nagy főkép, letisztult tipográfia, arculati színű ügynök-sáv — exkluzív hatás.",
+    surface: "overlay",
+    radius: 6,
+    chip: "outline",
+    titleWeight: 700,
+    titleUpper: false,
+    accentStrength: 0.7,
+  },
   {
     id: "klasszikus",
     label: "Klasszikus",
