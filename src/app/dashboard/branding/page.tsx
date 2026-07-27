@@ -543,8 +543,8 @@ export default function BrandingPage() {
                   const onMove = (ev: PointerEvent) => {
                     // Pixelben mozgatunk, majd visszaváltjuk a -1..1 tartományra —
                     // így vízszintesen és függőlegesen is pontosan követi az egeret.
-                    const nx = freeX > 0 ? start.x - (ev.clientX - start.px) / freeX : start.x;
-                    const ny = freeY > 0 ? start.y - (ev.clientY - start.py) / freeY : start.y;
+                    const nx = freeX > 0 ? start.x + (ev.clientX - start.px) / freeX : start.x;
+                    const ny = freeY > 0 ? start.y + (ev.clientY - start.py) / freeY : start.y;
                     setCrop({
                       zoom: start.zoom,
                       x: Math.max(-1, Math.min(1, nx)),
