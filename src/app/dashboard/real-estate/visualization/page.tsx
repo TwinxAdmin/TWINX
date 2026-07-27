@@ -228,37 +228,41 @@ export default function VisualizationPage() {
 
       {/* Kép-kártyák */}
       {items.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {items.map((it, i) => {
             const ready = isRoomConfigReady(it.config);
+            const active = selected === i;
             return (
-              <div
+              <figure
                 key={it.url}
                 onClick={() => setSelected(i)}
-                className="relative cursor-pointer rounded-lg border-2"
-                style={{ borderColor: selected === i ? "var(--twx-coral)" : "transparent" }}
+                className="group relative cursor-pointer overflow-hidden rounded-xl bg-white transition hover:shadow-md"
+                style={{
+                  border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                  boxShadow: active ? "0 4px 16px rgba(239,122,90,0.18)" : "0 2px 10px rgba(20,12,8,0.06)",
+                }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={it.url} alt={`Kép ${i + 1}`} className="h-20 w-full object-cover" />
-                <span
-                  className="absolute left-0 top-0 px-1 text-xs text-white"
-                  style={{ background: ready ? "#16a34a" : "var(--twx-ink-muted)" }}
-                >
-                  {ready ? "kész" : "beállít"}
-                </span>
+                <img src={it.url} alt={`Kép ${i + 1}`} className="aspect-[4/3] w-full object-cover" />
+                <figcaption className="flex items-center justify-between gap-2 px-2 py-1.5">
+                  <span className="text-[11px] font-medium" style={{ color: "var(--twx-ink-muted)" }}>{i + 1}. kép</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={ready
+                      ? { background: "rgba(22,163,74,0.12)", color: "#15803d" }
+                      : { background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    {ready ? "kész" : "beállít"}
+                  </span>
+                </figcaption>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeAt(i);
-                  }}
-                  className="absolute right-0 top-0 px-1 text-xs"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                  onClick={(e) => { e.stopPropagation(); removeAt(i); }}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm opacity-0 shadow transition group-hover:opacity-100"
+                  style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}
                   aria-label="Törlés"
                 >
                   ×
                 </button>
-              </div>
+              </figure>
             );
           })}
         </div>

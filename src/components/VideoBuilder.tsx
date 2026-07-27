@@ -185,21 +185,30 @@ export default function VideoBuilder({ historyImages, enhancedImages = [] }: { h
             onChange={(e) => addUploads(e.target.files)}
           />
         </div>
-        {uploads.length > 0 && (
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {uploads.map((u, i) => (
-              <div key={u.url} className="relative">
+        {/* Kiválasztott képek — a tálcából behúzottak és a feltöltöttek egy helyen */}
+        {(selected.size > 0 || uploads.length > 0) && (
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[...selected].map((url) => (
+              <figure key={url} className="group relative overflow-hidden rounded-xl bg-white transition"
+                style={{ border: "1px solid var(--twx-line)", boxShadow: "0 2px 10px rgba(20,12,8,0.06)" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={u.url} alt="Feltöltés" className="h-20 w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeUpload(i)}
-                  className="absolute right-0 top-0 px-1 text-xs"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                >
-                  ×
-                </button>
-              </div>
+                <img src={url} alt="Kiválasztott kép" className="aspect-[4/3] w-full object-cover" />
+                <figcaption className="px-2 py-1.5 text-[11px] font-medium" style={{ color: "var(--twx-ink-muted)" }}>Korábbi munkából</figcaption>
+                <button type="button" onClick={() => toggleHistory(url)} aria-label="Eltávolítás"
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm opacity-0 shadow transition group-hover:opacity-100"
+                  style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>×</button>
+              </figure>
+            ))}
+            {uploads.map((u, i) => (
+              <figure key={u.url} className="group relative overflow-hidden rounded-xl bg-white transition"
+                style={{ border: "1px solid var(--twx-line)", boxShadow: "0 2px 10px rgba(20,12,8,0.06)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={u.url} alt="Feltöltött kép" className="aspect-[4/3] w-full object-cover" />
+                <figcaption className="px-2 py-1.5 text-[11px] font-medium" style={{ color: "var(--twx-ink-muted)" }}>Feltöltött</figcaption>
+                <button type="button" onClick={() => removeUpload(i)} aria-label="Eltávolítás"
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm opacity-0 shadow transition group-hover:opacity-100"
+                  style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>×</button>
+              </figure>
             ))}
           </div>
         )}
