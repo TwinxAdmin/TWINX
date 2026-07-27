@@ -419,7 +419,11 @@ export default function BrandingPage() {
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-4">
               {/* Előnézet világos és sötét háttéren — így látszik, kell-e tisztítás */}
-              <div className="flex gap-2">
+              <div>
+                <p className="mb-1 text-[11px] font-semibold" style={{ color: logoSrc ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                  {logoPreview ? "Új logó (mentés után lesz aktív)" : logoSrc ? "Jelenlegi (aktív) logó" : "Nincs logó"}
+                </p>
+                <div className="flex gap-2">
                 {(["light", "dark"] as const).map((bg) => (
                   <div key={bg} className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl"
                     style={{ border: "1px solid var(--twx-line)", background: bg === "dark" ? "#141210" : "#fff" }}>
@@ -430,6 +434,7 @@ export default function BrandingPage() {
                     )}
                   </div>
                 ))}
+                </div>
               </div>
               <div className="flex-1">
                 <label
@@ -705,8 +710,13 @@ function AssetPicker({
                 <img src={a.url} alt="" className={`h-full w-full ${round ? "object-cover" : "object-contain p-1"}`} />
               </button>
               {on && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 text-[9px] font-bold"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}>aktív</span>
+                <>
+                  {/* Pipa a sarokban + felirat — egyértelmű, melyik az aktív */}
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold shadow"
+                    style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow"
+                    style={{ background: "var(--twx-coral)", color: "#1c1005" }}>aktív</span>
+                </>
               )}
               {!on && (
                 <button type="button" aria-label="Eltávolítás" onClick={() => onDelete(a.id)}
