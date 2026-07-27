@@ -5,6 +5,34 @@
 const FAL_BASE = "https://fal.run";
 const FAL_MODEL = process.env.FAL_ENHANCE_MODEL || "fal-ai/clarity-upscaler";
 
+// Háttéreltávolítás (logó-tisztítás) — BiRefNet v2. Csak akkor hívjuk, ha az ingyenes
+// kliensoldali kivágás nem adott jó eredményt. Arculatonként jellemzően egyszeri.
+export async function removeBackgroundFal(dataUri: string): Promise<{ bytes: Buffer; mimeType: string }> {
+  const key = process.env.FAL_KEY;
+  if (!key) throw new Error("Hiányzó FAL_KEY.");
+
+  const model = process.env.FAL_BG_REMOVE_MODEL || "fal-ai/birefnet/v2";
+  const res = await fetch(`${FAL_BASE}/${model}`, {
+    method: "POST",
+    headers: { Authorization: `Key ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ image_url: dataUri, output_format: "png" }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Logó-tisztítás hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const url: string | undefined = data?.image?.url ?? data?.images?.[0]?.url;
+  if (!url) throw new Error("A logó-tisztítás nem adott vissza képet.");
+
+  const imgRes = await fetch(url);
+  if (!imgRes.ok) throw new Error("A tisztított logó letöltése nem sikerült.");
+  return {
+    bytes: Buffer.from(await imgRes.arrayBuffer()),
+    mimeType: data?.image?.content_type ?? "image/png",
+  };
+}
+
 export type FalEnhanceParams = {
   dataUri: string;        // base64 data URI (data:image/jpeg;base64,...)
   prompt: string;

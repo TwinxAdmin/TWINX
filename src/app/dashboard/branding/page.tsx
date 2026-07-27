@@ -11,6 +11,7 @@ import {
   type BrandingProfile,
 } from "@/lib/branding";
 import { compressImage } from "@/lib/image-compress";
+import { makeLogoTransparent } from "@/lib/logo-transparent";
 
 // Gyors színpaletta az arculathoz (egyedi szín továbbra is választható).
 const PRESET_COLORS = ["#ef7a5a", "#c2410c", "#b45309", "#15803d", "#0e7490", "#1d4ed8", "#6d28d9", "#be123c", "#1f2937"];
@@ -30,7 +31,9 @@ export default function BrandingPage() {
   const [editing, setEditing] = useState<BrandingProfile | null>(null);
   const [values, setValues] = useState<BrandingInput>({ ...EMPTY_BRANDING });
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoOriginal, setLogoOriginal] = useState<File | null>(null); // tisztítás visszavonásához
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
   const [agentFile, setAgentFile] = useState<File | null>(null);
   const [agentPreview, setAgentPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,6 +59,7 @@ export default function BrandingPage() {
     setEditing(null);
     setValues({ ...EMPTY_BRANDING });
     setLogoFile(null);
+    setLogoOriginal(null);
     setLogoPreview(null);
     setAgentFile(null);
     setAgentPreview(null);
@@ -80,6 +84,7 @@ export default function BrandingPage() {
       theme: p.theme,
     });
     setLogoFile(null);
+    setLogoOriginal(null);
     setLogoPreview(null);
     setAgentFile(null);
     setAgentPreview(null);
@@ -103,7 +108,9 @@ export default function BrandingPage() {
       Object.entries(values).forEach(([k, v]) => fd.append(k, String(v)));
       // Logó: SVG marad, egyéb raszter kicsinyítve (Vercel ~4,5 MB limit).
       if (logoFile) {
-        fd.append("logo", logoFile.type.includes("svg") ? logoFile : await compressImage(logoFile, 800, 0.9));
+        // SVG és átlátszó PNG változatlanul megy (a JPEG-tömörítés elvenné az átlátszóságot).
+        const keepAsIs = logoFile.type.includes("svg") || logoFile.type.includes("png");
+        fd.append("logo", keepAsIs ? logoFile : await compressImage(logoFile, 800, 0.9));
       }
       // Ügynök-fotó: mindig kicsinyítve (portré).
       if (agentFile) fd.append("agent_photo", await compressImage(agentFile, 800, 0.88));
@@ -332,23 +339,29 @@ export default function BrandingPage() {
           </div>
 
           <div>
-            <label className="block text-sm">Logó</label>
-            <div className="mt-1 flex items-center gap-4">
-              <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
-              >
-                {logoPreview || editing?.logo_url ? (
-                  <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain" />
-                ) : (
-                  <span className="text-2xl" style={{ color: "var(--twx-line)" }}>▦</span>
-                )}
+            <label className="block text-sm font-semibold">Logó</label>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Fehér hátterű logó is jó — a hirdetésen fehér alapon jelenik meg. Ha átlátszót szeretnél, alább kitisztíthatod.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              {/* Előnézet világos és sötét háttéren — így látszik, kell-e tisztítás */}
+              <div className="flex gap-2">
+                {(["light", "dark"] as const).map((bg) => (
+                  <div key={bg} className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+                    style={{ border: "1px solid var(--twx-line)", background: bg === "dark" ? "#141210" : "#fff" }}>
+                    {logoPreview || editing?.logo_url ? (
+                      <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain p-1.5" />
+                    ) : (
+                      <span className="text-2xl" style={{ color: "var(--twx-line)" }}>▦</span>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div>
+              <div className="flex-1">
                 <label
                   htmlFor="logo-input"
                   className="inline-block cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
+                  style={{ border: "1px solid var(--twx-line)", background: "#fff", color: "var(--twx-ink)" }}
                 >
                   {logoFile || editing?.logo_url ? "Logó cseréje" : "Logó feltöltése"}
                 </label>
@@ -359,13 +372,62 @@ export default function BrandingPage() {
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null;
                     setLogoFile(f);
+                    setLogoOriginal(f);
                     setLogoPreview(f ? URL.createObjectURL(f) : null);
                   }}
                   className="hidden"
                 />
                 <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {logoFile ? logoFile.name : "PNG, JPG vagy SVG — átlátszó háttér ajánlott."}
+                  {logoFile ? logoFile.name : "PNG, JPG, WEBP vagy SVG."}
                 </p>
+
+                {/* Háttér-tisztítás: előbb az ingyenes, csak utána az AI */}
+                {logoFile && !logoFile.type.includes("svg") && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button type="button" disabled={cleaning}
+                      onClick={async () => {
+                        if (!logoFile) return;
+                        setCleaning(true);
+                        try {
+                          const out = await makeLogoTransparent(logoFile);
+                          setLogoFile(out);
+                          setLogoPreview(URL.createObjectURL(out));
+                        } catch { setServerError("A háttér eltávolítása nem sikerült."); }
+                        finally { setCleaning(false); }
+                      }}
+                      className="rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+                      style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                      {cleaning ? "Feldolgozás…" : "Fehér háttér eltávolítása (ingyenes)"}
+                    </button>
+                    <button type="button" disabled={cleaning}
+                      onClick={async () => {
+                        if (!logoOriginal) return;
+                        setCleaning(true);
+                        setServerError(null);
+                        try {
+                          const fd = new FormData();
+                          fd.append("logo", logoOriginal);
+                          const res = await fetch("/api/branding/logo-cleanup", { method: "POST", body: fd });
+                          if (!res.ok) throw new Error();
+                          const blob = await res.blob();
+                          const out = new File([blob], "logo-tisztitott.png", { type: "image/png" });
+                          setLogoFile(out);
+                          setLogoPreview(URL.createObjectURL(out));
+                        } catch { setServerError("Az AI-tisztítás nem sikerült. Próbáld újra."); }
+                        finally { setCleaning(false); }
+                      }}
+                      className="rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+                      style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)", background: "#fff" }}>
+                      Nem lett jó? AI-tisztítás
+                    </button>
+                    {logoOriginal && logoFile !== logoOriginal && (
+                      <button type="button" onClick={() => { setLogoFile(logoOriginal); setLogoPreview(URL.createObjectURL(logoOriginal)); }}
+                        className="text-xs underline" style={{ color: "var(--twx-ink-muted)" }}>
+                        Vissza az eredetihez
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
