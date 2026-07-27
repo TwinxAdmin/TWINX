@@ -47,6 +47,7 @@ export default function ImageEnhancePage() {
 
   // Jóváhagyás (rendrakás): az eredmény csak elfogadás után kerül az elkészült munkák közé.
   const [pending, setPending] = useState<Item[] | null>(null);
+  const [accepted, setAccepted] = useState<Item[]>([]); // már elfogadott képek ebből a körből
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewView, setReviewView] = useState<"enhanced" | "original">("enhanced");
   const [regenFor, setRegenFor] = useState<string | null>(null); // original url
@@ -117,6 +118,7 @@ export default function ImageEnhancePage() {
       setProducedMode(m);
       if (needsReview) {
         setPending(data.items ?? []);
+        setAccepted([]);
         setReviewIdx(0);
         setReviewView("enhanced");
         setRegenUsed([]);
@@ -143,20 +145,49 @@ export default function ImageEnhancePage() {
     if (ok) setPicks([]);
   }
 
-  // Jóváhagyás: az elfogadott képek bekerülnek az elkészült munkák közé.
+  // Mentés az elkészült munkák közé (egy vagy több kép).
+  async function saveAccepted(items: Item[]) {
+    const res = await fetch(`${API}/accept`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: producedMode, items }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (data.job) setHistory((h) => [data.job as Job, ...h]);
+    setAssetsReload((n) => n + 1);
+  }
+
+  // Egy kép elfogadása — kikerül a sorból, léphetsz a következőre.
+  async function acceptOne(idx: number) {
+    if (!pending || !producedMode) return;
+    const item = pending[idx];
+    setBusy(true);
+    try {
+      await saveAccepted([item]);
+      const rest = pending.filter((_, i) => i !== idx);
+      setAccepted((a) => [...a, item]);
+      if (rest.length === 0) {
+        setResults([...accepted, item]);
+        setPending(null);
+        showToast("Kész! Minden kép elfogadva.", "success");
+      } else {
+        setPending(rest);
+        setReviewIdx(Math.min(idx, rest.length - 1));
+        setReviewView("enhanced");
+        showToast("Elfogadva — jöhet a következő.", "success");
+      }
+    } catch {
+      showToast("Nem sikerült elfogadni. Próbáld újra.", "error");
+    } finally { setBusy(false); }
+  }
+
+  // Az összes hátralévő kép elfogadása egyben.
   async function acceptPending() {
     if (!pending || !producedMode) return;
     setBusy(true);
     try {
-      const res = await fetch(`${API}/accept`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: producedMode, items: pending }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error();
-      setResults(pending);
-      if (data.job) setHistory((h) => [data.job as Job, ...h]);
-      setAssetsReload((n) => n + 1);
+      await saveAccepted(pending);
+      setResults([...accepted, ...pending]);
       setPending(null);
       showToast("Elfogadva — bekerült az elkészült munkák közé.", "success");
     } catch {
@@ -412,7 +443,9 @@ export default function ImageEnhancePage() {
               <div>
                 <div className="font-display text-lg font-semibold">Nézd át az eredményt</div>
                 <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {reviewIdx + 1} / {pending.length} kép · elfogadás után kerül az elkészült munkák közé
+                  {reviewIdx + 1} / {pending.length} eldöntendő
+                  {accepted.length > 0 && ` · ${accepted.length} már elfogadva`}
+                  {" "}· elfogadás után kerül az elkészült munkák közé
                 </div>
               </div>
               <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Esc: később</span>
@@ -481,17 +514,28 @@ export default function ImageEnhancePage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-2 border-t p-4 sm:flex-row" style={{ borderColor: "var(--twx-line)" }}>
-              <button type="button" onClick={acceptPending} disabled={busy}
-                className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-                {busy ? "Mentés…" : `Elfogadom${pending.length > 1 ? " mindet" : ""}`}
-              </button>
-              <button type="button" disabled={busy || regenUsed.includes(pending[reviewIdx].original)}
-                onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
-                className="rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
-                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                {regenUsed.includes(pending[reviewIdx].original) ? "Ingyenes újragenerálás felhasználva" : "Nem jó — újragenerálás (ingyenes)"}
-              </button>
+            <div className="space-y-2 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+              {/* Erre az egy képre vonatkozó döntés */}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={() => acceptOne(reviewIdx)} disabled={busy}
+                  className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                  {busy ? "Mentés…" : "Ezt elfogadom"}
+                </button>
+                <button type="button" disabled={busy || regenUsed.includes(pending[reviewIdx].original)}
+                  onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
+                  className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+                  style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                  {regenUsed.includes(pending[reviewIdx].original) ? "Ingyenes újragenerálás felhasználva" : "Ezt újragenerálom (ingyenes)"}
+                </button>
+              </div>
+              {/* Az összes hátralévő egyben */}
+              {pending.length > 1 && (
+                <button type="button" onClick={acceptPending} disabled={busy}
+                  className="w-full rounded-xl px-5 py-2 text-xs font-medium disabled:opacity-60"
+                  style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+                  Mind a {pending.length} hátralévő kép elfogadása
+                </button>
+              )}
             </div>
           </div>
         </div>
