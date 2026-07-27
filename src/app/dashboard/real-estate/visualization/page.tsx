@@ -4,6 +4,7 @@
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
+import { WorkChips, WorkDot, type WorkKind } from "@/components/WorkBadge";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
@@ -42,7 +43,7 @@ export default function VisualizationPage() {
   const [resultOriginals, setResultOriginals] = useState<string[]>([]);
   const [viewerView, setViewerView] = useState<"result" | "original">("result");
   // A tálcából megnyitott korábbi kép előnézete (lapozható), munkába vétel gombbal.
-  const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
+  const [preview, setPreview] = useState<{ urls: string[]; index: number; badges: Record<string, WorkKind[]> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
 
@@ -430,11 +431,14 @@ export default function VisualizationPage() {
                 key={url}
                 type="button"
                 onClick={() => { setViewerView("result"); setViewer(i); }}
-                className="overflow-hidden rounded-xl transition-opacity hover:opacity-90"
+                className="relative overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                 style={{ border: "1px solid var(--twx-line)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`Látványterv ${i + 1}`} className="w-full object-cover" />
+                <span className="pointer-events-none absolute bottom-1.5 left-1.5">
+                  <WorkDot kind="visualization" size={22} />
+                </span>
               </button>
             ))}
           </div>
@@ -443,7 +447,7 @@ export default function VisualizationPage() {
 
       {/* Közös tálca: korábbi munkák mappákban + kedvencek */}
       <AssetTray
-        onPick={(u, folderUrls, index) => setPreview({ urls: folderUrls?.length ? folderUrls : [u], index: index ?? 0 })}
+        onPick={(u, folderUrls, index, trayBadges) => setPreview({ urls: folderUrls?.length ? folderUrls : [u], index: index ?? 0, badges: trayBadges ?? {} })}
         selectedUrls={items.map((it) => it.url)}
         note="Válassz egy mappát, majd kattints egy képre a megtekintéshez — onnan egy gombbal beteheted a látványtervhez. Húzással is behúzhatod a fenti kép-helyekre."
       />
@@ -456,6 +460,12 @@ export default function VisualizationPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview.urls[preview.index]} alt="Korábbi kép" className="max-h-[74vh] max-w-[92vw] rounded-xl object-contain"
                 style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }} />
+              {/* Milyen munka ment végbe eddig ezen a képen */}
+              {(preview.badges[preview.urls[preview.index]] ?? []).length > 0 && (
+                <div className="absolute left-2 top-2">
+                  <WorkChips kinds={preview.badges[preview.urls[preview.index]] ?? []} light />
+                </div>
+              )}
               {preview.urls.length > 1 && (
                 <>
                   <button type="button" aria-label="Előző"
@@ -532,6 +542,12 @@ export default function VisualizationPage() {
                 alt="Látványterv"
                 className="max-h-[80vh] max-w-[92vw] object-contain"
               />
+              {/* Jelölés: ezen a képen látványterv készült */}
+              {viewerView === "result" && (
+                <div className="absolute left-2 top-2">
+                  <WorkChips kinds={["visualization"]} light />
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <a
