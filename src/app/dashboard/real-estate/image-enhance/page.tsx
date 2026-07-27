@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
-import AssetTray from "@/components/AssetTray";
+import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
@@ -40,6 +40,8 @@ export default function ImageEnhancePage() {
   const [results, setResults] = useState<Item[]>([]);
   const [producedMode, setProducedMode] = useState<EnhanceMode | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  // Melyik mód-kártya fölött húzunk épp egy képet a tálcából.
+  const [dropMode, setDropMode] = useState<EnhanceMode | null>(null);
 
   const [history, setHistory] = useState<Job[]>([]);
   const [favs, setFavs] = useState<Fav[]>([]);
@@ -148,6 +150,22 @@ export default function ImageEnhancePage() {
     if (!picks.length) { showToast("Tölts fel legalább egy képet.", "error"); return; }
     const ok = await process(session, picks.map((p) => p.file));
     if (ok) setPicks([]);
+  }
+
+  // A tálcából ráhúzott kép feldolgozása: megnyitja a mód ablakát és rögtön indít.
+  async function startWithUrl(m: EnhanceMode, url: string) {
+    openSession(m);
+    setLoading(true);
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error();
+      const blob = await r.blob();
+      const file = new File([blob], "twinx-korabbi.jpg", { type: blob.type || "image/jpeg" });
+      await process(m, [file]);
+    } catch {
+      setLoading(false);
+      showToast("Nem sikerült betölteni a képet.", "error");
+    }
   }
 
   // Mentés az elkészült munkák közé (egy vagy több kép).
@@ -324,21 +342,37 @@ export default function ImageEnhancePage() {
       {/* Két művelet — kattintásra ablak nyílik */}
       <section className="twx-card p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {ENHANCE_MODES.map((m) => (
-            <button key={m.value} type="button" onClick={() => openSession(m.value)}
-              className="rounded-xl p-5 text-left transition hover:shadow-md"
-              style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  style={{ background: WORK_META[m.value as WorkKind].soft, color: WORK_META[m.value as WorkKind].color }}>
-                  <WorkIcon kind={m.value as WorkKind} size={18} />
+          {ENHANCE_MODES.map((m) => {
+            const over = dropMode === m.value;
+            return (
+              <button key={m.value} type="button" onClick={() => openSession(m.value)}
+                // A korábbi munkákból ráhúzott kép azonnal ezzel a művelettel indul.
+                onDragOver={(e) => { e.preventDefault(); setDropMode(m.value); }}
+                onDragLeave={() => setDropMode((cur) => (cur === m.value ? null : cur))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDropMode(null);
+                  const url = readTwxDragUrl(e.dataTransfer);
+                  if (url) void startWithUrl(m.value, url);
+                }}
+                className="relative rounded-xl p-5 text-left transition hover:shadow-md"
+                style={over
+                  ? { background: "var(--twx-coral-soft)", border: "2px dashed var(--twx-coral)", boxShadow: "0 6px 20px rgba(239,122,90,0.20)" }
+                  : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    style={{ background: WORK_META[m.value as WorkKind].soft, color: WORK_META[m.value as WorkKind].color }}>
+                    <WorkIcon kind={m.value as WorkKind} size={18} />
+                  </span>
+                  <div className="font-display text-lg font-semibold" style={{ color: over ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</div>
+                </div>
+                <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
+                <span className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
+                  {over ? "Engedd el — indul a folyamat" : "Indítás →"}
                 </span>
-                <div className="font-display text-lg font-semibold" style={{ color: "var(--twx-ink)" }}>{m.label}</div>
-              </div>
-              <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
-              <span className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--twx-coral)" }}>Indítás →</span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -352,7 +386,7 @@ export default function ImageEnhancePage() {
           );
         }}
         reloadKey={assetsReload}
-        note="Válassz egy mappát, majd kattints egy képre a nagy nézethez, letöltéshez vagy kedvencnek jelöléshez."
+        note="Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzd rá a Feljavítás / Rendrakás kártyára, és rögtön indul a folyamat."
       />
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
