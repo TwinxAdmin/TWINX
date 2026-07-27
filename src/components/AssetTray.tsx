@@ -26,7 +26,8 @@ export default function AssetTray({
   note = "Válassz egy mappát, majd húzd a képet a munkádba, vagy kattints rá a hozzáadáshoz.",
   reloadKey = 0,
 }: {
-  onPick?: (url: string) => void;
+  // onPick: a kattintott kép + a mappa teljes képlistája és az index (lapozáshoz)
+  onPick?: (url: string, folderUrls: string[], index: number) => void;
   selectedUrls?: string[];
   title?: string;
   note?: string;
@@ -382,7 +383,7 @@ export default function AssetTray({
                 <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {openUrls.map((url) => {
+                  {openUrls.map((url, idx) => {
                     const isSel = selected.has(url);
                     return (
                       <div key={url} className="relative overflow-hidden rounded-lg border-2" style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}>
@@ -390,7 +391,7 @@ export default function AssetTray({
                           type="button"
                           draggable
                           onDragStart={(e) => dragStart(e, url)}
-                          onClick={() => onPick?.(url)}
+                          onClick={() => onPick?.(url, openUrls, idx)}
                           title={onPick ? "Kattints a hozzáadáshoz, vagy húzd a munkádba / egy mappára" : "Húzd a munkádba vagy egy mappára"}
                           className="block w-full cursor-grab active:cursor-grabbing"
                         >

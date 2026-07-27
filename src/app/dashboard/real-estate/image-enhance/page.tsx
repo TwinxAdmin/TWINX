@@ -231,7 +231,12 @@ export default function ImageEnhancePage() {
 
       {/* Közös tálca: korábbi munkák mappákban + kedvencek (kattintásra nagy nézet) */}
       <AssetTray
-        onPick={(u) => openLightbox([{ original: u, enhanced: u }], 0)}
+        onPick={(u, folderUrls, index) =>
+          openLightbox(
+            (folderUrls?.length ? folderUrls : [u]).map((x) => ({ original: x, enhanced: x })),
+            index ?? 0
+          )
+        }
         reloadKey={assetsReload}
         note="Válassz egy mappát, majd kattints egy képre a nagy nézethez, letöltéshez vagy kedvencnek jelöléshez."
       />
