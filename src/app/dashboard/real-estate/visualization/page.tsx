@@ -38,6 +38,9 @@ export default function VisualizationPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
+  // A generáláskor használt eredeti (feltöltött) képek — az előtte/utána nézethez.
+  const [resultOriginals, setResultOriginals] = useState<string[]>([]);
+  const [viewerView, setViewerView] = useState<"result" | "original">("result");
   const [loading, setLoading] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
 
@@ -176,7 +179,10 @@ export default function VisualizationPage() {
         setServerError(data.error ?? "Hiba történt a generálás során.");
         return;
       }
-      if (Array.isArray(data.urls)) setResultUrls(data.urls);
+      if (Array.isArray(data.urls)) {
+        setResultUrls(data.urls);
+        setResultOriginals(items.map((it) => it.url)); // előtte/utána összevetéshez
+      }
       setMessage(`Kész! ${data.urls?.length ?? 0} látványterv elkészült.`);
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
@@ -421,7 +427,7 @@ export default function VisualizationPage() {
               <button
                 key={url}
                 type="button"
-                onClick={() => setViewer(i)}
+                onClick={() => { setViewerView("result"); setViewer(i); }}
                 className="overflow-hidden rounded-xl transition-opacity hover:opacity-90"
                 style={{ border: "1px solid var(--twx-line)" }}
               >
@@ -461,35 +467,24 @@ export default function VisualizationPage() {
           )}
 
           <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] max-w-[92vw] flex-col items-center gap-3">
+            {/* Eredeti / Látványterv váltó */}
+            {resultOriginals[viewer] && (
+              <div className="flex overflow-hidden rounded-full" style={{ border: "1px solid rgba(255,255,255,0.35)" }}>
+                {(["original", "result"] as const).map((v) => (
+                  <button key={v} type="button" onClick={() => setViewerView(v)} className="px-4 py-1.5 text-sm font-medium"
+                    style={viewerView === v ? { background: "var(--twx-coral)", color: "#1c1005" } : { color: "#fff" }}>
+                    {v === "original" ? "Eredeti" : "Látványterv"}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="relative inline-block overflow-hidden rounded-xl" style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={resultUrls[viewer]}
+                src={viewerView === "original" && resultOriginals[viewer] ? resultOriginals[viewer] : resultUrls[viewer]}
                 alt="Látványterv"
                 className="max-h-[80vh] max-w-[92vw] object-contain"
               />
-              {/* Vízjel-réteg (a kép keretein belülre vágva) */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-around"
-                style={{ transform: "rotate(-22deg)" }}
-              >
-                {Array.from({ length: 3 }).map((_, k) => (
-                  <span
-                    key={k}
-                    style={{
-                      fontSize: "clamp(22px, 4vw, 46px)",
-                      fontWeight: 800,
-                      letterSpacing: "8px",
-                      color: "rgba(255,255,255,0.22)",
-                      textShadow: "0 2px 10px rgba(0,0,0,0.35)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    TWINX
-                  </span>
-                ))}
-              </div>
             </div>
             <div className="flex items-center gap-3">
               <a
