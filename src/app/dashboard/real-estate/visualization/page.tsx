@@ -41,6 +41,8 @@ export default function VisualizationPage() {
   // A generáláskor használt eredeti (feltöltött) képek — az előtte/utána nézethez.
   const [resultOriginals, setResultOriginals] = useState<string[]>([]);
   const [viewerView, setViewerView] = useState<"result" | "original">("result");
+  // A tálcából megnyitott korábbi kép előnézete (lapozható), munkába vétel gombbal.
+  const [preview, setPreview] = useState<{ urls: string[]; index: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
 
@@ -441,10 +443,55 @@ export default function VisualizationPage() {
 
       {/* Közös tálca: korábbi munkák mappákban + kedvencek */}
       <AssetTray
-        onPick={(u) => void importUrls([u])}
+        onPick={(u, folderUrls, index) => setPreview({ urls: folderUrls?.length ? folderUrls : [u], index: index ?? 0 })}
         selectedUrls={items.map((it) => it.url)}
-        note="Válassz egy mappát, majd húzd a képet a fenti feltöltőre, vagy kattints rá a hozzáadáshoz."
+        note="Válassz egy mappát, majd kattints egy képre a megtekintéshez — onnan egy gombbal beteheted a látványtervhez. Húzással is behúzhatod a fenti kép-helyekre."
       />
+
+      {/* Korábbi kép előnézete — innen tehető be a munkába */}
+      {preview && (
+        <div onClick={() => setPreview(null)} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(12,11,10,0.85)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] max-w-[92vw] flex-col items-center gap-3">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={preview.urls[preview.index]} alt="Korábbi kép" className="max-h-[74vh] max-w-[92vw] rounded-xl object-contain"
+                style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }} />
+              {preview.urls.length > 1 && (
+                <>
+                  <button type="button" aria-label="Előző"
+                    onClick={() => setPreview((p) => p ? { ...p, index: (p.index - 1 + p.urls.length) % p.urls.length } : p)}
+                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-2xl"
+                    style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>‹</button>
+                  <button type="button" aria-label="Következő"
+                    onClick={() => setPreview((p) => p ? { ...p, index: (p.index + 1) % p.urls.length } : p)}
+                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-2xl"
+                    style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>›</button>
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>{preview.index + 1} / {preview.urls.length}</span>
+              <button
+                type="button"
+                disabled={items.length >= MAX_IMAGES || items.some((it) => it.url === preview.urls[preview.index])}
+                onClick={async () => { await importUrls([preview.urls[preview.index]]); setPreview(null); }}
+                className="rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-50"
+                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+              >
+                {items.some((it) => it.url === preview.urls[preview.index])
+                  ? "Már a képek között van"
+                  : items.length >= MAX_IMAGES
+                    ? `Betelt (${MAX_IMAGES} kép)`
+                    : "Ezzel készítek látványtervet"}
+              </button>
+              <button type="button" onClick={() => setPreview(null)}
+                className="rounded-full px-5 py-2 text-sm font-medium" style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}>
+                Bezárás
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Nézegető ablak */}
       {viewer !== null && resultUrls[viewer] && (
