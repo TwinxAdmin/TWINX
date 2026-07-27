@@ -60,7 +60,7 @@ function onColor(hex: string): string {
 function esc(s: string): string {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
-function truncate(s: string, max: number): string {
+export function truncate(s: string, max: number): string {
   const t = String(s ?? "").trim();
   return t.length <= max ? t : t.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
 }
@@ -70,13 +70,13 @@ function type(weight: number, size: number, lh: number, extra = ""): string {
 }
 
 // --- Téma egy hangulathoz + arculati színből ---------------------------------
-type Theme = {
+export type Theme = {
   paper: string; band: string; bandInk: string; hair: string | null;
   badgeBg: string; badgeInk: string; chipBg: string; chipInk: string;
   priceBg: string; priceInk: string; radius: number;
 };
 
-function buildTheme(mood: string, accentRaw: string): Theme {
+export function buildTheme(mood: string, accentRaw: string): Theme {
   const accent = clampHex(accentRaw);
   const accInk = onColor(accent);
   switch (mood) {

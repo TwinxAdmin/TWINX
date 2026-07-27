@@ -13,8 +13,7 @@ import {
   FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS,
   type FlyerFacts, type FlyerText,
 } from "@/lib/flyer";
-import { FLYER_MOODS, FLYER_SIZES, getFlyerSize, buildPosterHtml } from "@/lib/flyer-poster";
-import { renderFlyerToBlob } from "@/lib/flyer-client-render";
+import { FLYER_MOODS, FLYER_SIZES, getFlyerSize } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 const STEPS = ["Arculat", "Képek", "Adatok", "Stílus", "Előnézet"] as const;
@@ -107,16 +106,25 @@ export default function AdWizard({
     } finally { setGenLoading(false); }
   }
 
-  // --- A hirdetés kódból: fotók a sablonba + éles feliratok ---
-  async function buildBlob(watermark: boolean) {
+  // --- A hirdetés PNG-je a szerveren, Satorival (pixelpontos, valódi betűkkel) ---
+  async function buildBlob(watermark: boolean): Promise<{ blob: Blob; ext: string; contentType: string }> {
     const chips = [facts.rooms, facts.size, facts.propertyType, facts.condition].filter(Boolean);
-    const html = buildPosterHtml({
-      images, width: sizeDef.w, height: sizeDef.h,
-      profile: profileData,
-      text: { title: text.title, subtitle: text.subtitle, price: text.price, chips },
-      mood, watermark,
-    });
-    return renderFlyerToBlob(html, sizeDef.w, sizeDef.h, "image", false);
+    const fd = new FormData();
+    for (const u of images) {
+      const b = await (await fetch(u)).blob();
+      fd.append("images", new File([b], "kep.jpg", { type: b.type || "image/jpeg" }));
+    }
+    fd.append("profile", JSON.stringify(profileData));
+    fd.append("mood", mood);
+    fd.append("size", size);
+    fd.append("watermark", watermark ? "1" : "0");
+    fd.append("title", text.title ?? "");
+    fd.append("subtitle", text.subtitle ?? "");
+    fd.append("price", text.price ?? "");
+    fd.append("chips", JSON.stringify(chips));
+    const res = await fetch("/api/flyer/render", { method: "POST", body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    return { blob: await res.blob(), ext: "png", contentType: "image/png" };
   }
 
   async function makePreview() {
