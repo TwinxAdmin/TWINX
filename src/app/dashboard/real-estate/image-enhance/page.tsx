@@ -299,6 +299,15 @@ export default function ImageEnhancePage() {
 
   const cur = lightbox ? lightbox.items[lightbox.index] : null;
 
+  // Feldolgozott kép -> a hozzá tartozó EREDETI (feltöltött) kép. A tálca csak a kész
+  // képek URL-jeit ismeri, az összetartozást az előzményekből és a kedvencekből tudjuk.
+  const originalOf = (() => {
+    const map = new Map<string, string>();
+    for (const j of history) for (const it of (j.items ?? [])) if (it?.enhanced && it?.original) map.set(it.enhanced, it.original);
+    for (const f of favs) if (f.enhanced && f.original) map.set(f.enhanced, f.original);
+    return (url: string) => map.get(url) ?? url;
+  })();
+
   return (
     <main className="mx-auto max-w-3xl space-y-6">
       <ModuleIntro
@@ -328,7 +337,7 @@ export default function ImageEnhancePage() {
       <AssetTray
         onPick={(u, folderUrls, index) =>
           openLightbox(
-            (folderUrls?.length ? folderUrls : [u]).map((x) => ({ original: x, enhanced: x })),
+            (folderUrls?.length ? folderUrls : [u]).map((x) => ({ original: originalOf(x), enhanced: x })),
             index ?? 0
           )
         }
