@@ -34,13 +34,17 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   try {
-    // Az eredeti kép letöltése (publikus Storage URL).
-    const srcRes = await fetch(original);
-    if (!srcRes.ok) throw new Error("Az eredeti kép nem érhető el.");
+    // RENDRAKÁS javítása: a MÁR GENERÁLT képen dolgozunk tovább (nem kezdjük elölről),
+    // így a partner megjegyzése célzottan azokra a tárgyakra hat, amik bent maradtak.
+    // FELJAVÍTÁS: az eredetiről indulunk újra (ott nincs mit "tovább javítani").
+    const useRejectedAsSource = mode === "rendrakas" && !!rejected;
+    const sourceUrl = useRejectedAsSource ? rejected : original;
+
+    const srcRes = await fetch(sourceUrl);
+    if (!srcRes.ok) throw new Error("A forráskép nem érhető el.");
     const srcBytes = new Uint8Array(await srcRes.arrayBuffer());
     const srcMime = srcRes.headers.get("content-type") ?? "image/jpeg";
 
-    // Újragenerálás ugyanazzal a motorral. A partner indoklását finoman hozzáfűzzük.
     let result: { bytes: Buffer; mimeType: string };
     if (mode === "feljavitas") {
       const cfg = await buildEnhanceFalActive();
@@ -51,10 +55,25 @@ export async function POST(request: Request) {
         negativePrompt: cfg.negative,
         upscaleFactor: Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4),
       });
+    } else if (useRejectedAsSource) {
+      // Célzott JAVÍTÁS a már rendberakott képen: csak a felsorolt tárgyakat kell eltüntetni.
+      const prompt = `You are a professional real-estate photo retoucher. This photo has ALREADY been decluttered, but a few items were missed. Your ONLY job is a small, surgical touch-up.
+
+${reason
+  ? `REMOVE EXACTLY these leftover items the user listed (and nothing else):\n"${reason}"`
+  : "REMOVE the remaining small movable clutter and personal items that are still visible on the floor, surfaces and shelves."}
+
+How to do it:
+- Erase each listed item completely and reconstruct the real surface behind it (floor tiles, countertop, wall, cabinet) so it looks natural and seamless, with matching lighting, shadows and perspective.
+- Change NOTHING else: keep the exact same room, camera angle, framing, colors, lighting, materials, and all furniture and fixtures exactly as they are, in the same positions.
+- Do NOT re-render or restyle the whole image, do NOT add, invent or hallucinate any new object, furniture, plant or decoration.
+
+Output exactly one photorealistic image — the same photo with only those leftover items removed. Return only the image.`;
+      result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt });
     } else {
       const base = await buildEnhancePromptActive("rendrakas");
       const extra = reason
-        ? `\n\nIMPORTANT — the previous attempt was rejected by the user for this reason: "${reason}". Do NOT repeat that mistake. Never invent, add or hallucinate any object, furniture or decoration that is not present in the input photo.`
+        ? `\n\nIMPORTANT — the previous attempt was rejected by the user for this reason: "${reason}". Make sure these items are removed, and never invent, add or hallucinate any object that is not present in the input photo.`
         : "\n\nIMPORTANT: never invent, add or hallucinate any object, furniture or decoration that is not present in the input photo.";
       result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt: base + extra });
     }

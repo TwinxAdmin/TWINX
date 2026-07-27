@@ -28,6 +28,8 @@ const dayLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
 const modeLabel = (m: string) => ENHANCE_MODES.find((x) => x.value === m)?.label ?? m;
 const otherMode = (m: EnhanceMode): EnhanceMode => (m === "feljavitas" ? "rendrakas" : "feljavitas");
+// Képenként ennyi ingyenes utójavítás jár (a rendrakás néha bent hagy 1-2 tárgyat).
+const MAX_FREE_FIX = 2;
 
 export default function ImageEnhancePage() {
   // Aktív ablak (melyik művelettel indítottunk); null = nincs nyitva.
@@ -499,9 +501,12 @@ export default function ImageEnhancePage() {
               {/* Újragenerálás indoklása */}
               {regenFor !== null && (
                 <div className="mt-4 rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                  <label className="block text-xs font-semibold">Mi a gond a képpel? (segít, hogy jobb legyen)</label>
+                  <label className="block text-xs font-semibold">Mit vegyünk ki még? Sorold fel, mi maradt bent</label>
+                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    A javítás a most látható képen történik — csak a felsorolt tárgyakat tünteti el, minden más marad.
+                  </p>
                   <textarea value={regenReason} onChange={(e) => setRegenReason(e.target.value)} rows={2}
-                    className="twx-input mt-1 w-full text-sm" placeholder="pl. betett egy nem létező asztalt a sarokba" />
+                    className="twx-input mt-1 w-full text-sm" placeholder="pl. cipők a jobb alsó sarokban, virág az asztalon, macskaszállító a székek mellett" />
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={regenerate} disabled={busy}
                       className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
@@ -521,12 +526,18 @@ export default function ImageEnhancePage() {
                   className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
                   {busy ? "Mentés…" : "Ezt elfogadom"}
                 </button>
-                <button type="button" disabled={busy || regenUsed.includes(pending[reviewIdx].original)}
-                  onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
-                  className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
-                  style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                  {regenUsed.includes(pending[reviewIdx].original) ? "Ingyenes újragenerálás felhasználva" : "Ezt újragenerálom (ingyenes)"}
-                </button>
+                {(() => {
+                  const used = regenUsed.filter((u) => u === pending[reviewIdx].original).length;
+                  const left = MAX_FREE_FIX - used;
+                  return (
+                    <button type="button" disabled={busy || left <= 0}
+                      onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
+                      className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+                      style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                      {left > 0 ? `Javítást kérek (ingyenes · ${left})` : "Ingyenes javítások elfogytak"}
+                    </button>
+                  );
+                })()}
               </div>
               {/* Az összes hátralévő egyben */}
               {pending.length > 1 && (
