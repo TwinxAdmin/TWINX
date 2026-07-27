@@ -184,7 +184,54 @@ export function fitSize(len: number, comfortable: number, base: number, min = 0.
   return Math.round(base * factor);
 }
 
-/** Biztonságos szövegdoboz CSS-e: tördel, és legfeljebb N sorban jelenik meg. */
-export function clampCss(lines: number): string {
-  return `display:-webkit-box;-webkit-line-clamp:${lines};-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;`;
+/**
+ * Biztonságos szövegdoboz: fix sormagassággal korlátozott magasság + rejtett túlnyúlás.
+ * (A -webkit-line-clamp-ot szándékosan NEM használjuk: a böngészőben renderelő
+ * html2canvas nem támogatja megbízhatóan, és kilóghatna a szöveg a sávból.)
+ */
+export function boxCss(lines: number, fontSize: number, lineHeight = 1.2): string {
+  const max = Math.ceil(lines * fontSize * lineHeight);
+  return `max-height:${max}px;overflow:hidden;line-height:${lineHeight};overflow-wrap:anywhere;word-break:break-word;`;
 }
+
+/** Túl hosszú szöveg levágása (a fitSize mellé, végső biztosíték). */
+export function truncate(s: string, max: number): string {
+  const t = String(s ?? "").trim();
+  return t.length <= max ? t : t.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
+}
+
+// --- Színpaletta az arculati fő színből ------------------------------------
+function hexToRgb(hex: string) {
+  const h = (hex || "#000000").replace("#", "");
+  return { r: parseInt(h.slice(0, 2), 16) || 0, g: parseInt(h.slice(2, 4), 16) || 0, b: parseInt(h.slice(4, 6), 16) || 0 };
+}
+function rgbToHex(r: number, g: number, b: number) {
+  const c = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+/** Világosítás (t>0) vagy sötétítés (t<0) a fő színen — harmonikus árnyalatokhoz. */
+export function shade(hex: string, t: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return t >= 0
+    ? rgbToHex(r + (255 - r) * t, g + (255 - g) * t, b + (255 - b) * t)
+    : rgbToHex(r * (1 + t), g * (1 + t), b * (1 + t));
+}
+
+/** A teljes hirdetés-paletta egy fő színből és a témából. */
+export function buildPalette(accent: string, theme: "light" | "dark") {
+  const dark = theme === "dark";
+  const acc = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#ef7a5a";
+  return {
+    accent: acc,
+    onAccent: contrastOn(acc),
+    accentDeep: shade(acc, -0.35),
+    accentSoftBg: accentSoft(acc, dark ? 0.22 : 0.12),
+    paper: dark ? "#14110f" : "#ffffff",
+    surface: dark ? "#1d1815" : "#f7f3ec",
+    ink: dark ? "#f6f1e9" : "#191512",
+    inkMuted: dark ? "rgba(246,241,233,0.66)" : "rgba(25,21,18,0.58)",
+    line: dark ? "rgba(255,255,255,0.14)" : "rgba(25,21,18,0.12)",
+    isDarkTheme: dark,
+  };
+}
+export type FlyerPalette = ReturnType<typeof buildPalette>;
