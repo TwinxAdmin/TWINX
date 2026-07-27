@@ -57,6 +57,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Válassz feldolgozási módot." }, { status: 422 });
   }
 
+  // defer=1 → az eredmény NEM kerül azonnal az előzményekbe; a partner előbb jóváhagyja.
+  const defer = String(form.get("defer") ?? "") === "1";
+
   const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
   const imagesError = validateImageFiles(files);
   if (imagesError) {
@@ -129,18 +132,22 @@ export async function POST(request: Request) {
       return { original, enhanced };
     }));
 
-    // Job mentése (dátum-mappák + before/after) — a saját sorába (RLS).
-    const { data: job } = await supabase
-      .from("image_enhance_jobs")
-      .insert({ user_id: user.id, mode, items })
-      .select("id, mode, items, created_at")
-      .single();
+    // Job mentése (dátum-mappák + before/after) — halasztott módban csak jóváhagyás után.
+    let job = null;
+    if (!defer) {
+      const { data } = await supabase
+        .from("image_enhance_jobs")
+        .insert({ user_id: user.id, mode, items })
+        .select("id, mode, items, created_at")
+        .single();
+      job = data;
+    }
 
     await admin.from("usage_history").insert({
       user_id: user.id,
       service_id: service.id,
       feature_used: FEATURE,
-      input_data: { mode, mode_label: enhanceModeLabel(mode), image_count: files.length, outputs: items.map((i) => i.enhanced) },
+      input_data: { mode, mode_label: enhanceModeLabel(mode), image_count: files.length, outputs: items.map((i) => i.enhanced), pending_review: defer },
       output_file_url: items[0]?.enhanced ?? null,
       credits_charged: charge.bypassed ? 0 : 1,
     });

@@ -47,6 +47,7 @@ export default async function AdminPromptsPage({
           <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
             <a href="/admin/analytics">Költségek</a>
             <a href="/admin/ideas">Ötletek</a>
+            <a href="/admin/rejections">Nem elfogadott</a>
             <a href="/dashboard">Dashboard</a>
           </nav>
         </div>

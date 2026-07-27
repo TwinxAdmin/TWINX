@@ -28,6 +28,7 @@ export default async function AdminUsersPage() {
             <a href="/admin/analytics">Költségfigyelő</a>
             <a href="/admin/prompts">Promptok</a>
             <a href="/admin/ideas">Ötletek</a>
+            <a href="/admin/rejections">Nem elfogadott</a>
             <a href="/admin/credits">Kredit</a>
             <a href="/dashboard">Dashboard</a>
           </nav>

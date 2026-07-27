@@ -40,6 +40,7 @@ export default async function AdminCreditsPage() {
           <a href="/admin/prompts">Promptok</a>
           <a href="/admin/users">Felhasználók</a>
           <a href="/admin/ideas">Ötletek</a>
+            <a href="/admin/rejections">Nem elfogadott</a>
           <a href="/dashboard">Dashboard</a>
         </nav>
       </div>

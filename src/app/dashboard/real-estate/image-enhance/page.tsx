@@ -44,6 +44,15 @@ export default function ImageEnhancePage() {
   const [lightbox, setLightbox] = useState<{ items: Item[]; index: number } | null>(null);
   const [view, setView] = useState<"enhanced" | "original">("enhanced");
   const [assetsReload, setAssetsReload] = useState(0);
+
+  // Jóváhagyás (rendrakás): az eredmény csak elfogadás után kerül az elkészült munkák közé.
+  const [pending, setPending] = useState<Item[] | null>(null);
+  const [reviewIdx, setReviewIdx] = useState(0);
+  const [reviewView, setReviewView] = useState<"enhanced" | "original">("enhanced");
+  const [regenFor, setRegenFor] = useState<string | null>(null); // original url
+  const [regenReason, setRegenReason] = useState("");
+  const [regenUsed, setRegenUsed] = useState<string[]>([]);      // ahol már volt ingyenes újragenerálás
+  const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,16 +105,26 @@ export default function ImageEnhancePage() {
   async function process(m: EnhanceMode, files: File[]): Promise<boolean> {
     setLoading(true);
     try {
+      // Rendrakásnál előbb a partner hagyja jóvá — csak utána mentjük az előzményekbe.
+      const needsReview = m === "rendrakas";
       const fd = new FormData();
       fd.append("mode", m);
+      if (needsReview) fd.append("defer", "1");
       for (const f of files) fd.append("images", await compressImage(f, 1600, 0.85));
       const res = await fetch(API, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) { showToast(data.error ?? data.errors?.images ?? "A feldolgozás nem sikerült.", "error"); return false; }
-      setResults(data.items ?? []);
       setProducedMode(m);
-      if (data.job) setHistory((h) => [data.job as Job, ...h]);
-      setAssetsReload((n) => n + 1);
+      if (needsReview) {
+        setPending(data.items ?? []);
+        setReviewIdx(0);
+        setReviewView("enhanced");
+        setRegenUsed([]);
+      } else {
+        setResults(data.items ?? []);
+        if (data.job) setHistory((h) => [data.job as Job, ...h]);
+        setAssetsReload((n) => n + 1);
+      }
       showToast(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)", "success");
       return true;
     } catch {
@@ -122,6 +141,49 @@ export default function ImageEnhancePage() {
     if (!picks.length) { showToast("Tölts fel legalább egy képet.", "error"); return; }
     const ok = await process(session, picks.map((p) => p.file));
     if (ok) setPicks([]);
+  }
+
+  // Jóváhagyás: az elfogadott képek bekerülnek az elkészült munkák közé.
+  async function acceptPending() {
+    if (!pending || !producedMode) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${API}/accept`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: producedMode, items: pending }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error();
+      setResults(pending);
+      if (data.job) setHistory((h) => [data.job as Job, ...h]);
+      setAssetsReload((n) => n + 1);
+      setPending(null);
+      showToast("Elfogadva — bekerült az elkészült munkák közé.", "success");
+    } catch {
+      showToast("Nem sikerült elfogadni. Próbáld újra.", "error");
+    } finally { setBusy(false); }
+  }
+
+  // Ingyenes újragenerálás (indoklással) — kreditet nem von.
+  async function regenerate() {
+    if (!pending || !producedMode || regenFor === null) return;
+    const idx = pending.findIndex((p) => p.original === regenFor);
+    if (idx < 0) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${API}/regenerate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: producedMode, original: pending[idx].original, rejected: pending[idx].enhanced, reason: regenReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPending((prev) => prev ? prev.map((p, i) => (i === idx ? data.item : p)) : prev);
+      setRegenUsed((u) => [...u, pending[idx].original]);
+      setRegenFor(null); setRegenReason("");
+      showToast("Új változat elkészült (ingyenes).", "success");
+    } catch {
+      showToast("Az újragenerálás nem sikerült.", "error");
+    } finally { setBusy(false); }
   }
 
   // Átjátszás: a MÁSIK műveletet futtatja az elkészült képeken.
@@ -336,6 +398,100 @@ export default function ImageEnhancePage() {
                   </p>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Jóváhagyó ablak (rendrakás) — lapozható, eredeti/elkészült váltással */}
+      {pending && pending.length > 0 && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
+            <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+              <div>
+                <div className="font-display text-lg font-semibold">Nézd át az eredményt</div>
+                <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {reviewIdx + 1} / {pending.length} kép · elfogadás után kerül az elkészült munkák közé
+                </div>
+              </div>
+              <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Esc: később</span>
+            </div>
+
+            <div className="relative flex-1 overflow-y-auto p-4">
+              <div className="relative mx-auto w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={reviewView === "enhanced" ? pending[reviewIdx].enhanced : pending[reviewIdx].original}
+                  alt="Eredmény"
+                  className="mx-auto max-h-[52vh] w-auto rounded-xl object-contain"
+                  style={{ border: "1px solid var(--twx-line)" }}
+                />
+                {/* Bal felső sarok: eredeti / elkészült váltás */}
+                <div className="absolute left-2 top-2 flex overflow-hidden rounded-full text-xs shadow"
+                  style={{ background: "rgba(255,255,255,0.95)", border: "1px solid var(--twx-line)" }}>
+                  {(["original", "enhanced"] as const).map((v) => (
+                    <button key={v} type="button" onClick={() => setReviewView(v)} className="px-3 py-1.5 font-medium"
+                      style={reviewView === v ? { background: "var(--twx-coral)", color: "#1c1005" } : { color: "var(--twx-ink)" }}>
+                      {v === "original" ? "Eredeti" : "Elkészült"}
+                    </button>
+                  ))}
+                </div>
+                {/* Lapozás */}
+                {pending.length > 1 && (
+                  <>
+                    <button type="button" onClick={() => setReviewIdx((i) => (i - 1 + pending.length) % pending.length)} aria-label="Előző"
+                      className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-xl shadow"
+                      style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>‹</button>
+                    <button type="button" onClick={() => setReviewIdx((i) => (i + 1) % pending.length)} aria-label="Következő"
+                      className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-xl shadow"
+                      style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>›</button>
+                  </>
+                )}
+              </div>
+
+              {/* Bélyegképek */}
+              {pending.length > 1 && (
+                <div className="mt-3 flex justify-center gap-2">
+                  {pending.map((p, i) => (
+                    <button key={p.enhanced + i} type="button" onClick={() => { setReviewIdx(i); setReviewView("enhanced"); }}
+                      className="overflow-hidden rounded-lg border-2" style={{ borderColor: i === reviewIdx ? "var(--twx-coral)" : "var(--twx-line)" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.enhanced} alt="" className="h-12 w-16 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Újragenerálás indoklása */}
+              {regenFor !== null && (
+                <div className="mt-4 rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                  <label className="block text-xs font-semibold">Mi a gond a képpel? (segít, hogy jobb legyen)</label>
+                  <textarea value={regenReason} onChange={(e) => setRegenReason(e.target.value)} rows={2}
+                    className="twx-input mt-1 w-full text-sm" placeholder="pl. betett egy nem létező asztalt a sarokba" />
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" onClick={regenerate} disabled={busy}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                      {busy ? "Újragenerálás…" : "Újragenerálás indítása (ingyenes)"}
+                    </button>
+                    <button type="button" onClick={() => { setRegenFor(null); setRegenReason(""); }} disabled={busy}
+                      className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Mégse</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 border-t p-4 sm:flex-row" style={{ borderColor: "var(--twx-line)" }}>
+              <button type="button" onClick={acceptPending} disabled={busy}
+                className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                {busy ? "Mentés…" : `Elfogadom${pending.length > 1 ? " mindet" : ""}`}
+              </button>
+              <button type="button" disabled={busy || regenUsed.includes(pending[reviewIdx].original)}
+                onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+                style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
+                {regenUsed.includes(pending[reviewIdx].original) ? "Ingyenes újragenerálás felhasználva" : "Nem jó — újragenerálás (ingyenes)"}
+              </button>
             </div>
           </div>
         </div>
