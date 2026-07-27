@@ -1,7 +1,6 @@
 // dashboard/branding — Arculatok: több arculat-profil kezelése (céges, közös belépéshez is).
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
-import SelectField from "@/components/SelectField";
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -12,6 +11,18 @@ import {
   type BrandingProfile,
 } from "@/lib/branding";
 import { compressImage } from "@/lib/image-compress";
+
+// Gyors színpaletta az arculathoz (egyedi szín továbbra is választható).
+const PRESET_COLORS = ["#ef7a5a", "#c2410c", "#b45309", "#15803d", "#0e7490", "#1d4ed8", "#6d28d9", "#be123c", "#1f2937"];
+
+// A betűtípus-kártyák mintájához (a render Google Fontsból tölti a végleges betűt).
+const FONT_STACK: Record<string, string> = {
+  inter: "Inter, system-ui, sans-serif",
+  montserrat: "Montserrat, system-ui, sans-serif",
+  playfair: "'Playfair Display', Georgia, serif",
+  poppins: "Poppins, system-ui, sans-serif",
+  clash: "'Space Grotesk', system-ui, sans-serif",
+};
 
 export default function BrandingPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -122,71 +133,124 @@ export default function BrandingPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6">
       <ModuleIntro
-        eyebrow="Hirdetéskészítő · Arculat"
-        title="Arculatok"
-        subtitle="Hozd létre a saját (vagy kollégáid) arculatát — logó, szín, ügynök-fotó és elérhetőség. Hirdetés készítésekor ezek közül választasz, és minden automatikusan a helyére kerül."
+        eyebrow="Fiók · Arculat"
+        title="Arculatom"
+        subtitle="A saját (vagy kollégáid) arculata — logó, szín, betűtípus, fotó és elérhetőség. A hirdetések és a videók is ebből dolgoznak: egyszer beállítod, és minden a te márkáddal készül. Kattints egy arculatra a szerkesztéshez."
         icon="branding"
-        chips={["Logó & szín", "Ügynök-fotó", "Több profil"]}
+        chips={["Logó & szín", "Saját fotó", "Több profil"]}
       />
-      <div className="flex justify-end">
-        <button onClick={openNew} className="twx-btn">
-          Új arculat
-        </button>
-      </div>
-
       {loading ? (
         <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
-      ) : profiles.length === 0 && !showForm ? (
-        <div
-          className="rounded-xl p-6 text-sm"
-          style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
-        >
-          Még nincs arculatod. Hozz létre egyet az „Új arculat" gombbal.
-        </div>
       ) : (
-        <ul className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {profiles.map((p) => (
-            <li key={p.id} className="twx-card flex items-center justify-between gap-4 p-4">
-              <button
-                type="button"
-                onClick={() => {
-                  if (showForm && editing?.id === p.id) setShowForm(false);
-                  else openEdit(p);
-                }}
-                className="flex flex-1 items-center gap-3 rounded-lg text-left transition-colors hover:bg-black/[0.03]"
-              >
-                {p.logo_url ? (
-                  <img src={p.logo_url} alt="" className="h-10 w-10 rounded object-contain" style={{ border: "1px solid var(--twx-line)" }} />
-                ) : (
-                  <span className="h-10 w-10 rounded" style={{ background: p.accent_color }} />
-                )}
-                <div>
-                  <p className="font-medium">{p.label}</p>
-                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {p.display_name}
-                    {p.title ? ` · ${p.title}` : ""}
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => openEdit(p)}
+              className="group relative overflow-hidden rounded-2xl bg-white text-left transition hover:shadow-md"
+              style={{ border: "1px solid var(--twx-line)", boxShadow: "0 2px 10px rgba(20,12,8,0.06)" }}
+            >
+              {/* Színsáv az arculat kiemelő színével */}
+              <div className="h-1.5 w-full" style={{ background: p.accent_color }} />
+              <div className="flex items-center gap-3 p-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
+                  {p.logo_url ? (
+                    <img src={p.logo_url} alt="" className="h-full w-full object-contain p-1.5" />
+                  ) : (
+                    <span className="text-xl" style={{ color: "var(--twx-line)" }}>▦</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-base font-semibold">{p.label}</p>
+                  <p className="truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {p.display_name}{p.title ? ` · ${p.title}` : ""}
+                  </p>
+                  <p className="mt-1 truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {[p.company, p.phone].filter(Boolean).join(" · ") || "Nincs megadva elérhetőség"}
                   </p>
                 </div>
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="h-5 w-5 rounded-full" style={{ background: p.accent_color, border: "1px solid var(--twx-line)" }} />
-                <button onClick={() => openEdit(p)} className="text-sm underline" style={{ color: "var(--twx-coral)" }}>
-                  Szerkeszt
-                </button>
-                <button onClick={() => remove(p.id)} className="text-sm underline" style={{ color: "var(--twx-ink-muted)" }}>
-                  Törlés
-                </button>
+                {p.agent_photo_url && (
+                  <img src={p.agent_photo_url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover"
+                    style={{ border: "2px solid #fff", boxShadow: "0 2px 8px rgba(0,0,0,.12)" }} />
+                )}
               </div>
-            </li>
+              <span className="absolute bottom-2 right-3 text-[11px] font-medium opacity-0 transition group-hover:opacity-100" style={{ color: "var(--twx-coral)" }}>
+                Szerkesztés →
+              </span>
+            </button>
           ))}
-        </ul>
+
+          {/* Új arculat kártya */}
+          <button
+            type="button"
+            onClick={openNew}
+            className="flex min-h-[7rem] flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed p-6 text-sm font-medium transition hover:shadow-sm"
+            style={{ borderColor: "var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
+          >
+            <span className="text-2xl leading-none">＋</span>
+            Új arculat
+            <span className="text-[11px] font-normal" style={{ color: "var(--twx-ink-muted)" }}>
+              Kollégának vagy másik irodához
+            </span>
+          </button>
+        </div>
       )}
 
       {showForm && (
-        <form onSubmit={onSubmit} className="twx-card space-y-4 p-6">
-          <h2 className="font-display text-xl font-medium">
-            {editing ? "Arculat szerkesztése" : "Új arculat"}
-          </h2>
+        <div onClick={() => !saving && setShowForm(false)} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.5)" }}>
+        <form onSubmit={onSubmit} onClick={(e) => e.stopPropagation()}
+          className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+          style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
+          <div className="flex items-center justify-between gap-3 border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+            <h2 className="font-display text-lg font-medium">
+              {editing ? "Arculat szerkesztése" : "Új arculat"}
+            </h2>
+            <div className="flex items-center gap-2">
+              {editing && (
+                <button type="button" onClick={() => remove(editing.id)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium" style={{ border: "1px solid var(--twx-line)", color: "#dc2626" }}>
+                  Törlés
+                </button>
+              )}
+              <button type="button" onClick={() => setShowForm(false)} className="rounded-lg px-2 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
+
+          {/* Élő előnézet — így néz ki az arculat a hirdetésen és a videó végkártyáján */}
+          <div className="rounded-xl p-4" style={{ background: values.theme === "dark" ? "#141210" : "#fff", border: "1px solid var(--twx-line)" }}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                style={{ background: values.theme === "dark" ? "rgba(255,255,255,0.06)" : "var(--twx-cream)" }}>
+                {logoPreview || editing?.logo_url ? (
+                  <img src={logoPreview ?? editing?.logo_url ?? ""} alt="" className="h-full w-full object-contain p-1" />
+                ) : (
+                  <span className="text-lg" style={{ color: "var(--twx-line)" }}>▦</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold" style={{ color: values.theme === "dark" ? "#fff" : "var(--twx-ink)" }}>
+                  {values.display_name || "Megjelenő név"}
+                </p>
+                <p className="truncate text-xs" style={{ color: values.accent_color }}>
+                  {values.title || "titulus"}{values.company ? ` · ${values.company}` : ""}
+                </p>
+                <p className="truncate text-[11px]" style={{ color: values.theme === "dark" ? "rgba(255,255,255,0.6)" : "var(--twx-ink-muted)" }}>
+                  {[values.phone, values.email].filter(Boolean).join(" · ") || "telefon · e-mail"}
+                </p>
+              </div>
+              {(agentPreview || editing?.agent_photo_url) && (
+                <img src={agentPreview ?? editing?.agent_photo_url ?? ""} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  style={{ border: `2px solid ${values.accent_color}` }} />
+              )}
+            </div>
+            <p className="mt-2 text-[11px]" style={{ color: values.theme === "dark" ? "rgba(255,255,255,0.5)" : "var(--twx-ink-muted)" }}>
+              Előnézet — így jelenik meg a hirdetéseiden és a videók végkártyáján.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Profil neve (belső)" req value={values.label} onChange={(v) => setField("label", v)} err={errors.label} placeholder="pl. Péter" />
@@ -199,24 +263,71 @@ export default function BrandingPage() {
             <Field label="Slogan / megjegyzés" value={values.slogan} onChange={(v) => setField("slogan", v)} placeholder="pl. díjtalan hitelügyintézés" />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm">Kiemelő szín</label>
-              <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={values.accent_color} onChange={(e) => setField("accent_color", e.target.value)} className="h-9 w-12 rounded" style={{ border: "1px solid var(--twx-line)" }} />
-                <input type="text" value={values.accent_color} onChange={(e) => setField("accent_color", e.target.value)} className="twx-input" />
-              </div>
-              {errors.accent_color && <p className="mt-1 text-xs text-red-600">{errors.accent_color}</p>}
+          {/* Kiemelő szín — gyors paletta + egyedi */}
+          <div>
+            <label className="block text-sm font-semibold">Kiemelő szín</label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {PRESET_COLORS.map((hex) => {
+                const on = values.accent_color.toLowerCase() === hex.toLowerCase();
+                return (
+                  <button key={hex} type="button" title={hex} onClick={() => setField("accent_color", hex)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full transition"
+                    style={{ background: hex, border: on ? "2px solid var(--twx-ink)" : "1px solid var(--twx-line)", boxShadow: on ? "0 0 0 3px rgba(20,12,8,0.10)" : "none" }}>
+                    {on && <span className="text-sm font-bold" style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.5)" }}>✓</span>}
+                  </button>
+                );
+              })}
+              <span className="mx-1 h-6 w-px" style={{ background: "var(--twx-line)" }} />
+              <input type="color" value={values.accent_color} onChange={(e) => setField("accent_color", e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded" style={{ border: "1px solid var(--twx-line)" }} title="Egyedi szín" />
+              <input type="text" value={values.accent_color} onChange={(e) => setField("accent_color", e.target.value)}
+                className="twx-input w-28 text-sm" />
             </div>
-            <div>
-              <label className="block text-sm">Betűtípus</label>
-              <SelectField className="mt-1 w-full" value={values.font} onChange={(v) => setField("font", v)}
-                options={BRANDING_FONTS.map((f) => ({ value: f.value, label: f.label }))} />
+            {errors.accent_color && <p className="mt-1 text-xs text-red-600">{errors.accent_color}</p>}
+          </div>
+
+          {/* Betűtípus — kártyák a betű mintájával */}
+          <div>
+            <label className="block text-sm font-semibold">Betűtípus</label>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Minden választható betűtípus tartalmazza a magyar ékezeteket.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {BRANDING_FONTS.map((f) => {
+                const on = values.font === f.value;
+                const [name, desc] = f.label.split(" — ");
+                return (
+                  <button key={f.value} type="button" onClick={() => setField("font", f.value)}
+                    className="rounded-xl p-3 text-left transition hover:shadow-sm"
+                    style={on
+                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }
+                      : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+                    <span className="block text-base font-semibold" style={{ fontFamily: FONT_STACK[f.value] ?? "inherit", color: on ? "#7a2e17" : "var(--twx-ink)" }}>
+                      Árvíztűrő {name}
+                    </span>
+                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{desc}</span>
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <label className="block text-sm">Téma</label>
-              <SelectField className="mt-1 w-full" value={values.theme} onChange={(v) => setField("theme", v as "light" | "dark")}
-                options={BRANDING_THEMES.map((t) => ({ value: t.value, label: t.label }))} />
+          </div>
+
+          {/* Téma — chipek */}
+          <div>
+            <label className="block text-sm font-semibold">Téma</label>
+            <div className="mt-2 flex gap-2">
+              {BRANDING_THEMES.map((t) => {
+                const on = values.theme === t.value;
+                return (
+                  <button key={t.value} type="button" onClick={() => setField("theme", t.value)}
+                    className="rounded-full px-4 py-1.5 text-xs font-medium transition"
+                    style={on
+                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" }
+                      : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -300,16 +411,26 @@ export default function BrandingPage() {
           </div>
 
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+          </div>
 
-          <div className="flex gap-3">
-            <button type="submit" disabled={saving} className="twx-btn">
-              {saving ? "Mentés…" : "Mentés"}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-full px-5 py-2.5 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}>
-              Mégse
-            </button>
+          {/* Mentés-sáv */}
+          <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              Az arculatot a hirdetések és a videók is ebből veszik.
+            </span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowForm(false)} disabled={saving}
+                className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+                Mégse
+              </button>
+              <button type="submit" disabled={saving}
+                className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                {saving ? "Mentés…" : "Mentés"}
+              </button>
+            </div>
           </div>
         </form>
+        </div>
       )}
     </main>
   );
