@@ -32,6 +32,8 @@ export default function VisualizationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
+  // A kép beállító ablaka (közepes modal) nyitva van-e.
+  const [configOpen, setConfigOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export default function VisualizationPage() {
   function removeAt(index: number) {
     setItems((prev) => prev.filter((_, i) => i !== index));
     setSelected(null);
+    setConfigOpen(false);
   }
 
   // URL-ekből letölti a képeket és felveszi a feldolgozandók közé (tálca átvétel).
@@ -194,51 +197,50 @@ export default function VisualizationPage() {
         chips={["Fotórealisztikus", "Bútorozás", "Helységenként"]}
       />
 
-      {/* Feltöltő zóna */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-xl border-2 border-dashed p-6 text-center text-sm"
-        style={{
-          borderColor: dragOver ? "var(--twx-coral)" : "var(--twx-line)",
-          background: dragOver ? "var(--twx-cream-card)" : "transparent",
-        }}
-      >
-        <span style={{ color: "var(--twx-ink-muted)" }}>
-          Húzd ide a képeket, vagy kattints a tallózáshoz (JPG / PNG / WEBP, max. 10 MB,
-          max. {MAX_IMAGES})
-        </span>
+      {/* 4 kép-hely: tallózás vagy a korábbi munkákból ráhúzás */}
+      <div className="twx-card p-5 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">Képek ({items.length}/{MAX_IMAGES})</h2>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Tölts fel, vagy húzz ide képet a korábbi munkáidból — majd kattints rá a beállításokhoz.
+          </span>
+        </div>
+
         <input
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
           className="hidden"
-          onChange={(e) => addFiles(e.target.files)}
+          onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }}
         />
-      </div>
 
-
-      {/* Kép-kártyák */}
-      {items.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {items.map((it, i) => {
+          {Array.from({ length: MAX_IMAGES }).map((_, i) => {
+            const it = items[i];
+            if (!it) {
+              const over = dragOver && i === items.length;
+              return (
+                <button key={`empty-${i}`} type="button" onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onDrop}
+                  className="flex aspect-[4/3] flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-3 text-center text-xs transition"
+                  style={{ borderColor: over ? "var(--twx-coral)" : "var(--twx-line)", background: over ? "rgba(239,122,90,0.06)" : "transparent", color: "var(--twx-ink-muted)" }}>
+                  <span className="text-lg leading-none" style={{ color: "var(--twx-coral)" }}>＋</span>
+                  {over ? "Engedd el ide" : `${i + 1}. kép`}
+                </button>
+              );
+            }
             const ready = isRoomConfigReady(it.config);
-            const active = selected === i;
             return (
               <figure
                 key={it.url}
-                onClick={() => setSelected(i)}
+                onClick={() => { setSelected(i); setConfigOpen(true); }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={onDrop}
                 className="group relative cursor-pointer overflow-hidden rounded-xl bg-white transition hover:shadow-md"
-                style={{
-                  border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                  boxShadow: active ? "0 4px 16px rgba(239,122,90,0.18)" : "0 2px 10px rgba(20,12,8,0.06)",
-                }}
+                style={{ border: "1px solid var(--twx-line)", boxShadow: "0 2px 10px rgba(20,12,8,0.06)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={it.url} alt={`Kép ${i + 1}`} className="aspect-[4/3] w-full object-cover" />
@@ -264,20 +266,31 @@ export default function VisualizationPage() {
             );
           })}
         </div>
-      )}
+      </div>
 
-      {/* Konfig panel a kiválasztott képhez */}
-      {current && (
-        <div className="twx-card space-y-5 p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-medium">{(selected ?? 0) + 1}. kép beállításai</h2>
-            <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-              style={isRoomConfigReady(current.config)
-                ? { background: "rgba(22,163,74,0.12)", color: "#15803d" }
-                : { background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-              {isRoomConfigReady(current.config) ? "Kész a generálásra" : "Válassz helységet"}
-            </span>
+      {/* Beállító ablak a kiválasztott képhez */}
+      {current && configOpen && (
+        <div onClick={() => setConfigOpen(false)} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.5)" }}>
+        <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+          style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
+          <div className="flex items-center justify-between gap-3 border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={current.url} alt="" className="h-10 w-14 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+              <h2 className="font-display text-lg font-medium">{(selected ?? 0) + 1}. kép beállításai</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                style={isRoomConfigReady(current.config)
+                  ? { background: "rgba(22,163,74,0.12)", color: "#15803d" }
+                  : { background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                {isRoomConfigReady(current.config) ? "Kész" : "Válassz helységet"}
+              </span>
+              <button onClick={() => setConfigOpen(false)} className="rounded-lg px-2 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            </div>
           </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
 
           {/* Helység — kötelező, chipes választás */}
           <Section title="Helység típusa" required>
@@ -353,6 +366,27 @@ export default function VisualizationPage() {
               placeholder="pl. növények, meleg tónusok"
             />
           </Section>
+          </div>
+
+          {/* Mentés — a beállítások a képhez tartoznak, az ablak bezárul */}
+          <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+            <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              {isRoomConfigReady(current.config) ? "Ez a kép készen áll." : "A helység megadása kötelező."}
+            </span>
+            <div className="flex gap-2">
+              {selected !== null && selected < items.length - 1 && (
+                <button type="button" onClick={() => setSelected((s) => (s === null ? s : s + 1))}
+                  className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>
+                  Mentés és következő kép
+                </button>
+              )}
+              <button type="button" onClick={() => setConfigOpen(false)}
+                className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                Mentés
+              </button>
+            </div>
+          </div>
+        </div>
         </div>
       )}
 
@@ -365,9 +399,11 @@ export default function VisualizationPage() {
         >
           {loading
             ? "Generálás…"
-            : allReady
-              ? "Látványtervek generálása"
-              : "Állítsd be az összes képet"}
+            : items.length === 0
+              ? "Tölts fel legalább egy képet"
+              : allReady
+                ? `Látványtervek generálása (${items.length} kép · 1 kredit)`
+                : "Állítsd be az összes képet"}
         </button>
       </form>
 
