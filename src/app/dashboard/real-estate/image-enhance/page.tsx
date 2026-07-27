@@ -28,8 +28,8 @@ const dayLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
 const modeLabel = (m: string) => ENHANCE_MODES.find((x) => x.value === m)?.label ?? m;
 const otherMode = (m: EnhanceMode): EnhanceMode => (m === "feljavitas" ? "rendrakas" : "feljavitas");
-// Képenként ennyi ingyenes utójavítás jár (a rendrakás néha bent hagy 1-2 tárgyat).
-const MAX_FREE_FIX = 2;
+// Képenként ennyi ingyenes utójavítás jár.
+const MAX_FREE_FIX = 1;
 
 export default function ImageEnhancePage() {
   // Aktív ablak (melyik művelettel indítottunk); null = nincs nyitva.
@@ -534,7 +534,7 @@ export default function ImageEnhancePage() {
                       onClick={() => { setRegenFor(pending[reviewIdx].original); setRegenReason(""); }}
                       className="flex-1 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
                       style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
-                      {left > 0 ? `Javítást kérek (ingyenes · ${left})` : "Ingyenes javítások elfogytak"}
+                      {left > 0 ? "Javítást kérek (ingyenes)" : "Az ingyenes javítás felhasználva"}
                     </button>
                   );
                 })()}
