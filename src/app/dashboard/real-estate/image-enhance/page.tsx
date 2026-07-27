@@ -42,6 +42,8 @@ export default function ImageEnhancePage() {
   const [dragOver, setDragOver] = useState(false);
   // Melyik mód-kártya fölött húzunk épp egy képet a tálcából.
   const [dropMode, setDropMode] = useState<EnhanceMode | null>(null);
+  // A tálcából behúzott, épp feldolgozás alatt lévő kép előnézete.
+  const [sourcePreview, setSourcePreview] = useState<string | null>(null);
 
   const [history, setHistory] = useState<Job[]>([]);
   const [favs, setFavs] = useState<Fav[]>([]);
@@ -84,12 +86,14 @@ export default function ImageEnhancePage() {
     setPicks([]);
     setResults([]);
     setProducedMode(null);
+    setSourcePreview(null);
   }
   function closeSession() {
     setSession(null);
     setPicks([]);
     setResults([]);
     setProducedMode(null);
+    setSourcePreview(null);
   }
   function resetToUpload() {
     setResults([]);
@@ -155,6 +159,7 @@ export default function ImageEnhancePage() {
   // A tálcából ráhúzott kép feldolgozása: megnyitja a mód ablakát és rögtön indít.
   async function startWithUrl(m: EnhanceMode, url: string) {
     openSession(m);
+    setSourcePreview(url);
     setLoading(true);
     try {
       const r = await fetch(url);
@@ -402,7 +407,23 @@ export default function ImageEnhancePage() {
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
-              {results.length === 0 ? (
+              {results.length === 0 && loading && sourcePreview ? (
+                /* A tálcából behúzott kép feldolgozása — látszik, melyik képpel dolgozunk */
+                <div className="space-y-3 text-center">
+                  <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={sourcePreview} alt="Feldolgozás alatt" className="w-full object-cover" style={{ maxHeight: "40vh", opacity: 0.92 }} />
+                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(20,12,8,0.35)" }}>
+                      <span className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+                        style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        {session ? modeLabel(session) : "Feldolgozás"} folyamatban…
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Néhány másodperc, és kész az eredmény.</p>
+                </div>
+              ) : results.length === 0 ? (
                 <>
                   {/* Feltöltő */}
                   <div>
