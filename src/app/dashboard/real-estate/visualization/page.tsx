@@ -192,7 +192,7 @@ export default function VisualizationPage() {
       <ModuleIntro
         eyebrow="Ingatlan · Vizuál"
         title="Ingatlan Látványtervező"
-        subtitle={`Üres vagy elavult szobákból fotórealisztikus, berendezett látványterv — hogy a vevő elképzelje a potenciált. Tölts fel max. ${MAX_IMAGES} képet, add meg a helységet, a többit az AI hozza. Egy ingatlan = 1 kredit.`}
+        subtitle={`Üres vagy elavult szobákból fotórealisztikus, berendezett látványterv — hogy a vevő elképzelje a potenciált. Egy képpel is működik, legfeljebb ${MAX_IMAGES} mehet egyszerre. Add meg a helységet, a többit az AI hozza. Egy feldolgozás = 1 kredit.`}
         icon="visualization"
         chips={["Fotórealisztikus", "Bútorozás", "Helységenként"]}
       />
@@ -202,7 +202,7 @@ export default function VisualizationPage() {
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">Képek ({items.length}/{MAX_IMAGES})</h2>
           <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            Tölts fel, vagy húzz ide képet a korábbi munkáidból — majd kattints rá a beállításokhoz.
+            Egy képpel is működik — a {MAX_IMAGES} csak a maximum. Tölts fel, vagy húzz ide képet a korábbi munkáidból, majd kattints rá a beállításokhoz.
           </span>
         </div>
 
