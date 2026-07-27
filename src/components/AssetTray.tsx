@@ -5,9 +5,10 @@
 // rendelni (címkézés) legördülőből VAGY a mappára húzva. A képek a munkába is behúzhatók.
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import { compressImage } from "@/lib/image-compress";
 
 export const TWX_DRAG_TYPE = "application/x-twinx-url";
 export function readTwxDragUrl(dt: DataTransfer): string {
@@ -43,6 +44,9 @@ export default function AssetTray({
   const [renaming, setRenaming] = useState<string | null>(null); // folder key
   const [renameValue, setRenameValue] = useState("");
   const [assignFor, setAssignFor] = useState<string | null>(null); // image url
+  const [menuFor, setMenuFor] = useState<string | null>(null); // folder key (⋯ menü)
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
 
   const fetchAssets = useCallback(async () => {
     try {
@@ -129,6 +133,24 @@ export default function AssetTray({
       await fetchAssets();
     } catch { showToast("Nem sikerült.", "error"); }
   }
+  async function uploadToFolder(folderId: string, files: FileList | null) {
+    if (!files || !files.length) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("folderId", folderId);
+      for (const f of Array.from(files)) fd.append("images", await compressImage(f, 1600, 0.85));
+      const res = await fetch(`${API}/folders/upload`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast("Kép feltöltve a mappába.", "success");
+      await fetchAssets();
+    } catch {
+      showToast("Nem sikerült feltölteni.", "error");
+    } finally {
+      setUploading(false);
+    }
+  }
   async function addFavorite(url: string) {
     try {
       const res = await fetch(`${API}/image-enhance/favorites`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enhanced: url, original: url }) });
@@ -159,7 +181,7 @@ export default function AssetTray({
   ];
   const q = query.trim().toLowerCase();
   const filtered = q ? entries.filter((e) => e.label.toLowerCase().includes(q)) : entries;
-  const LIMIT = 9;
+  const LIMIT = 8;
   const visibleEntries = expanded ? filtered : filtered.slice(0, LIMIT);
 
   if (loading) {
@@ -227,20 +249,24 @@ export default function AssetTray({
                   </button>
                 )}
 
-                {/* Szerkesztő ikonok (átnevezés / törlés) — Kedvenceknél nem */}
+                {/* Három-pont menü (átnevezés / törlés) — Kedvenceknél nem */}
                 {canEdit && !isRenaming && (
-                  <div className="absolute right-1 top-1 hidden gap-1 group-hover:flex">
-                    <button type="button" title="Átnevezés" aria-label="Átnevezés"
-                      onClick={(ev) => { ev.stopPropagation(); setRenaming(e.key); setRenameValue(e.label); }}
+                  <div className="absolute right-1 top-1">
+                    <button type="button" aria-label="Lehetőségek"
+                      onClick={(ev) => { ev.stopPropagation(); setMenuFor(menuFor === e.key ? null : e.key); }}
                       className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.9)", border: "1px solid var(--twx-line)" }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink-muted)" }}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ color: "var(--twx-ink-muted)" }} aria-hidden><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
                     </button>
-                    {e.kind === "named" && (
-                      <button type="button" title="Törlés" aria-label="Törlés"
-                        onClick={(ev) => { ev.stopPropagation(); const f = folders.find((x) => x.key === e.key); if (f && confirm(`Törlöd a(z) „${f.label}" mappát? (a képek megmaradnak)`)) void deleteFolder(f); }}
-                        className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.9)", border: "1px solid var(--twx-line)" }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink-muted)" }}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
-                      </button>
+                    {menuFor === e.key && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={(ev) => { ev.stopPropagation(); setMenuFor(null); }} />
+                        <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-lg border text-sm shadow-lg" style={{ borderColor: "var(--twx-line)", background: "#fff" }} onClick={(ev) => ev.stopPropagation()}>
+                          <button type="button" onClick={() => { setRenaming(e.key); setRenameValue(e.label); setMenuFor(null); }} className="block w-full px-3 py-2 text-left hover:bg-black/[0.04]">Átnevezés</button>
+                          {e.kind === "named" && (
+                            <button type="button" onClick={() => { const f = folders.find((x) => x.key === e.key); setMenuFor(null); if (f && confirm(`Törlöd a(z) „${f.label}" mappát? (a képek megmaradnak)`)) void deleteFolder(f); }} className="block w-full px-3 py-2 text-left text-red-600 hover:bg-black/[0.04]">Törlés</button>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -289,10 +315,47 @@ export default function AssetTray({
             className="fixed right-4 top-28 z-40 flex max-h-[74vh] w-[min(360px,92vw)] flex-col overflow-hidden rounded-2xl"
             style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}
           >
-            <div className="flex items-center justify-between border-b p-3" style={{ borderColor: "var(--twx-line)" }}>
-              <div className="min-w-0 truncate font-display text-sm font-semibold">{openLabel} · {openUrls.length} kép</div>
-              <button onClick={() => { setOpen(null); setAssignFor(null); }} className="rounded-lg px-2 text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            <div className="flex items-center justify-between gap-2 border-b p-3" style={{ borderColor: "var(--twx-line)" }}>
+              {renaming === open && open !== FAV_KEY ? (
+                <div className="flex flex-1 items-center gap-1">
+                  <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && openFolder) void renameFolder(openFolder, renameValue); if (e.key === "Escape") setRenaming(null); }}
+                    className="twx-input w-full text-sm" placeholder="Mappa neve" />
+                  <button type="button" onClick={() => openFolder && void renameFolder(openFolder, renameValue)} className="rounded px-2 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>OK</button>
+                </div>
+              ) : (
+                <div className="min-w-0 flex-1 truncate font-display text-sm font-semibold">{openLabel} · {openUrls.length} kép</div>
+              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {open !== FAV_KEY && renaming !== open && (
+                  <button type="button" title="Átnevezés" aria-label="Átnevezés" onClick={() => { setRenaming(open); setRenameValue(openLabel); }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full" style={{ border: "1px solid var(--twx-line)" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink-muted)" }}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                  </button>
+                )}
+                {openFolder?.kind === "named" && (
+                  <button type="button" title="Törlés" aria-label="Törlés" onClick={() => { if (openFolder && confirm(`Törlöd a(z) „${openFolder.label}" mappát? (a képek megmaradnak)`)) void deleteFolder(openFolder); }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full" style={{ border: "1px solid var(--twx-line)" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#dc2626" }}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+                  </button>
+                )}
+                <button onClick={() => { setOpen(null); setAssignFor(null); }} className="rounded-lg px-2 text-lg" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+              </div>
             </div>
+
+            {/* Kép feltöltése ebbe a mappába (csak elnevezett mappánál) */}
+            {openFolder?.kind === "named" && openFolder.id && (
+              <div className="border-b p-3" style={{ borderColor: "var(--twx-line)" }}>
+                <button type="button" onClick={() => uploadRef.current?.click()} disabled={uploading}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); const url = readTwxDragUrl(e.dataTransfer); if (url && openFolder.id) { void assignToFolder(openFolder.id, url); } else if (openFolder.id) { void uploadToFolder(openFolder.id, e.dataTransfer.files); } }}
+                  className="w-full rounded-xl border-2 border-dashed p-3 text-center text-xs disabled:opacity-60" style={{ borderColor: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                  {uploading ? "Feltöltés…" : "Kép feltöltése ide — tallózás vagy húzd ide (JPG, PNG, WEBP)"}
+                </button>
+                <input ref={uploadRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+                  onChange={(e) => { if (openFolder.id) void uploadToFolder(openFolder.id, e.target.files); e.currentTarget.value = ""; }} />
+              </div>
+            )}
 
             {/* Áthelyezés menü (egy kijelölt képhez) */}
             {assignFor && (
