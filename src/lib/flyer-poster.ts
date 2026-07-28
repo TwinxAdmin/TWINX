@@ -26,6 +26,7 @@ export const FLYER_SIZES = [
   { value: "1:1", label: "Négyzet 1:1", hint: "Instagram, Facebook", w: 1080, h: 1080 },
   { value: "9:16", label: "Álló 9:16", hint: "Story, Reels", w: 1080, h: 1920 },
   { value: "4:3", label: "Fekvő 4:3", hint: "Portálok, e-mail", w: 1440, h: 1080 },
+  { value: "16:9", label: "Fekvő 16:9", hint: "Facebook, YouTube", w: 1920, h: 1080 },
 ] as const;
 
 export function getFlyerSize(v: string) {
@@ -39,16 +40,18 @@ export function getFlyerSize(v: string) {
  */
 export function flyerGeom(w: number, h: number) {
   const u = w / 1080;
-  const story = h / w >= 1.4;      // álló (9:16) — mobil-első kompozíció
-  const land = !story && w / h >= 1.25; // fekvő (4:3) — oldalsó színátmenet, nincs hullám
+  const ratio = w / h;
+  const story = h / w >= 1.4;            // álló (9:16) — mobil-első kompozíció
+  const land = !story && ratio >= 1.25;  // fekvő — oldalsó színátmenet, nincs hullám
+  const wide = land && ratio >= 1.6;     // 16:9 — szélesebb, más elrendezés, mint a 4:3
   const waveH = land ? 0 : Math.round(h * (story ? 0.28 : 0.29));
   const amp = land ? 0 : Math.round(40 * u);
   const bandH = waveH - amp;
   const gapT = Math.round(14 * u);
-  // Fekvőben a kis képek a fotó alján, vízszintes sorban (balról), a sáv nélkül.
-  const thumbD = Math.round((story ? 220 : land ? 190 : 170) * u);
+  // Kis képek: story oszlop 220; 16:9 sor 150 (elférés); 4:3 sor 170; 1:1 sor 170.
+  const thumbD = Math.round((story ? 220 : wide ? 150 : 170) * u);
   return {
-    u, story, land, waveH, amp, bandH, gapT, thumbD,
+    u, story, land, wide, waveH, amp, bandH, gapT, thumbD,
     right0: Math.round(60 * u),
     B0: land ? Math.round(60 * u) : bandH + gapT, // a kis képek alapvonala (alulról)
   };

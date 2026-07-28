@@ -428,7 +428,7 @@ export default function AdWizard({
                 <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                   Válaszd ki, hova készül a hirdetés. A megjelenés egységes, prémium — a fő szín az arculatodból jön.
                 </p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {SIZES.map((s) => {
                     const on = size === s.value;
                     return (

@@ -93,7 +93,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const amp = g.amp;
   const bandH = g.bandH;                     // a tömör sáv magassága
   const boundary = bandH;                    // a sáv felső éle (alulról mérve)
-  const sealD = Math.round((g.story ? 220 : 190) * u);
+  const sealD = Math.round((g.story ? 220 : g.wide ? 157 : g.land ? 165 : 190) * u);
   const thumbD = g.thumbD;
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
@@ -186,18 +186,16 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // --- Ár-pecsét: 1:1-nél a sáv élére központozva; story-ban KISSÉ FELJEBB,
   // hogy ne takarja az adat-rács tetejét (csak egy kicsit lóg a sávba). ---
-  // Fekvőben: a pecsét a JOBB oldalon, felül (a színátmenet tömör részén).
-  const sealBottom = g.land
-    ? H - Math.round(150 * u) - sealD
-    : g.story
-      ? boundary - Math.round(sealD * 0.18)
-      : boundary - Math.round(sealD / 2);
-  const sealSide: Style = g.land
-    ? { right: Math.round(96 * u) }
-    : { left: Math.round(60 * u) };
+  // Fekvőben: a pecsét a JOBB oldalon, a jelvény ALATT (fentről mérve) — az adatok fölött.
+  const sealPos: Style = g.land
+    ? { right: Math.round(96 * u), top: Math.round((g.wide ? 107 : 96) * u) }
+    : {
+        left: Math.round(60 * u),
+        bottom: g.story ? boundary - Math.round(sealD * 0.18) : boundary - Math.round(sealD / 2),
+      };
   const seal = rawPrice
     ? box(
-        { position: "absolute", ...sealSide, bottom: sealBottom, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
+        { position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
         [
           box({ fontSize: Math.round(18 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u), marginBottom: Math.round(4 * u) }, "ÁR"),
           box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u) }, [
@@ -321,48 +319,83 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   let bandContent: React.ReactElement;
   let landDataCol: React.ReactElement | null = null; // fekvő: önálló adatoszlop jobbra
   if (g.land) {
-    // FEKVŐ (4:3): jobbra az adatlista (a színátmenet tömör részén), balra alul a
-    // kis képek MELLETT az értékesítő blokkja — közös bal vezérvonalon.
+    // FEKVŐ: jobbra fent a pecsét, alatta az adatoszlop. 16:9-nél az értékesítő a kis
+    // képek MELLETT (balra lent); 4:3-nál a panel ALJÁN, az adatok alatt (nincs elég szélesség).
+    const rowH = Math.round((g.wide ? 50 : 48) * u);
+    const dataFs = Math.round((g.wide ? 29 : 27) * u);
+    const dataIcon = Math.round((g.wide ? 40 : 36) * u);
+    const dataTop = Math.round((g.wide ? 281 : 285) * u);
     const landItem = (it: { k: string; v: string }, i: number) =>
-      box({ key: i, alignItems: "center", gap: Math.round(16 * u), height: Math.round(70 * u) } as Style, [
-        icon(it.k, Math.round(46 * u), t.bandInk),
-        box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
+      box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: rowH } as Style, [
+        icon(it.k, dataIcon, t.bandInk),
+        box({ fontSize: dataFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
       ]);
     landDataCol = items.length
       ? box(
-          { position: "absolute", right: Math.round(96 * u), bottom: Math.round(90 * u), flexDirection: "column" },
+          { position: "absolute", right: Math.round(96 * u), top: dataTop, flexDirection: "column" },
           items.slice(0, 6).map(landItem)
         )
       : null;
 
-    // Az értékesítő blokk a kis képek jobb oldalán kezdődik.
-    const contactLeft = Math.round(60 * u) + thumbs.length * (thumbD + gapT) + Math.round(26 * u);
-    const circleLand = Math.round(104 * u);
-    const circlesRow = (p.agent_photo_url || p.logo_url)
-      ? box({ gap: Math.round(14 * u), alignItems: "center", marginBottom: Math.round(12 * u) }, [
-          p.agent_photo_url
-            ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
-            : null,
-          p.logo_url
-            ? box(
-                { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
-                img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
-              )
-            : null,
-        ].filter(Boolean))
-      : null;
     const shadow = "0 2px 10px rgba(0,0,0,0.55)";
-    bandContent = box(
-      { position: "absolute", left: contactLeft, bottom: Math.round(60 * u), flexDirection: "column", maxWidth: Math.round(W * 0.34) },
-      [
-        circlesRow,
-        box({ fontSize: Math.round(32 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.25, textShadow: shadow }, truncate(p.display_name || p.company, 24)),
-        p.title ? box({ fontSize: Math.round(21 * u), fontWeight: 400, color: "#ffffff", opacity: 0.9, lineHeight: 1.4, textShadow: shadow }, truncate(p.title, 30)) : null,
-        p.phone ? box({ fontSize: Math.round(34 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.4, marginTop: Math.round(6 * u), textShadow: shadow }, truncate(p.phone, 24)) : null,
-        p.email ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.email, 34)) : null,
-        p.website ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.website, 34)) : null,
-      ].filter(Boolean)
-    );
+    if (g.wide) {
+      // 16:9 — értékesítő a kis képek mellett, közös bal vezérvonalon.
+      const contactLeft = Math.round(60 * u) + thumbs.length * (thumbD + gapT) + Math.round(26 * u);
+      const circleLand = Math.round(96 * u);
+      const circlesRow = (p.agent_photo_url || p.logo_url)
+        ? box({ gap: Math.round(14 * u), alignItems: "center", marginBottom: Math.round(10 * u) }, [
+            p.agent_photo_url
+              ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
+              : null,
+            p.logo_url
+              ? box(
+                  { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
+                  img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
+                )
+              : null,
+          ].filter(Boolean))
+        : null;
+      bandContent = box(
+        { position: "absolute", left: contactLeft, bottom: Math.round(52 * u), flexDirection: "column", maxWidth: Math.round(W * 0.17) },
+        [
+          circlesRow,
+          box({ fontSize: Math.round(28 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.25, textShadow: shadow }, truncate(p.display_name || p.company, 24)),
+          p.title ? box({ fontSize: Math.round(18 * u), fontWeight: 400, color: "#ffffff", opacity: 0.9, lineHeight: 1.4, textShadow: shadow }, truncate(p.title, 30)) : null,
+          p.phone ? box({ fontSize: Math.round(30 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.4, marginTop: Math.round(4 * u), textShadow: shadow }, truncate(p.phone, 24)) : null,
+          p.email ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.5, textShadow: shadow }, truncate(p.email, 36)) : null,
+          p.website ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.5, textShadow: shadow }, truncate(p.website, 36)) : null,
+        ].filter(Boolean)
+      );
+    } else {
+      // 4:3 — értékesítő a panel alján, az adatok alatt: elválasztó + körök + kontaktok.
+      const circleLand = Math.round(60 * u);
+      const panelW = Math.round(300 * u);
+      const circlesRow = (p.agent_photo_url || p.logo_url)
+        ? box({ gap: Math.round(12 * u), alignItems: "center", marginBottom: Math.round(8 * u) }, [
+            p.agent_photo_url
+              ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
+              : null,
+            p.logo_url
+              ? box(
+                  { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
+                  img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
+                )
+              : null,
+          ].filter(Boolean))
+        : null;
+      bandContent = box(
+        { position: "absolute", right: Math.round(96 * u), bottom: Math.round(28 * u), width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
+        [
+          box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(12 * u) }, ""),
+          circlesRow,
+          box({ fontSize: Math.round(24 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+          p.title ? box({ fontSize: Math.round(16 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.4 }, truncate(p.title, 30)) : null,
+          p.phone ? box({ fontSize: Math.round(26 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.4, marginTop: Math.round(3 * u) }, truncate(p.phone, 24)) : null,
+          p.email ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.email, 34)) : null,
+          p.website ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.website, 34)) : null,
+        ].filter(Boolean)
+      );
+    }
   } else if (g.story) {
     // ADAT-RÁCS: két SZOROS oszlop balra — nagy ikon és nagy szöveg, bő sorköz,
     // hogy kitöltse a sáv bal oldalát (ne maradjon üres folt alatta).
