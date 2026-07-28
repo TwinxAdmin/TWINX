@@ -234,12 +234,16 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       }
     }
   }
-  const thumbEls = placed.map(({ i, right, left, bottom }) =>
-    box(
-      { key: `th${i}`, position: "absolute", left, right, bottom, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
+  const thumbEls = placed.map(({ i, right, left, bottom }) => {
+    // FONTOS: a Satori elhasal az `undefined` stílusértékeken — csak a meglévőket adjuk át.
+    const pos: Style = { position: "absolute", bottom };
+    if (left !== undefined) pos.left = left;
+    if (right !== undefined) pos.right = right;
+    return box(
+      { key: `th${i}`, ...pos, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
       img(thumbs[i], { width: "100%", height: "100%", objectFit: "cover" })
-    )
-  );
+    );
+  });
 
   // --- Ikonos adat-tételek (csak ami meg van adva) ---
   const iconSize = Math.round(32 * u);
