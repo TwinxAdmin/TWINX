@@ -73,9 +73,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   const g = flyerGeom(W, H);
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 42);
-  // Álló (story) formátum: telefonon nézik → minden hangsúlyos elem ~30%-kal nagyobb.
-  const ts = g.story ? 1.3 : 1;
-  const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u * (g.story ? 1.28 : 1));
+  // Story: nagyobb tipó (telefon); fekvő: ~30%-kal kisebb cím (a széles vásznon így arányos).
+  const ts = g.story ? 1.3 : g.land ? 0.85 : 1;
+  const titleK = g.story ? 1.28 : g.land ? 0.7 : 1;
+  const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u * titleK);
   const subtitle = truncate(o.text.subtitle, 48);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
   // Felső sor: csak a lényeg (a részletek lent, ikonosan) — nincs duplázás.
@@ -369,32 +370,34 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         ].filter(Boolean)
       );
     } else {
-      // 4:3 — értékesítő a panel alján, az adatok alatt: elválasztó + körök + kontaktok.
-      const circleLand = Math.round(60 * u);
+      // 4:3 — értékesítő KISEBBEN, közvetlenül az adatlista ALATT (fentről pozicionálva).
+      const circleLand = Math.round(52 * u);
       const panelW = Math.round(300 * u);
+      const nData = Math.min(items.length, 6);
+      const agentTop = dataTop + nData * rowH + Math.round(22 * u);
       const circlesRow = (p.agent_photo_url || p.logo_url)
-        ? box({ gap: Math.round(12 * u), alignItems: "center", marginBottom: Math.round(8 * u) }, [
+        ? box({ gap: Math.round(10 * u), alignItems: "center", marginBottom: Math.round(6 * u) }, [
             p.agent_photo_url
-              ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
+              ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(2 * u)}px solid #ffffff` })
               : null,
             p.logo_url
               ? box(
-                  { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
+                  { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(2 * u)}px solid #ffffff` },
                   img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
                 )
               : null,
           ].filter(Boolean))
         : null;
       bandContent = box(
-        { position: "absolute", right: Math.round(64 * u), bottom: Math.round(28 * u), width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
+        { position: "absolute", right: Math.round(64 * u), top: agentTop, width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
         [
-          box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(12 * u) }, ""),
+          box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(10 * u) }, ""),
           circlesRow,
-          box({ fontSize: Math.round(24 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
-          p.title ? box({ fontSize: Math.round(16 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.4 }, truncate(p.title, 30)) : null,
-          p.phone ? box({ fontSize: Math.round(26 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.4, marginTop: Math.round(3 * u) }, truncate(p.phone, 24)) : null,
-          p.email ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.email, 34)) : null,
-          p.website ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.website, 34)) : null,
+          box({ fontSize: Math.round(21 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+          p.title ? box({ fontSize: Math.round(14 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.4 }, truncate(p.title, 30)) : null,
+          p.phone ? box({ fontSize: Math.round(23 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.4, marginTop: Math.round(2 * u) }, truncate(p.phone, 24)) : null,
+          p.email ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.email, 34)) : null,
+          p.website ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.website, 34)) : null,
         ].filter(Boolean)
       );
     }
