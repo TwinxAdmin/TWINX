@@ -81,8 +81,8 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // --- Geometria (1:1 kompozíció): keskeny sáv, a pecsét és a kis képek
   // PONTOSAN FÉLIG lógnak a képbe / félig a sávba (közös vonalra igazítva) ---
-  const waveH = Math.round(H * 0.32);
-  const amp = Math.round(44 * u);
+  const waveH = Math.round(H * 0.29);
+  const amp = Math.round(40 * u);
   const bandH = waveH - amp;                 // a tömör sáv magassága
   const boundary = bandH;                    // a sáv felső éle (alulról mérve)
   const sealD = Math.round(190 * u);
@@ -155,18 +155,30 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       )
     : null;
 
-  // --- Kis képek: a sáv éle FÖLÖTT (nem lógnak rá az értékesítő blokkra) ---
-  const thumbRow = thumbs.length
-    ? box(
-        { position: "absolute", right: Math.round(60 * u), bottom: boundary + Math.round(14 * u), gap: Math.round(14 * u) },
-        thumbs.map((src, i) =>
-          box(
-            { key: i, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
-            img(src, { width: "100%", height: "100%", objectFit: "cover" })
-          )
-        )
-      )
-    : null;
+  // --- Kis képek: a jobb szélső FIX; a többi sorban mellette, VAGY fölé húzva
+  // (thumbSlots: "row" | "up1" | "up2") — így nem takarnak ki fontos részletet. ---
+  const gapT = Math.round(14 * u);
+  const right0 = Math.round(60 * u);
+  const B0 = boundary + gapT;
+  const slots = o.thumbSlots ?? [];
+  const placed: Array<{ i: number; right: number; bottom: number }> = [];
+  if (thumbs.length) {
+    const fixedIdx = thumbs.length - 1;
+    placed.push({ i: fixedIdx, right: right0, bottom: B0 });
+    let k = 1;
+    for (let i = fixedIdx - 1; i >= 0; i--) {
+      const slot = slots[i] ?? "row";
+      if (slot === "up1") placed.push({ i, right: right0, bottom: B0 + (thumbD + gapT) });
+      else if (slot === "up2") placed.push({ i, right: right0, bottom: B0 + 2 * (thumbD + gapT) });
+      else { placed.push({ i, right: right0 + k * (thumbD + gapT), bottom: B0 }); k++; }
+    }
+  }
+  const thumbEls = placed.map(({ i, right, bottom }) =>
+    box(
+      { key: `th${i}`, position: "absolute", right, bottom, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
+      img(thumbs[i], { width: "100%", height: "100%", objectFit: "cover" })
+    )
+  );
 
   // --- Ikonos adat-tételek (csak ami meg van adva) ---
   const iconSize = Math.round(32 * u);
@@ -254,6 +266,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, titleBlock, badgeEl, wave, thumbRow, seal, bandContent, logoCorner, wm].filter(Boolean)
+    [heroLayer, scrim, titleBlock, badgeEl, wave, ...thumbEls, seal, bandContent, logoCorner, wm].filter(Boolean)
   );
 }

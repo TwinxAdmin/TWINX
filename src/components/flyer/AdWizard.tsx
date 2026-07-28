@@ -54,6 +54,11 @@ export default function AdWizard({
 
   // 5) Előnézet
   const [heroPos, setHeroPos] = useState({ x: 50, y: 50 }); // a főkép kivágása (%)
+  const [liveView, setLiveView] = useState(false); // igazítás közben: élő (kliensoldali) nézet
+  const [thumbSlots, setThumbSlots] = useState<Record<number, "row" | "up1" | "up2">>({});
+  const renderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const panRef = useRef<{ x: number; y: number } | null>(null);
+  const heroBoxRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -135,6 +140,7 @@ export default function AdWizard({
     fd.append("details", JSON.stringify(details));
     fd.append("heroX", String(heroPos.x));
     fd.append("heroY", String(heroPos.y));
+    fd.append("thumbSlots", JSON.stringify([thumbSlots[0] ?? "row", thumbSlots[1] ?? "row"]));
     const res = await fetch("/api/flyer/render", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
     return { blob: await res.blob(), ext: "png", contentType: "image/png" };
@@ -147,7 +153,7 @@ export default function AdWizard({
       setPreview(URL.createObjectURL(blob));
     } catch (e) {
       setError("Nem sikerült az előnézet: " + (e as Error).message);
-    } finally { setRendering(false); }
+    } finally { setRendering(false); setLiveView(false); }
   }
 
   async function accept() {
@@ -174,20 +180,49 @@ export default function AdWizard({
     if (step === 4 && !preview && !rendering) void makePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-  useEffect(() => { setPreview(null); setFinalUrl(null); }, [size, images.length]);
+  useEffect(() => { setPreview(null); setFinalUrl(null); setThumbSlots({}); }, [size, images.length]);
 
-  // A főkép kivágásának igazítása → új render.
+  // Igazítás: ÉLŐ kliensoldali nézet azonnal, a szerver-render késleltetve (nem minden kattintásra).
+  function scheduleRender(delay = 500) {
+    if (renderTimer.current) clearTimeout(renderTimer.current);
+    renderTimer.current = setTimeout(() => {
+      setPreview(null);
+      void makePreview();
+    }, delay);
+  }
   function nudgeHero(dx: number, dy: number) {
-    if (rendering || accepting || finalUrl) return;
+    if (accepting || finalUrl) return;
+    setLiveView(true);
     setHeroPos((p) => ({
       x: Math.max(0, Math.min(100, p.x + dx)),
       y: Math.max(0, Math.min(100, p.y + dy)),
     }));
+    scheduleRender(700);
   }
-  useEffect(() => {
-    if (step === 4 && !finalUrl) { setPreview(null); void makePreview(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heroPos]);
+  // Húzás az élő nézeten: a kép követi az egeret.
+  function onPanDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (accepting || finalUrl) return;
+    setLiveView(true);
+    panRef.current = { x: e.clientX, y: e.clientY };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+  function onPanMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!panRef.current || !heroBoxRef.current) return;
+    const rect = heroBoxRef.current.getBoundingClientRect();
+    const dx = e.clientX - panRef.current.x;
+    const dy = e.clientY - panRef.current.y;
+    panRef.current = { x: e.clientX, y: e.clientY };
+    // 16% ránagyítás → ennyi a mozgástér; a kép az egérrel együtt mozog.
+    setHeroPos((p) => ({
+      x: Math.max(0, Math.min(100, p.x - (dx * 100) / (0.16 * rect.width))),
+      y: Math.max(0, Math.min(100, p.y - (dy * 100) / (0.16 * rect.height))),
+    }));
+  }
+  function onPanUp() {
+    if (!panRef.current) return;
+    panRef.current = null;
+    scheduleRender(400);
+  }
 
   function next() {
     if (step === 0) {
@@ -421,42 +456,57 @@ export default function AdWizard({
           {/* 5) ELŐNÉZET */}
           {step === 4 && (
             <div className="space-y-3 text-center">
-              {rendering ? (
-                <div className="py-12">
-                  <p className="text-sm font-medium">A hirdetés készül…</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Néhány másodperc.</p>
-                </div>
-              ) : finalUrl ? (
+              {finalUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={finalUrl} alt="Kész hirdetés" className="mx-auto max-h-[54vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
                   <p className="text-sm text-green-700">Kész! A hirdetés elmentve.</p>
                 </>
+              ) : liveView && images[0] ? (
+                <>
+                  {/* ÉLŐ igazítás: a főkép azonnal mozog, a kész előnézet utána frissül */}
+                  <div
+                    ref={heroBoxRef}
+                    onPointerDown={onPanDown} onPointerMove={onPanMove} onPointerUp={onPanUp} onPointerCancel={onPanUp}
+                    className="relative mx-auto touch-none overflow-hidden rounded-xl"
+                    style={{ height: "50vh", aspectRatio: `${sizeDef.w} / ${sizeDef.h}`, border: "1px solid var(--twx-line)", cursor: "grabbing" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={images[0]} alt="Főkép igazítása" draggable={false}
+                      className="absolute select-none"
+                      style={{
+                        width: "116%", height: "116%", objectFit: "cover", maxWidth: "none",
+                        left: `${-(heroPos.x / 100) * 16}%`, top: `${-(heroPos.y / 100) * 16}%`,
+                      }} />
+                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-medium text-white" style={{ background: "rgba(0,0,0,0.55)" }}>
+                      Húzd a képet a kívánt helyre — elengedés után frissül az előnézet
+                    </span>
+                  </div>
+                  <HeroControls heroPos={heroPos} nudge={nudgeHero} reset={() => { setLiveView(true); setHeroPos({ x: 50, y: 50 }); scheduleRender(500); }} disabled={false} />
+                </>
+              ) : rendering ? (
+                <div className="py-12">
+                  <p className="text-sm font-medium">A hirdetés készül…</p>
+                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Néhány másodperc.</p>
+                </div>
               ) : preview ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={preview} alt="Előnézet" className="mx-auto max-h-[54vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Főkép igazítása:</span>
-                    {([
-                      ["←", 12, 0], ["→", -12, 0], ["↑", 0, 12], ["↓", 0, -12],
-                    ] as Array<[string, number, number]>).map(([lbl, dx, dy]) => (
-                      <button key={lbl} type="button" onClick={() => nudgeHero(dx, dy)} disabled={rendering}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold disabled:opacity-40"
-                        style={{ border: "1px solid var(--twx-line)", background: "#fff" }} aria-label={`Főkép ${lbl}`}>
-                        {lbl}
-                      </button>
-                    ))}
-                    {(heroPos.x !== 50 || heroPos.y !== 50) && (
-                      <button type="button" onClick={() => setHeroPos({ x: 50, y: 50 })} disabled={rendering}
-                        className="rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:opacity-40"
-                        style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                        Középre
-                      </button>
+                  <div className="relative mx-auto inline-flex" onPointerDown={onPanDown} onPointerMove={onPanMove} onPointerUp={onPanUp} style={{ cursor: "grab" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={preview} alt="Előnézet" draggable={false} className="mx-auto max-h-[54vh] select-none rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+                    {/* A kis képek áthelyezése: a két bal oldali kép felhúzható a jobb szélső fölé */}
+                    {images.length > 2 && (
+                      <ThumbSlotOverlay
+                        w={sizeDef.w} h={sizeDef.h}
+                        count={images.length - 1}
+                        slots={thumbSlots}
+                        onMove={(i, slot) => { setThumbSlots((prev) => ({ ...prev, [i]: slot })); scheduleRender(150); }}
+                      />
                     )}
                   </div>
+                  <HeroControls heroPos={heroPos} nudge={nudgeHero} reset={() => { setLiveView(true); setHeroPos({ x: 50, y: 50 }); scheduleRender(500); }} disabled={rendering} />
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Vízjeles előnézet, ingyenes. Az elfogadás {FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.
+                    A főképet húzással vagy a nyilakkal igazíthatod. Vízjeles előnézet, ingyenes —
+                    az elfogadás {FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.
                   </p>
                 </>
               ) : (
@@ -492,6 +542,100 @@ export default function AdWizard({
         </div>
       </div>
     </div>
+  );
+}
+
+function HeroControls({ heroPos, nudge, reset, disabled }: {
+  heroPos: { x: number; y: number };
+  nudge: (dx: number, dy: number) => void;
+  reset: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Főkép igazítása:</span>
+      {([
+        ["←", 12, 0], ["→", -12, 0], ["↑", 0, 12], ["↓", 0, -12],
+      ] as Array<[string, number, number]>).map(([lbl, dx, dy]) => (
+        <button key={lbl} type="button" onClick={() => nudge(dx, dy)} disabled={disabled}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold disabled:opacity-40"
+          style={{ border: "1px solid var(--twx-line)", background: "#fff" }} aria-label={`Főkép ${lbl}`}>
+          {lbl}
+        </button>
+      ))}
+      {(heroPos.x !== 50 || heroPos.y !== 50) && (
+        <button type="button" onClick={reset} disabled={disabled}
+          className="rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:opacity-40"
+          style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+          Középre
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A kis képek áthelyezése az előnézeten: a bal oldaliak felhúzhatók a jobb szélső (fix) fölé.
+ *  A pozíciók a sablon geometriáját tükrözik (1080-as alapegység, %-ban). */
+function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
+  w: number; h: number;
+  count: number; // hány NEM-fix kis kép van (1 vagy 2)
+  slots: Record<number, "row" | "up1" | "up2">;
+  onMove: (i: number, slot: "row" | "up1" | "up2") => void;
+}) {
+  const u = w / 1080;
+  const T = 170 * u, gap = 14 * u, right0 = 60 * u;
+  const waveH = Math.round(h * 0.29), amp = 40 * u;
+  const B0 = waveH - amp + gap;
+  const wPct = (px: number) => (px / w) * 100;
+  const hPct = (px: number) => (px / h) * 100;
+
+  // Ugyanaz az elrendezési logika, mint a szerveren.
+  const pos: Record<number, { right: number; bottom: number }> = {};
+  let k = 1;
+  for (let i = count - 1; i >= 0; i--) {
+    const s = slots[i] ?? "row";
+    if (s === "up1") pos[i] = { right: right0, bottom: B0 + (T + gap) };
+    else if (s === "up2") pos[i] = { right: right0, bottom: B0 + 2 * (T + gap) };
+    else { pos[i] = { right: right0 + k * (T + gap), bottom: B0 }; k++; }
+  }
+  const used = new Set(Object.values(slots));
+  const emptySlots: Array<{ slot: "up1" | "up2" | "row"; right: number; bottom: number }> = [];
+  if (!used.has("up1")) emptySlots.push({ slot: "up1", right: right0, bottom: B0 + (T + gap) });
+  if (!used.has("up2") && used.has("up1")) emptySlots.push({ slot: "up2", right: right0, bottom: B0 + 2 * (T + gap) });
+  if (used.has("up1") || used.has("up2")) emptySlots.push({ slot: "row", right: right0 + k * (T + gap), bottom: B0 });
+
+  const boxStyle = (p: { right: number; bottom: number }): React.CSSProperties => ({
+    position: "absolute",
+    right: `${wPct(p.right)}%`,
+    bottom: `${hPct(p.bottom)}%`,
+    width: `${wPct(T)}%`,
+    height: `${hPct(T)}%`,
+  });
+
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={`d${i}`} draggable
+          onPointerDown={(e) => e.stopPropagation()}
+          onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; }}
+          style={{ ...boxStyle(pos[i]), cursor: "grab", borderRadius: 10, border: "2px dashed rgba(255,255,255,0.85)" }}
+          title="Húzd át egy másik helyre"
+        />
+      ))}
+      {emptySlots.map((s) => (
+        <div key={s.slot}
+          onPointerDown={(e) => e.stopPropagation()}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const i = Number(e.dataTransfer.getData("text/plain"));
+            if (Number.isInteger(i)) onMove(i, s.slot);
+          }}
+          style={{ ...boxStyle(s), borderRadius: 10, border: "2px dashed rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.12)" }}
+          title="Ide húzhatod a kis képet"
+        />
+      ))}
+    </>
   );
 }
 

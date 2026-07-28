@@ -138,6 +138,8 @@ export type RenderOpts = {
   profile: FlyerProfileData; text: RenderText; mood: string; watermark?: boolean;
   /** A főkép kivágásának igazítása százalékban (50/50 = középre). */
   heroPos?: { x: number; y: number };
+  /** A nem-fix kis képek helye: sorban, vagy a jobb szélső (fix) kép fölött. */
+  thumbSlots?: Array<"row" | "up1" | "up2">;
 };
 
 export function buildPosterHtml(o: RenderOpts): string {

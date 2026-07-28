@@ -83,8 +83,13 @@ export async function POST(request: Request) {
       x: Math.max(0, Math.min(100, Number(form.get("heroX") ?? 50) || 50)),
       y: Math.max(0, Math.min(100, Number(form.get("heroY") ?? 50) || 50)),
     };
+    let thumbSlots: Array<"row" | "up1" | "up2"> = [];
+    try {
+      const raw = JSON.parse(String(form.get("thumbSlots") ?? "[]")) as string[];
+      thumbSlots = raw.map((s) => (s === "up1" || s === "up2" ? s : "row"));
+    } catch { thumbSlots = []; }
     const opts: RenderOpts = {
-      images, width: size.w, height: size.h, profile, text, mood, watermark, heroPos,
+      images, width: size.w, height: size.h, profile, text, mood, watermark, heroPos, thumbSlots,
     };
     const element = buildFlyerElement(opts, family);
 
