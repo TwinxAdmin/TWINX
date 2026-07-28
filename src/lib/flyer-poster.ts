@@ -39,17 +39,18 @@ export function getFlyerSize(v: string) {
  */
 export function flyerGeom(w: number, h: number) {
   const u = w / 1080;
-  const story = h / w >= 1.4; // álló (9:16) formátum — mobil-első kompozíció
-  const waveH = Math.round(h * (story ? 0.28 : 0.29));
-  const amp = Math.round(40 * u);
+  const story = h / w >= 1.4;      // álló (9:16) — mobil-első kompozíció
+  const land = !story && w / h >= 1.25; // fekvő (4:3) — oldalsó színátmenet, nincs hullám
+  const waveH = land ? 0 : Math.round(h * (story ? 0.28 : 0.29));
+  const amp = land ? 0 : Math.round(40 * u);
   const bandH = waveH - amp;
   const gapT = Math.round(14 * u);
+  // Fekvőben a kis képek a fotó alján, vízszintes sorban (balról), a sáv nélkül.
+  const thumbD = Math.round((story ? 220 : land ? 190 : 170) * u);
   return {
-    u, story, waveH, amp, bandH, gapT,
-    // Story: nagyobb kis képek, alapból FÜGGŐLEGES oszlopban a jobb szélen.
-    thumbD: Math.round((story ? 220 : 170) * u),
+    u, story, land, waveH, amp, bandH, gapT, thumbD,
     right0: Math.round(60 * u),
-    B0: bandH + gapT, // a kis képek alapvonala (alulról)
+    B0: land ? Math.round(60 * u) : bandH + gapT, // a kis képek alapvonala (alulról)
   };
 }
 

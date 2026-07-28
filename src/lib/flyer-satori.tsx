@@ -12,6 +12,12 @@ function img(src: string, style: Style): React.ReactElement {
   // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
   return React.createElement("img", { src, style });
 }
+/** hex szín adott átlátszósággal (rgba) — a színátmenetekhez. */
+function hexA(hex: string, a: number): string {
+  const h = (hex || "#000000").replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16) || 0, g2 = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
+  return `rgba(${r}, ${g2}, ${b}, ${a})`;
+}
 function onColor(hex: string): string {
   const h = (hex || "#000000").replace("#", "");
   const r = parseInt(h.slice(0, 2), 16) || 0, g = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
@@ -136,7 +142,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // --- Réteg 3: cím-blokk ---
   const titleBlock = box(
-    { position: "absolute", top: Math.round(58 * u), left: Math.round(60 * u), width: W - Math.round(230 * u), flexDirection: "column" },
+    { position: "absolute", top: Math.round(58 * u), left: Math.round(60 * u), width: g.land ? Math.round(W * 0.56) : W - Math.round(230 * u), flexDirection: "column" },
     [
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
@@ -150,23 +156,47 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     badge
   );
 
-  // --- Réteg 4: ívelt hullám ---
-  const y0 = amp, y1 = Math.round(amp * 0.35);
-  const wavePath = `M0,${y0} C ${Math.round(W * 0.30)},${y0 - amp} ${Math.round(W * 0.68)},${y1 + amp} ${W},${y1} L ${W},${waveH} L 0,${waveH} Z`;
-  const wave = React.createElement(
-    "svg",
-    { width: W, height: waveH, viewBox: `0 0 ${W} ${waveH}`, style: { position: "absolute", left: 0, bottom: 0 } },
-    React.createElement("path", { d: wavePath, fill: t.band })
-  );
+  // --- Réteg 4: FEKVŐ (4:3) → jobb oldali lineáris színátmenet (nincs hullám),
+  // egyébként ívelt hullám az arculati sávszínnel ---
+  let wave: React.ReactElement;
+  if (g.land) {
+    // A szöveg mögött tömör, majd rövid szakaszon 0-ra halványul — a fotó szabad marad.
+    const fadeW = Math.round(W * 0.40);
+    wave = box({
+      position: "absolute", right: 0, top: 0, width: fadeW, height: H,
+      backgroundImage: `linear-gradient(to left, ${t.band} 0%, ${t.band} 62%, ${hexA(t.band, 0.55)} 82%, ${hexA(t.band, 0)} 100%)`,
+    });
+  } else {
+    const y0 = amp, y1 = Math.round(amp * 0.35);
+    const wavePath = `M0,${y0} C ${Math.round(W * 0.30)},${y0 - amp} ${Math.round(W * 0.68)},${y1 + amp} ${W},${y1} L ${W},${waveH} L 0,${waveH} Z`;
+    wave = React.createElement(
+      "svg",
+      { width: W, height: waveH, viewBox: `0 0 ${W} ${waveH}`, style: { position: "absolute", left: 0, bottom: 0 } },
+      React.createElement("path", { d: wavePath, fill: t.band })
+    );
+  }
+  // Fekvőben a bal alsó blokk (kis képek + értékesítő) alá lágy sötétítés.
+  const bottomScrim = g.land
+    ? box({
+        position: "absolute", left: 0, bottom: 0, width: Math.round(W * 0.64), height: Math.round(H * 0.44),
+        backgroundImage: "linear-gradient(to top, rgba(18,20,24,0.64) 0%, rgba(18,20,24,0.28) 58%, rgba(18,20,24,0) 100%)",
+      })
+    : null;
 
   // --- Ár-pecsét: 1:1-nél a sáv élére központozva; story-ban KISSÉ FELJEBB,
   // hogy ne takarja az adat-rács tetejét (csak egy kicsit lóg a sávba). ---
-  const sealBottom = g.story
-    ? boundary - Math.round(sealD * 0.18)
-    : boundary - Math.round(sealD / 2);
+  // Fekvőben: a pecsét a JOBB oldalon, felül (a színátmenet tömör részén).
+  const sealBottom = g.land
+    ? H - Math.round(150 * u) - sealD
+    : g.story
+      ? boundary - Math.round(sealD * 0.18)
+      : boundary - Math.round(sealD / 2);
+  const sealSide: Style = g.land
+    ? { right: Math.round(96 * u) }
+    : { left: Math.round(60 * u) };
   const seal = rawPrice
     ? box(
-        { position: "absolute", left: Math.round(60 * u), bottom: sealBottom, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
+        { position: "absolute", ...sealSide, bottom: sealBottom, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
         [
           box({ fontSize: Math.round(18 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u), marginBottom: Math.round(4 * u) }, "ÁR"),
           box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u) }, [
@@ -183,21 +213,29 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const right0 = g.right0;
   const B0 = g.B0;
   const slots = o.thumbSlots ?? [];
-  const placed: Array<{ i: number; right: number; bottom: number }> = [];
+  const placed: Array<{ i: number; right?: number; left?: number; bottom: number }> = [];
   if (thumbs.length) {
-    const fixedIdx = thumbs.length - 1;
-    placed.push({ i: fixedIdx, right: right0, bottom: B0 });
-    let k = 1;
-    for (let i = fixedIdx - 1; i >= 0; i--) {
-      const slot = slots[i] ?? "row";
-      if (slot === "up1") placed.push({ i, right: right0, bottom: B0 + (thumbD + gapT) });
-      else if (slot === "up2") placed.push({ i, right: right0, bottom: B0 + 2 * (thumbD + gapT) });
-      else { placed.push({ i, right: right0 + k * (thumbD + gapT), bottom: B0 }); k++; }
+    if (g.land) {
+      // Fekvő: BALRÓL jobbra, a fotó alján, vízszintes sorban (a bal blokk része).
+      const left0 = Math.round(60 * u);
+      thumbs.forEach((_, i) => {
+        placed.push({ i, left: left0 + i * (thumbD + gapT), bottom: B0 });
+      });
+    } else {
+      const fixedIdx = thumbs.length - 1;
+      placed.push({ i: fixedIdx, right: right0, bottom: B0 });
+      let k = 1;
+      for (let i = fixedIdx - 1; i >= 0; i--) {
+        const slot = slots[i] ?? "row";
+        if (slot === "up1") placed.push({ i, right: right0, bottom: B0 + (thumbD + gapT) });
+        else if (slot === "up2") placed.push({ i, right: right0, bottom: B0 + 2 * (thumbD + gapT) });
+        else { placed.push({ i, right: right0 + k * (thumbD + gapT), bottom: B0 }); k++; }
+      }
     }
   }
-  const thumbEls = placed.map(({ i, right, bottom }) =>
+  const thumbEls = placed.map(({ i, right, left, bottom }) =>
     box(
-      { key: `th${i}`, position: "absolute", right, bottom, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
+      { key: `th${i}`, position: "absolute", left, right, bottom, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
       img(thumbs[i], { width: "100%", height: "100%", objectFit: "cover" })
     )
   );
@@ -254,7 +292,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // Jobb alsó sarok (CSAK 1:1 / fekvő): a fotó és a logó azonos méretű körben, egymás alatt.
   // Story-ban a körök a sávba kerülnek, a rács mellé (lásd bandContent story-ág).
-  const cornerCol = (!g.story && (p.agent_photo_url || p.logo_url))
+  const cornerCol = (!g.story && !g.land && (p.agent_photo_url || p.logo_url))
     ? box(
         { position: "absolute", right: Math.round(56 * u), bottom: Math.round(22 * u), flexDirection: "column", gap: Math.round(12 * u) },
         [
@@ -276,7 +314,51 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // Story (9:16, mobil-első): KÉT SOR — felül adat-RÁCS nagy ikonokkal, alul az
   // értékesítő kiemelt telefonszám-pillel; a körök a sarokban.
   let bandContent: React.ReactElement;
-  if (g.story) {
+  if (g.land) {
+    // FEKVŐ (4:3): jobbra az adatlista (a színátmenet tömör részén), balra alul a
+    // kis képek MELLETT az értékesítő blokkja — közös bal vezérvonalon.
+    const landItem = (it: { k: string; v: string }, i: number) =>
+      box({ key: i, alignItems: "center", gap: Math.round(16 * u), height: Math.round(70 * u) } as Style, [
+        icon(it.k, Math.round(46 * u), t.bandInk),
+        box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
+      ]);
+    const dataCol = items.length
+      ? box(
+          { position: "absolute", right: Math.round(96 * u), bottom: Math.round(90 * u), flexDirection: "column" },
+          items.slice(0, 6).map(landItem)
+        )
+      : box({}, "");
+
+    // Az értékesítő blokk a kis képek jobb oldalán kezdődik.
+    const contactLeft = Math.round(60 * u) + thumbs.length * (thumbD + gapT) + Math.round(26 * u);
+    const circleLand = Math.round(104 * u);
+    const circlesRow = (p.agent_photo_url || p.logo_url)
+      ? box({ gap: Math.round(14 * u), alignItems: "center", marginBottom: Math.round(12 * u) }, [
+          p.agent_photo_url
+            ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
+            : null,
+          p.logo_url
+            ? box(
+                { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
+                img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
+              )
+            : null,
+        ].filter(Boolean))
+      : null;
+    const shadow = "0 2px 10px rgba(0,0,0,0.55)";
+    bandContent = box(
+      { position: "absolute", left: contactLeft, bottom: Math.round(60 * u), flexDirection: "column", maxWidth: Math.round(W * 0.34) },
+      [
+        circlesRow,
+        box({ fontSize: Math.round(32 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.25, textShadow: shadow }, truncate(p.display_name || p.company, 24)),
+        p.title ? box({ fontSize: Math.round(21 * u), fontWeight: 400, color: "#ffffff", opacity: 0.9, lineHeight: 1.4, textShadow: shadow }, truncate(p.title, 30)) : null,
+        p.phone ? box({ fontSize: Math.round(34 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.4, marginTop: Math.round(6 * u), textShadow: shadow }, truncate(p.phone, 24)) : null,
+        p.email ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.email, 34)) : null,
+        p.website ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.website, 34)) : null,
+        dataCol,
+      ].filter(Boolean)
+    );
+  } else if (g.story) {
     // ADAT-RÁCS: két SZOROS oszlop balra — nagy ikon és nagy szöveg, bő sorköz,
     // hogy kitöltse a sáv bal oldalát (ne maradjon üres folt alatta).
     const gridItem = (it: { k: string; v: string }, i: number) =>
@@ -367,6 +449,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, titleBlock, badgeEl, wave, ...thumbEls, seal, bandContent, cornerCol, wm].filter(Boolean)
+    [heroLayer, scrim, wave, bottomScrim, titleBlock, badgeEl, ...thumbEls, seal, bandContent, cornerCol, wm].filter(Boolean)
   );
 }

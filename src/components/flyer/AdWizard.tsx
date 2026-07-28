@@ -465,7 +465,7 @@ export default function AdWizard({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={preview} alt="Előnézet" draggable={false} className="mx-auto max-h-[54vh] select-none rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
                     {/* A kis képek áthelyezése: a mozgathatók felhúzhatók a jobb szélső (fix) fölé */}
-                    {images.length > 2 && (
+                    {images.length > 2 && !flyerGeom(sizeDef.w, sizeDef.h).land && (
                       <ThumbSlotOverlay
                         w={sizeDef.w} h={sizeDef.h}
                         count={images.length - 2}
