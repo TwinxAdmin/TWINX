@@ -223,7 +223,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const contactLine = (v: string, i: number) =>
     box({ key: i, fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 } as Style, truncate(v, 34));
   const agentBlock = box(
-    { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: Math.round((p.agent_photo_url || p.logo_url ? 180 : 0) * u) },
+    { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: Math.round((p.agent_photo_url || p.logo_url ? 180 : 0) * u), paddingBottom: Math.round(18 * u) },
     [
       agentHeader,
       ...([p.phone, p.email, p.website].filter(Boolean) as string[]).map(contactLine),
