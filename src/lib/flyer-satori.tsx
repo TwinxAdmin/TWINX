@@ -74,8 +74,8 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const g = flyerGeom(W, H);
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 42);
   // Story: nagyobb tipó (telefon); fekvő: ~30%-kal kisebb cím (a széles vásznon így arányos).
-  const ts = g.story ? 1.3 : g.land ? 0.85 : 1;
-  const titleK = g.story ? 1.28 : g.land ? 0.7 : 1;
+  const ts = g.story ? 1.3 : g.wide ? 0.72 : g.land ? 0.85 : 1;
+  const titleK = g.story ? 1.28 : g.wide ? 0.52 : g.land ? 0.7 : 1;
   const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u * titleK);
   const subtitle = truncate(o.text.subtitle, 48);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
@@ -153,7 +153,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   );
 
   const badgeEl = box(
-    { position: "absolute", top: Math.round(56 * u), right: Math.round(60 * u), background: t.badgeBg, color: t.badgeInk, borderRadius: Math.round(6 * u), paddingTop: Math.round(10 * u), paddingBottom: Math.round(10 * u), paddingLeft: Math.round(22 * u), paddingRight: Math.round(22 * u), fontSize: Math.round(24 * u), fontWeight: 700, letterSpacing: Math.round(1 * u) },
+    { position: "absolute", top: Math.round((g.wide ? 26 : 56) * u), right: Math.round((g.wide ? 40 : 60) * u), background: t.badgeBg, color: t.badgeInk, borderRadius: Math.round(6 * u), paddingTop: Math.round(10 * u), paddingBottom: Math.round(10 * u), paddingLeft: Math.round(22 * u), paddingRight: Math.round(22 * u), fontSize: Math.round(24 * u), fontWeight: 700, letterSpacing: Math.round(1 * u) },
     badge
   );
 
@@ -190,7 +190,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // Fekvőben: a pecsét a JOBB oldalon, a jelvény ALATT (fentről mérve) — az adatok fölött.
   const sealPos: Style = g.land
     ? g.wide
-      ? { right: Math.round(236 * u), top: Math.round(108 * u) } // a jobb oszlop közepére
+      ? { right: Math.round(180 * u), top: Math.round(96 * u) } // a jobb szélre tolt oszlop közepére
       : { right: Math.round(64 * u), top: Math.round(120 * u) }
     : {
         left: Math.round(60 * u),
@@ -329,7 +329,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     const rowH = Math.round((g.wide ? 45 : 48) * u);
     const dataFs = Math.round((g.wide ? 24 : 27) * u);
     const dataIcon = Math.round(36 * u);
-    const dataTop = Math.round((g.wide ? 264 : 285) * u);
+    const dataTop = Math.round((g.wide ? 252 : 285) * u);
     const landItem = (it: { k: string; v: string }, i: number) =>
       box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: rowH } as Style, [
         icon(it.k, dataIcon, t.bandInk),
@@ -339,7 +339,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     // sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
     // 16:9: szélesebb oszlop, az adatok 2×3-as RÁCSBAN (a rövidebb magasság miatt).
     const colW = Math.round((g.wide ? 420 : 300) * u);
-    const colRight = Math.round((g.wide ? 96 : 64) * u);
+    const colRight = Math.round((g.wide ? 40 : 64) * u); // 16:9: teljesen a jobb szélen
     if (g.wide) {
       const gcol1 = items.slice(0, 3);
       const gcol2 = items.slice(3, 6);
