@@ -130,7 +130,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     ? box(
         { position: "absolute", left: Math.round(60 * u), bottom: boundary - Math.round(sealD / 2), width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
         [
-          box({ fontSize: Math.round(16 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(2 * u), marginBottom: Math.round(4 * u) }, "IRÁNYÁR"),
+          box({ fontSize: Math.round(18 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u), marginBottom: Math.round(4 * u) }, "ÁR"),
           box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u) }, [
             box({ fontSize: Math.round((priceNum.length > 8 ? 34 : priceNum.length > 4 ? 44 : 54) * u), fontWeight: 700, color: accInk, lineHeight: 1.05 }, priceNum),
             priceSuffix ? box({ fontSize: Math.round(24 * u), fontWeight: 700, color: accInk, opacity: 0.95 }, priceSuffix) : null,
@@ -139,10 +139,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       )
     : null;
 
-  // --- Kis képek: NAGYOBBAK, ugyanazon a vonalon — félig a képen, félig a sávban ---
+  // --- Kis képek: a sáv éle FÖLÖTT (nem lógnak rá az értékesítő blokkra) ---
   const thumbRow = thumbs.length
     ? box(
-        { position: "absolute", right: Math.round(60 * u), bottom: boundary - Math.round(thumbD / 2), gap: Math.round(14 * u) },
+        { position: "absolute", right: Math.round(60 * u), bottom: boundary + Math.round(14 * u), gap: Math.round(14 * u) },
         thumbs.map((src, i) =>
           box(
             { key: i, width: thumbD, height: thumbD, borderRadius: Math.round(16 * u), overflow: "hidden", border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 28px rgba(0,0,0,0.3)" } as Style,
@@ -185,40 +185,44 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       )
     : box({ flexGrow: 1 }, "");
 
-  // JOBB OSZLOP: az értékesítő — fotó + logó KÖRBEN, alatta név/titulus/elérhetőségek egymás alatt.
-  const headD = Math.round(76 * u);
+  // JOBB OSZLOP: az értékesítő — nagyobb fotó körben, alatta név/titulus/elérhetőségek.
+  // A céglogó KÜLÖN, a jobb alsó sarokban (lásd logoCorner).
+  const headD = Math.round(96 * u);
   const agentHeader = box(
-    { alignItems: "center", gap: Math.round(14 * u) },
+    { alignItems: "center", gap: Math.round(16 * u) },
     [
       p.agent_photo_url ? img(p.agent_photo_url, { width: headD, height: headD, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}` }) : null,
       box({ flexDirection: "column", flexGrow: 1 }, [
-        box({ fontSize: Math.round(27 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
-        p.title ? box({ fontSize: Math.round(18 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 28)) : null,
+        box({ fontSize: Math.round(28 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+        p.title ? box({ fontSize: Math.round(19 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 28)) : null,
       ].filter(Boolean)),
-      p.logo_url
-        ? box(
-            { width: headD, height: headD, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}` },
-            img(p.logo_url, { maxWidth: Math.round(headD * 0.72), maxHeight: Math.round(headD * 0.72), objectFit: "contain" })
-          )
-        : null,
     ].filter(Boolean)
   );
   const contactLine = (v: string, i: number) =>
-    box({ key: i, fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 } as Style, truncate(v, 36));
+    box({ key: i, fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 } as Style, truncate(v, 34));
+  const logoD = Math.round(128 * u);
   const agentBlock = box(
-    { flexDirection: "column", width: Math.round(W * 0.40), gap: Math.round(6 * u) },
+    { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: p.logo_url ? logoD - Math.round(56 * u) : 0 },
     [
       agentHeader,
       ...([p.phone, p.email, p.website].filter(Boolean) as string[]).map(contactLine),
     ]
   );
 
+  // Céglogó: jobb alsó sarok, nagyobb kör elemben.
+  const logoCorner = p.logo_url
+    ? box(
+        { position: "absolute", right: Math.round(56 * u), bottom: Math.round(26 * u), width: logoD, height: logoD, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" },
+        img(p.logo_url, { maxWidth: Math.round(logoD * 0.74), maxHeight: Math.round(logoD * 0.74), objectFit: "contain" })
+      )
+    : null;
+
   // --- A sáv tartalma: bal = ingatlan, jobb = értékesítő; a pecsét/képek alatt kezdődik ---
   const bandContent = box(
     {
       position: "absolute", left: 0, bottom: 0, width: W, height: bandH,
       alignItems: "flex-end",
-      paddingTop: Math.round(Math.max(sealD, thumbD) / 2 + 16 * u),
+      paddingTop: Math.round(sealD / 2 + 16 * u),
       paddingLeft: Math.round(60 * u), paddingRight: Math.round(60 * u), paddingBottom: Math.round(26 * u),
       gap: Math.round(30 * u),
     },
@@ -234,6 +238,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, titleBlock, badgeEl, wave, thumbRow, seal, bandContent, wm].filter(Boolean)
+    [heroLayer, scrim, titleBlock, badgeEl, wave, thumbRow, seal, bandContent, logoCorner, wm].filter(Boolean)
   );
 }
