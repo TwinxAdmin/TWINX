@@ -17,7 +17,7 @@ import {
 } from "@/lib/flyer";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
 import ComboField from "@/components/ComboField";
-import { FLYER_SIZES, getFlyerSize } from "@/lib/flyer-poster";
+import { FLYER_SIZES, getFlyerSize, flyerGeom } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 const STEPS = ["Arculat", "Képek", "Adatok", "Méret", "Előnézet"] as const;
@@ -538,10 +538,10 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
   onMove: (i: number, slot: "row" | "up1" | "up2") => void;
 }) {
   const [hover, setHover] = useState<string | null>(null); // épp e fölé húzzák a képet
-  const u = w / 1080;
-  const T = 170 * u, gap = 14 * u, right0 = 60 * u;
-  const waveH = Math.round(h * 0.29), amp = 40 * u;
-  const B0 = waveH - amp + gap;
+  // KÖZÖS geometria a szerver-renderrel (flyerGeom) — méretenként más kompozíció.
+  const g = flyerGeom(w, h);
+  const T = g.thumbD, gap = g.gapT, right0 = g.right0;
+  const B0 = g.B0;
   const wPct = (px: number) => (px / w) * 100;
   const hPct = (px: number) => (px / h) * 100;
 

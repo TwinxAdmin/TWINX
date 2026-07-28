@@ -2,7 +2,7 @@
 // Pixelpontos, valódi TTF-fel → nincs levágott ékezet, minden gépen egyforma.
 // Korlátok: csak flexbox, pixelek, egyszerű CSS + egyszerű SVG (hullám, ikonok).
 import React from "react";
-import { buildTheme, truncate, type RenderOpts } from "@/lib/flyer-poster";
+import { buildTheme, truncate, flyerGeom, type RenderOpts } from "@/lib/flyer-poster";
 
 type Style = React.CSSProperties;
 function box(style: Style, children?: React.ReactNode): React.ReactElement {
@@ -65,8 +65,11 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const p = o.profile;
   const d = o.text.details ?? {};
 
+  const g = flyerGeom(W, H);
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 42);
-  const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u);
+  // Álló (story) formátumban a cím kap egy kis plusz méretet — ott több a hely.
+  const titleScale = g.story ? 1.08 : 1;
+  const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u * titleScale);
   const subtitle = truncate(o.text.subtitle, 48);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
   // Felső sor: csak a lényeg (a részletek lent, ikonosan) — nincs duplázás.
@@ -79,14 +82,13 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const priceNum = priceIsBare ? rawPrice : truncate(rawPrice, 16);
   const priceSuffix = priceIsBare ? "M Ft" : "";
 
-  // --- Geometria (1:1 kompozíció): keskeny sáv, a pecsét és a kis képek
-  // PONTOSAN FÉLIG lógnak a képbe / félig a sávba (közös vonalra igazítva) ---
-  const waveH = Math.round(H * 0.29);
-  const amp = Math.round(40 * u);
-  const bandH = waveH - amp;                 // a tömör sáv magassága
+  // --- Geometria: KÖZÖS forrásból (flyerGeom) — méretenként más kompozíció ---
+  const waveH = g.waveH;
+  const amp = g.amp;
+  const bandH = g.bandH;                     // a tömör sáv magassága
   const boundary = bandH;                    // a sáv felső éle (alulról mérve)
   const sealD = Math.round(190 * u);
-  const thumbD = Math.round(170 * u);
+  const thumbD = g.thumbD;
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
   // A képet enyhén ránagyítjuk (ZOOM), így MINDIG van mozgástér mind a négy irányban,
@@ -110,9 +112,9 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       : undefined
   );
 
-  // --- Réteg 2: felső sötétítés ---
+  // --- Réteg 2: felső sötétítés (állóban rövidebb — a cím relatíve kisebb részt foglal) ---
   const scrim = box({
-    position: "absolute", top: 0, left: 0, width: W, height: Math.round(H * 0.50),
+    position: "absolute", top: 0, left: 0, width: W, height: Math.round(H * (g.story ? 0.36 : 0.50)),
     backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 62%, rgba(0,0,0,0) 100%)",
   });
 
@@ -157,9 +159,9 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // --- Kis képek: a jobb szélső FIX; a többi sorban mellette, VAGY fölé húzva
   // (thumbSlots: "row" | "up1" | "up2") — így nem takarnak ki fontos részletet. ---
-  const gapT = Math.round(14 * u);
-  const right0 = Math.round(60 * u);
-  const B0 = boundary + gapT;
+  const gapT = g.gapT;
+  const right0 = g.right0;
+  const B0 = g.B0;
   const slots = o.thumbSlots ?? [];
   const placed: Array<{ i: number; right: number; bottom: number }> = [];
   if (thumbs.length) {

@@ -32,6 +32,26 @@ export function getFlyerSize(v: string) {
   return FLYER_SIZES.find((s) => s.value === v) ?? FLYER_SIZES[0];
 }
 
+/**
+ * A hirdetés KÖZÖS geometriája (szerver-render ÉS kliens-előnézet ugyanebből dolgozik).
+ * Méretenként más kompozíció: az álló 9:16 karcsúbb sávot kap, mint az 1:1.
+ * Minden érték a vászon pixeleiben (u = W/1080 alapegység).
+ */
+export function flyerGeom(w: number, h: number) {
+  const u = w / 1080;
+  const story = h / w >= 1.4; // álló (9:16) formátum
+  const waveH = Math.round(h * (story ? 0.22 : 0.29));
+  const amp = Math.round(40 * u);
+  const bandH = waveH - amp;
+  const gapT = Math.round(14 * u);
+  return {
+    u, story, waveH, amp, bandH, gapT,
+    thumbD: Math.round(170 * u),
+    right0: Math.round(60 * u),
+    B0: bandH + gapT, // a kis képek alapvonala (alulról)
+  };
+}
+
 // --- Szín-segédek ------------------------------------------------------------
 function clampHex(hex: string, fallback = "#1e3a5f"): string {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : fallback;
