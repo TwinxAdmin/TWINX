@@ -213,35 +213,38 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       )
     : box({ flexGrow: 1 }, "");
 
-  // JOBB OSZLOP: az értékesítő — nagyobb fotó körben, alatta név/titulus/elérhetőségek.
-  // A céglogó KÜLÖN, a jobb alsó sarokban (lásd logoCorner).
-  const headD = Math.round(96 * u);
-  const agentHeader = box(
-    { alignItems: "center", gap: Math.round(16 * u) },
-    [
-      p.agent_photo_url ? img(p.agent_photo_url, { width: headD, height: headD, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}` }) : null,
-      box({ flexDirection: "column", flexGrow: 1 }, [
-        box({ fontSize: Math.round(28 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
-        p.title ? box({ fontSize: Math.round(19 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 28)) : null,
-      ].filter(Boolean)),
-    ].filter(Boolean)
-  );
+  // JOBB OSZLOP: az értékesítő szövegei — név/titulus/elérhetőségek egymás alatt.
+  // A fotó és a céglogó KÖR elemben, egymás alatt a jobb alsó sarokban (cornerCol).
+  const circleD = Math.round(112 * u); // közös méret: a fotó nagyobb, a logó kisebb lett
+  const agentHeader = box({ flexDirection: "column" }, [
+    box({ fontSize: Math.round(28 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+    p.title ? box({ fontSize: Math.round(19 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 28)) : null,
+  ].filter(Boolean));
   const contactLine = (v: string, i: number) =>
     box({ key: i, fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 } as Style, truncate(v, 34));
-  const logoD = Math.round(128 * u);
   const agentBlock = box(
-    { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: p.logo_url ? logoD - Math.round(56 * u) : 0 },
+    { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: Math.round((p.agent_photo_url || p.logo_url ? 180 : 0) * u) },
     [
       agentHeader,
       ...([p.phone, p.email, p.website].filter(Boolean) as string[]).map(contactLine),
     ]
   );
 
-  // Céglogó: jobb alsó sarok, nagyobb kör elemben.
-  const logoCorner = p.logo_url
+  // Jobb alsó sarok: a fotó és a logó AZONOS méretű körben, egymás alatt (szimmetria).
+  const cornerCol = (p.agent_photo_url || p.logo_url)
     ? box(
-        { position: "absolute", right: Math.round(56 * u), bottom: Math.round(26 * u), width: logoD, height: logoD, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" },
-        img(p.logo_url, { maxWidth: Math.round(logoD * 0.74), maxHeight: Math.round(logoD * 0.74), objectFit: "contain" })
+        { position: "absolute", right: Math.round(56 * u), bottom: Math.round(22 * u), flexDirection: "column", gap: Math.round(12 * u) },
+        [
+          p.agent_photo_url
+            ? img(p.agent_photo_url, { width: circleD, height: circleD, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" })
+            : null,
+          p.logo_url
+            ? box(
+                { width: circleD, height: circleD, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" },
+                img(p.logo_url, { maxWidth: Math.round(circleD * 0.74), maxHeight: Math.round(circleD * 0.74), objectFit: "contain" })
+              )
+            : null,
+        ].filter(Boolean)
       )
     : null;
 
@@ -266,6 +269,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, titleBlock, badgeEl, wave, ...thumbEls, seal, bandContent, logoCorner, wm].filter(Boolean)
+    [heroLayer, scrim, titleBlock, badgeEl, wave, ...thumbEls, seal, bandContent, cornerCol, wm].filter(Boolean)
   );
 }
