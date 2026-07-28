@@ -26,7 +26,7 @@ export async function GET(
 
   const { data: job, error } = await supabase
     .from("video_jobs")
-    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error")
+    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error, format, music_url, source_images")
     .eq("id", id)
     .single();
   if (error || !job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
