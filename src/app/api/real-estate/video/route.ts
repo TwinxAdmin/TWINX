@@ -146,7 +146,7 @@ export async function POST(request: Request) {
     if (pkg === "pro") {
       // PRO: előbb az 1. fotó AI-klipje (fal, webhook) — a rendert a webhook indítja.
       const falWebhook = `${site}/api/webhooks/fal?job=${jobId}&token=${encodeURIComponent(secret)}`;
-      const requestId = await submitImageToVideoFal({
+      const fal = await submitImageToVideoFal({
         imageUrl: photoUrls[0],
         aspectRatio: format.value as "1:1" | "9:16",
         webhookUrl: falWebhook,
@@ -155,7 +155,12 @@ export async function POST(request: Request) {
         status: "animating",
         source_images: photoUrls,
         music_url: musicUrl,
-        meta: { title, frames: frameUrls, captions, fal_request_id: requestId },
+        meta: {
+          title, frames: frameUrls, captions,
+          fal_request_id: fal.requestId,
+          fal_status_url: fal.statusUrl,
+          fal_response_url: fal.responseUrl,
+        },
       }).eq("id", jobId);
       return NextResponse.json({ ok: true, jobId, status: "animating" });
     }

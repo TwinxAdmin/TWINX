@@ -38,6 +38,27 @@ export default function VideoPage() {
   }
   useEffect(() => { void load(); }, []);
 
+  // A folyamatban lévő videókat 6 mp-enként megpiszkáljuk: a státusz-végpont
+  // lekérdezi a fal.ai / Shotstack állapotát, és befejezi a jobot, ha kész
+  // (így akkor sem ragad be, ha a webhook nem érkezett meg).
+  useEffect(() => {
+    const pending = items.filter((i) => i.status !== "done" && i.status !== "failed");
+    if (!pending.length) return;
+    const t = setInterval(async () => {
+      let changed = false;
+      for (const it of pending) {
+        try {
+          const res = await fetch(`/api/real-estate/video/${it.id}`);
+          if (!res.ok) continue;
+          const d = await res.json();
+          if (d.status !== it.status || d.output_url) changed = true;
+        } catch { /* következő kör */ }
+      }
+      if (changed) void load();
+    }, 6000);
+    return () => clearInterval(t);
+  }, [items]);
+
   return (
     <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro

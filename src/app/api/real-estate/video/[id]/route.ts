@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRenderStatus } from "@/lib/shotstack";
+import { getFalVideoResult } from "@/lib/fal";
+import { startRenderWithAiClip } from "@/lib/video-pipeline";
 import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
@@ -33,8 +35,39 @@ export async function GET(
   let outputUrl = job.output_url as string | null;
   let jobError = job.error as string | null;
 
-  // Tartalék lekérdezés, ha a webhook nem futott le.
-  const meta = (job.meta ?? {}) as { render_id?: string; title?: string };
+  const meta = (job.meta ?? {}) as {
+    render_id?: string; title?: string;
+    fal_request_id?: string; fal_status_url?: string; fal_response_url?: string;
+  };
+
+  // 1) PRO: ha az AI-klipre várunk, de a webhook nem jött meg (pl. localhost),
+  // lekérdezzük a fal.ai-tól, és ha kész, elindítjuk a Shotstack rendert.
+  if (status === "animating" && meta.fal_request_id) {
+    try {
+      const r = await getFalVideoResult({
+        requestId: meta.fal_request_id,
+        statusUrl: meta.fal_status_url,
+        responseUrl: meta.fal_response_url,
+      });
+      if (r.status === "done" && r.videoUrl) {
+        const site = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || new URL(_request.url).origin;
+        await startRenderWithAiClip(job, r.videoUrl, site.replace(/\/$/, ""), process.env.VIDEO_WEBHOOK_SECRET || "");
+        status = "rendering";
+      } else if (r.status === "failed") {
+        const admin = createAdminClient();
+        status = "failed";
+        jobError = "Az AI-klip generálása nem sikerült.";
+        await admin.from("video_jobs").update({ status, error: jobError }).eq("id", job.id);
+        if (job.credits_charged > 0) {
+          await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
+        }
+      }
+    } catch {
+      /* a következő polling újrapróbálja */
+    }
+  }
+
+  // 2) Tartalék lekérdezés a renderre, ha a Shotstack-webhook nem futott le.
   if (status === "rendering" && meta.render_id) {
     try {
       const r = await getRenderStatus(meta.render_id);

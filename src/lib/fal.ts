@@ -25,7 +25,7 @@ export async function submitImageToVideoFal(params: {
   aspectRatio: "1:1" | "9:16";
   webhookUrl: string;
   prompt?: string;
-}): Promise<string> {
+}): Promise<{ requestId: string; statusUrl: string | null; responseUrl: string | null }> {
   const key = process.env.FAL_KEY;
   if (!key) throw new Error("Hiányzó FAL_KEY.");
 
@@ -47,7 +47,42 @@ export async function submitImageToVideoFal(params: {
   const data = await res.json();
   const id: string | undefined = data?.request_id;
   if (!id) throw new Error("A fal.ai nem adott request id-t.");
-  return id;
+  return {
+    requestId: id,
+    statusUrl: (data?.status_url as string) ?? null,
+    responseUrl: (data?.response_url as string) ?? null,
+  };
+}
+
+/**
+ * Az AI-klip állapota lekérdezéssel (biztonsági háló, ha a webhook nem érkezik meg
+ * — pl. localhoston). A status/response URL-t a beküldés válasza adja; ha hiányzik,
+ * a modell azonosítójából állítjuk össze.
+ */
+export async function getFalVideoResult(params: {
+  requestId: string;
+  statusUrl?: string | null;
+  responseUrl?: string | null;
+}): Promise<{ status: "pending" | "done" | "failed"; videoUrl: string | null }> {
+  const key = process.env.FAL_KEY;
+  if (!key) throw new Error("Hiányzó FAL_KEY.");
+  const app = FAL_I2V_MODEL.split("/").slice(0, 2).join("/"); // pl. fal-ai/kling-video
+  const statusUrl = params.statusUrl || `${FAL_QUEUE}/${app}/requests/${params.requestId}/status`;
+  const responseUrl = params.responseUrl || `${FAL_QUEUE}/${app}/requests/${params.requestId}`;
+  const headers = { Authorization: `Key ${key}` };
+
+  const sRes = await fetch(statusUrl, { headers });
+  if (!sRes.ok) return { status: "pending", videoUrl: null };
+  const sData = await sRes.json();
+  const s = String(sData?.status ?? "").toUpperCase();
+  if (s === "IN_QUEUE" || s === "IN_PROGRESS") return { status: "pending", videoUrl: null };
+  if (s && s !== "COMPLETED") return { status: "failed", videoUrl: null };
+
+  const rRes = await fetch(responseUrl, { headers });
+  if (!rRes.ok) return { status: "pending", videoUrl: null };
+  const rData = await rRes.json();
+  const videoUrl: string | null = rData?.video?.url ?? rData?.url ?? null;
+  return videoUrl ? { status: "done", videoUrl } : { status: "failed", videoUrl: null };
 }
 
 // Háttéreltávolítás (logó-tisztítás) — BiRefNet v2. Csak akkor hívjuk, ha az ingyenes
