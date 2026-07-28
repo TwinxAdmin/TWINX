@@ -88,6 +88,31 @@ export function truncate(s: string, max: number): string {
   const t = String(s ?? "").trim();
   return t.length <= max ? t : t.slice(0, Math.max(0, max - 1)).trimEnd() + "…";
 }
+
+/**
+ * Ár formázása: ha a partner CSAK számot ír (pl. "100" vagy "46,5"), kitesszük a
+ * hiányzó mértékegységet → "100 M Ft". Ha már írt bármilyen egységet (M, Ft, mFt…),
+ * változatlanul hagyjuk.
+ */
+export function formatPrice(raw: string): string {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  if (/^\d+([.,]\d+)?$/.test(t)) return `${t} M Ft`;          // csak szám
+  if (/^\d+([.,]\d+)?\s*m$/i.test(t)) return `${t.replace(/\s*m$/i, "")} M Ft`; // "100 M"
+  return t;
+}
+
+/**
+ * Méret formázása: ha a partner csak számot ír (pl. "100"), hozzátesszük a "m²"-t.
+ * Ha már van egység (m2, m², nm, négyzetméter), változatlan marad.
+ */
+export function formatSize(raw: string): string {
+  const t = String(raw ?? "").trim();
+  if (!t) return "";
+  if (/^\d+([.,]\d+)?$/.test(t)) return `${t} m²`;
+  if (/^\d+([.,]\d+)?\s*(m2|nm)$/i.test(t)) return `${t.replace(/\s*(m2|nm)$/i, "")} m²`;
+  return t;
+}
 /** Betűstílus külön tulajdonságokkal — a `font` rövidítés levágná a sormagasságot. */
 function type(weight: number, size: number, lh: number, extra = ""): string {
   return `font-weight:${weight};font-size:${size}px;line-height:${lh};${extra}`;

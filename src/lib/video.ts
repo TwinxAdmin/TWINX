@@ -1,3 +1,5 @@
+import { formatPrice, formatSize } from "@/lib/flyer-poster";
+
 // Videó 2.0 — közös konfiguráció (hibrid pipeline).
 // Szerkezet: nyitókártya (2,5 mp) + 4-5 fotó (4 mp, alsó felirat-sávval) + zárókártya (3 mp).
 // Alap: minden fotó Ken Burns (Shotstack zoom). PRO: az 1. fotó AI-mozgással (fal.ai).
@@ -75,15 +77,18 @@ export const EMPTY_VIDEO_FACTS: VideoCaptionFacts = {
   location: "", price: "", size: "", rooms: "", bathrooms: "", floor: "", structure: "", condition: "",
 };
 
-/** A fotó indexéhez tartozó felirat-sor (1-2 rövid adat, ponttal elválasztva). */
+/** A fotó indexéhez tartozó felirat-sor (1-2 rövid adat, ponttal elválasztva).
+ *  Az ár és a méret automatikusan kapja a hiányzó mértékegységet („100" → „100 M Ft" / „100 m²"). */
 export function captionForPhoto(i: number, f: VideoCaptionFacts): string {
   const join = (a?: string, b?: string) => [a, b].map((x) => (x ?? "").trim()).filter(Boolean).join("  ·  ");
+  const price = formatPrice(f.price);
+  const size = formatSize(f.size);
   const rows = [
-    join(f.location, f.price && `Irányár: ${f.price}`),
-    join(f.size, f.rooms),
+    join(f.location, price && `Irányár: ${price}`),
+    join(size, f.rooms),
     join(f.bathrooms, f.floor),
     join(f.structure, f.condition),
-    join(f.location, f.price && `Irányár: ${f.price}`), // 5. fotó: a legfontosabb ismétlése
+    join(f.location, price && `Irányár: ${price}`), // 5. fotó: a legfontosabb ismétlése
   ];
   return rows[i % rows.length] ?? "";
 }

@@ -4,7 +4,7 @@
 // A feliratok itt is Satori-szöveggel készülnek → hibátlan magyar ékezetek.
 import React from "react";
 import { ImageResponse } from "next/og";
-import { buildTheme } from "@/lib/flyer-poster";
+import { buildTheme, formatPrice } from "@/lib/flyer-poster";
 import { getBrandingFont } from "@/lib/branding";
 import { loadGoogleFont, googleFamilyOf } from "@/lib/google-font";
 import type { FlyerProfileData } from "@/lib/flyer-template";
@@ -79,6 +79,7 @@ export async function renderOpeningCard(
   const title = truncate((opts.title || "Eladó ingatlan").toUpperCase(), 40);
   const titleFs = Math.round((title.length > 24 ? 72 : 88) * u);
   const sealD = Math.round(260 * u);
+  const price = formatPrice(opts.price); // „100" → „100 M Ft"
 
   const el = box(
     { position: "relative", width: W, height: H, background: t.band, fontFamily: ctx.family, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(80 * u) },
@@ -88,12 +89,12 @@ export async function renderOpeningCard(
       opts.location
         ? box({ fontSize: Math.round(34 * u), fontWeight: 400, color: t.bandInk, opacity: 0.9, marginTop: Math.round(22 * u), textAlign: "center" }, truncate(opts.location, 44))
         : null,
-      opts.price
+      price
         ? box(
             { width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: Math.round(48 * u), border: `${Math.round(5 * u)}px solid rgba(255,255,255,0.6)` },
             [
               box({ fontSize: Math.round(22 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u), marginBottom: Math.round(6 * u) }, "ÁR"),
-              box({ fontSize: Math.round((opts.price.length > 10 ? 42 : 56) * u), fontWeight: 700, color: accInk, lineHeight: 1.1, textAlign: "center" }, truncate(opts.price, 16)),
+              box({ fontSize: Math.round((price.length > 10 ? 38 : 52) * u), fontWeight: 700, color: accInk, lineHeight: 1.1, textAlign: "center" }, truncate(price, 16)),
             ]
           )
         : null,
@@ -133,30 +134,58 @@ export async function renderClosingCard(ctx: VideoFrameCtx): Promise<Buffer> {
   return renderPng(el, ctx);
 }
 
-/** FOTÓ-KERET: a fotó cover-kitöltéssel + alsó arculati felirat-sáv (ha van szöveg). */
+/** FOTÓ-KERET: CSAK a fotó, cover-kitöltéssel (a felirat külön rétegen megy rá). */
 export async function renderPhotoFrame(
   ctx: VideoFrameCtx,
-  opts: { photoUrl: string; caption: string }
+  opts: { photoUrl: string }
+): Promise<Buffer> {
+  const { width: W, height: H } = ctx;
+  const el = box(
+    { position: "relative", width: W, height: H, background: "#101010" },
+    box(
+      { position: "absolute", top: 0, left: 0, width: W, height: H, overflow: "hidden" },
+      img(opts.photoUrl, { width: W, height: H, objectFit: "cover" })
+    )
+  );
+  return renderPng(el, ctx);
+}
+
+/**
+ * FELIRAT-RÉTEG: átlátszó PNG, alul a szöveggel. A videó FELSŐ rétegére kerül,
+ * így NEM zoomol a képpel — végig olvasható marad. Nincs tömör színes sáv:
+ * csak egy alig látható sötétedés + árnyékolt fehér betű.
+ */
+export async function renderCaptionOverlay(
+  ctx: VideoFrameCtx,
+  opts: { caption: string }
 ): Promise<Buffer> {
   const { width: W, height: H, profile: p } = ctx;
   const u = W / 1080;
   const t = buildTheme(MOOD, p.accent_color);
-  const barH = Math.round(96 * u);
+  const zoneH = Math.round(230 * u);
 
   const el = box(
-    { position: "relative", width: W, height: H, background: "#101010", fontFamily: ctx.family },
+    // A gyökéren NINCS background → a PNG átlátszó marad.
+    { position: "relative", width: W, height: H, fontFamily: ctx.family },
     [
+      box({
+        position: "absolute", left: 0, bottom: 0, width: W, height: zoneH,
+        backgroundImage: "linear-gradient(0deg, rgba(12,14,16,0.72) 0%, rgba(12,14,16,0.34) 55%, rgba(12,14,16,0) 100%)",
+      }),
       box(
-        { position: "absolute", top: 0, left: 0, width: W, height: H, overflow: "hidden" },
-        img(opts.photoUrl, { width: W, height: H, objectFit: "cover" })
+        { position: "absolute", left: 0, bottom: Math.round(56 * u), width: W, justifyContent: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u) },
+        box({
+          fontSize: Math.round(40 * u), fontWeight: 700, color: "#ffffff",
+          letterSpacing: Math.round(1 * u), textShadow: "0 2px 14px rgba(0,0,0,0.85)",
+        }, truncate(opts.caption, 46))
       ),
-      opts.caption
-        ? box(
-            { position: "absolute", left: 0, bottom: 0, width: W, height: barH, background: `${t.band}EB`, alignItems: "center", justifyContent: "center", paddingLeft: Math.round(40 * u), paddingRight: Math.round(40 * u) },
-            box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, letterSpacing: Math.round(1 * u) }, truncate(opts.caption, 52))
-          )
-        : null,
-    ].filter(Boolean)
+      // Finom arculati hangsúly: rövid vonal a szöveg fölött.
+      box({
+        position: "absolute", left: Math.round(W / 2 - 40 * u), bottom: Math.round(124 * u),
+        width: Math.round(80 * u), height: Math.max(2, Math.round(3 * u)),
+        background: t.hair ?? p.accent_color, opacity: 0.95,
+      }),
+    ]
   );
   return renderPng(el, ctx);
 }

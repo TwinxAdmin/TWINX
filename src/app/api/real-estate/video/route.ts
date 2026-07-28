@@ -15,9 +15,9 @@ import {
   type VideoPackage, type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import { pickMusic } from "@/lib/music";
-import { submitVideoRender, type TimelineClip } from "@/lib/shotstack";
+import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 import { submitImageToVideoFal } from "@/lib/fal";
-import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame } from "@/lib/video-frames";
+import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
 import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -121,7 +121,11 @@ export async function POST(request: Request) {
     const frames: Array<{ name: string; buf: Buffer }> = [];
     frames.push({ name: "open.png", buf: await renderOpeningCard(ctx, { title, location: facts.location, price: facts.price }) });
     for (let i = 0; i < photoUrls.length; i++) {
-      frames.push({ name: `photo-${i}.png`, buf: await renderPhotoFrame(ctx, { photoUrl: photoUrls[i], caption: captions[i] }) });
+      // A fotó-keret TISZTA (a felirat külön, felső rétegen megy rá → nem zoomol el).
+      frames.push({ name: `photo-${i}.png`, buf: await renderPhotoFrame(ctx, { photoUrl: photoUrls[i] }) });
+      if (captions[i]) {
+        frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, { caption: captions[i] }) });
+      }
     }
     frames.push({ name: "close.png", buf: await renderClosingCard(ctx) });
 
@@ -156,7 +160,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, jobId, status: "animating" });
     }
 
-    // ALAP: közvetlen Shotstack render — kártyák + fotó-keretek Ken Burns-szel.
+    // ALAP: közvetlen Shotstack render — kártyák + fotó-keretek Ken Burns-szel,
+    // a feliratok KÜLÖN felső rétegen (nem zoomolnak, végig látszanak).
     const clips: TimelineClip[] = [
       { kind: "image", src: frameUrls["open.png"], length: CARD_OPEN_SECONDS },
       ...photoUrls.map((_, i): TimelineClip => ({
@@ -164,9 +169,14 @@ export async function POST(request: Request) {
       })),
       { kind: "image", src: frameUrls["close.png"], length: CARD_CLOSE_SECONDS },
     ];
+    const overlays: OverlayClip[] = [];
+    photoUrls.forEach((_, i) => {
+      const src = frameUrls[`cap-${i}.png`];
+      if (src) overlays.push({ src, start: CARD_OPEN_SECONDS + i * PHOTO_SECONDS, length: PHOTO_SECONDS });
+    });
     const callback = `${site}/api/webhooks/shotstack?job=${jobId}&token=${encodeURIComponent(secret)}`;
     const renderId = await submitVideoRender({
-      clips, musicUrl, width: format.width, height: format.height, callbackUrl: callback,
+      clips, overlays, musicUrl, width: format.width, height: format.height, callbackUrl: callback,
     });
 
     await admin.from("video_jobs").update({

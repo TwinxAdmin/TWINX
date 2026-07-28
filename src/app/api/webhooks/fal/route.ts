@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS, getFormat } from "@/lib/video";
-import { submitVideoRender, type TimelineClip } from "@/lib/shotstack";
+import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -74,10 +74,27 @@ export async function POST(request: Request) {
       { kind: "image", src: frames["close.png"], length: CARD_CLOSE_SECONDS },
     ];
 
+    // Feliratok külön felső rétegen (az AI-klip fölött is) — nem zoomolnak.
+    const overlays: OverlayClip[] = [];
+    if (frames["cap-0.png"]) {
+      overlays.push({ src: frames["cap-0.png"], start: CARD_OPEN_SECONDS, length: AI_CLIP_SECONDS });
+    }
+    photos.slice(1).forEach((_, i) => {
+      const src = frames[`cap-${i + 1}.png`];
+      if (src) {
+        overlays.push({
+          src,
+          start: CARD_OPEN_SECONDS + AI_CLIP_SECONDS + i * PHOTO_SECONDS,
+          length: PHOTO_SECONDS,
+        });
+      }
+    });
+
     const site = baseUrl(request);
     const callback = `${site}/api/webhooks/shotstack?job=${jobId}&token=${encodeURIComponent(secret)}`;
     const renderId = await submitVideoRender({
       clips,
+      overlays,
       musicUrl: (job.music_url as string) ?? null,
       width: format.width,
       height: format.height,

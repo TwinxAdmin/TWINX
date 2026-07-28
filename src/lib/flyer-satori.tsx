@@ -2,7 +2,7 @@
 // Pixelpontos, valódi TTF-fel → nincs levágott ékezet, minden gépen egyforma.
 // Korlátok: csak flexbox, pixelek, egyszerű CSS + egyszerű SVG (hullám, ikonok).
 import React from "react";
-import { buildTheme, truncate, flyerGeom, type RenderOpts } from "@/lib/flyer-poster";
+import { buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
 
 type Style = React.CSSProperties;
 function box(style: Style, children?: React.ReactNode): React.ReactElement {
@@ -84,7 +84,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const contact = [p.phone, p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
 
   // Ár: ha a partner CSAK számot adott meg, kitesszük a nagy „M Ft" utótagot.
-  const rawPrice = String(o.text.price ?? "").trim();
+  const rawPrice = formatPrice(String(o.text.price ?? ""));
   const priceIsBare = /^\d+([.,]\d+)?$/.test(rawPrice);
   const priceNum = priceIsBare ? rawPrice : truncate(rawPrice, 16);
   const priceSuffix = priceIsBare ? "M Ft" : "";
@@ -251,8 +251,8 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // --- Ikonos adat-tételek (csak ami meg van adva) ---
   const iconSize = Math.round(32 * u);
   const items: Array<{ k: string; v: string }> = [];
-  const sizeNum = numOf(d.size);
-  if (sizeNum) items.push({ k: "area", v: `${sizeNum} m²` });
+  const sizeTxt = formatSize(d.size ?? "");
+  if (sizeTxt) items.push({ k: "area", v: truncate(sizeTxt, 14) });
   const roomsNum = numOf(d.rooms);
   if (roomsNum) items.push({ k: "bed", v: `${roomsNum} szoba` });
   else if (d.rooms) items.push({ k: "bed", v: shortLabel(d.rooms, 14) });

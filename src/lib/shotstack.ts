@@ -14,8 +14,12 @@ export type TimelineClip = {
  * Render beküldése: a klipek sorban, fade áttűnésekkel; a zene a teljes videó
  * alatt szól és a végén leúszik. A callback URL-re jön a kész/failed jelzés.
  */
+/** Felirat-réteg: átlátszó PNG a videó tetején — NEM zoomol, végig látszik. */
+export type OverlayClip = { src: string; start: number; length: number };
+
 export async function submitVideoRender(params: {
   clips: TimelineClip[];
+  overlays?: OverlayClip[];
   musicUrl: string | null;
   width: number;
   height: number;
@@ -44,11 +48,21 @@ export async function submitVideoRender(params: {
     return clip;
   });
 
+  // A Shotstacknél a tracks[0] a LEGFELSŐ réteg → a feliratok külön, felül futnak.
+  const overlayClips = (params.overlays ?? []).map((o) => ({
+    asset: { type: "image", src: o.src },
+    start: o.start,
+    length: o.length,
+    fit: "none",
+    transition: { in: "fade", out: "fade" },
+  }));
+  const tracks = overlayClips.length ? [{ clips: overlayClips }, { clips }] : [{ clips }];
+
   const body: Record<string, unknown> = {
     timeline: {
       background: "#000000",
       ...(params.musicUrl ? { soundtrack: { src: params.musicUrl, effect: "fadeOut", volume: 1 } } : {}),
-      tracks: [{ clips }],
+      tracks,
     },
     output: {
       format: "mp4",
