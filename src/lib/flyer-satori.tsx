@@ -1,6 +1,6 @@
 // A hirdetés Satori-kompatibilis fája (next/og ImageResponse) — PRÉMIUM, teljes-képes stílus.
 // Pixelpontos, valódi TTF-fel → nincs levágott ékezet, minden gépen egyforma.
-// Korlátok: csak flexbox, pixelek, egyszerű CSS + egyszerű SVG (a hullámhoz).
+// Korlátok: csak flexbox, pixelek, egyszerű CSS + egyszerű SVG (hullám, ikonok).
 import React from "react";
 import { buildTheme, truncate, type RenderOpts } from "@/lib/flyer-poster";
 
@@ -18,6 +18,40 @@ function onColor(hex: string): string {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#171310" : "#ffffff";
 }
 
+/** Az első szám a szövegből (pl. "1 fürdőszoba + külön WC" → "1"). */
+function numOf(s?: string): string {
+  const m = String(s ?? "").match(/\d+([.,]\d+)?/);
+  return m ? m[0] : "";
+}
+/** Rövid címke: a zárójeles rész és a felesleges farok nélkül. */
+function shortLabel(s: string, max = 16): string {
+  const base = String(s ?? "").split("(")[0].split("/")[0].trim();
+  return truncate(base, max);
+}
+
+// --- Vonalas ikonok (24×24 rács, stroke) ------------------------------------
+const ICON_PATHS: Record<string, string[]> = {
+  area: ["M3 3h18v18H3z", "M8 3v18", "M3 8h18"],                                  // alaprajz / m²
+  bed: ["M3 18v-7a2 2 0 012-2h14a2 2 0 012 2v7", "M3 14h18", "M3 18h18", "M7 9V6h5v3"], // szoba
+  bath: ["M4 12h16v3a4 4 0 01-4 4H8a4 4 0 01-4-4z", "M7 12V6a2 2 0 114 0", "M6 19l-1 2", "M18 19l1 2"], // fürdő
+  stairs: ["M3 20h4v-4h4v-4h4V8h4V4"],                                            // szint
+  brick: ["M3 6h18v5H3z", "M3 13h18v5H3z", "M9 6v5", "M15 6v5", "M6 13v5", "M12 13v5", "M18 13v5"], // szerkezet
+  check: ["M20 6L9 17l-5-5"],                                                     // állapot
+};
+
+function icon(kind: keyof typeof ICON_PATHS | string, size: number, color: string): React.ReactElement {
+  const paths = ICON_PATHS[kind] ?? ICON_PATHS.check;
+  return React.createElement(
+    "svg",
+    { width: size, height: size, viewBox: "0 0 24 24", fill: "none", style: { display: "flex" } },
+    paths.map((d, i) =>
+      React.createElement("path", {
+        key: i, d, stroke: color, strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round",
+      })
+    )
+  );
+}
+
 /** family: a Satorinak átadott betűcsalád-név (ugyanaz, mint a fonts tömbben). */
 export function buildFlyerElement(o: RenderOpts, family: string): React.ReactElement {
   const { width: W, height: H } = o;
@@ -29,20 +63,28 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const hero = images[0] || "";
   const thumbs = images.slice(1, 4);
   const p = o.profile;
+  const d = o.text.details ?? {};
 
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 42);
   const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u);
   const subtitle = truncate(o.text.subtitle, 48);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
-  const chips = o.text.chips.filter(Boolean).slice(0, 4).map((c) => truncate(c, 22));
-  const factLine = chips.join("   ·   ").toUpperCase();
+  // Felső sor: csak a lényeg (a részletek lent, ikonosan) — nincs duplázás.
+  const topLine = o.text.chips.filter(Boolean).slice(0, 2).map((c) => truncate(c, 26)).join("   ·   ").toUpperCase();
   const contact = [p.phone, p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
 
-  // Geometria
-  const waveH = Math.round(H * 0.34);       // a hullám-svg magassága
-  const amp = Math.round(52 * u);           // a hullám ív-magassága
-  const footerH = waveH - amp - Math.round(14 * u); // a tömör rész, ahol a szöveg ül
-  const sealD = Math.round(300 * u);
+  // Ár: ha a partner CSAK számot adott meg, kitesszük a nagy „M Ft" utótagot.
+  const rawPrice = String(o.text.price ?? "").trim();
+  const priceIsBare = /^\d+([.,]\d+)?$/.test(rawPrice);
+  const priceNum = priceIsBare ? rawPrice : truncate(rawPrice, 16);
+  const priceSuffix = priceIsBare ? "M Ft" : "";
+
+  // --- Geometria: a sáv magasabb (feljebb tolva), két soros tartalommal ---
+  const waveH = Math.round(H * 0.40);
+  const amp = Math.round(52 * u);
+  const bandTop = amp;                      // itt kezdődik a tömör rész
+  const bandH = waveH - bandTop;            // a tömör sáv magassága
+  const sealD = Math.round(280 * u);
 
   // --- Réteg 1: teljes képes háttér ---
   const heroLayer = box(
@@ -50,30 +92,29 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     hero ? img(hero, { width: W, height: H, objectFit: "cover" }) : undefined
   );
 
-  // --- Réteg 2: felső sötétítés a cím olvashatóságához ---
+  // --- Réteg 2: felső sötétítés ---
   const scrim = box({
-    position: "absolute", top: 0, left: 0, width: W, height: Math.round(H * 0.52),
-    backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0) 100%)",
+    position: "absolute", top: 0, left: 0, width: W, height: Math.round(H * 0.50),
+    backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 62%, rgba(0,0,0,0) 100%)",
   });
 
-  // --- Réteg 3: cím-blokk (ráúsztatva) ---
+  // --- Réteg 3: cím-blokk ---
   const titleBlock = box(
-    { position: "absolute", top: Math.round(58 * u), left: Math.round(60 * u), width: W - Math.round(120 * u), flexDirection: "column" },
+    { position: "absolute", top: Math.round(58 * u), left: Math.round(60 * u), width: W - Math.round(230 * u), flexDirection: "column" },
     [
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
       subtitle ? box({ fontSize: Math.round(30 * u), fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle) : null,
-      factLine ? box({ fontSize: Math.round(20 * u), fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(16 * u), letterSpacing: Math.round(2 * u), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, factLine) : null,
+      topLine ? box({ fontSize: Math.round(20 * u), fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, topLine) : null,
     ].filter(Boolean)
   );
 
-  // --- ELADÓ jelvény (jobb felső) ---
   const badgeEl = box(
     { position: "absolute", top: Math.round(56 * u), right: Math.round(60 * u), background: t.badgeBg, color: t.badgeInk, borderRadius: Math.round(6 * u), paddingTop: Math.round(10 * u), paddingBottom: Math.round(10 * u), paddingLeft: Math.round(22 * u), paddingRight: Math.round(22 * u), fontSize: Math.round(24 * u), fontWeight: 700, letterSpacing: Math.round(1 * u) },
     badge
   );
 
-  // --- Réteg 4: ívelt hullám (SVG) az arculati sávszínnel ---
+  // --- Réteg 4: ívelt hullám ---
   const y0 = amp, y1 = Math.round(amp * 0.35);
   const wavePath = `M0,${y0} C ${Math.round(W * 0.30)},${y0 - amp} ${Math.round(W * 0.68)},${y1 + amp} ${W},${y1} L ${W},${waveH} L 0,${waveH} Z`;
   const wave = React.createElement(
@@ -82,10 +123,24 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     React.createElement("path", { d: wavePath, fill: t.band })
   );
 
-  // --- Réteg 5: thumbnails (ha több kép) — a hullám fölött, jobbra ---
+  // --- Ár-pecsét: teljesen a kép területén (nem lóg a sávba) ---
+  const seal = rawPrice
+    ? box(
+        { position: "absolute", left: Math.round(64 * u), bottom: waveH + Math.round(22 * u), width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(26 * u), border: `${Math.round(4 * u)}px solid rgba(255,255,255,0.55)` },
+        [
+          box({ fontSize: Math.round(19 * u), fontWeight: 700, color: accInk, opacity: 0.85, letterSpacing: Math.round(3 * u), marginBottom: Math.round(4 * u) }, "IRÁNYÁR"),
+          box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(8 * u) }, [
+            box({ fontSize: Math.round((priceNum.length > 8 ? 40 : priceNum.length > 4 ? 54 : 66) * u), fontWeight: 700, color: accInk, lineHeight: 1.1 }, priceNum),
+            priceSuffix ? box({ fontSize: Math.round(30 * u), fontWeight: 700, color: accInk, opacity: 0.95 }, priceSuffix) : null,
+          ].filter(Boolean)),
+        ]
+      )
+    : null;
+
+  // --- Thumbnails a hullám fölött, jobbra ---
   const thumbRow = thumbs.length
     ? box(
-        { position: "absolute", right: Math.round(56 * u), bottom: waveH - Math.round(24 * u), gap: Math.round(12 * u) },
+        { position: "absolute", right: Math.round(56 * u), bottom: waveH + Math.round(22 * u), gap: Math.round(12 * u) },
         thumbs.map((src, i) =>
           box(
             { key: i, width: Math.round(150 * u), height: Math.round(150 * u), borderRadius: Math.round(14 * u), overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` } as Style,
@@ -95,25 +150,41 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       )
     : null;
 
-  // --- Réteg 6: ár-pecsét (bal, a hullám fölé lógva) ---
-  const seal = o.text.price
+  // --- Ikonos adat-tételek (csak ami meg van adva) ---
+  const iconSize = Math.round(30 * u);
+  const items: Array<{ k: string; v: string }> = [];
+  const sizeNum = numOf(d.size);
+  if (sizeNum) items.push({ k: "area", v: `${sizeNum} m²` });
+  const roomsNum = numOf(d.rooms);
+  if (roomsNum) items.push({ k: "bed", v: roomsNum });
+  else if (d.rooms) items.push({ k: "bed", v: shortLabel(d.rooms, 12) });
+  const bathNum = numOf(d.bathrooms);
+  if (bathNum) items.push({ k: "bath", v: bathNum });
+  if (d.floor) items.push({ k: "stairs", v: shortLabel(d.floor, 14) });
+  if (d.structure) items.push({ k: "brick", v: shortLabel(d.structure, 14) });
+  if (d.condition) items.push({ k: "check", v: shortLabel(d.condition, 18) });
+
+  const factsRow = items.length
     ? box(
-        { position: "absolute", left: Math.round(64 * u), bottom: waveH - Math.round(52 * u), width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(30 * u), border: `${Math.round(4 * u)}px solid ${accInk === "#ffffff" ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.85)"}` },
-        [
-          box({ fontSize: Math.round(20 * u), fontWeight: 700, color: accInk, opacity: 0.85, letterSpacing: Math.round(3 * u), marginBottom: Math.round(6 * u) }, "IRÁNYÁR"),
-          box({ fontSize: Math.round((o.text.price.length > 10 ? 34 : o.text.price.length > 6 ? 46 : 58) * u), fontWeight: 700, color: accInk, lineHeight: 1.1, textAlign: "center" }, truncate(o.text.price, 16)),
-        ]
+        { width: "100%", alignItems: "center", gap: Math.round(30 * u), flexWrap: "nowrap" },
+        items.slice(0, 6).map((it, i) =>
+          box({ key: i, alignItems: "center", gap: Math.round(9 * u) } as Style, [
+            icon(it.k, iconSize, t.bandInk),
+            box({ fontSize: Math.round(23 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.3 }, it.v),
+          ])
+        )
       )
     : null;
 
-  // --- Réteg 7: ügynök-sáv (a hullám tömör részén) ---
+  // --- Ügynök-sor ---
   const infoCol = box({ flexDirection: "column", flexGrow: 1 }, [
     box({ fontSize: Math.round(30 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.3 }, truncate(p.display_name || p.company, 26)),
     p.title ? box({ fontSize: Math.round(20 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 30)) : null,
     contact ? box({ fontSize: Math.round(21 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.4, marginTop: Math.round(3 * u) }, contact) : null,
   ].filter(Boolean));
-  const footer = box(
-    { position: "absolute", left: 0, bottom: 0, width: W, height: footerH, alignItems: "center", paddingLeft: o.text.price ? Math.round(64 * u) + sealD + Math.round(30 * u) : Math.round(60 * u), paddingRight: Math.round(60 * u), gap: Math.round(18 * u) },
+
+  const agentRow = box(
+    { width: "100%", alignItems: "center", gap: Math.round(18 * u) },
     [
       p.agent_photo_url ? img(p.agent_photo_url, { width: Math.round(88 * u), height: Math.round(88 * u), borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}` }) : null,
       infoCol,
@@ -126,7 +197,16 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     ].filter(Boolean)
   );
 
-  // --- Vízjel ---
+  // --- A sáv tartalma: adat-sor + elválasztó + ügynök-sor ---
+  const bandContent = box(
+    { position: "absolute", left: 0, bottom: 0, width: W, height: bandH, flexDirection: "column", justifyContent: "center", gap: Math.round(16 * u), paddingLeft: Math.round(60 * u), paddingRight: Math.round(60 * u) },
+    [
+      factsRow,
+      factsRow ? box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.22 }, "") : null,
+      agentRow,
+    ].filter(Boolean)
+  );
+
   const wm = o.watermark
     ? box(
         { position: "absolute", top: 0, left: 0, width: W, height: H, flexDirection: "column", justifyContent: "space-around", alignItems: "center", transform: "rotate(-24deg)" },
@@ -136,6 +216,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, titleBlock, badgeEl, wave, thumbRow, seal, footer, wm].filter(Boolean)
+    [heroLayer, scrim, titleBlock, badgeEl, wave, thumbRow, seal, bandContent, wm].filter(Boolean)
   );
 }

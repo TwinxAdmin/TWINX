@@ -158,8 +158,8 @@ export const FLYER_DEFAULT_SEGMENTS = {
   intro: `Ingatlanhirdetés szövegírója vagy. Írj magyar nyelvű hirdetésszöveget KIZÁRÓLAG az alábbi tények alapján. NE találj ki új adatot (címet, árat, méretet), amit nem adtak meg. Ügyelj a helyes magyar helyesírásra és az egybeírandó szavakra (pl. "újépítésű", "belvárosi", "kétszintes").`,
   task: `Válaszolj KIZÁRÓLAG egyetlen érvényes JSON objektummal, pontosan ezekkel a kulcsokkal (magyarul, ékezetekkel):
 {
-  "title": "rövid, ütős főcím (pl. 'Eladó 1 szobás lakás')",
-  "subtitle": "a PONTOS lokáció egy sorban: település, kerület ÉS utca is, ha meg van adva (ne csak a várost)",
+  "title": "RÖVID, ütős főcím: az ingatlan típusa + LEGFELJEBB a település neve (pl. 'Eladó újépítésű lakás Budapesten'). TILOS a kerületet, városrészt vagy utcát beleírni — az az alcímbe való. Max 42 karakter.",
+  "subtitle": "a PONTOS lokáció egy sorban: település, kerület ÉS utca is, ha meg van adva. Csak a helyszín — árat, méretet, állapotot NE írj ide.",
   "price": "CSAK a szám millióban, mértékegység nélkül (pl. '46,5' vagy '50'); ha nincs ár, üres string",
   "highlights": ["3-4 nagyon rövid kiemelés, egyenként max 3 szó"],
   "characteristics": ["5-7 pontban a főbb jellemzők, rövid mondatokban"],

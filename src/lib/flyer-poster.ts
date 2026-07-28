@@ -118,8 +118,19 @@ export function buildTheme(mood: string, accentRaw: string): Theme {
 }
 
 // --- A hirdetés adatai a rendernek --------------------------------------------
+/** Az alsó ikonos adatsáv tételei (nyers értékek — a render formázza őket). */
+export type RenderDetails = {
+  size?: string;       // pl. "100" vagy "100 nm"
+  rooms?: string;      // pl. "2 szoba"
+  bathrooms?: string;  // pl. "1 fürdőszoba + külön WC"
+  floor?: string;      // pl. "2. emelet"
+  structure?: string;  // pl. "Tégla (pl. Porotherm)"
+  condition?: string;  // pl. "Új építésű (kulcsrakész)"
+};
+
 export type RenderText = {
   title: string; subtitle: string; price: string; chips: string[]; badge?: string;
+  details?: RenderDetails;
 };
 
 export type RenderOpts = {

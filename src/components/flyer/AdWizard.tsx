@@ -112,7 +112,12 @@ export default function AdWizard({
 
   // --- A hirdetés PNG-je a szerveren, Satorival (pixelpontos, valódi betűkkel) ---
   async function buildBlob(watermark: boolean): Promise<{ blob: Blob; ext: string; contentType: string }> {
-    const chips = [facts.rooms, facts.size, facts.propertyType, facts.condition].filter(Boolean);
+    // Felül csak a lényeg (szoba + típus) — a részletes adatok lent, ikonosan.
+    const chips = [facts.rooms, facts.propertyType].filter(Boolean);
+    const details = {
+      size: facts.size, rooms: facts.rooms, bathrooms: facts.bathrooms,
+      floor: facts.floor, structure: facts.structure, condition: facts.condition,
+    };
     const fd = new FormData();
     for (const u of images) {
       const b = await (await fetch(u)).blob();
@@ -126,6 +131,7 @@ export default function AdWizard({
     fd.append("subtitle", text.subtitle ?? "");
     fd.append("price", text.price ?? "");
     fd.append("chips", JSON.stringify(chips));
+    fd.append("details", JSON.stringify(details));
     const res = await fetch("/api/flyer/render", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
     return { blob: await res.blob(), ext: "png", contentType: "image/png" };

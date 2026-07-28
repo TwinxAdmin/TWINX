@@ -43,12 +43,16 @@ export async function POST(request: Request) {
   let chips: string[] = [];
   try { chips = JSON.parse(String(form.get("chips") ?? "[]")) as string[]; } catch { chips = []; }
 
+  let details: Record<string, string> = {};
+  try { details = JSON.parse(String(form.get("details") ?? "{}")) as Record<string, string>; } catch { details = {}; }
+
   const text = {
     title: String(form.get("title") ?? ""),
     subtitle: String(form.get("subtitle") ?? ""),
     price: String(form.get("price") ?? ""),
     chips,
     badge: String(form.get("badge") ?? "ELADÓ"),
+    details,
   };
 
   try {
