@@ -89,11 +89,25 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const thumbD = Math.round(170 * u);
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
+  // A képet enyhén ránagyítjuk (ZOOM), így MINDIG van mozgástér mind a négy irányban,
+  // függetlenül a fotó arányától; a tolást kézzel számoljuk (nem objectPosition).
   const hx = Math.max(0, Math.min(100, o.heroPos?.x ?? 50));
   const hy = Math.max(0, Math.min(100, o.heroPos?.y ?? 50));
+  const ZOOM = 1.16;
+  const overW = Math.round(W * (ZOOM - 1));
+  const overH = Math.round(H * (ZOOM - 1));
   const heroLayer = box(
-    { position: "absolute", top: 0, left: 0, width: W, height: H, background: t.paper },
-    hero ? img(hero, { width: W, height: H, objectFit: "cover", objectPosition: `${hx}% ${hy}%` }) : undefined
+    { position: "absolute", top: 0, left: 0, width: W, height: H, overflow: "hidden", background: t.paper },
+    hero
+      ? img(hero, {
+          position: "absolute",
+          width: W + overW,
+          height: H + overH,
+          left: -Math.round((hx / 100) * overW),
+          top: -Math.round((hy / 100) * overH),
+          objectFit: "cover",
+        })
+      : undefined
   );
 
   // --- Réteg 2: felső sötétítés ---
