@@ -26,7 +26,6 @@ export const FLYER_SIZES = [
   { value: "1:1", label: "Négyzet 1:1", hint: "Instagram, Facebook", w: 1080, h: 1080 },
   { value: "9:16", label: "Álló 9:16", hint: "Story, Reels", w: 1080, h: 1920 },
   { value: "4:3", label: "Fekvő 4:3", hint: "Portálok, e-mail", w: 1440, h: 1080 },
-  { value: "16:9", label: "Fekvő 16:9", hint: "Facebook, YouTube", w: 1920, h: 1080 },
 ] as const;
 
 export function getFlyerSize(v: string) {
