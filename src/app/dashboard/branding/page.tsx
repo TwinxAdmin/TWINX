@@ -191,10 +191,10 @@ export default function BrandingPage() {
       if (logoFile) {
         // SVG és átlátszó PNG változatlanul megy (a JPEG-tömörítés elvenné az átlátszóságot).
         const keepAsIs = logoFile.type.includes("svg") || logoFile.type.includes("png");
-        fd.append("logo", keepAsIs ? logoFile : await compressImage(logoFile, 800, 0.9));
+        fd.append("logo", keepAsIs ? logoFile : await compressImage(logoFile, 1400, 0.92));
       }
       // Ügynök-fotó: a beállított kivágással, négyzetes portréként.
-      if (agentFile) fd.append("agent_photo", await cropToSquare(agentFile, crop, 800));
+      if (agentFile) fd.append("agent_photo", await cropToSquare(agentFile, crop, 1200));
       // Törlés-jelzések a szervernek.
       if (removeLogo && !logoFile) fd.append("remove_logo", "1");
       if (removeAgent && !agentFile) fd.append("remove_agent_photo", "1");

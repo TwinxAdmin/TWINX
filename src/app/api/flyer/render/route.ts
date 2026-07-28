@@ -88,9 +88,10 @@ export async function POST(request: Request) {
       const raw = JSON.parse(String(form.get("thumbSlots") ?? "[]")) as string[];
       thumbSlots = raw.map((s) => (s === "up1" || s === "up2" ? s : "row"));
     } catch { thumbSlots = []; }
-    // 2× felbontás: minden (szöveg, logó, fotó) élesebb; a sablon u-alapú, ezért
-    // arányosan skálázódik. A kész képet a kliens JPEG-ként tölti fel (méretlimit).
-    const SCALE = 2;
+    // Nagy felbontás: minden (szöveg, logó, fotó) élesebb; a sablon u-alapú, ezért
+    // arányosan skálázódik. Előnézet (vízjeles): 2× — gyors. Végleges: 3× — maximális
+    // minőség. A kész képet a kliens JPEG-ként tölti fel (méretlimit).
+    const SCALE = watermark ? 2 : 3;
     const opts: RenderOpts = {
       images, width: size.w * SCALE, height: size.h * SCALE, profile, text, mood, watermark, heroPos, thumbSlots,
     };
