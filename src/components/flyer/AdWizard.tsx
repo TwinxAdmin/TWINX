@@ -194,7 +194,14 @@ export default function AdWizard({
     if (step === 4 && !preview && !rendering) void makePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-  useEffect(() => { setPreview(null); setFinalUrl(null); setThumbSlots({}); }, [size, images.length]);
+  useEffect(() => {
+    setPreview(null); setFinalUrl(null);
+    // Story (9:16): a kis képek alapból FÜGGŐLEGES oszlopban (a jobb szélső fölött) —
+    // átüzhetők sorba; más méretnél alapból sorban.
+    const def = flyerGeom(sizeDef.w, sizeDef.h).story;
+    setThumbSlots(def ? { 0: "up2", 1: "up1" } : {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size, images.length]);
 
   // A főkép igazítása / kis képek áthelyezése → új render (az effect mindig FRISS állapottal fut).
   function nudgeHero(dx: number, dy: number) {

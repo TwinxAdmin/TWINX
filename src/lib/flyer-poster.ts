@@ -39,14 +39,15 @@ export function getFlyerSize(v: string) {
  */
 export function flyerGeom(w: number, h: number) {
   const u = w / 1080;
-  const story = h / w >= 1.4; // álló (9:16) formátum
-  const waveH = Math.round(h * (story ? 0.22 : 0.29));
+  const story = h / w >= 1.4; // álló (9:16) formátum — mobil-első kompozíció
+  const waveH = Math.round(h * (story ? 0.28 : 0.29));
   const amp = Math.round(40 * u);
   const bandH = waveH - amp;
   const gapT = Math.round(14 * u);
   return {
     u, story, waveH, amp, bandH, gapT,
-    thumbD: Math.round(170 * u),
+    // Story: nagyobb kis képek, alapból FÜGGŐLEGES oszlopban a jobb szélen.
+    thumbD: Math.round((story ? 220 : 170) * u),
     right0: Math.round(60 * u),
     B0: bandH + gapT, // a kis képek alapvonala (alulról)
   };
