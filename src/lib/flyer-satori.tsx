@@ -188,19 +188,21 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // hogy ne takarja az adat-rács tetejét (csak egy kicsit lóg a sávba). ---
   // Fekvőben: a pecsét a JOBB oldalon, a jelvény ALATT (fentről mérve) — az adatok fölött.
   const sealPos: Style = g.land
-    ? { right: Math.round(96 * u), top: Math.round((g.wide ? 107 : 96) * u) }
+    ? { right: Math.round((g.wide ? 96 : 64) * u), top: Math.round((g.wide ? 107 : 120) * u) }
     : {
         left: Math.round(60 * u),
         bottom: g.story ? boundary - Math.round(sealD * 0.18) : boundary - Math.round(sealD / 2),
       };
+  // A pecsét szövege a kör méretével ARÁNYOSAN kicsinyedik — így sosem lóg ki.
+  const sealK = Math.min(1, sealD / (190 * u));
   const seal = rawPrice
     ? box(
-        { position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
+        { position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u * sealK), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
         [
-          box({ fontSize: Math.round(18 * u), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u), marginBottom: Math.round(4 * u) }, "ÁR"),
-          box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u) }, [
-            box({ fontSize: Math.round((priceNum.length > 8 ? 34 : priceNum.length > 4 ? 44 : 54) * u), fontWeight: 700, color: accInk, lineHeight: 1.05 }, priceNum),
-            priceSuffix ? box({ fontSize: Math.round(24 * u), fontWeight: 700, color: accInk, opacity: 0.95 }, priceSuffix) : null,
+          box({ fontSize: Math.round(18 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u * sealK), marginBottom: Math.round(4 * u) }, "ÁR"),
+          box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u * sealK) }, [
+            box({ fontSize: Math.round((priceNum.length > 8 ? 34 : priceNum.length > 4 ? 44 : 54) * u * sealK), fontWeight: 700, color: accInk, lineHeight: 1.05 }, priceNum),
+            priceSuffix ? box({ fontSize: Math.round(24 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.95 }, priceSuffix) : null,
           ].filter(Boolean)),
         ]
       )
@@ -332,7 +334,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       ]);
     landDataCol = items.length
       ? box(
-          { position: "absolute", right: Math.round(96 * u), top: dataTop, flexDirection: "column" },
+          { position: "absolute", right: Math.round((g.wide ? 96 : 64) * u), top: dataTop, flexDirection: "column" },
           items.slice(0, 6).map(landItem)
         )
       : null;
@@ -384,7 +386,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
           ].filter(Boolean))
         : null;
       bandContent = box(
-        { position: "absolute", right: Math.round(96 * u), bottom: Math.round(28 * u), width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
+        { position: "absolute", right: Math.round(64 * u), bottom: Math.round(28 * u), width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
         [
           box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(12 * u) }, ""),
           circlesRow,
