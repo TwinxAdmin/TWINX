@@ -43,13 +43,16 @@ export const FLYER_TONES: FlyerTone[] = [
 
 // A hirdetés alapadatai (ezekből dolgozik az AI; kézzel is szerkeszthető).
 export type FlyerFacts = {
-  location: string; // település, kerület / utca
+  location: string; // település, kerület
+  street: string; // pontosabb helyszín / utca
   price: string;
   propertyType: string;
   size: string;
   rooms: string;
-  bathrooms: string; // fürdőszobák száma
-  condition: string;
+  floor: string; // épület szintje
+  bathrooms: string; // fürdőszobák / mellékhelyiség
+  condition: string; // műszaki állapot
+  structure: string; // szerkezet
   extra: string; // egyéb, amit az AI tudjon (pl. felújított fürdő, metró közel)
   custom1: string; // szabad sor — rákerül a hirdetésre (pl. "Hatalmas kert")
   custom2: string; // szabad sor — rákerül a hirdetésre
@@ -57,16 +60,41 @@ export type FlyerFacts = {
 
 export const EMPTY_FACTS: FlyerFacts = {
   location: "",
+  street: "",
   price: "",
   propertyType: "",
   size: "",
   rooms: "",
+  floor: "",
   bathrooms: "",
   condition: "",
+  structure: "",
   extra: "",
   custom1: "",
   custom2: "",
 };
+
+// Szoba- és fürdő-opciók a hirdetéshez (az értékbecslőben ezek szabad szövegek).
+export const ROOMS_OPTIONS = [
+  "1 szoba",
+  "1 + 1 fél szoba",
+  "2 szoba",
+  "2 + 1 fél szoba",
+  "3 szoba",
+  "3 + 1 fél szoba",
+  "4 szoba",
+  "4 + 1 fél szoba",
+  "5 szoba",
+  "5 vagy több szoba",
+];
+
+export const BATHROOM_OPTIONS = [
+  "1 fürdőszoba",
+  "1 fürdőszoba + külön WC",
+  "2 fürdőszoba",
+  "2 fürdőszoba + külön WC",
+  "3 vagy több fürdőszoba",
+];
 
 // Az AI által generált (és kézzel felülírható) hirdetés-szöveg.
 export type FlyerText = {
@@ -98,12 +126,15 @@ function ffv(s: unknown): string {
 export function flyerDataBlock(facts: Partial<FlyerFacts>, toneDesc: string): string {
   const factLines = [
     `Elhelyezkedés: ${ffv(facts.location) || "[nincs megadva]"}`,
+    `Pontosabb helyszín/utca: ${ffv(facts.street) || "[nincs megadva]"}`,
     `Ár: ${ffv(facts.price) || "[nincs megadva]"}`,
     `Típus: ${ffv(facts.propertyType) || "[nincs megadva]"}`,
     `Méret: ${ffv(facts.size) || "[nincs megadva]"}`,
     `Szobák: ${ffv(facts.rooms) || "[nincs megadva]"}`,
-    `Fürdőszobák: ${ffv(facts.bathrooms) || "[nincs megadva]"}`,
-    `Állapot: ${ffv(facts.condition) || "[nincs megadva]"}`,
+    `Épület szintje: ${ffv(facts.floor) || "[nincs megadva]"}`,
+    `Fürdőszobák/mellékhelyiség: ${ffv(facts.bathrooms) || "[nincs megadva]"}`,
+    `Műszaki állapot: ${ffv(facts.condition) || "[nincs megadva]"}`,
+    `Szerkezet: ${ffv(facts.structure) || "[nincs megadva]"}`,
     `Egyéb: ${ffv(facts.extra) || "[nincs megadva]"}`,
     `További kiemelt jellemzők: ${[ffv(facts.custom1), ffv(facts.custom2)].filter(Boolean).join("; ") || "[nincs megadva]"}`,
   ].join("\n");

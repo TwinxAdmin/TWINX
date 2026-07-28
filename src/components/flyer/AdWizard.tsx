@@ -11,8 +11,11 @@ import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
 import {
   FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS,
+  ROOMS_OPTIONS, BATHROOM_OPTIONS,
   type FlyerFacts, type FlyerText,
 } from "@/lib/flyer";
+import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
+import ComboField from "@/components/ComboField";
 import { FLYER_SIZES, getFlyerSize } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -331,13 +334,20 @@ export default function AdWizard({
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-semibold">Az ingatlan adatai</p>
-                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Elhelyezkedés" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
-                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 145.000.000 Ft" />
-                  <Field label="Típus" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} placeholder="pl. penthouse" />
+                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Válassz a listából, vagy írj sajátot. Minél több adat, annál gazdagabb a hirdetés.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
+                  <Field label="Pontosabb helyszín / utca" value={facts.street} onChange={(v) => setF("street", v)} placeholder="pl. Belváros / Váci utca" />
+                  <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="Válassz vagy írj sajátot" />
+                  <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
+                  <Combo label="Épület szintje" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
+                  <Combo label="Fürdő / mellékhelyiség" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
+                  <Combo label="Műszaki állapot" value={facts.condition} onChange={(v) => setF("condition", v)} options={CONDITION_OPTIONS} placeholder="Válassz a listából" />
+                  <Combo label="Szerkezet" value={facts.structure} onChange={(v) => setF("structure", v)} options={STRUCTURE_OPTIONS} placeholder="Válassz a listából" />
                   <Field label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 125 m²" />
-                  <Field label="Szobák" value={facts.rooms} onChange={(v) => setF("rooms", v)} placeholder="pl. 3 szobás" />
-                  <Field label="Állapot / extra" value={facts.condition} onChange={(v) => setF("condition", v)} placeholder="pl. panorámás erkély" />
+                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 145.000.000 Ft" />
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-3">
@@ -454,6 +464,17 @@ function Field({ label, value, onChange, placeholder }: {
     <div>
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="twx-input mt-1 w-full text-sm" />
+    </div>
+  );
+}
+
+function Combo({ label, value, onChange, options, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; options: readonly string[]; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
+      <ComboField className="mt-1 w-full" value={value} onChange={onChange} options={options} placeholder={placeholder} />
     </div>
   );
 }

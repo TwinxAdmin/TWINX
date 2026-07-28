@@ -45,6 +45,60 @@ export type ValuationField = {
   options?: string[]; // datalist javaslatok
 };
 
+// --- Választható opciók (a Hirdetéskészítő is ezekből dolgozik — ne duplázzuk!) ---
+export const PROPERTY_TYPE_OPTIONS = [
+  "Új építésű lakás",
+  "Új építésű családi ház",
+  "Használt családi ház",
+  "Ikerház fél",
+  "Sorház",
+  "Tégla építésű társasházi lakás",
+  "Panellakás",
+  "Csúsztatott zsalus lakás",
+  "Építési telek",
+  "Nyaraló / Hétvégi ház",
+];
+
+export const FLOOR_OPTIONS = [
+  "Földszintes",
+  "Földszint + emelet",
+  "Földszint + tetőtér",
+  "Földszint (kertkapcsolatos)",
+  "Magasföldszint",
+  "1. emelet",
+  "2. emelet",
+  "3. emelet",
+  "4. emelet",
+  "5. emelet",
+  "6. emelet",
+  "7. emelet",
+  "8. emelet",
+  "9. emelet",
+  "10. emelet",
+  "Zárószint / Tetőtér",
+];
+
+export const STRUCTURE_OPTIONS = [
+  "Tégla (pl. Porotherm)",
+  "Panel / Házgyári",
+  "Csúsztatott zsalus",
+  "Könnyűszerkezetes (fa/fém vázas)",
+  "Ytong",
+  "Vasbeton",
+  "Vályog / Vegyes falazat",
+];
+
+export const CONDITION_OPTIONS = [
+  "Új építésű (kulcsrakész)",
+  "Új építésű (szerkezetkész/félkész)",
+  "Újszerű (pár éve épült/felújított)",
+  "Kiváló / Prémium állapotú",
+  "Jó állapotú (azonnal költözhető)",
+  "Közepes állapotú (korszerűsítést igényel)",
+  "Felújítandó",
+  "Bontandó / Teljesen átépítendő",
+];
+
 export const VALUATION_FIELDS: ValuationField[] = [
   {
     key: "telepules",
@@ -63,18 +117,7 @@ export const VALUATION_FIELDS: ValuationField[] = [
     label: "Ingatlan típusa",
     placeholder: "Válassz a listából vagy írj sajátot",
     required: true,
-    options: [
-      "Új építésű lakás",
-      "Új építésű családi ház",
-      "Használt családi ház",
-      "Ikerház fél",
-      "Sorház",
-      "Tégla építésű társasházi lakás",
-      "Panellakás",
-      "Csúsztatott zsalus lakás",
-      "Építési telek",
-      "Nyaraló / Hétvégi ház",
-    ],
+    options: PROPERTY_TYPE_OPTIONS,
   },
   {
     key: "meret",
@@ -94,24 +137,7 @@ export const VALUATION_FIELDS: ValuationField[] = [
     label: "Épület szintje / Szintek száma",
     placeholder: "Válassz a listából",
     required: true,
-    options: [
-      "Földszintes",
-      "Földszint + emelet",
-      "Földszint + tetőtér",
-      "Földszint (kertkapcsolatos)",
-      "Magasföldszint",
-      "1. emelet",
-      "2. emelet",
-      "3. emelet",
-      "4. emelet",
-      "5. emelet",
-      "6. emelet",
-      "7. emelet",
-      "8. emelet",
-      "9. emelet",
-      "10. emelet",
-      "Zárószint / Tetőtér",
-    ],
+    options: FLOOR_OPTIONS,
   },
   {
     key: "szobak",
@@ -146,15 +172,7 @@ export const VALUATION_FIELDS: ValuationField[] = [
     label: "Szerkezet",
     placeholder: "Válassz a listából",
     required: true,
-    options: [
-      "Tégla (pl. Porotherm)",
-      "Panel / Házgyári",
-      "Csúsztatott zsalus",
-      "Könnyűszerkezetes (fa/fém vázas)",
-      "Ytong",
-      "Vasbeton",
-      "Vályog / Vegyes falazat",
-    ],
+    options: STRUCTURE_OPTIONS,
   },
   {
     key: "allapot",
