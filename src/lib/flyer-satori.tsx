@@ -333,9 +333,13 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         icon(it.k, dataIcon, t.bandInk),
         box({ fontSize: dataFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
       ]);
+    // A jobb oldali OSZLOP közös bal éle: az adatok és az értékesítő ugyanabban a
+    // 300px-es sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
+    const colW = Math.round(300 * u);
+    const colRight = Math.round((g.wide ? 96 : 64) * u);
     landDataCol = items.length
       ? box(
-          { position: "absolute", right: Math.round((g.wide ? 96 : 64) * u), top: dataTop, flexDirection: "column" },
+          { position: "absolute", right: colRight, top: dataTop, width: colW, flexDirection: "column" },
           items.slice(0, 6).map(landItem)
         )
       : null;
@@ -370,9 +374,9 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         ].filter(Boolean)
       );
     } else {
-      // 4:3 — értékesítő KISEBBEN, közvetlenül az adatlista ALATT (fentről pozicionálva).
+      // 4:3 — értékesítő KISEBBEN, közvetlenül az adatlista ALATT, UGYANABBAN az oszlopban.
       const circleLand = Math.round(52 * u);
-      const panelW = Math.round(300 * u);
+      const panelW = colW;
       const nData = Math.min(items.length, 6);
       const agentTop = dataTop + nData * rowH + Math.round(22 * u);
       const circlesRow = (p.agent_photo_url || p.logo_url)
@@ -389,7 +393,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
           ].filter(Boolean))
         : null;
       bandContent = box(
-        { position: "absolute", right: Math.round(64 * u), top: agentTop, width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
+        { position: "absolute", right: colRight, top: agentTop, width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
         [
           box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(10 * u) }, ""),
           circlesRow,
