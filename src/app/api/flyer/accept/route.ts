@@ -60,8 +60,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ext = file.type.includes("pdf") ? "pdf" : "png";
-    const contentType = file.type || (ext === "pdf" ? "application/pdf" : "image/png");
+    const ext = file.type.includes("pdf") ? "pdf" : file.type.includes("jpeg") ? "jpg" : "png";
+    const contentType = file.type || (ext === "pdf" ? "application/pdf" : ext === "jpg" ? "image/jpeg" : "image/png");
     const bytes = new Uint8Array(await file.arrayBuffer());
 
     const path = `flyer/${user.id}/${randomUUID()}.${ext}`;

@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
+import { compressImage } from "@/lib/image-compress";
 import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
@@ -123,7 +124,9 @@ export default function AdWizard({
     const fd = new FormData();
     for (const u of images) {
       const b = await (await fetch(u)).blob();
-      fd.append("images", new File([b], "kep.jpg", { type: b.type || "image/jpeg" }));
+      const f = new File([b], "kep.jpg", { type: b.type || "image/jpeg" });
+      // 2400px bőven elég a 2160-as renderhez; a kérés így a Vercel-limit alatt marad.
+      fd.append("images", await compressImage(f, 2400, 0.9));
     }
     fd.append("profile", JSON.stringify(profileData));
     fd.append("mood", mood);
@@ -155,9 +158,11 @@ export default function AdWizard({
   async function accept() {
     setAccepting(true); setError(null);
     try {
-      const { blob, ext, contentType } = await buildBlob(false);
+      const { blob } = await buildBlob(false);
+      // A 2× felbontású PNG nagy — minőségi JPEG-ként töltjük fel (nem skálázzuk).
+      const jpeg = await compressImage(new File([blob], "hirdetes.png", { type: "image/png" }), 10000, 0.93);
       const fd = new FormData();
-      fd.append("image", new File([blob], `hirdetes.${ext}`, { type: contentType }));
+      fd.append("image", jpeg);
       if (brandMode === "saved") fd.append("profileId", profileId);
       fd.append("title", text.title ?? "");
       const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });

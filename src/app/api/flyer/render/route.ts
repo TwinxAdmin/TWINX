@@ -88,12 +88,15 @@ export async function POST(request: Request) {
       const raw = JSON.parse(String(form.get("thumbSlots") ?? "[]")) as string[];
       thumbSlots = raw.map((s) => (s === "up1" || s === "up2" ? s : "row"));
     } catch { thumbSlots = []; }
+    // 2× felbontás: minden (szöveg, logó, fotó) élesebb; a sablon u-alapú, ezért
+    // arányosan skálázódik. A kész képet a kliens JPEG-ként tölti fel (méretlimit).
+    const SCALE = 2;
     const opts: RenderOpts = {
-      images, width: size.w, height: size.h, profile, text, mood, watermark, heroPos, thumbSlots,
+      images, width: size.w * SCALE, height: size.h * SCALE, profile, text, mood, watermark, heroPos, thumbSlots,
     };
     const element = buildFlyerElement(opts, family);
 
-    return new ImageResponse(element, { width: size.w, height: size.h, fonts });
+    return new ImageResponse(element, { width: size.w * SCALE, height: size.h * SCALE, fonts });
   } catch (err) {
     return new Response("Render hiba: " + (err as Error).message, { status: 500 });
   }
