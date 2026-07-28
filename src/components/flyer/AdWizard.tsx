@@ -53,6 +53,7 @@ export default function AdWizard({
   const [size, setSize] = useState<string>(SIZES[0].value);
 
   // 5) Előnézet
+  const [heroPos, setHeroPos] = useState({ x: 50, y: 50 }); // a főkép kivágása (%)
   const [preview, setPreview] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -132,6 +133,8 @@ export default function AdWizard({
     fd.append("price", text.price ?? "");
     fd.append("chips", JSON.stringify(chips));
     fd.append("details", JSON.stringify(details));
+    fd.append("heroX", String(heroPos.x));
+    fd.append("heroY", String(heroPos.y));
     const res = await fetch("/api/flyer/render", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
     return { blob: await res.blob(), ext: "png", contentType: "image/png" };
@@ -172,6 +175,19 @@ export default function AdWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
   useEffect(() => { setPreview(null); setFinalUrl(null); }, [size, images.length]);
+
+  // A főkép kivágásának igazítása → új render.
+  function nudgeHero(dx: number, dy: number) {
+    if (rendering || accepting || finalUrl) return;
+    setHeroPos((p) => ({
+      x: Math.max(0, Math.min(100, p.x + dx)),
+      y: Math.max(0, Math.min(100, p.y + dy)),
+    }));
+  }
+  useEffect(() => {
+    if (step === 4 && !finalUrl) { setPreview(null); void makePreview(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroPos]);
 
   function next() {
     if (step === 0) {
@@ -420,11 +436,27 @@ export default function AdWizard({
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={preview} alt="Előnézet" className="mx-auto max-h-[54vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Főkép igazítása:</span>
+                    {([
+                      ["←", 12, 0], ["→", -12, 0], ["↑", 0, 12], ["↓", 0, -12],
+                    ] as Array<[string, number, number]>).map(([lbl, dx, dy]) => (
+                      <button key={lbl} type="button" onClick={() => nudgeHero(dx, dy)} disabled={rendering}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold disabled:opacity-40"
+                        style={{ border: "1px solid var(--twx-line)", background: "#fff" }} aria-label={`Főkép ${lbl}`}>
+                        {lbl}
+                      </button>
+                    ))}
+                    {(heroPos.x !== 50 || heroPos.y !== 50) && (
+                      <button type="button" onClick={() => setHeroPos({ x: 50, y: 50 })} disabled={rendering}
+                        className="rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:opacity-40"
+                        style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                        Középre
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                     Vízjeles előnézet, ingyenes. Az elfogadás {FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Módosítanál? Lépj vissza a <strong>Stílus</strong> vagy az <strong>Adatok</strong> lépésre.
                   </p>
                 </>
               ) : (

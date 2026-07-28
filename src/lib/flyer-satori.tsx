@@ -88,10 +88,12 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const sealD = Math.round(190 * u);
   const thumbD = Math.round(170 * u);
 
-  // --- Réteg 1: teljes képes háttér ---
+  // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
+  const hx = Math.max(0, Math.min(100, o.heroPos?.x ?? 50));
+  const hy = Math.max(0, Math.min(100, o.heroPos?.y ?? 50));
   const heroLayer = box(
     { position: "absolute", top: 0, left: 0, width: W, height: H, background: t.paper },
-    hero ? img(hero, { width: W, height: H, objectFit: "cover" }) : undefined
+    hero ? img(hero, { width: W, height: H, objectFit: "cover", objectPosition: `${hx}% ${hy}%` }) : undefined
   );
 
   // --- Réteg 2: felső sötétítés ---

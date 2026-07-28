@@ -79,8 +79,12 @@ export async function POST(request: Request) {
       weight: (f.weight >= 700 ? 700 : 400) as 400 | 700,
     }));
 
+    const heroPos = {
+      x: Math.max(0, Math.min(100, Number(form.get("heroX") ?? 50) || 50)),
+      y: Math.max(0, Math.min(100, Number(form.get("heroY") ?? 50) || 50)),
+    };
     const opts: RenderOpts = {
-      images, width: size.w, height: size.h, profile, text, mood, watermark,
+      images, width: size.w, height: size.h, profile, text, mood, watermark, heroPos,
     };
     const element = buildFlyerElement(opts, family);
 

@@ -136,6 +136,8 @@ export type RenderText = {
 export type RenderOpts = {
   images: string[]; width: number; height: number;
   profile: FlyerProfileData; text: RenderText; mood: string; watermark?: boolean;
+  /** A főkép kivágásának igazítása százalékban (50/50 = középre). */
+  heroPos?: { x: number; y: number };
 };
 
 export function buildPosterHtml(o: RenderOpts): string {
