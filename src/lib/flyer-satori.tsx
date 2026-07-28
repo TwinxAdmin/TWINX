@@ -277,11 +277,12 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // értékesítő kiemelt telefonszám-pillel; a körök a sarokban.
   let bandContent: React.ReactElement;
   if (g.story) {
-    // ADAT-RÁCS: két SZOROS oszlop balra, nagy ikonokkal és nagy szöveggel.
+    // ADAT-RÁCS: két SZOROS oszlop balra — nagy ikon és nagy szöveg, bő sorköz,
+    // hogy kitöltse a sáv bal oldalát (ne maradjon üres folt alatta).
     const gridItem = (it: { k: string; v: string }, i: number) =>
-      box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: Math.round(64 * u) } as Style, [
-        icon(it.k, Math.round(44 * u), t.bandInk),
-        box({ fontSize: Math.round(33 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
+      box({ key: i, alignItems: "center", gap: Math.round(16 * u), height: Math.round(84 * u) } as Style, [
+        icon(it.k, Math.round(50 * u), t.bandInk),
+        box({ fontSize: Math.round(38 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
       ]);
     const gcol1 = items.slice(0, 3);
     const gcol2 = items.slice(3, 6);
@@ -292,35 +293,37 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         ].filter(Boolean))
       : null;
 
-    // ÉRTÉKESÍTŐ: a jobb alsó sarokban — név, titulus, kiemelt telefonszám-pill, e-mail/web.
+    // ÉRTÉKESÍTŐ: jobb oldalon — név, titulus, kiemelt telefonszám-pill,
+    // alatta az e-mail, AZ ALATT a honlap (külön sorban).
     const phone = p.phone ? truncate(p.phone, 24) : "";
-    const otherContacts = [p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
     const pill = phone
       ? box(
-          { alignSelf: "flex-end", background: accent, color: accInk, borderRadius: 9999, paddingTop: Math.round(12 * u), paddingBottom: Math.round(12 * u), paddingLeft: Math.round(28 * u), paddingRight: Math.round(28 * u), fontSize: Math.round(31 * u), fontWeight: 700, border: `${Math.round(2 * u)}px solid rgba(255,255,255,0.7)`, marginTop: Math.round(8 * u), marginBottom: Math.round(6 * u) },
+          { alignSelf: "flex-end", background: accent, color: accInk, borderRadius: 9999, paddingTop: Math.round(13 * u), paddingBottom: Math.round(13 * u), paddingLeft: Math.round(30 * u), paddingRight: Math.round(30 * u), fontSize: Math.round(32 * u), fontWeight: 700, border: `${Math.round(2 * u)}px solid rgba(255,255,255,0.7)`, marginTop: Math.round(10 * u), marginBottom: Math.round(8 * u) },
           phone
         )
       : null;
     const agentStory = box(
       { flexDirection: "column", alignItems: "flex-end", gap: Math.round(2 * u) },
       [
-        box({ fontSize: Math.round(32 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
-        p.title ? box({ fontSize: Math.round(20 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 30)) : null,
+        box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+        p.title ? box({ fontSize: Math.round(21 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 30)) : null,
         pill,
-        otherContacts ? box({ fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 }, otherContacts) : null,
+        p.email ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.45 }, truncate(p.email, 32)) : null,
+        p.website ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.45 }, truncate(p.website, 32)) : null,
       ].filter(Boolean)
     );
 
-    // A két kör a rács JOBB oldalán, a sáv felső részében (nem ütközik a kontaktokkal).
+    // A két kör NAGYOBB, a rács jobb oldalán (a kontaktok fölött).
+    const circleStory = Math.round(circleD * 1.35);
     const circlesRow = (p.agent_photo_url || p.logo_url)
-      ? box({ gap: Math.round(14 * u), alignItems: "center" }, [
+      ? box({ gap: Math.round(16 * u), alignItems: "center" }, [
           p.agent_photo_url
-            ? img(p.agent_photo_url, { width: circleD, height: circleD, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" })
+            ? img(p.agent_photo_url, { width: circleStory, height: circleStory, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" })
             : null,
           p.logo_url
             ? box(
-                { width: circleD, height: circleD, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" },
-                img(p.logo_url, { maxWidth: Math.round(circleD * 0.74), maxHeight: Math.round(circleD * 0.74), objectFit: "contain" })
+                { width: circleStory, height: circleStory, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid ${t.bandInk}`, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" },
+                img(p.logo_url, { maxWidth: Math.round(circleStory * 0.74), maxHeight: Math.round(circleStory * 0.74), objectFit: "contain" })
               )
             : null,
         ].filter(Boolean))
@@ -329,18 +332,17 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     bandContent = box(
       {
         position: "absolute", left: 0, bottom: 0, width: W, height: bandH,
-        flexDirection: "column", justifyContent: "space-between",
-        paddingTop: Math.round(28 * u),
-        paddingLeft: Math.round(60 * u), paddingRight: Math.round(60 * u), paddingBottom: Math.round(26 * u),
+        alignItems: "flex-start", justifyContent: "space-between",
+        paddingTop: Math.round(40 * u),
+        paddingLeft: Math.round(60 * u), paddingRight: Math.round(60 * u), paddingBottom: Math.round(30 * u),
+        gap: Math.round(24 * u),
       },
       [
-        // felső sor: rács balra, körök jobbra
-        box({ width: "100%", alignItems: "flex-start", justifyContent: "space-between" }, [
-          factsGrid ?? box({}, ""),
-          circlesRow ?? box({}, ""),
-        ]),
-        // alsó sor: elérhetőségek a jobb alsó sarokban
-        box({ width: "100%", justifyContent: "flex-end" }, agentStory),
+        // BAL: adat-rács (lejjebb kezdve, nagyobb sorközzel — kitölti a sáv bal felét)
+        box({ flexDirection: "column", justifyContent: "center", height: "100%" }, factsGrid ?? box({}, "")),
+        // JOBB: körök + alattuk azonnal az elérhetőségek (jelentősen feljebb tolva)
+        box({ flexDirection: "column", alignItems: "flex-end", gap: Math.round(16 * u) },
+          [circlesRow, agentStory].filter(Boolean)),
       ]
     );
   } else {
