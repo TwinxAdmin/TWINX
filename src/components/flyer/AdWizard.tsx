@@ -140,6 +140,19 @@ export default function AdWizard({
     fd.append("heroX", String(heroPos.x));
     fd.append("heroY", String(heroPos.y));
     fd.append("thumbSlots", JSON.stringify([thumbSlots[0] ?? "row", thumbSlots[1] ?? "row"]));
+    // A főkép valódi mérete → a szerver a teljes rejtett területen tud mozgatni.
+    if (images[0]) {
+      try {
+        const dim = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+          im.onerror = () => reject(new Error("mérés hiba"));
+          im.src = images[0];
+        });
+        fd.append("heroW", String(dim.w));
+        fd.append("heroH", String(dim.h));
+      } catch { /* mérés nélkül a tartalék (16%) mozgástér él */ }
+    }
     const res = await fetch("/api/flyer/render", { method: "POST", body: fd });
     if (!res.ok) throw new Error(await res.text());
     return { blob: await res.blob(), ext: "png", contentType: "image/png" };

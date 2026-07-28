@@ -91,25 +91,41 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const thumbD = g.thumbD;
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
-  // A képet enyhén ránagyítjuk (ZOOM), így MINDIG van mozgástér mind a négy irányban,
-  // függetlenül a fotó arányától; a tolást kézzel számoljuk (nem objectPosition).
+  // Ha ismerjük a fotó valódi méretét (heroDim), a cover-kivágás TELJES rejtett
+  // területén mozgatunk (+6% ránagyítás, hogy a szűk tengelyen is legyen tér).
+  // E nélkül tartalék: 16%-os ránagyítás és azon belüli tolás.
   const hx = Math.max(0, Math.min(100, o.heroPos?.x ?? 50));
   const hy = Math.max(0, Math.min(100, o.heroPos?.y ?? 50));
-  const ZOOM = 1.16;
-  const overW = Math.round(W * (ZOOM - 1));
-  const overH = Math.round(H * (ZOOM - 1));
+  const iw = o.heroDim?.w ?? 0;
+  const ih = o.heroDim?.h ?? 0;
+  let heroImg: React.ReactElement | undefined;
+  if (hero && iw > 0 && ih > 0) {
+    const s = Math.max(W / iw, H / ih) * 1.06;
+    const dw = Math.round(iw * s);
+    const dh = Math.round(ih * s);
+    heroImg = img(hero, {
+      position: "absolute",
+      width: dw,
+      height: dh,
+      left: -Math.round(((dw - W) * hx) / 100),
+      top: -Math.round(((dh - H) * hy) / 100),
+    });
+  } else if (hero) {
+    const ZOOM = 1.16;
+    const overW = Math.round(W * (ZOOM - 1));
+    const overH = Math.round(H * (ZOOM - 1));
+    heroImg = img(hero, {
+      position: "absolute",
+      width: W + overW,
+      height: H + overH,
+      left: -Math.round((hx / 100) * overW),
+      top: -Math.round((hy / 100) * overH),
+      objectFit: "cover",
+    });
+  }
   const heroLayer = box(
     { position: "absolute", top: 0, left: 0, width: W, height: H, overflow: "hidden", background: t.paper },
-    hero
-      ? img(hero, {
-          position: "absolute",
-          width: W + overW,
-          height: H + overH,
-          left: -Math.round((hx / 100) * overW),
-          top: -Math.round((hy / 100) * overH),
-          objectFit: "cover",
-        })
-      : undefined
+    heroImg
   );
 
   // --- Réteg 2: felső sötétítés (állóban rövidebb — a cím relatíve kisebb részt foglal) ---

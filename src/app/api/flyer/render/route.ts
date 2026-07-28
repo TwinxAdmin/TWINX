@@ -83,6 +83,10 @@ export async function POST(request: Request) {
       x: Math.max(0, Math.min(100, Number(form.get("heroX") ?? 50) || 50)),
       y: Math.max(0, Math.min(100, Number(form.get("heroY") ?? 50) || 50)),
     };
+    const heroDim = {
+      w: Math.max(0, Number(form.get("heroW") ?? 0) || 0),
+      h: Math.max(0, Number(form.get("heroH") ?? 0) || 0),
+    };
     let thumbSlots: Array<"row" | "up1" | "up2"> = [];
     try {
       const raw = JSON.parse(String(form.get("thumbSlots") ?? "[]")) as string[];
@@ -93,7 +97,8 @@ export async function POST(request: Request) {
     // minőség. A kész képet a kliens JPEG-ként tölti fel (méretlimit).
     const SCALE = watermark ? 2 : 3;
     const opts: RenderOpts = {
-      images, width: size.w * SCALE, height: size.h * SCALE, profile, text, mood, watermark, heroPos, thumbSlots,
+      images, width: size.w * SCALE, height: size.h * SCALE, profile, text, mood, watermark,
+      heroPos, thumbSlots, heroDim: heroDim.w && heroDim.h ? heroDim : undefined,
     };
     const element = buildFlyerElement(opts, family);
 
