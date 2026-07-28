@@ -48,8 +48,8 @@ export function flyerGeom(w: number, h: number) {
   const amp = land ? 0 : Math.round(40 * u);
   const bandH = waveH - amp;
   const gapT = Math.round(14 * u);
-  // Kis képek: story oszlop 220; 16:9 sor 150 (elférés); 4:3 sor 170; 1:1 sor 170.
-  const thumbD = Math.round((story ? 220 : wide ? 150 : 170) * u);
+  // Kis képek: story oszlop 220; fekvő és 1:1 sor 170.
+  const thumbD = Math.round((story ? 220 : 170) * u);
   return {
     u, story, land, wide, waveH, amp, bandH, gapT, thumbD,
     right0: Math.round(60 * u),

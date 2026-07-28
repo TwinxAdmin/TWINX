@@ -94,7 +94,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const amp = g.amp;
   const bandH = g.bandH;                     // a tömör sáv magassága
   const boundary = bandH;                    // a sáv felső éle (alulról mérve)
-  const sealD = Math.round((g.story ? 220 : g.wide ? 157 : g.land ? 165 : 190) * u);
+  const sealD = Math.round((g.story ? 220 : g.wide ? 140 : g.land ? 165 : 190) * u);
   const thumbD = g.thumbD;
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
@@ -189,7 +189,9 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // hogy ne takarja az adat-rács tetejét (csak egy kicsit lóg a sávba). ---
   // Fekvőben: a pecsét a JOBB oldalon, a jelvény ALATT (fentről mérve) — az adatok fölött.
   const sealPos: Style = g.land
-    ? { right: Math.round((g.wide ? 96 : 64) * u), top: Math.round((g.wide ? 107 : 120) * u) }
+    ? g.wide
+      ? { right: Math.round(236 * u), top: Math.round(108 * u) } // a jobb oszlop közepére
+      : { right: Math.round(64 * u), top: Math.round(120 * u) }
     : {
         left: Math.round(60 * u),
         bottom: g.story ? boundary - Math.round(sealD * 0.18) : boundary - Math.round(sealD / 2),
@@ -324,61 +326,48 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   if (g.land) {
     // FEKVŐ: jobbra fent a pecsét, alatta az adatoszlop. 16:9-nél az értékesítő a kis
     // képek MELLETT (balra lent); 4:3-nál a panel ALJÁN, az adatok alatt (nincs elég szélesség).
-    const rowH = Math.round((g.wide ? 50 : 48) * u);
-    const dataFs = Math.round((g.wide ? 29 : 27) * u);
-    const dataIcon = Math.round((g.wide ? 40 : 36) * u);
-    const dataTop = Math.round((g.wide ? 281 : 285) * u);
+    const rowH = Math.round((g.wide ? 45 : 48) * u);
+    const dataFs = Math.round((g.wide ? 24 : 27) * u);
+    const dataIcon = Math.round(36 * u);
+    const dataTop = Math.round((g.wide ? 264 : 285) * u);
     const landItem = (it: { k: string; v: string }, i: number) =>
       box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: rowH } as Style, [
         icon(it.k, dataIcon, t.bandInk),
         box({ fontSize: dataFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
       ]);
     // A jobb oldali OSZLOP közös bal éle: az adatok és az értékesítő ugyanabban a
-    // 300px-es sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
-    const colW = Math.round(300 * u);
+    // sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
+    // 16:9: szélesebb oszlop, az adatok 2×3-as RÁCSBAN (a rövidebb magasság miatt).
+    const colW = Math.round((g.wide ? 420 : 300) * u);
     const colRight = Math.round((g.wide ? 96 : 64) * u);
-    landDataCol = items.length
-      ? box(
-          { position: "absolute", right: colRight, top: dataTop, width: colW, flexDirection: "column" },
-          items.slice(0, 6).map(landItem)
-        )
-      : null;
-
-    const shadow = "0 2px 10px rgba(0,0,0,0.55)";
     if (g.wide) {
-      // 16:9 — értékesítő a kis képek mellett, közös bal vezérvonalon.
-      const contactLeft = Math.round(60 * u) + thumbs.length * (thumbD + gapT) + Math.round(26 * u);
-      const circleLand = Math.round(96 * u);
-      const circlesRow = (p.agent_photo_url || p.logo_url)
-        ? box({ gap: Math.round(14 * u), alignItems: "center", marginBottom: Math.round(10 * u) }, [
-            p.agent_photo_url
-              ? img(p.agent_photo_url, { width: circleLand, height: circleLand, borderRadius: 9999, objectFit: "cover", border: `${Math.round(3 * u)}px solid #ffffff` })
-              : null,
-            p.logo_url
-              ? box(
-                  { width: circleLand, height: circleLand, borderRadius: 9999, background: "#ffffff", alignItems: "center", justifyContent: "center", overflow: "hidden", border: `${Math.round(3 * u)}px solid #ffffff` },
-                  img(p.logo_url, { maxWidth: Math.round(circleLand * 0.74), maxHeight: Math.round(circleLand * 0.74), objectFit: "contain" })
-                )
-              : null,
-          ].filter(Boolean))
+      const gcol1 = items.slice(0, 3);
+      const gcol2 = items.slice(3, 6);
+      landDataCol = items.length
+        ? box(
+            { position: "absolute", right: colRight, top: dataTop, width: colW, gap: Math.round(20 * u) },
+            [
+              box({ flexDirection: "column" }, gcol1.map(landItem)),
+              gcol2.length ? box({ flexDirection: "column" }, gcol2.map(landItem)) : null,
+            ].filter(Boolean)
+          )
         : null;
-      bandContent = box(
-        { position: "absolute", left: contactLeft, bottom: Math.round(52 * u), flexDirection: "column", maxWidth: Math.round(W * 0.17) },
-        [
-          circlesRow,
-          box({ fontSize: Math.round(28 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.25, textShadow: shadow }, truncate(p.display_name || p.company, 24)),
-          p.title ? box({ fontSize: Math.round(18 * u), fontWeight: 400, color: "#ffffff", opacity: 0.9, lineHeight: 1.4, textShadow: shadow }, truncate(p.title, 30)) : null,
-          p.phone ? box({ fontSize: Math.round(30 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.4, marginTop: Math.round(4 * u), textShadow: shadow }, truncate(p.phone, 24)) : null,
-          p.email ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.5, textShadow: shadow }, truncate(p.email, 36)) : null,
-          p.website ? box({ fontSize: Math.round(16 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.5, textShadow: shadow }, truncate(p.website, 36)) : null,
-        ].filter(Boolean)
-      );
     } else {
-      // 4:3 — értékesítő KISEBBEN, közvetlenül az adatlista ALATT, UGYANABBAN az oszlopban.
+      landDataCol = items.length
+        ? box(
+            { position: "absolute", right: colRight, top: dataTop, width: colW, flexDirection: "column" },
+            items.slice(0, 6).map(landItem)
+          )
+        : null;
+    }
+
+    {
+      // Értékesítő: MINDKÉT fekvőnél közvetlenül az adatok alatt, ugyanabban az oszlopban.
       const circleLand = Math.round(52 * u);
       const panelW = colW;
       const nData = Math.min(items.length, 6);
-      const agentTop = dataTop + nData * rowH + Math.round(22 * u);
+      const nRows = g.wide ? Math.min(3, nData) : nData; // 16:9: rács → max 3 sor
+      const agentTop = dataTop + nRows * rowH + Math.round(22 * u);
       const circlesRow = (p.agent_photo_url || p.logo_url)
         ? box({ gap: Math.round(10 * u), alignItems: "center", marginBottom: Math.round(6 * u) }, [
             p.agent_photo_url
