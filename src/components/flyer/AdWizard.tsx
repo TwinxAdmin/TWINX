@@ -49,19 +49,32 @@ export default function AdWizard({
   const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
   const [genLoading, setGenLoading] = useState(false);
 
-  // 4) Méret (a megjelenés egységes: FLYER_MOOD)
+  // 4) Méret — TÖBB is választható; minden kiválasztott méret külön előnézetet kap.
   const mood = FLYER_MOOD;
-  const [size, setSize] = useState<string>(SIZES[0].value);
+  const [sizes, setSizes] = useState<string[]>([SIZES[0].value]);
 
-  // 5) Előnézet
+  // 5) Előnézet — méretenként külön előnézet/elfogadás; a főkép-igazítás közös.
+  const [previewIdx, setPreviewIdx] = useState(0);
   const [heroPos, setHeroPos] = useState({ x: 50, y: 50 }); // a főkép kivágása (%)
-  const [thumbSlots, setThumbSlots] = useState<Record<number, "row" | "up1" | "up2">>({});
-  const [preview, setPreview] = useState<string | null>(null);
+  const [slotsBySize, setSlotsBySize] = useState<Record<string, Record<number, "row" | "up1" | "up2">>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [finals, setFinals] = useState<Record<string, string>>({}); // elfogadott (mentett) URL-ek
   const [rendering, setRendering] = useState(false);
   const [accepting, setAccepting] = useState(false);
-  const [finalUrl, setFinalUrl] = useState<string | null>(null);
 
-  const sizeDef = getFlyerSize(size);
+  const curSize = sizes[Math.min(previewIdx, sizes.length - 1)] ?? SIZES[0].value;
+  const sizeDef = getFlyerSize(curSize);
+  const preview = previews[curSize] ?? null;
+  const finalUrl = finals[curSize] ?? null;
+
+  /** Az adott méret kis kép-elrendezése (story: alapból oszlop). */
+  function slotsFor(sv: string): Record<number, "row" | "up1" | "up2"> {
+    const s = slotsBySize[sv];
+    if (s) return s;
+    const def = getFlyerSize(sv);
+    return flyerGeom(def.w, def.h).story ? { 0: "up2", 1: "up1" } : {};
+  }
+  const thumbSlots = slotsFor(curSize);
 
   const profileData: FlyerProfileData = (() => {
     const p = brandMode === "saved" ? profiles.find((x) => x.id === profileId) : null;
@@ -114,13 +127,14 @@ export default function AdWizard({
   }
 
   // --- A hirdetés PNG-je a szerveren, Satorival (pixelpontos, valódi betűkkel) ---
-  async function buildBlob(watermark: boolean): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  async function buildBlob(watermark: boolean, sizeVal: string): Promise<{ blob: Blob; ext: string; contentType: string }> {
     // Felül csak a lényeg (szoba + típus) — a részletes adatok lent, ikonosan.
     const chips = [facts.rooms, facts.propertyType].filter(Boolean);
     const details = {
       size: facts.size, rooms: facts.rooms, bathrooms: facts.bathrooms,
       floor: facts.floor, structure: facts.structure, condition: facts.condition,
     };
+    const slots = slotsFor(sizeVal);
     const fd = new FormData();
     for (const u of images) {
       const b = await (await fetch(u)).blob();
@@ -130,7 +144,7 @@ export default function AdWizard({
     }
     fd.append("profile", JSON.stringify(profileData));
     fd.append("mood", mood);
-    fd.append("size", size);
+    fd.append("size", sizeVal);
     fd.append("watermark", watermark ? "1" : "0");
     fd.append("title", text.title ?? "");
     fd.append("subtitle", text.subtitle ?? "");
@@ -139,7 +153,7 @@ export default function AdWizard({
     fd.append("details", JSON.stringify(details));
     fd.append("heroX", String(heroPos.x));
     fd.append("heroY", String(heroPos.y));
-    fd.append("thumbSlots", JSON.stringify([thumbSlots[0] ?? "row", thumbSlots[1] ?? "row"]));
+    fd.append("thumbSlots", JSON.stringify([slots[0] ?? "row", slots[1] ?? "row"]));
     // A főkép valódi mérete → a szerver a teljes rejtett területen tud mozgatni.
     if (images[0]) {
       try {
@@ -158,52 +172,60 @@ export default function AdWizard({
     return { blob: await res.blob(), ext: "png", contentType: "image/png" };
   }
 
-  async function makePreview() {
+  async function makePreview(sizeVal: string) {
     setRendering(true); setError(null);
     try {
-      const { blob } = await buildBlob(true);
-      setPreview(URL.createObjectURL(blob));
+      const { blob } = await buildBlob(true, sizeVal);
+      const url = URL.createObjectURL(blob);
+      setPreviews((prev) => ({ ...prev, [sizeVal]: url }));
     } catch (e) {
       setError("Nem sikerült az előnézet: " + (e as Error).message);
     } finally { setRendering(false); }
   }
 
   async function accept() {
+    const sizeVal = curSize;
+    if (finals[sizeVal]) return; // ez a méret már elfogadva
     setAccepting(true); setError(null);
     try {
-      const { blob } = await buildBlob(false);
-      // A 2× felbontású PNG nagy — minőségi JPEG-ként töltjük fel (nem skálázzuk).
+      const { blob } = await buildBlob(false, sizeVal);
+      // A nagy felbontású PNG-t minőségi JPEG-ként töltjük fel (nem skálázzuk).
       const jpeg = await compressImage(new File([blob], "hirdetes.png", { type: "image/png" }), 10000, 0.93);
       const fd = new FormData();
       fd.append("image", jpeg);
       if (brandMode === "saved") fd.append("profileId", profileId);
-      fd.append("title", text.title ?? "");
+      fd.append("title", `${text.title ?? ""} (${getFlyerSize(sizeVal).label})`.trim());
       const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setFinalUrl(data.url as string);
-      onDone?.();
-      showToast(data.charged ? `Kész! ${FLYER_CREDITS} kredit levonva.` : "Kész!", "success");
+      // AZONNAL mentve: a kép a tárhelyre és az előzményekbe került — nem veszhet el.
+      setFinals((prev) => ({ ...prev, [sizeVal]: data.url as string }));
+      onDone?.(); // a "Korábbi hirdetéseim" lista frissítése
+      showToast(
+        data.charged
+          ? `${getFlyerSize(sizeVal).label} kész és mentve! ${FLYER_CREDITS} kredit levonva.`
+          : `${getFlyerSize(sizeVal).label} kész és mentve!`,
+        "success"
+      );
     } catch (e) {
       setError((e as Error).message || "Nem sikerült az elfogadás.");
     } finally { setAccepting(false); }
   }
 
-  // Az előnézet lépésre lépve renderel.
+  // Az előnézet lépésre lépve / méretváltásnál az AKTUÁLIS méretet rendereli (ha még nincs).
   useEffect(() => {
-    if (step === 4 && !preview && !rendering) void makePreview();
+    if (step === 4 && !finals[curSize] && !previews[curSize] && !rendering) void makePreview(curSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, previewIdx, previews]);
+  // Kép-változásnál minden előnézet érvénytelen; az elfogadottak (mentettek) maradnak.
   useEffect(() => {
-    setPreview(null); setFinalUrl(null);
-    // Story (9:16): a kis képek alapból FÜGGŐLEGES oszlopban (a jobb szélső fölött) —
-    // átüzhetők sorba; más méretnél alapból sorban.
-    const def = flyerGeom(sizeDef.w, sizeDef.h).story;
-    setThumbSlots(def ? { 0: "up2", 1: "up1" } : {});
+    setPreviews({}); setSlotsBySize({}); setPreviewIdx(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, images.length]);
+  }, [images.length]);
+  // Méret-választás változásakor a lapozó az elejére áll.
+  useEffect(() => { setPreviewIdx(0); }, [sizes.length]);
 
-  // A főkép igazítása / kis képek áthelyezése → új render (az effect mindig FRISS állapottal fut).
+  // A főkép igazítása KÖZÖS → minden előnézet újrarenderel; a kis képek méretenként.
   function nudgeHero(dx: number, dy: number) {
     if (rendering || accepting || finalUrl) return;
     setHeroPos((p) => ({
@@ -212,9 +234,9 @@ export default function AdWizard({
     }));
   }
   useEffect(() => {
-    if (step === 4 && !finalUrl) { setPreview(null); void makePreview(); }
+    if (step === 4) { setPreviews({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heroPos, thumbSlots]);
+  }, [heroPos, slotsBySize]);
 
   function next() {
     if (step === 0) {
@@ -227,6 +249,7 @@ export default function AdWizard({
       }
     }
     if (step === 1 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
+    if (step === 3 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
     if (step === 2 && !text.title?.trim()) { setError("Adj címet a hirdetésnek."); return; }
     setError(null);
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
@@ -420,23 +443,37 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 4) MÉRET */}
+          {/* 4) MÉRET — több is választható */}
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <p className="text-sm font-semibold">Méret</p>
+                <p className="text-sm font-semibold">Méret — több is választható</p>
                 <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Válaszd ki, hova készül a hirdetés. A megjelenés egységes, prémium — a fő szín az arculatodból jön.
+                  Jelöld be, mely méretek készüljenek el. Mindegyik külön előnézetet kap, és
+                  méretenként {FLYER_CREDITS} kreditért fogadhatod el.
                 </p>
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {SIZES.map((s) => {
-                    const on = size === s.value;
+                    const on = sizes.includes(s.value);
                     return (
-                      <button key={s.value} type="button" onClick={() => setSize(s.value)}
-                        className="rounded-xl p-3 text-left transition hover:shadow-sm"
+                      <button key={s.value} type="button"
+                        onClick={() =>
+                          setSizes((prev) =>
+                            prev.includes(s.value)
+                              ? prev.filter((v) => v !== s.value)
+                              : SIZES.map((x) => x.value).filter((v) => prev.includes(v) || v === s.value)
+                          )
+                        }
+                        className="flex items-center gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
                         style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{s.label}</span>
-                        <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{s.hint}</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[12px] font-bold"
+                          style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
+                          {on ? "✓" : ""}
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{s.label}</span>
+                          <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{s.hint}</span>
+                        </span>
                       </button>
                     );
                   })}
@@ -445,14 +482,48 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 5) ELŐNÉZET */}
+          {/* 5) ELŐNÉZET — lapozható a kiválasztott méretek között */}
           {step === 4 && (
             <div className="space-y-3 text-center">
+              {sizes.length > 1 && (
+                <div className="flex items-center justify-center gap-3">
+                  <button type="button" aria-label="Előző méret"
+                    onClick={() => setPreviewIdx((i) => Math.max(0, i - 1))}
+                    disabled={previewIdx === 0 || accepting}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-lg shadow-sm disabled:opacity-35"
+                    style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>‹</button>
+                  <div className="min-w-[11rem] rounded-xl px-4 py-1.5 text-sm font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    {getFlyerSize(curSize).label} · {previewIdx + 1} / {sizes.length}
+                  </div>
+                  <button type="button" aria-label="Következő méret"
+                    onClick={() => setPreviewIdx((i) => Math.min(sizes.length - 1, i + 1))}
+                    disabled={previewIdx === sizes.length - 1 || accepting}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-lg shadow-sm disabled:opacity-35"
+                    style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>›</button>
+                </div>
+              )}
+              {sizes.length > 1 && (
+                <div className="flex items-center justify-center gap-2">
+                  {sizes.map((sv, i) => (
+                    <button key={sv} type="button" onClick={() => setPreviewIdx(i)} aria-label={getFlyerSize(sv).label}
+                      className="h-2.5 w-2.5 rounded-full transition"
+                      style={{
+                        background: finals[sv] ? "#22a35c" : i === previewIdx ? "var(--twx-coral)" : "transparent",
+                        border: `1.5px solid ${finals[sv] ? "#22a35c" : i === previewIdx ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                      }} />
+                  ))}
+                  <span className="ml-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {Object.keys(finals).length ? `${Object.keys(finals).length} kész és mentve` : "zöld = elfogadva és mentve"}
+                  </span>
+                </div>
+              )}
               {finalUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={finalUrl} alt="Kész hirdetés" className="mx-auto max-h-[54vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-                  <p className="text-sm text-green-700">Kész! A hirdetés elmentve.</p>
+                  <img src={finalUrl} alt="Kész hirdetés" className="mx-auto max-h-[50vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+                  <p className="text-sm text-green-700">
+                    Kész! Elmentve a Korábbi hirdetéseim közé — innen bármikor letölthető.
+                  </p>
                 </>
               ) : rendering ? (
                 <div className="py-12">
@@ -470,7 +541,9 @@ export default function AdWizard({
                         w={sizeDef.w} h={sizeDef.h}
                         count={images.length - 2}
                         slots={thumbSlots}
-                        onMove={(i, slot) => setThumbSlots((prev) => ({ ...prev, [i]: slot }))}
+                        onMove={(i, slot) =>
+                          setSlotsBySize((prev) => ({ ...prev, [curSize]: { ...slotsFor(curSize), [i]: slot } }))
+                        }
                       />
                     )}
                   </div>
