@@ -162,7 +162,7 @@ export async function renderCaptionOverlay(
   const { width: W, height: H, profile: p } = ctx;
   const u = W / 1080;
   const t = buildTheme(MOOD, p.accent_color);
-  const zoneH = Math.round(230 * u);
+  const zoneH = Math.round(290 * u);
 
   const el = box(
     // A gyökéren NINCS background → a PNG átlátszó marad.
@@ -173,16 +173,16 @@ export async function renderCaptionOverlay(
         backgroundImage: "linear-gradient(0deg, rgba(12,14,16,0.72) 0%, rgba(12,14,16,0.34) 55%, rgba(12,14,16,0) 100%)",
       }),
       box(
-        { position: "absolute", left: 0, bottom: Math.round(56 * u), width: W, justifyContent: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u) },
+        { position: "absolute", left: 0, bottom: Math.round(66 * u), width: W, justifyContent: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u) },
         box({
-          fontSize: Math.round(40 * u), fontWeight: 700, color: "#ffffff",
-          letterSpacing: Math.round(1 * u), textShadow: "0 2px 14px rgba(0,0,0,0.85)",
-        }, truncate(opts.caption, 46))
+          fontSize: Math.round(58 * u), fontWeight: 700, color: "#ffffff",
+          letterSpacing: Math.round(1 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+        }, truncate(opts.caption, 40))
       ),
       // Finom arculati hangsúly: rövid vonal a szöveg fölött.
       box({
-        position: "absolute", left: Math.round(W / 2 - 40 * u), bottom: Math.round(124 * u),
-        width: Math.round(80 * u), height: Math.max(2, Math.round(3 * u)),
+        position: "absolute", left: Math.round(W / 2 - 50 * u), bottom: Math.round(160 * u),
+        width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)),
         background: t.hair ?? p.accent_color, opacity: 0.95,
       }),
     ]

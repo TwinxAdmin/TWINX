@@ -10,7 +10,7 @@ export const MAX_VIDEO_IMAGES = 5;
 
 // Időzítés (mp).
 export const CARD_OPEN_SECONDS = 2.5;
-export const CARD_CLOSE_SECONDS = 3;
+export const CARD_CLOSE_SECONDS = 5; // az értékesítő adatai legyenek jól leolvashatók
 export const PHOTO_SECONDS = 4;
 export const AI_CLIP_SECONDS = 5; // a PRO első klipje (fal i2v alap hossza)
 
