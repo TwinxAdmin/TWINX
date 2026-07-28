@@ -143,7 +143,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   // --- Réteg 3: cím-blokk ---
   const titleBlock = box(
-    { position: "absolute", top: Math.round(58 * u), left: Math.round(60 * u), width: g.land ? Math.round(W * 0.56) : W - Math.round(230 * u), flexDirection: "column" },
+    { position: "absolute", top: Math.round((g.wide ? 28 : 58) * u), left: Math.round(60 * u), width: g.land ? Math.round(W * 0.56) : W - Math.round(230 * u), flexDirection: "column" },
     [
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
@@ -190,7 +190,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // Fekvőben: a pecsét a JOBB oldalon, a jelvény ALATT (fentről mérve) — az adatok fölött.
   const sealPos: Style = g.land
     ? g.wide
-      ? { right: Math.round(180 * u), top: Math.round(96 * u) } // a jobb szélre tolt oszlop közepére
+      ? { right: Math.round(56 * u), top: Math.round(96 * u) } // közel a kép jobb széléhez
       : { right: Math.round(64 * u), top: Math.round(120 * u) }
     : {
         left: Math.round(60 * u),
@@ -338,7 +338,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     // A jobb oldali OSZLOP közös bal éle: az adatok és az értékesítő ugyanabban a
     // sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
     // 16:9: szélesebb oszlop, az adatok 2×3-as RÁCSBAN (a rövidebb magasság miatt).
-    const colW = Math.round((g.wide ? 420 : 300) * u);
+    const colW = Math.round((g.wide ? 380 : 300) * u);
     const colRight = Math.round((g.wide ? 40 : 64) * u); // 16:9: teljesen a jobb szélen
     if (g.wide) {
       const gcol1 = items.slice(0, 3);
