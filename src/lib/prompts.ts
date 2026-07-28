@@ -28,7 +28,7 @@ import {
   composeFlyerCopyPrompt,
   type FlyerFacts,
 } from "@/lib/flyer";
-import { VIDEO_DEFAULT_PROMPT } from "@/lib/luma";
+import { VIDEO_DEFAULT_PROMPT } from "@/lib/fal";
 import {
   MENU_DEFAULT_SEGMENTS,
   MENU_DATA_BLOCK_PREVIEW,

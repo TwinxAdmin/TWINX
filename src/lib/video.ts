@@ -1,43 +1,49 @@
-// Videó pipeline — közös konfiguráció (formátumok, kredit-tábla, zenei stílusok).
-// Üzleti szabály: real-estate feature, kredit a képszám (videóhossz) szerint.
+// Videó 2.0 — közös konfiguráció (hibrid pipeline).
+// Szerkezet: nyitókártya (2,5 mp) + 4-5 fotó (4 mp, alsó felirat-sávval) + zárókártya (3 mp).
+// Alap: minden fotó Ken Burns (Shotstack zoom). PRO: az 1. fotó AI-mozgással (fal.ai).
+// Hang: CSAK zene (nincs narráció), a végén leúsztatva.
 
-export const MIN_VIDEO_IMAGES = 4; // 4 kép = ~20 mp (5 mp/klip)
-export const MAX_VIDEO_IMAGES = 4; // egyelőre fix 4 kép / videó
+export const MIN_VIDEO_IMAGES = 4;
+export const MAX_VIDEO_IMAGES = 5;
 
-// Kredit a képszám szerint (config — bármikor állítható).
-// Szabály: min. 100% haszon a legmélyebb kedvezményes áron is → "kép = kredit".
-export const VIDEO_CREDIT_BY_IMAGES: Record<number, number> = {
-  4: 4,
-  5: 5,
-  6: 6,
-  7: 7,
-  8: 8,
-};
+// Időzítés (mp).
+export const CARD_OPEN_SECONDS = 2.5;
+export const CARD_CLOSE_SECONDS = 3;
+export const PHOTO_SECONDS = 4;
+export const AI_CLIP_SECONDS = 5; // a PRO első klipje (fal i2v alap hossza)
 
-export function creditForImages(count: number): number {
-  return VIDEO_CREDIT_BY_IMAGES[count] ?? 0;
+export function videoLengthSeconds(imageCount: number, pro: boolean): number {
+  const photos = pro ? imageCount - 1 : imageCount;
+  return CARD_OPEN_SECONDS + (pro ? AI_CLIP_SECONDS : 0) + photos * PHOTO_SECONDS + CARD_CLOSE_SECONDS;
 }
 
-// Kimeneti formátumok (a Shotstack render mérete).
+// Csomagok. Az ár később dől el — env-ből állítható, addig teszt admin fiókkal (bypass).
+export type VideoPackage = "alap" | "pro";
+export const VIDEO_CREDITS_ALAP = Number(process.env.VIDEO_CREDITS_ALAP ?? 5);
+export const VIDEO_CREDITS_PRO = Number(process.env.VIDEO_CREDITS_PRO ?? 10);
+
+export function creditsForPackage(pkg: VideoPackage): number {
+  return pkg === "pro" ? VIDEO_CREDITS_PRO : VIDEO_CREDITS_ALAP;
+}
+
+// Kimeneti formátumok — CSAK 1:1 és 9:16.
 export type VideoFormat = {
-  value: string; // '16:9' | '9:16' | '1:1'
+  value: string;
   label: string;
   width: number;
   height: number;
 };
 
 export const VIDEO_FORMATS: VideoFormat[] = [
-  { value: "16:9", label: "16:9 (fekvő)", width: 1920, height: 1080 },
-  { value: "9:16", label: "9:16 (álló)", width: 1080, height: 1920 },
-  { value: "1:1", label: "1:1 (négyzet)", width: 1080, height: 1080 },
+  { value: "1:1", label: "Négyzet 1:1", width: 1080, height: 1080 },
+  { value: "9:16", label: "Álló 9:16", width: 1080, height: 1920 },
 ];
 
 export function getFormat(value: string): VideoFormat | null {
   return VIDEO_FORMATS.find((f) => f.value === value) ?? null;
 }
 
-// Zenei stílusok — a user stílust választ, a generálás random számot húz a
-// `music/{slug}/` mappából. A slug = Storage mappa neve.
+// Zenei stílusok — a Storage `music/{slug}/` mappáiból sorsolunk.
 export type MusicStyle = { slug: string; label: string };
 
 export const MUSIC_STYLES: MusicStyle[] = [
@@ -52,19 +58,32 @@ export function isValidMusicStyle(slug: string): boolean {
   return MUSIC_STYLES.some((s) => s.slug === slug);
 }
 
-// Klip hossz (mp/kép) — a teljes videóhossz = klip × képszám.
-export const VIDEO_CLIP_SECONDS = 5;
+// A fotók alsó felirat-sávjának adatai — fotónként VÁLTAKOZÓ információ.
+// Csak a megadott mezők jelennek meg; üres mezőt a sáv kihagy.
+export type VideoCaptionFacts = {
+  location: string;   // település, kerület
+  price: string;      // megjelenő ár
+  size: string;       // m²
+  rooms: string;
+  bathrooms: string;
+  floor: string;
+  structure: string;
+  condition: string;
+};
 
-// Hossz-binek: a zene a videó hosszához illő mappából jön (`music/{style}/{bin}/`).
-export type LengthBin = { slug: string; label: string };
-export const LENGTH_BINS: LengthBin[] = [
-  { slug: "rovid", label: "Rövid (4 kép, ~20 mp)" },
-  { slug: "kozepes", label: "Közepes (5-6 kép, ~25-30 mp)" },
-  { slug: "hosszu", label: "Hosszú (7-8 kép, ~35-40 mp)" },
-];
+export const EMPTY_VIDEO_FACTS: VideoCaptionFacts = {
+  location: "", price: "", size: "", rooms: "", bathrooms: "", floor: "", structure: "", condition: "",
+};
 
-export function lengthBinForImages(count: number): string {
-  if (count <= 4) return "rovid";
-  if (count <= 6) return "kozepes";
-  return "hosszu";
+/** A fotó indexéhez tartozó felirat-sor (1-2 rövid adat, ponttal elválasztva). */
+export function captionForPhoto(i: number, f: VideoCaptionFacts): string {
+  const join = (a?: string, b?: string) => [a, b].map((x) => (x ?? "").trim()).filter(Boolean).join("  ·  ");
+  const rows = [
+    join(f.location, f.price && `Irányár: ${f.price}`),
+    join(f.size, f.rooms),
+    join(f.bathrooms, f.floor),
+    join(f.structure, f.condition),
+    join(f.location, f.price && `Irányár: ${f.price}`), // 5. fotó: a legfontosabb ismétlése
+  ];
+  return rows[i % rows.length] ?? "";
 }

@@ -1,128 +1,89 @@
-// POST /api/webhooks/shotstack?job=<id>&secret=<s>
-// A Shotstack hívja, ha a render kész/hibás. A végleges videót mentjük Storage-ba,
-// beírjuk a usage_history-ba, és logoljuk a költséget (Luma snittek + Shotstack render).
+// POST /api/webhooks/shotstack?job=<id>&token=<s>
+// A Shotstack hívja, ha a render kész/hibás. A kész mp4-et letöltjük, a Storage-ba
+// mentjük (így nem függünk a Shotstack ideiglenes URL-jétől), usage_history-t írunk.
+// Hibánál automatikus kredit-visszatérítés.
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { logCost, lumaCostUsd, shotstackRenderCostUsd } from "@/lib/costs";
+import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const BUCKET = "reports";
 const FEATURE = "video";
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
-  const jobId = url.searchParams.get("job");
-  const secret = url.searchParams.get("secret");
-
-  if (secret !== (process.env.VIDEO_WEBHOOK_SECRET || "")) {
-    return NextResponse.json({ error: "Érvénytelen secret." }, { status: 401 });
+  const jobId = url.searchParams.get("job") ?? "";
+  // Kompatibilitás: token VAGY secret paraméternév.
+  const token = url.searchParams.get("token") ?? url.searchParams.get("secret") ?? "";
+  const secret = process.env.VIDEO_WEBHOOK_SECRET || "";
+  if (!jobId || (secret && token !== secret)) {
+    return NextResponse.json({ error: "Érvénytelen webhook." }, { status: 401 });
   }
-  if (!jobId) {
-    return NextResponse.json({ error: "Hiányzó job." }, { status: 400 });
-  }
-
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
-  }
-
-  const status = body?.status as string | undefined; // 'done' | 'failed'
-  const renderUrl = body?.url as string | undefined;
 
   const admin = createAdminClient();
   const { data: job } = await admin
     .from("video_jobs")
-    .select("*")
+    .select("id, user_id, service_id, status, package, credits_charged, meta")
     .eq("id", jobId)
     .single();
-  if (!job) return NextResponse.json({ error: "Nincs ilyen job." }, { status: 404 });
-  if (job.status === "done" || job.status === "failed") {
-    return NextResponse.json({ received: true }); // már lezárt
-  }
+  if (!job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
+  if (job.status === "done" || job.status === "failed") return NextResponse.json({ ok: true });
 
-  // Render hiba -> job bukik + visszatérítés.
-  if (status === "failed") {
-    await admin
-      .from("video_jobs")
-      .update({ status: "failed", error: "Shotstack render hiba." })
-      .eq("id", jobId);
+  let body: Record<string, unknown> = {};
+  try { body = await request.json(); } catch { body = {}; }
+
+  const fail = async (msg: string) => {
+    await admin.from("video_jobs").update({ status: "failed", error: msg }).eq("id", jobId);
     if (job.credits_charged > 0) {
-      await admin.rpc("wallet_add", {
-        p_user_id: job.user_id,
-        p_amount: job.credits_charged,
-      });
+      await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
     }
-    return NextResponse.json({ received: true });
-  }
+    return NextResponse.json({ ok: true });
+  };
 
-  if (status !== "done" || !renderUrl) {
-    return NextResponse.json({ received: true }); // köztes állapot
-  }
+  // Shotstack payload: { type: "render", action, id, status: "done"|"failed", url, error }
+  const status = String(body.status ?? "");
+  if (status === "failed") return fail(String(body.error ?? "A videó renderelése nem sikerült."));
+  if (status !== "done") return NextResponse.json({ ok: true }); // köztes állapot — várunk
+
+  const renderUrl = String(body.url ?? "");
+  if (!renderUrl) return fail("A kész videó URL-je hiányzik.");
 
   try {
-    // Végleges videó letöltés + mentés.
-    const resp = await fetch(renderUrl);
-    if (!resp.ok) throw new Error(`Videó letöltés hiba: ${resp.status}`);
-    const bytes = Buffer.from(await resp.arrayBuffer());
-    const path = `video/${job.user_id}/${randomUUID()}.mp4`;
-    const { error: upErr } = await admin.storage
-      .from(BUCKET)
-      .upload(path, bytes, { contentType: "video/mp4", upsert: false });
-    if (upErr) throw new Error(`Storage hiba: ${upErr.message}`);
-    const outputUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    // A videót SAJÁT tárhelyre mentjük (a Shotstack URL-je ideiglenes).
+    const videoRes = await fetch(renderUrl);
+    if (!videoRes.ok) throw new Error("A kész videó letöltése nem sikerült.");
+    const bytes = Buffer.from(await videoRes.arrayBuffer());
+    const path = `video/${job.user_id}/${jobId}.mp4`;
+    const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, {
+      contentType: "video/mp4",
+      upsert: true,
+    });
+    if (upErr) throw new Error(`Videó mentés hiba: ${upErr.message}`);
+    const publicUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
-    await admin
-      .from("video_jobs")
-      .update({ status: "done", output_url: outputUrl })
-      .eq("id", jobId);
+    const meta = (job.meta ?? {}) as { title?: string };
+    await admin.from("video_jobs").update({ status: "done", output_url: publicUrl, error: null }).eq("id", jobId);
 
-    // Előzmény (megjelenik a dashboardon, letöltési linkkel).
     await admin.from("usage_history").insert({
       user_id: job.user_id,
       service_id: job.service_id,
       feature_used: FEATURE,
-      credits_charged: job.credits_charged ?? 0,
-      input_data: {
-        format: job.format,
-        music_style: job.music_style,
-        image_count: job.image_count,
-      },
-      output_file_url: outputUrl,
+      input_data: { title: meta.title ?? "Ingatlan videó", package: job.package },
+      output_file_url: publicUrl,
+      credits_charged: job.credits_charged,
     });
 
-    // Költséglogolás: Luma snittek + Shotstack render (admin-only).
-    await logCost({
-      userId: job.user_id,
-      serviceId: job.service_id,
-      feature: FEATURE,
-      serviceName: "luma",
-      units: job.image_count,
-      estimatedCostUsd: lumaCostUsd(job.image_count),
-    });
-    await logCost({
-      userId: job.user_id,
-      serviceId: job.service_id,
-      feature: FEATURE,
-      serviceName: "shotstack",
-      units: 1,
-      estimatedCostUsd: shotstackRenderCostUsd(1),
-    });
-  } catch (err) {
-    await admin
-      .from("video_jobs")
-      .update({ status: "failed", error: (err as Error).message })
-      .eq("id", jobId);
-    if (job.credits_charged > 0) {
-      await admin.rpc("wallet_add", {
-        p_user_id: job.user_id,
-        p_amount: job.credits_charged,
+    if (job.service_id) {
+      await logCost({
+        userId: job.user_id, serviceId: job.service_id, feature: FEATURE,
+        serviceName: "shotstack", units: 1, estimatedCostUsd: shotstackRenderCostUsd(1),
       });
     }
-  }
 
-  return NextResponse.json({ received: true });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return fail((err as Error).message);
+  }
 }
