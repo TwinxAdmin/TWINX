@@ -162,9 +162,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   if (g.land) {
     // A szöveg mögött tömör, majd rövid szakaszon 0-ra halványul — a fotó szabad marad.
     const fadeW = Math.round(W * 0.40);
+    // FONTOS: a Satori a szög alakot kezeli megbízhatóan (270deg = balra), a "to left"-et nem.
     wave = box({
       position: "absolute", right: 0, top: 0, width: fadeW, height: H,
-      backgroundImage: `linear-gradient(to left, ${t.band} 0%, ${t.band} 62%, ${hexA(t.band, 0.55)} 82%, ${hexA(t.band, 0)} 100%)`,
+      backgroundImage: `linear-gradient(270deg, ${t.band} 0%, ${t.band} 62%, ${hexA(t.band, 0.55)} 82%, ${hexA(t.band, 0)} 100%)`,
     });
   } else {
     const y0 = amp, y1 = Math.round(amp * 0.35);
@@ -179,7 +180,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const bottomScrim = g.land
     ? box({
         position: "absolute", left: 0, bottom: 0, width: Math.round(W * 0.64), height: Math.round(H * 0.44),
-        backgroundImage: "linear-gradient(to top, rgba(18,20,24,0.64) 0%, rgba(18,20,24,0.28) 58%, rgba(18,20,24,0) 100%)",
+        backgroundImage: "linear-gradient(0deg, rgba(18,20,24,0.64) 0%, rgba(18,20,24,0.28) 58%, rgba(18,20,24,0) 100%)",
       })
     : null;
 
@@ -314,6 +315,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   // Story (9:16, mobil-első): KÉT SOR — felül adat-RÁCS nagy ikonokkal, alul az
   // értékesítő kiemelt telefonszám-pillel; a körök a sarokban.
   let bandContent: React.ReactElement;
+  let landDataCol: React.ReactElement | null = null; // fekvő: önálló adatoszlop jobbra
   if (g.land) {
     // FEKVŐ (4:3): jobbra az adatlista (a színátmenet tömör részén), balra alul a
     // kis képek MELLETT az értékesítő blokkja — közös bal vezérvonalon.
@@ -322,12 +324,12 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         icon(it.k, Math.round(46 * u), t.bandInk),
         box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
       ]);
-    const dataCol = items.length
+    landDataCol = items.length
       ? box(
           { position: "absolute", right: Math.round(96 * u), bottom: Math.round(90 * u), flexDirection: "column" },
           items.slice(0, 6).map(landItem)
         )
-      : box({}, "");
+      : null;
 
     // Az értékesítő blokk a kis képek jobb oldalán kezdődik.
     const contactLeft = Math.round(60 * u) + thumbs.length * (thumbD + gapT) + Math.round(26 * u);
@@ -355,7 +357,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         p.phone ? box({ fontSize: Math.round(34 * u), fontWeight: 700, color: "#ffffff", lineHeight: 1.4, marginTop: Math.round(6 * u), textShadow: shadow }, truncate(p.phone, 24)) : null,
         p.email ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.email, 34)) : null,
         p.website ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: "#ffffff", opacity: 0.95, lineHeight: 1.45, textShadow: shadow }, truncate(p.website, 34)) : null,
-        dataCol,
       ].filter(Boolean)
     );
   } else if (g.story) {
@@ -449,6 +450,6 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 
   return box(
     { position: "relative", width: W, height: H, fontFamily: family, background: t.paper },
-    [heroLayer, scrim, wave, bottomScrim, titleBlock, badgeEl, ...thumbEls, seal, bandContent, cornerCol, wm].filter(Boolean)
+    [heroLayer, scrim, wave, bottomScrim, titleBlock, badgeEl, ...thumbEls, seal, landDataCol, bandContent, cornerCol, wm].filter(Boolean)
   );
 }
