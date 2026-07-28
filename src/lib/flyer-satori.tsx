@@ -73,30 +73,13 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     badge
   );
 
-  // --- Réteg 4: TÉPETT PAPÍR felső él + sötét sáv (SVG) az arculati sávszínnel ---
-  const baseY = Math.round(58 * u);
-  const tearAmp = Math.round(38 * u);
-  const segs = 46;
-  const pts: Array<[number, number]> = [];
-  for (let i = 0; i <= segs; i++) {
-    const x = Math.round((W * i) / segs);
-    // determinisztikus ál-véletlen: két eltérő frekvenciájú "zaj" keveréke
-    const n = Math.sin(i * 12.9898) * 43758.5453;
-    const frac = n - Math.floor(n);
-    const n2 = Math.sin(i * 3.31 + 1.7);
-    const y = Math.round(baseY + (frac - 0.5) * tearAmp + n2 * tearAmp * 0.28);
-    pts.push([x, y]);
-  }
-  const fillPath = `M 0,${waveH} L ${pts.map(([x, y]) => `${x},${y}`).join(" L ")} L ${W},${waveH} Z`;
-  const edgePath = `M ${pts.map(([x, y]) => `${x},${y}`).join(" L ")}`;
+  // --- Réteg 4: ívelt hullám (SVG) az arculati sávszínnel ---
+  const y0 = amp, y1 = Math.round(amp * 0.35);
+  const wavePath = `M0,${y0} C ${Math.round(W * 0.30)},${y0 - amp} ${Math.round(W * 0.68)},${y1 + amp} ${W},${y1} L ${W},${waveH} L 0,${waveH} Z`;
   const wave = React.createElement(
     "svg",
     { width: W, height: waveH, viewBox: `0 0 ${W} ${waveH}`, style: { position: "absolute", left: 0, bottom: 0 } },
-    [
-      React.createElement("path", { key: "fill", d: fillPath, fill: t.band }),
-      // vékony világos csík a szakadt él mentén — papír-hatás
-      React.createElement("path", { key: "edge", d: edgePath, fill: "none", stroke: "rgba(255,255,255,0.35)", strokeWidth: Math.max(2, Math.round(3 * u)) }),
-    ]
+    React.createElement("path", { d: wavePath, fill: t.band })
   );
 
   // --- Réteg 5: thumbnails (ha több kép) — a hullám fölött, jobbra ---
