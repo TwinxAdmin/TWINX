@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from "react";
 import CreditGrantDialog from "@/components/admin/CreditGrantDialog";
+import { showToast } from "@/components/Toast";
 import type { UserMetric } from "@/lib/metrics";
 
 type SortKey = "name" | "uses" | "cost" | "revenue";
@@ -26,6 +27,50 @@ export default function UserTable({
 
   // Kredit-adás: melyik partnernek nyílt ki az ablak.
   const [grantFor, setGrantFor] = useState<UserMetric | null>(null);
+
+  // Szerepkör módosítása helyben. A friss értéket itt tartjuk, hogy azonnal
+  // látszódjon (a szerveroldali lista csak újratöltéskor frissülne).
+  const [roles, setRoles] = useState<Record<string, string>>({});
+  const [roleBusy, setRoleBusy] = useState<string | null>(null);
+  const roleOf = (u: UserMetric) => roles[u.userId] ?? u.role;
+
+  async function changeRole(u: UserMetric, role: string) {
+    if (role === roleOf(u)) return;
+    setRoleBusy(u.userId);
+    try {
+      const res = await fetch("/api/admin/role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.userId, role }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "A szerepkör módosítása nem sikerült.");
+      setRoles((r) => ({ ...r, [u.userId]: role }));
+      showToast(`${u.name || u.email}: ${ROLE_LABEL[role] ?? role}`, "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setRoleBusy(null);
+    }
+  }
+
+  /** Szerepkör-választó — a táblázatban és a mobil kártyán is ez fut. */
+  const RolePicker = ({ u }: { u: UserMetric }) => (
+    <select value={roleOf(u)} disabled={roleBusy === u.userId}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => { e.stopPropagation(); void changeRole(u, e.target.value); }}
+      aria-label={`Szerepkör: ${u.email}`}
+      className="rounded-lg px-2 py-1 text-xs font-medium disabled:opacity-50"
+      style={{
+        border: "1px solid var(--twx-line)",
+        background: roleOf(u) === "user" ? "#fff" : "var(--twx-coral-soft)",
+        color: roleOf(u) === "user" ? "var(--twx-ink)" : "#7a2e17",
+      }}>
+      {Object.entries(ROLE_LABEL).map(([value, label]) => (
+        <option key={value} value={value}>{label}</option>
+      ))}
+    </select>
+  );
 
   /** Egy sorvégi „+" gomb, ami megnyitja a kredit-ablakot. */
   const PlusButton = ({ u }: { u: UserMetric }) => (
@@ -127,16 +172,7 @@ export default function UserTable({
                     </p>
                   )}
                 </td>
-                <td className="py-2.5 pr-3">
-                  {u.role !== "user" ? (
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
-                      style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                      {ROLE_LABEL[u.role] ?? u.role}
-                    </span>
-                  ) : (
-                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>—</span>
-                  )}
-                </td>
+                <td className="py-2.5 pr-3"><RolePicker u={u} /></td>
                 <td className="py-2.5 text-right font-medium">{u.uses}</td>
                 <td className="py-2.5 text-right">{huf(u.costUsd * hufPerUsd)}</td>
                 <td className="py-2.5 text-right">{huf(u.revenueHuf)}</td>
@@ -176,6 +212,7 @@ export default function UserTable({
             <p className="font-semibold">{u.name || "(nincs név megadva)"}</p>
             {u.company && <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>}
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
+            <div className="mt-2"><RolePicker u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
               <span style={{ color: "var(--twx-ink-muted)" }}>Generálás</span><span className="text-right font-medium">{u.uses}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Költség</span><span className="text-right">{huf(u.costUsd * hufPerUsd)}</span>

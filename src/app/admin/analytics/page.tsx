@@ -2,8 +2,7 @@
 // Bevétel (HUF) vs. API-költség (USD→HUF), profitmarzs, funkció/API-bontás.
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getMetrics, getUserMetrics, getModuleMetrics } from "@/lib/metrics";
-import UserMetricsBlock from "@/components/UserMetricsBlock";
+import { getMetrics, getModuleMetrics } from "@/lib/metrics";
 import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
@@ -44,7 +43,6 @@ export default async function AdminAnalyticsPage({
   const sinceIso = active.days ? new Date(Date.now() - active.days * 86400000).toISOString() : null;
 
   const m = await getMetrics(sinceIso);
-  const { users } = await getUserMetrics(sinceIso);
   const { modules } = await getModuleMetrics(sinceIso);
   const hufPerUsd = m.hufPerUsd;
 
@@ -162,8 +160,14 @@ export default async function AdminAnalyticsPage({
         </p>
       </section>
 
-      {/* Felhasználók blokk — a modul-figyelő alatt */}
-      <UserMetricsBlock users={users} hufPerUsd={hufPerUsd} />
+      {/* A felhasználók listája és a jogosultság-kezelés a Felhasználók oldalon van. */}
+      <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+        A felhasználónkénti bontás és a szerepkörök módosítása a{" "}
+        <a href="/admin/users" className="underline" style={{ color: "var(--twx-coral)" }}>
+          Felhasználók
+        </a>{" "}
+        oldalon található.
+      </p>
 
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Megjegyzés: a bevétel csak azoknál a vásárlásoknál jelenik meg, ahol a fizetett
