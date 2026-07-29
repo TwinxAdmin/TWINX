@@ -18,11 +18,13 @@ export const VIDEO_DEFAULT_PROMPT =
   "The camera stays inside the room and frames the interior — it never travels toward or into the window. " +
   "Calm, inviting, premium mood. The room, furniture and layout stay exactly as in the photo.";
 
-// Amit MINDIG kerüljön a modell. A monotóniát is itt tiltjuk: ne az ablak felé menjen.
+// Amit MINDIG kerüljön a modell. Itt tiltjuk a monotóniát is: ne az ablak felé menjen,
+// és ne maradjon statikus a fény (a napszakváltás a lényeg).
 export const VIDEO_NEGATIVE_PROMPT =
   process.env.FAL_I2V_NEGATIVE ||
   "people, person, human, face, hands, pets, animals, text, watermark, logo, " +
   "camera flying out the window, zooming into the window, window filling the frame, " +
+  "static unchanging lighting, flat constant light, no change in light, " +
   "distorted geometry, warping walls, melting furniture, flickering, moving furniture, " +
   "camera shake, blurry, low quality, cartoon";
 
@@ -35,28 +37,41 @@ const CAMERA_MOVES = [
   "Very slow arc: the camera drifts to the left around the room, smooth parallax.",
 ];
 
-/** Napszak-ív: az első snitt hajnali/reggeli, a középsők nappali, az utolsó aranyló este.
- *  A fényváltás a TÉREN fut át (nem az ablakra fókuszál), így a kamera sem oda indul. */
-const LIGHT_MOODS = {
-  morning:
-    "Time-of-day transition: cool blue early-morning light gradually warms to soft golden tones; " +
-    "a band of sunlight slowly creeps across the floor and walls, shadows shortening as the sun rises.",
-  midday:
-    "Time-of-day transition: the light blooms into bright, clear midday sun; " +
-    "soft volumetric rays and faint dust motes drift through the air, bright pools of light slide across the surfaces.",
-  sunset:
-    "Time-of-day transition: the light deepens into a rich golden-hour sunset; " +
-    "warm amber tones wash over the whole room, shadows stretch long and soft, the air glows.",
-};
+/**
+ * A snitt FŐ ESEMÉNYE a napszakváltás — nem a kameramozgás, és nem az, hogy „besüt a nap".
+ * Minden klip egy látható átalakulás: a nappali fényből naplementébe fordul a szoba,
+ * közben az árnyékok végigvándorolnak a padlón és a színhőmérséklet is átfordul.
+ * A klipek együtt egy folyamatos ívet adnak: reggel → dél → délután → aranyló naplemente.
+ */
+const LIGHT_ARC = [
+  "The shot begins in cool, bluish morning light and transforms into warm, golden mid-morning sunlight. " +
+    "A visible band of sunlight sweeps across the floor as the sun climbs, shadows of the window frame " +
+    "travel measurably over the floorboards and walls, and the whole room warms from cold grey-blue to soft amber.",
+  "The shot begins in bright, neutral midday light and transforms into warm late-afternoon sun. " +
+    "The pools of light on the floor visibly slide and stretch, shadows lengthen across the room, " +
+    "and the colour temperature drifts from clean white daylight into rich honey tones.",
+  "The shot begins in warm afternoon light and transforms into the first glow of golden hour. " +
+    "Long shadows crawl across the floor and furniture, the light turns thick and amber, " +
+    "and the mood of the room shifts from bright and airy to warm and intimate.",
+  "The shot begins in golden-hour light and transforms into a deep, glowing sunset. " +
+    "The sunlight rakes low across the room in long dramatic shafts, shadows stretch far over the floor, " +
+    "the air glows amber-orange and the whole space becomes warm, cinematic and inviting.",
+];
 
-/** Egy snitt teljes prompja: kameramozgás + napszak-hangulat + alap (admin) prompt. */
+/** Egy snitt teljes prompja: napszakváltás (fő esemény) + kameramozgás + alap prompt. */
 export function videoClipPrompt(index: number, total: number, base?: string): string {
-  const mood =
-    index === 0 ? LIGHT_MOODS.morning
-    : index === total - 1 ? LIGHT_MOODS.sunset
-    : LIGHT_MOODS.midday;
+  // A klipeket az ív mentén osztjuk el: az UTOLSÓ mindig a naplemente.
+  const arc =
+    index === total - 1
+      ? LIGHT_ARC[LIGHT_ARC.length - 1]
+      : LIGHT_ARC[Math.min(index, LIGHT_ARC.length - 2)];
   const move = CAMERA_MOVES[index % CAMERA_MOVES.length];
-  return `${move} ${mood} ${base || VIDEO_DEFAULT_PROMPT}`;
+  return (
+    `Dramatic cinematic time-of-day transition — this lighting change is the main action of the shot. ${arc} ` +
+    `The change in light is continuous and clearly visible from the first frame to the last. ` +
+    `Camera movement is slow and secondary to the light: ${move} ` +
+    `${base || VIDEO_DEFAULT_PROMPT}`
+  );
 }
 
 const I2V_PROMPT = VIDEO_DEFAULT_PROMPT;
