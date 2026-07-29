@@ -194,7 +194,14 @@ export async function POST(request: Request) {
       if (aiClips.every((c) => c.failed)) throw new Error("Az AI-mozgás indítása nem sikerült.");
 
       // Az azonosítók ÖSSZEFÉSÜLÉSE: ha egy klip már vissza is ért, az eredménye marad.
-      await initClips(jobId, aiClips);
+      const savedClips = await initClips(jobId, aiClips);
+      // Ellenőrzés: ha az azonosítók nem mentődtek el, a klipek eredménye sosem
+      // jutna vissza (a job örökre „készül" maradna) → inkább bukjon most.
+      const expected = aiClips.filter((c) => !c.failed).length;
+      const saved = savedClips.filter((c) => c.requestId).length;
+      if (saved < expected) {
+        throw new Error("A beküldési azonosítók mentése nem sikerült (futtasd a video-pro-clips.sql-t).");
+      }
 
       if (service) {
         await logCost({

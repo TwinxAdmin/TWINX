@@ -66,7 +66,13 @@ export async function GET(
       const details: string[] = [];
       for (let i = 0; i < clips.length; i++) {
         const c = clips[i];
-        if (c.videoUrl || c.failed || !c.requestId) continue;
+        if (c.videoUrl || c.failed) continue;
+        if (!c.requestId) {
+          // Azonosító nélkül SOHA nem tudnánk meg az eredményt — ne várjunk rá örökké.
+          details.push(`${i}: nincs beküldési azonosító`);
+          clips = await saveClipResult(job.id, i, { failed: true });
+          continue;
+        }
         const r = await getFalVideoResult({
           requestId: c.requestId, statusUrl: c.statusUrl, responseUrl: c.responseUrl,
         });

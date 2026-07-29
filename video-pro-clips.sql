@@ -57,6 +57,10 @@ $$;
 -- 1/b) A beküldési azonosítók (requestId) ÖSSZEFÉSÜLÉSE a már beérkezett
 --      eredményekkel. Enélkül a beküldés utáni mentés felülírná azt a klipet,
 --      amelyik nagyon gyorsan visszaért.
+--      FIGYELEM a sorrendre: a jsonb `||` operátornál a JOBB oldal nyer, ezért
+--      a p_clips (az új azonosítók) kerül jobbra — így az üres helyfoglaló nem
+--      írja felül a valódi requestId-t. A már meglévő videoUrl/failed megmarad,
+--      mert azokat a p_clips nem tartalmazza.
 create or replace function public.video_clips_init(p_job uuid, p_clips jsonb)
 returns jsonb
 language plpgsql
@@ -72,7 +76,7 @@ begin
            '{ai_clips}',
            (
              select coalesce(jsonb_agg(
-                      (p_clips -> i) || coalesce(meta -> 'ai_clips' -> i, '{}'::jsonb)
+                      coalesce(meta -> 'ai_clips' -> i, '{}'::jsonb) || (p_clips -> i)
                       order by i
                     ), '[]'::jsonb)
              from generate_series(0, jsonb_array_length(p_clips) - 1) as i
