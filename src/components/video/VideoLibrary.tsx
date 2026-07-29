@@ -143,9 +143,17 @@ export default function VideoLibrary({
                     style={{ maxHeight: 300 }}
                   />
                 ) : (
-                  <div className="flex h-40 items-center justify-center rounded-lg text-xs"
-                    style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                    {v.status === "failed" ? "Sikertelen (kredit visszatérítve)" : "Készül…"}
+                  // Még nincs kész videó — de a nyitókártya már látszik előképként.
+                  <div className="relative flex h-40 items-center justify-center overflow-hidden rounded-lg"
+                    style={{ background: "var(--twx-line)" }}>
+                    {v.poster_url && v.status !== "failed" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={v.poster_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
+                    ) : null}
+                    <span className="relative rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{ background: "rgba(255,255,255,0.85)", color: "var(--twx-ink)" }}>
+                      {v.status === "failed" ? "Sikertelen (kredit visszatérítve)" : "Készül…"}
+                    </span>
                   </div>
                 )}
 
