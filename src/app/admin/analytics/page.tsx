@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMetrics, getUserMetrics, getModuleMetrics } from "@/lib/metrics";
 import UserMetricsBlock from "@/components/UserMetricsBlock";
+import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
 
@@ -48,22 +49,10 @@ export default async function AdminAnalyticsPage({
   const hufPerUsd = m.hufPerUsd;
 
   return (
-    <main className="twx-page font-sans">
-      <div className="mx-auto max-w-4xl space-y-6 px-6 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-semibold">Admin — Költségfigyelő</h1>
-        <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-          <a href="/admin/prompts">Promptok</a>
-          <a href="/admin/ideas">Ötletek</a>
-            <a href="/admin/rejections">Nem elfogadott</a>
-          <a href="/admin/credits">Kredit</a>
-          <a href="/dashboard">Dashboard</a>
-        </nav>
-      </div>
-      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-        Árfolyam: 1 USD = {m.hufPerUsd} Ft. A költség becsült nyers API-önköltség.
-      </p>
-
+    <AdminShell
+      title="Admin — Költségfigyelő"
+      subtitle={`Bevétel, becsült API-önköltség és árrés modulonként. Árfolyam: 1 USD = ${m.hufPerUsd} Ft.`}
+    >
       {/* Időszak-szűrő */}
       <div className="flex flex-wrap gap-2">
         {PERIODS.map((p) => {
@@ -181,8 +170,7 @@ export default async function AdminAnalyticsPage({
         összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `metrics.sql`-ben
         lévő visszatöltő sorral pótolható.
       </p>
-      </div>
-    </main>
+    </AdminShell>
   );
 }
 

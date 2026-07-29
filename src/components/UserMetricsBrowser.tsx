@@ -29,7 +29,9 @@ export default function UserMetricsBrowser({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
-    return users.filter((u) => u.email.toLowerCase().includes(q));
+    return users.filter((u) =>
+      [u.name, u.company, u.email].some((v) => (v ?? "").toLowerCase().includes(q))
+    );
   }, [users, query]);
 
   return (
@@ -86,10 +88,17 @@ export default function UserMetricsBrowser({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{u.email}</p>
-                        {u.role !== "user" && (
-                          <span className="text-xs" style={{ color: "var(--twx-coral)" }}>{u.role}</span>
+                        <p className="truncate font-semibold">
+                          {u.name || "(nincs név megadva)"}
+                          {u.role !== "user" && (
+                            <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                              style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{u.role}</span>
+                          )}
+                        </p>
+                        {u.company && (
+                          <p className="truncate text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>
                         )}
+                        <p className="truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
                         <p className="mt-1 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                           {u.features.length
                             ? u.features.map((f) => `${f.label} ${f.count}`).join(" · ")

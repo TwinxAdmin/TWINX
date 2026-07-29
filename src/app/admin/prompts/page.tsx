@@ -10,6 +10,7 @@ import {
 } from "@/lib/prompts";
 import PromptEditor from "@/components/PromptEditor";
 import ModuleSelect from "@/components/ModuleSelect";
+import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
 
@@ -40,49 +41,40 @@ export default async function AdminPromptsPage({
   const hasActiveVersion = versions.some((v) => v.is_active);
 
   return (
-    <main className="twx-page font-sans">
-      <div className="mx-auto max-w-4xl space-y-6 px-6 py-10">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-semibold">Admin — AI-promptok</h1>
-          <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-            <a href="/admin/analytics">Költségek</a>
-            <a href="/admin/ideas">Ötletek</a>
-            <a href="/admin/rejections">Nem elfogadott</a>
-            <a href="/dashboard">Dashboard</a>
-          </nav>
-        </div>
+    <AdminShell
+      title="Admin — AI-promptok"
+      subtitle="Az AI-modulok promptjai modulonként szerkeszthetők."
+    >
+      <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+        A promptok <strong>változó-blokkja zárolt</strong> (a rendszer illeszti be a felhasználói
+        adatokat) — az itt szerkeszthető szövegekben változó nem használható. Minden mentés új
+        verziót hoz létre; a korábbiak megmaradnak és bármikor visszaállíthatók.
+      </p>
 
-        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          A promptok <strong>változó-blokkja zárolt</strong> (a rendszer illeszti be a felhasználói
-          adatokat) — az itt szerkeszthető szövegekben változó nem használható. Minden mentés új
-          verziót hoz létre; a korábbiak megmaradnak és bármikor visszaállíthatók.
-        </p>
+      {/* Modulválasztó legördülő — csak a kiválasztott modul látszik */}
+      <ModuleSelect
+        modules={PROMPT_MODULES.map((m) => ({ key: m.key, label: m.label }))}
+        value={moduleKey}
+      />
 
-        {/* Modulválasztó legördülő — csak a kiválasztott modul látszik */}
-        <ModuleSelect
-          modules={PROMPT_MODULES.map((m) => ({ key: m.key, label: m.label }))}
-          value={moduleKey}
-        />
-
-        <PromptEditor
-          key={def.key}
-          moduleKey={def.key}
-          moduleLabel={def.label}
-          segmentDefs={def.segments.map((s) => ({ id: s.id, label: s.label, hint: s.hint }))}
-          dataBlockPreview={def.dataBlockPreview}
-          dataBlockAfter={def.dataBlockAfter}
-          activeSegments={activeSegments}
-          usingDefault={!hasActiveVersion}
-          versions={versions.map((v) => ({
-            id: v.id,
-            version: v.version,
-            name: v.name,
-            is_active: v.is_active,
-            created_at: v.created_at,
-            segments: v.segments,
-          }))}
-        />
-      </div>
-    </main>
+      <PromptEditor
+        key={def.key}
+        moduleKey={def.key}
+        moduleLabel={def.label}
+        segmentDefs={def.segments.map((s) => ({ id: s.id, label: s.label, hint: s.hint }))}
+        dataBlockPreview={def.dataBlockPreview}
+        dataBlockAfter={def.dataBlockAfter}
+        activeSegments={activeSegments}
+        usingDefault={!hasActiveVersion}
+        versions={versions.map((v) => ({
+          id: v.id,
+          version: v.version,
+          name: v.name,
+          is_active: v.is_active,
+          created_at: v.created_at,
+          segments: v.segments,
+        }))}
+      />
+    </AdminShell>
   );
 }

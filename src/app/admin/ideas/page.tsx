@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import IdeaModerationButtons from "@/components/IdeaModerationButtons";
+import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
 
@@ -69,19 +70,7 @@ export default async function AdminIdeasPage() {
   const others = list.filter((i) => i.status !== "pending");
 
   return (
-    <main className="twx-page font-sans">
-      <div className="mx-auto max-w-3xl space-y-6 px-6 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-semibold">Admin — Ötletláda</h1>
-        <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-          <a href="/admin/analytics">Analitika</a>
-          <a href="/admin/prompts">Promptok</a>
-          <a href="/admin/users">Felhasználók</a>
-          <a href="/admin/credits">Kredit</a>
-          <a href="/dashboard">Dashboard</a>
-        </nav>
-      </div>
-
+    <AdminShell title="Admin — Ötletláda" subtitle="A partnerektől érkezett javaslatok.">
       <section>
         <h2 className="font-display font-medium">Jóváhagyásra vár ({pending.length})</h2>
         {pending.length === 0 ? (
@@ -107,7 +96,6 @@ export default async function AdminIdeasPage() {
           </ul>
         )}
       </section>
-      </div>
-    </main>
+    </AdminShell>
   );
 }

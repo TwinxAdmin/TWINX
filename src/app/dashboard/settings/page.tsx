@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountSettingsForm from "@/components/AccountSettingsForm";
+import ProfileForm from "@/components/ProfileForm";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -16,13 +17,22 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("role, full_name, company")
+    .eq("id", user.id)
+    .single();
   const role = me?.role ?? "user";
   const created = user.created_at ? new Date(user.created_at).toLocaleDateString("hu-HU") : "—";
 
   return (
     <main className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl font-semibold">Beállítások</h1>
+
+      <ProfileForm
+        initialName={(me?.full_name as string) ?? ""}
+        initialCompany={(me?.company as string) ?? ""}
+      />
 
       {/* Profiladatok */}
       <div className="twx-card space-y-2 p-5 text-sm">

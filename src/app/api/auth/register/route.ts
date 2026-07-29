@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const { name, email, password, passwordConfirm } = (body ?? {}) as Record<string, string>;
+  const { name, company, email, password, passwordConfirm } = (body ?? {}) as Record<string, string>;
 
   const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm });
   if (!valid) {
@@ -24,7 +24,8 @@ export async function POST(request: Request) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: name.trim() } },
+    // A cég nem kötelező; a profiles rekordba a DB trigger írja át (handle_new_user).
+    options: { data: { full_name: name.trim(), company: (company ?? "").trim() } },
   });
 
   if (error) {

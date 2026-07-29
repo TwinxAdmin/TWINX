@@ -11,6 +11,7 @@ import Wordmark from "@/components/Wordmark";
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -35,7 +36,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, passwordConfirm }),
+        body: JSON.stringify({ name, company, email, password, passwordConfirm }),
       });
       const data = await res.json();
 
@@ -88,6 +89,21 @@ export default function RegisterPage() {
               {errors.name && (
                 <p className="mt-1 text-xs text-red-600">{errors.name}</p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="company" className="block text-sm">
+                Cég, ahol dolgozol <span style={{ color: "var(--twx-ink-muted)" }}>(nem kötelező)</span>
+              </label>
+              <input
+                id="company"
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="organization"
+                placeholder="pl. Prémium Ingatlanok Kft."
+              />
             </div>
 
             <div>

@@ -28,6 +28,8 @@ export type Metrics = {
 // --- Felhasználónkénti bontás -----------------------------------------
 export type UserMetric = {
   userId: string;
+  name: string;    // teljes név (profiles.full_name, tartalék: auth metadata)
+  company: string; // cég, ahol dolgozik (nem kötelező)
   email: string;
   role: string;
   createdAt: string | null; // regisztráció (rendezéshez)
@@ -45,13 +47,22 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const emailById = new Map<string, string>();
   const createdById = new Map<string, string | null>();
+  const metaNameById = new Map<string, string>();
   for (const u of list?.users ?? []) {
     emailById.set(u.id, u.email ?? "—");
     createdById.set(u.id, u.created_at ?? null);
+    const meta = (u.user_metadata ?? {}) as { full_name?: string };
+    if (meta.full_name) metaNameById.set(u.id, meta.full_name);
   }
 
-  const { data: profiles } = await admin.from("profiles").select("id, role");
+  const { data: profiles } = await admin.from("profiles").select("id, role, full_name, company");
   const roleById = new Map<string, string>((profiles ?? []).map((p) => [p.id as string, (p.role as string) ?? "user"]));
+  const nameById = new Map<string, string>(
+    (profiles ?? []).map((p) => [p.id as string, ((p.full_name as string) ?? "").trim()])
+  );
+  const companyById = new Map<string, string>(
+    (profiles ?? []).map((p) => [p.id as string, ((p.company as string) ?? "").trim()])
+  );
 
   let uhq = admin.from("usage_history").select("user_id, feature_used");
   let cq = admin.from("api_cost_logs").select("user_id, estimated_cost_usd");
@@ -70,6 +81,8 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
     if (!e) {
       e = {
         userId: id,
+        name: nameById.get(id) || metaNameById.get(id) || "",
+        company: companyById.get(id) || "",
         email: emailById.get(id) ?? "—",
         role: roleById.get(id) ?? "user",
         createdAt: createdById.get(id) ?? null,
@@ -115,7 +128,10 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
       .sort((a, b) => b.count - a.count);
   }
 
-  const users = [...rows.values()].sort((a, b) => b.uses - a.uses || b.costUsd - a.costUsd);
+  // ABC sorrend név szerint (magyar ékezetek helyesen); név nélkül az e-mail dönt.
+  const users = [...rows.values()].sort((a, b) =>
+    (a.name || a.email).localeCompare(b.name || b.email, "hu", { sensitivity: "base" })
+  );
   return { users, hufPerUsd: HUF_PER_USD };
 }
 

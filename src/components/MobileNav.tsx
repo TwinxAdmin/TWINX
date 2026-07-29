@@ -130,7 +130,7 @@ export default function MobileNav({
                   Arculatom
                 </a>
                 {isAdmin && (
-                  <a href="/admin/analytics" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  <a href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                     Admin
                   </a>
                 )}

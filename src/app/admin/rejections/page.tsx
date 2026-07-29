@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enhanceModeLabel } from "@/lib/image-enhance";
+import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
 
@@ -33,23 +34,11 @@ export default async function AdminRejectionsPage() {
   };
 
   return (
-    <main className="twx-page font-sans">
-      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-semibold">Admin — Nem elfogadott képek</h1>
-          <nav className="flex gap-3 text-sm" style={{ color: "var(--twx-coral)" }}>
-            <a href="/admin/prompts">Promptok</a>
-            <a href="/admin/analytics">Költségek</a>
-            <a href="/dashboard">Dashboard</a>
-          </nav>
-        </div>
-
-        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Itt látod, mely generálásokat nem fogadta el a partner és miért kért ingyenes újragenerálást.
-          Ez segít a promptok finomhangolásában.
-        </p>
-
-        {(rows ?? []).length === 0 ? (
+    <AdminShell
+      title="Admin — Nem elfogadott képek"
+      subtitle="A partnerek által nem elfogadott képek — minőségi visszajelzés."
+    >
+      {(rows ?? []).length === 0 ? (
           <div className="twx-card p-6 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
             Még nincs elutasított generálás.
           </div>
@@ -93,7 +82,6 @@ export default async function AdminRejectionsPage() {
             ))}
           </div>
         )}
-      </div>
-    </main>
+    </AdminShell>
   );
 }
