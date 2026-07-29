@@ -37,10 +37,12 @@ export async function POST(request: Request) {
     userId,
     email,
     amount,
+    note,
   } = (body ?? {}) as {
     userId?: string;
     email?: string;
     amount?: number;
+    note?: string;
   };
 
   if (!Number.isInteger(amount) || (amount ?? 0) <= 0) {
@@ -60,18 +62,17 @@ export async function POST(request: Request) {
 
   // Felhasználó feloldása e-mail alapján (ha nem userId-t adtak meg).
   let resolvedUserId = userId;
-  if (!resolvedUserId && email) {
-    const { data: list } = await admin.auth.admin.listUsers();
-    const found = list?.users?.find(
-      (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
-    );
+  let resolvedEmail = email?.trim() ?? null;
+  {
+    const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const found = resolvedUserId
+      ? list?.users?.find((u) => u.id === resolvedUserId)
+      : list?.users?.find((u) => u.email?.toLowerCase() === (email ?? "").trim().toLowerCase());
     if (!found) {
-      return NextResponse.json(
-        { error: "Nincs ilyen e-mailű felhasználó." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Nincs ilyen felhasználó." }, { status: 404 });
     }
     resolvedUserId = found.id;
+    resolvedEmail = found.email ?? resolvedEmail;
   }
 
   // Közös egyenlegre írunk jóvá (bármelyik modulban elkölthető).
@@ -84,5 +85,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  // NAPLÓZÁS: ki, kinek, mikor, mennyit adott. Ha ez elhasal, a jóváírás akkor is
+  // megtörtént — ezért nem buktatjuk el a kérést, csak jelezzük a szerver-logban.
+  const { error: logError } = await admin.from("credit_grants").insert({
+    admin_id: user.id,
+    admin_email: user.email ?? null,
+    user_id: resolvedUserId,
+    user_email: resolvedEmail,
+    amount,
+    note: typeof note === "string" && note.trim() ? note.trim().slice(0, 200) : null,
+  });
+  if (logError) {
+    console.error("[admin-credits] A kredit-napló írása nem sikerült:", logError.message);
+  }
+
+  return NextResponse.json({ ok: true, logged: !logError });
 }

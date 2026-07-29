@@ -6,8 +6,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { showToast } from "@/components/Toast";
+import CreditGrantDialog from "@/components/admin/CreditGrantDialog";
 import type { UserMetric } from "@/lib/metrics";
 
 type SortKey = "name" | "uses" | "cost" | "revenue";
@@ -21,59 +20,21 @@ function huf(n: number): string {
 export default function UserTable({
   users, hufPerUsd,
 }: { users: UserMetric[]; hufPerUsd: number }) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // Kredit-adás helyben: melyik sor nyílt ki, mennyi, és fut-e épp.
-  const [grantFor, setGrantFor] = useState<string | null>(null);
-  const [amount, setAmount] = useState("");
-  const [granting, setGranting] = useState(false);
+  // Kredit-adás: melyik partnernek nyílt ki az ablak.
+  const [grantFor, setGrantFor] = useState<UserMetric | null>(null);
 
-  async function grant(email: string) {
-    const amt = parseInt(amount, 10);
-    if (!Number.isInteger(amt) || amt <= 0) {
-      showToast("Adj meg egy pozitív kredit számot.", "error");
-      return;
-    }
-    setGranting(true);
-    try {
-      const res = await fetch("/api/admin/credits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, amount: amt }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Hiba a jóváírás során.");
-      showToast(`${amt} kredit jóváírva: ${email}`, "success");
-      setGrantFor(null);
-      setAmount("");
-      router.refresh(); // hogy a friss egyenleg is látszódjon
-    } catch (e) {
-      showToast((e as Error).message, "error");
-    } finally {
-      setGranting(false);
-    }
-  }
-
-  /** A kredit-adó mező — a táblázatban és a mobil kártyán is ez fut. */
-  const GrantBox = ({ email }: { email: string }) => (
-    <div className="mt-1 flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      <input type="number" min={1} value={amount} autoFocus
-        onChange={(e) => setAmount(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") void grant(email); }}
-        placeholder="db" className="twx-input w-20 py-1 text-right text-xs" />
-      <button type="button" onClick={() => void grant(email)} disabled={granting}
-        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-40"
-        style={{ background: "var(--twx-coral)" }}>
-        {granting ? "…" : "Jóváír"}
-      </button>
-      <button type="button" onClick={() => { setGrantFor(null); setAmount(""); }}
-        className="rounded-lg px-2 py-1 text-xs" style={{ border: "1px solid var(--twx-line)" }}>
-        ✕
-      </button>
-    </div>
+  /** Egy sorvégi „+" gomb, ami megnyitja a kredit-ablakot. */
+  const PlusButton = ({ u }: { u: UserMetric }) => (
+    <button type="button" title={`Kredit adása: ${u.email}`} aria-label="Kredit adása"
+      onClick={(e) => { e.stopPropagation(); setGrantFor(u); }}
+      className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-sm font-bold leading-none text-white transition hover:opacity-85"
+      style={{ background: "var(--twx-coral)" }}>
+      +
+    </button>
   );
 
   const rows = useMemo(() => {
@@ -182,18 +143,8 @@ export default function UserTable({
                 <td className="py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <span>{u.creditsBought}</span>
-                    <button type="button" title={`Kredit adása: ${u.email}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setGrantFor(grantFor === u.userId ? null : u.userId);
-                        setAmount("");
-                      }}
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold text-white transition hover:opacity-85"
-                      style={{ background: "var(--twx-coral)" }}>
-                      +
-                    </button>
+                    <PlusButton u={u} />
                   </div>
-                  {grantFor === u.userId && <GrantBox email={u.email} />}
                 </td>
               </tr>
             ))}
@@ -231,19 +182,9 @@ export default function UserTable({
               <span style={{ color: "var(--twx-ink-muted)" }}>Kredit</span>
               <span className="flex items-center justify-end gap-1.5">
                 {u.creditsBought}
-                <button type="button" title="Kredit adása"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setGrantFor(grantFor === u.userId ? null : u.userId);
-                    setAmount("");
-                  }}
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold text-white"
-                  style={{ background: "var(--twx-coral)" }}>
-                  +
-                </button>
+                <PlusButton u={u} />
               </span>
             </div>
-            {grantFor === u.userId && <GrantBox email={u.email} />}
             {openId === u.userId && (
               <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                 {u.features.length ? u.features.map((f) => `${f.label} ${f.count}`).join(" · ") : "nincs használat"}
@@ -255,7 +196,17 @@ export default function UserTable({
 
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Egy sorra kattintva megjelenik a funkciónkénti bontás. Az oszlopfejlécek kattintással rendezik a listát.
+        A Kredit oszlop „+” gombjával kreditet írhatsz jóvá.
       </p>
+
+      {grantFor && (
+        <CreditGrantDialog
+          name={grantFor.name}
+          company={grantFor.company}
+          email={grantFor.email}
+          onClose={() => setGrantFor(null)}
+        />
+      )}
     </div>
   );
 }
