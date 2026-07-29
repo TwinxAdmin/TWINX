@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountSettingsForm from "@/components/AccountSettingsForm";
 import ProfileForm from "@/components/ProfileForm";
+import CreditRequestPanel from "@/components/CreditRequestPanel";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -25,9 +26,16 @@ export default async function SettingsPage() {
   const role = me?.role ?? "user";
   const created = user.created_at ? new Date(user.created_at).toLocaleDateString("hu-HU") : "—";
 
+  // Az admin korlátlan, neki nincs értelme kreditet kérnie.
+  const { data: wallet } = await supabase
+    .from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
+  const balance = (wallet?.balance as number) ?? 0;
+
   return (
     <main className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl font-semibold">Beállítások</h1>
+
+      {role !== "admin" && <CreditRequestPanel balance={balance} />}
 
       <ProfileForm
         initialName={(me?.full_name as string) ?? ""}
