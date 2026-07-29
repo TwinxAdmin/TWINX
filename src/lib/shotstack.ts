@@ -93,11 +93,18 @@ export async function getRenderStatus(id: string): Promise<{ status: string; url
   const apiKey = process.env.SHOTSTACK_API_KEY;
   if (!apiKey) throw new Error("Hiányzó SHOTSTACK_API_KEY.");
   const res = await fetch(`${BASE}/render/${id}`, { headers: { "x-api-key": apiKey } });
-  if (!res.ok) throw new Error(`Shotstack státusz hiba (${res.status}).`);
+  if (!res.ok) {
+    // NE dobjunk: a hívó elnyelné, és a job némán beragadna. Inkább jelezzük.
+    return { status: "http_error", url: null, error: `Shotstack státusz hiba (${res.status}).` };
+  }
   const data = await res.json();
   return {
+    // Shotstack állapotok: queued | fetching | rendering | saving | done | failed
     status: String(data?.response?.status ?? "unknown"),
     url: (data?.response?.url as string) ?? null,
     error: (data?.response?.error as string) ?? null,
   };
 }
+
+/** A Shotstack környezet neve — a diagnosztikához (stage = teszt, vízjeles). */
+export const SHOTSTACK_ENV = ENV;

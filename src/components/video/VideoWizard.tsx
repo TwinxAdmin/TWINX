@@ -17,6 +17,19 @@ import {
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
+
+/** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
+type VideoDebug = {
+  phase?: string;
+  ageMinutes?: number;
+  clips?: string[];
+  shotstackStatus?: string;
+  shotstackError?: string;
+  clipError?: string;
+  renderError?: string;
+  downloadError?: string;
+  uploadError?: string;
+};
 import { ROOMS_OPTIONS, BATHROOM_OPTIONS } from "@/lib/flyer";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -44,6 +57,7 @@ export default function VideoWizard({
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 3) Adatok (nyitókártya + felirat-sávok)
+  const [debug, setDebug] = useState<VideoDebug | null>(null);
   const [title, setTitle] = useState("");
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
@@ -123,6 +137,26 @@ export default function VideoWizard({
     } finally { setSubmitting(false); }
   }
 
+  // Emberi nyelvű állapot a diagnosztikából — hogy egy elakadásnál lássuk, hol tart.
+  function describeProgress(d: VideoDebug): string {
+    const parts: string[] = [];
+    if (Array.isArray(d.clips)) {
+      const done = d.clips.filter((c) => c.includes("kész")).length;
+      parts.push(`AI-snittek: ${done}/${d.clips.length} kész`);
+    }
+    if (d.shotstackStatus) {
+      const map: Record<string, string> = {
+        queued: "sorban áll", fetching: "elemeket tölt le", rendering: "renderel",
+        saving: "menti", done: "kész", failed: "hiba",
+      };
+      parts.push(`Vágás: ${map[d.shotstackStatus] ?? d.shotstackStatus}`);
+    }
+    if (typeof d.ageMinutes === "number" && d.ageMinutes > 0) parts.push(`${d.ageMinutes} perce fut`);
+    const problem = d.clipError || d.renderError || d.shotstackError || d.downloadError || d.uploadError;
+    if (problem) parts.push(`⚠ ${problem}`);
+    return parts.join(" · ");
+  }
+
   function defaultTitle(): string {
     const t = facts.propertyType ? `Eladó ${facts.propertyType.toLowerCase()}` : "Eladó ingatlan";
     return t;
@@ -138,6 +172,7 @@ export default function VideoWizard({
         if (!res.ok) return;
         const data = await res.json();
         setJob({ status: data.status, output_url: data.output_url ?? null, error: data.error ?? null });
+        setDebug(data.debug ?? null);
         if (data.status === "done") { onDone?.(); showToast("A videó elkészült és mentve!", "success"); }
         if (data.status === "failed") showToast("A videó nem készült el — a kredit visszajárt.", "error");
       } catch { /* következő kör */ }
@@ -405,6 +440,7 @@ export default function VideoWizard({
                 <div className="py-10">
                   <p className="text-sm font-medium">
                     {job?.status === "animating" ? "AI-snittek készülnek minden fotóból — ez több percig is tarthat…" : "A videó renderelése folyik…"}
+                    {debug ? <span className="mt-1 block text-[11px] opacity-70">{describeProgress(debug)}</span> : null}
                   </p>
                   <div className="mx-auto mt-4 h-2 w-64 overflow-hidden rounded-full" style={{ background: "var(--twx-line)" }}>
                     <div className="h-full rounded-full transition-all" style={{ background: "var(--twx-coral)", width: `${Math.min(95, Math.round((elapsed / 150) * 100))}%` }} />

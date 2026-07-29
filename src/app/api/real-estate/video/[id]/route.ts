@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getRenderStatus } from "@/lib/shotstack";
+import { getRenderStatus, SHOTSTACK_ENV } from "@/lib/shotstack";
 import { getFalVideoResult } from "@/lib/fal";
 import {
   startRenderWithAiClips, allClipsSettled, saveClipResult, claimRender, failJobOnce,
@@ -29,7 +29,7 @@ export async function GET(
 
   const { data: job, error } = await supabase
     .from("video_jobs")
-    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error, format, music_url, source_images")
+    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error, format, music_url, source_images, created_at")
     .eq("id", id)
     .single();
   if (error || !job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
@@ -39,6 +39,24 @@ export async function GET(
   let jobError = job.error as string | null;
 
   let meta = (job.meta ?? {}) as VideoMeta;
+
+  // Diagnosztika: ha valami elakad, LÁTSZANIA kell, hol és miért.
+  const ageMinutes = (Date.now() - new Date(job.created_at as string).getTime()) / 60000;
+  const debug: Record<string, unknown> = {
+    phase: status,
+    ageMinutes: Math.round(ageMinutes),
+    shotstackEnv: SHOTSTACK_ENV,
+  };
+
+  // BIZTONSÁGI IDŐKORLÁT: ha ennyi perc után sincs kész, felszabadítjuk a kreditet,
+  // hogy a partner ne maradjon se videó, se egyenleg nélkül.
+  const TIMEOUT_MIN = Number(process.env.VIDEO_TIMEOUT_MINUTES || 25);
+  if (status !== "done" && status !== "failed" && ageMinutes > TIMEOUT_MIN) {
+    jobError = `A videó ${Math.round(ageMinutes)} perc alatt sem készült el (időtúllépés).`;
+    status = "failed";
+    await failJobOnce(job.id, job.user_id, job.credits_charged, jobError);
+    return NextResponse.json({ status, output_url: outputUrl, imageCount: job.image_count, error: jobError, debug });
+  }
 
   // 1) PRO: ha az AI-klipekre várunk, de a webhookok nem jöttek meg (pl. localhost),
   // MINDEN függőben lévő klipet lekérdezünk a fal.ai-tól. Ha mind lezárult, indul a render.
@@ -77,8 +95,11 @@ export async function GET(
           status = "rendering"; // a másik szál indította el
         }
       }
-    } catch {
-      /* a következő polling újrapróbálja */
+      debug.clips = clips.map((c, i) =>
+        c.videoUrl ? `${i}: kész` : c.failed ? `${i}: hibás` : `${i}: várakozik`
+      );
+    } catch (err) {
+      debug.clipError = (err as Error).message; // a következő polling újrapróbálja
     }
   }
 
@@ -89,17 +110,22 @@ export async function GET(
       const admin0 = createAdminClient();
       const { data: fresh } = await admin0.from("video_jobs").select("meta").eq("id", job.id).single();
       const renderId = ((fresh?.meta ?? meta) as VideoMeta).render_id;
-      if (!renderId) throw new Error("nincs render_id");
+      if (!renderId) throw new Error("A renderelés elindult, de nincs render azonosító.");
       const r = await getRenderStatus(renderId);
+      debug.renderId = renderId;
+      debug.shotstackStatus = r.status;
+      if (r.error) debug.shotstackError = r.error;
       const admin = createAdminClient();
       if (r.status === "done" && r.url) {
         const videoRes = await fetch(r.url);
+        if (!videoRes.ok) debug.downloadError = `A kész videó letöltése nem sikerült (${videoRes.status}).`;
         if (videoRes.ok) {
           const bytes = Buffer.from(await videoRes.arrayBuffer());
           const path = `video/${job.user_id}/${job.id}.mp4`;
           const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, {
             contentType: "video/mp4", upsert: true,
           });
+          if (upErr) debug.uploadError = upErr.message;
           if (!upErr) {
             outputUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
             status = "done";
@@ -129,13 +155,13 @@ export async function GET(
             }
           }
         }
-      } else if (r.status === "failed") {
+      } else if (r.status === "failed" || r.status === "http_error") {
         status = "failed";
         jobError = r.error ?? "A videó renderelése nem sikerült.";
         await failJobOnce(job.id, job.user_id, job.credits_charged, jobError);
       }
-    } catch {
-      /* a következő polling újrapróbálja */
+    } catch (err) {
+      debug.renderError = (err as Error).message; // a következő polling újrapróbálja
     }
   }
 
@@ -144,5 +170,6 @@ export async function GET(
     output_url: outputUrl,
     imageCount: job.image_count,
     error: jobError,
+    debug,
   });
 }
