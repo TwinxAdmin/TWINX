@@ -168,7 +168,8 @@ export async function renderCaptionOverlay(
   // A fő sor betűmérete a hosszhoz igazodik, hogy sose lógjon ki (kb. 22 karakter/sor 9:16-ban).
   const line1 = truncate(opts.line1, 42);
   const mainFs = Math.round((line1.length > 30 ? 40 : line1.length > 22 ? 48 : 58) * u);
-  const subFs = Math.round(34 * u);
+  const line2 = truncate((opts.line2 ?? "").trim(), 42);
+  const subFs = Math.round((line2.length > 30 ? 40 : line2.length > 22 ? 46 : 52) * u);
 
   const el = box(
     // A gyökéren NINCS background → a PNG átlátszó marad.
@@ -192,10 +193,11 @@ export async function renderCaptionOverlay(
           }, line1),
           hasLine2
             ? box({
-                fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.92,
-                marginTop: Math.round(8 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+                fontSize: subFs, fontWeight: 700, color: "#ffffff", opacity: 1,
+                lineHeight: 1.12, letterSpacing: Math.round(1 * u),
+                marginTop: Math.round(10 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
                 textAlign: "center",
-              }, truncate((opts.line2 ?? "").trim(), 42))
+              }, line2)
             : null,
         ].filter(Boolean)
       ),
