@@ -141,10 +141,10 @@ export default function UserTable({
                 <td className="py-2.5 text-right">{huf(u.costUsd * hufPerUsd)}</td>
                 <td className="py-2.5 text-right">{huf(u.revenueHuf)}</td>
                 <td className="py-2.5">
-                  {/* A szám középen, a „+" gomb közvetlenül utána. */}
-                  <div className="flex items-center justify-center gap-2">
+                  {/* A szám középen, a „+" gomb kitolva az oszlop jobb szélére. */}
+                  <div className="relative flex items-center justify-center">
                     <span>{u.creditsBought}</span>
-                    <PlusButton u={u} />
+                    <span className="absolute right-0"><PlusButton u={u} /></span>
                   </div>
                 </td>
               </tr>
