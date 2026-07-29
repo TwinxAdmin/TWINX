@@ -5,6 +5,12 @@
 //   szövegekkel dolgozik a rendszer — így korábbi prompt sosem veszik el.
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  ADCHECK_DEFAULT_SEGMENTS,
+  ADCHECK_DATA_BLOCK_PREVIEW,
+  composeAdCheckPrompt,
+  type AdCheckInput,
+} from "@/lib/adcheck-prompt";
+import {
   LAND_DEFAULT_SEGMENTS,
   LAND_DATA_BLOCK_PREVIEW,
   composeLandPrompt,
@@ -313,6 +319,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
+    key: "ad_check",
+    label: "Hirdetés-ellenőrző",
+    dataBlockPreview: ADCHECK_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A hirdetés-auditor szerepe és a legfontosabb szabályok: csak a SZÖVEGET értékelje (fotókat nem lát), és ne találjon ki adatot. Változó nem használható.",
+        default: ADCHECK_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / kimenet (JSON)",
+        hint: "A négy pontozott szempont, a mondatszintű javítások, a kiemelendők + fotó-kérdés, a hiányzó adatok és az újraírt szöveg szabályai. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: ADCHECK_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
     key: "professional_hospitality",
     label: "Szakember-kereső (vendéglátás)",
     dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
@@ -508,6 +534,15 @@ export async function buildProfessionalPromptActive(query: ProfessionalQuery): P
   const moduleKey = query.industry === "realestate" ? "professional_realestate" : "professional_hospitality";
   const segments = await getActiveSegments(moduleKey);
   return composeProfessionalPrompt(query, segments);
+}
+
+/** Hirdetés-ellenőrző: az aktív (admin által szerkesztett) prompt összeállítása. */
+export async function buildAdCheckPromptActive(input: AdCheckInput): Promise<string> {
+  const segments = await getActiveSegments("ad_check");
+  return composeAdCheckPrompt(input, {
+    intro: segments.intro ?? ADCHECK_DEFAULT_SEGMENTS.intro,
+    task: segments.task ?? ADCHECK_DEFAULT_SEGMENTS.task,
+  });
 }
 
 // --- Verziók kezelése (admin) ----------------------------------------------

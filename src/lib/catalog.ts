@@ -29,6 +29,7 @@ export const CATEGORIES: Category[] = [
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization", icon: "visualization", desc: "Fotórealisztikus belsőépítészet" },
       { label: "Videó generálás", href: "/dashboard/real-estate/video", icon: "video", desc: "Profi bemutató videó a fotókból" },
       { label: "Hirdetéskészítő", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott ingatlanhirdetés" },
+      { label: "Hirdetés-ellenőrző", href: "/dashboard/real-estate/ad-check", icon: "history", desc: "Meglévő hirdetés elemzése link alapján" },
       { label: "Szakember-kereső", href: "/dashboard/real-estate/professionals", icon: "pro", desc: "Közvetítő, ügyvéd, energetikus, kivitelező…" },
     ],
   },

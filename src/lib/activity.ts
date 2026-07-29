@@ -12,6 +12,7 @@ const FEATURE_LABEL: Record<string, string> = {
   visualization: "Látványterv",
   video: "Videó",
   flyer: "Hirdetés",
+  "ad-check": "Hirdetés-ellenőrzés",
   menu_generator: "Menü generátor",
 };
 
@@ -25,6 +26,12 @@ function s(v: unknown): string {
 
 export function activityTitle(feature: string, input: Json): string {
   const d = (input ?? {}) as Record<string, unknown>;
+
+  if (feature === "ad-check") {
+    const url = s(d.url).replace(/^https?:\/\/(www\.)?/, "");
+    const score = typeof d.score === "number" ? ` · ${d.score}/100` : "";
+    return `${url ? url.slice(0, 50) : "Bemásolt hirdetésszöveg"}${score}`;
+  }
 
   if (feature === "valuation") {
     const hely = [s(d.telepules), s(d.utca)].filter(Boolean).join(", ");
