@@ -14,40 +14,49 @@ const FAL_I2V_MODEL = process.env.FAL_I2V_MODEL || "fal-ai/kling-video/v1.6/stan
 // PRO: minden snitt ÉL — lágy napszakváltás, beszűrődő napsugarak, filmes kameramozgás.
 // Emberek és állatok SOHA (túl sok a hibalehetőség), a szoba és a bútorok változatlanok.
 export const VIDEO_DEFAULT_PROMPT =
-  "Cinematic real-estate interior showcase. Slow, elegant camera push-in with subtle parallax. " +
-  "Beautiful natural light shifts through the room, warm sunlight streams in through the windows " +
-  "with soft volumetric light rays and gentle dust motes drifting in the beams. " +
-  "Photorealistic, high-end architectural cinematography, calm and inviting mood. " +
-  "Keep the room, furniture and layout exactly as in the photo.";
+  "Cinematic real-estate interior showcase, photorealistic, high-end architectural cinematography. " +
+  "The camera stays inside the room and frames the interior — it never travels toward or into the window. " +
+  "Calm, inviting, premium mood. The room, furniture and layout stay exactly as in the photo.";
 
-// Amit MINDIG kerüljön a modell.
+// Amit MINDIG kerüljön a modell. A monotóniát is itt tiltjuk: ne az ablak felé menjen.
 export const VIDEO_NEGATIVE_PROMPT =
   process.env.FAL_I2V_NEGATIVE ||
   "people, person, human, face, hands, pets, animals, text, watermark, logo, " +
+  "camera flying out the window, zooming into the window, window filling the frame, " +
   "distorted geometry, warping walls, melting furniture, flickering, moving furniture, " +
   "camera shake, blurry, low quality, cartoon";
 
-/** Napszak-ív: az első snitt reggeli fény, a középsők déli ragyogás sugarakkal,
- *  az utolsó aranyló naplemente — így a videónak íve lesz.
- *  A megadott alap-prompt (admin) elé kerül a snitt fény-hangulata. */
+/** Snittenként MÁS kameramozgás — enélkül minden klip ugyanaz lenne. */
+const CAMERA_MOVES = [
+  "Slow cinematic dolly-in toward the center of the room, subtle parallax.",
+  "Slow lateral tracking shot gliding to the right across the room, revealing depth.",
+  "Slow, gentle crane movement: the camera rises a little and tilts down over the space.",
+  "Slow pull-back dolly-out, the room opens up and reveals more of the interior.",
+  "Very slow arc: the camera drifts to the left around the room, smooth parallax.",
+];
+
+/** Napszak-ív: az első snitt hajnali/reggeli, a középsők nappali, az utolsó aranyló este.
+ *  A fényváltás a TÉREN fut át (nem az ablakra fókuszál), így a kamera sem oda indul. */
+const LIGHT_MOODS = {
+  morning:
+    "Time-of-day transition: cool blue early-morning light gradually warms to soft golden tones; " +
+    "a band of sunlight slowly creeps across the floor and walls, shadows shortening as the sun rises.",
+  midday:
+    "Time-of-day transition: the light blooms into bright, clear midday sun; " +
+    "soft volumetric rays and faint dust motes drift through the air, bright pools of light slide across the surfaces.",
+  sunset:
+    "Time-of-day transition: the light deepens into a rich golden-hour sunset; " +
+    "warm amber tones wash over the whole room, shadows stretch long and soft, the air glows.",
+};
+
+/** Egy snitt teljes prompja: kameramozgás + napszak-hangulat + alap (admin) prompt. */
 export function videoClipPrompt(index: number, total: number, base?: string): string {
-  const first = index === 0;
-  const last = index === total - 1;
-  let mood: string;
-  if (first) {
-    mood =
-      "Time of day transition: soft cool early morning light slowly warms up, " +
-      "the first sun rays begin to enter through the window and gently sweep across the floor.";
-  } else if (last) {
-    mood =
-      "Time of day transition: the light turns into a rich golden-hour sunset, " +
-      "warm amber sunlight floods the room with long soft shadows and glowing window light.";
-  } else {
-    mood =
-      "Time of day transition: bright midday sunlight strengthens and streams through the window " +
-      "as clear volumetric sun rays, slowly moving across the room.";
-  }
-  return `${mood} ${base || VIDEO_DEFAULT_PROMPT}`;
+  const mood =
+    index === 0 ? LIGHT_MOODS.morning
+    : index === total - 1 ? LIGHT_MOODS.sunset
+    : LIGHT_MOODS.midday;
+  const move = CAMERA_MOVES[index % CAMERA_MOVES.length];
+  return `${move} ${mood} ${base || VIDEO_DEFAULT_PROMPT}`;
 }
 
 const I2V_PROMPT = VIDEO_DEFAULT_PROMPT;
