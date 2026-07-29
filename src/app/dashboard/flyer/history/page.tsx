@@ -1,171 +1,125 @@
-// dashboard/flyer/history — Korábbi hirdetések.
-// A korábban ELFOGADOTT hirdetések külön oldalon (nem a hirdetéskészítőben).
-// Kattintásra nézegető (lightbox) nyílik: balra/jobbra lapozás + külön letöltés gomb.
+// dashboard/flyer/history — Korábbi hirdetések, hónap szerinti és saját mappákban.
+// A mappára kattintva ABLAK nyílik a tartalommal; onnan a hirdetés nagyban is
+// megnézhető (nézegető), letölthető, áthelyezhető és véglegesen törölhető.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { toDownloadUrl } from "@/lib/files";
 import ModuleIntro from "@/components/ModuleIntro";
+import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
 
-type FlyerHistoryItem = { id: string; title: string; url: string; createdAt: string };
+type FlyerItem = {
+  id: string;
+  title: string;
+  url: string;
+  createdAt: string;
+  folderId: string | null;
+  coverUrl?: string | null;
+};
 
 export default function FlyerHistoryPage() {
-  const [flyers, setFlyers] = useState<FlyerHistoryItem[]>([]);
+  const [flyers, setFlyers] = useState<FlyerItem[]>([]);
+  const [folders, setFolders] = useState<LibraryFolder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewIdx, setViewIdx] = useState<number | null>(null); // a nézegetőben látott hirdetés
+  const [viewUrl, setViewUrl] = useState<string | null>(null); // nagy nézegető
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/flyer/library");
-        const data = await res.json();
-        if (res.ok) setFlyers(data.flyers ?? []);
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/flyer/library");
+      const data = await res.json();
+      if (res.ok) {
+        const list = (data.flyers ?? []) as FlyerItem[];
+        setFlyers(list.map((f) => ({ ...f, coverUrl: f.url })));
+        setFolders(data.folders ?? []);
       }
-    })();
-  }, []);
-
-  const close = useCallback(() => setViewIdx(null), []);
-  const prev = useCallback(
-    () => setViewIdx((i) => (i === null ? i : (i - 1 + flyers.length) % flyers.length)),
-    [flyers.length]
-  );
-  const next = useCallback(
-    () => setViewIdx((i) => (i === null ? i : (i + 1) % flyers.length)),
-    [flyers.length]
-  );
-
-  // Billentyűzet: nyilak lapoznak, Esc bezár.
-  useEffect(() => {
-    if (viewIdx === null) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-      else if (e.key === "ArrowLeft") prev();
-      else if (e.key === "ArrowRight") next();
+    } finally {
+      setLoading(false);
     }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  // Esc zárja a nézegetőt.
+  useEffect(() => {
+    if (!viewUrl) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setViewUrl(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [viewIdx, close, prev, next]);
+  }, [viewUrl]);
 
-  const current = viewIdx !== null ? flyers[viewIdx] : null;
+  async function post(url: string, init: RequestInit) {
+    const res = await fetch(url, init);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "A művelet nem sikerült.");
+    await load();
+    return d as { folder?: LibraryFolder };
+  }
 
   return (
     <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro
         eyebrow="Hirdetéskészítő · Archívum"
         title="Korábbi hirdetések"
-        subtitle="Az összes elkészült hirdetésed egy helyen. Kattints egy hirdetésre a nézegetőhöz — ott lapozhatsz a nyilakkal és le is töltheted."
+        subtitle="A hirdetéseid hónap szerinti mappákba rendezve. Nyiss meg egy mappát, és ott megnézheted, letöltheted, másik mappába helyezheted vagy törölheted őket."
         icon="history"
-        chips={["Nézegető", "Lapozás", "Letöltés"]}
+        chips={["Mappák", "Áthelyezés", "Letöltés"]}
       />
 
       {loading ? (
         <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
-      ) : flyers.length === 0 ? (
-        <div className="twx-card p-5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-          Még nincs elkészült hirdetésed.{" "}
-          <a href="/dashboard/flyer" className="underline" style={{ color: "var(--twx-coral)" }}>
-            Készíts egyet
-          </a>
-          .
-        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {flyers.map((f, idx) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setViewIdx(idx)}
-              className="overflow-hidden rounded-xl text-left transition-transform hover:-translate-y-0.5"
-              style={{ border: "1px solid var(--twx-line)" }}
-              title={`${f.title} · ${new Date(f.createdAt).toLocaleDateString("hu-HU")}`}
-            >
-              <img src={f.url} alt={f.title} className="aspect-[3/4] w-full object-cover" />
-              <div className="p-2">
-                <p className="truncate text-sm font-medium">{f.title}</p>
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {new Date(f.createdAt).toLocaleDateString("hu-HU")}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
+        <section className="twx-card p-5 sm:p-6">
+          <FolderLibrary<FlyerItem>
+            items={flyers}
+            folders={folders}
+            noun="hirdetés"
+            emptyText="Még nincs elkészült hirdetésed."
+            downloadUrl={(f) => toDownloadUrl(f.url)}
+            renderItem={(f) => (
+              <button type="button" onClick={() => setViewUrl(f.url)}
+                className="block w-full overflow-hidden rounded-lg"
+                style={{ border: "1px solid var(--twx-line)" }}
+                title="Kattints a nagy nézethez">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={f.url} alt={f.title} className="aspect-[3/4] w-full object-cover" />
+              </button>
+            )}
+            onCreateFolder={async (name) => {
+              const d = await post("/api/flyer/folders", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+              });
+              return d.folder;
+            }}
+            onMove={(id, folderId) =>
+              post("/api/flyer/manage", {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, folderId }),
+              })
+            }
+            onDelete={(f) => post(`/api/flyer/manage?id=${f.id}`, { method: "DELETE" })}
+          />
+        </section>
       )}
 
-      {/* Nézegető (lightbox) */}
-      {current && (
-        <div
-          onClick={close}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4"
-          style={{ background: "rgba(12,11,10,0.86)" }}
-        >
-          {/* Fejléc: cím + bezárás */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="mb-3 flex w-full max-w-3xl items-center justify-between gap-4"
-          >
-            <div className="min-w-0">
-              <p className="truncate font-medium" style={{ color: "#fff" }}>{current.title}</p>
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                {new Date(current.createdAt).toLocaleDateString("hu-HU")} · {(viewIdx ?? 0) + 1}/{flyers.length}
-              </p>
-            </div>
-            <div className="flex flex-none items-center gap-2">
-              <a
-                href={toDownloadUrl(current.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="twx-btn"
-              >
-                Letöltés
-              </a>
-              <button
-                type="button"
-                onClick={close}
-                aria-label="Bezárás"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-lg"
-                style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
-              >
-                ×
-              </button>
-            </div>
+      {/* Nagy nézegető */}
+      {viewUrl && (
+        <div onClick={() => setViewUrl(null)}
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center p-4"
+          style={{ background: "rgba(12,11,10,0.9)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="mb-3 flex items-center gap-2">
+            <a href={toDownloadUrl(viewUrl)} target="_blank" rel="noopener noreferrer" className="twx-btn">
+              Letöltés
+            </a>
+            <button type="button" onClick={() => setViewUrl(null)} aria-label="Bezárás"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-lg"
+              style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}>
+              ×
+            </button>
           </div>
-
-          {/* Kép + lapozó nyilak */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-3xl items-center justify-center gap-3"
-          >
-            {flyers.length > 1 && (
-              <button
-                type="button"
-                onClick={prev}
-                aria-label="Előző"
-                className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-xl"
-                style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
-              >
-                ‹
-              </button>
-            )}
-            <img
-              src={current.url}
-              alt={current.title}
-              className="max-h-[76vh] w-auto rounded-lg object-contain"
-              style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}
-            />
-            {flyers.length > 1 && (
-              <button
-                type="button"
-                onClick={next}
-                aria-label="Következő"
-                className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-xl"
-                style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}
-              >
-                ›
-              </button>
-            )}
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={viewUrl} alt="" onClick={(e) => e.stopPropagation()}
+            className="max-h-[80vh] w-auto rounded-lg object-contain"
+            style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }} />
         </div>
       )}
     </main>

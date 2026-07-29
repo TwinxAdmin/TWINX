@@ -22,6 +22,7 @@ type HistoryRow = {
   input_data: Record<string, unknown> | null;
   output_file_url: string | null;
   created_at: string;
+  folder_id: string | null;
 };
 
 function isImage(url: string | null): boolean {
@@ -36,26 +37,39 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const { data, error } = await supabase
-    .from("usage_history")
-    .select("id, feature_used, input_data, output_file_url, created_at")
-    .order("created_at", { ascending: false })
-    .limit(80);
+  // A hirdetéseket KÜLÖN kérdezzük le, hogy a sok egyéb tevékenység ne szorítsa
+  // ki őket az archívumból (közös limit esetén a régi hirdetések eltűnnének).
+  const [{ data, error }, { data: flyerData }, { data: folderRows }] = await Promise.all([
+    supabase
+      .from("usage_history")
+      .select("id, feature_used, input_data, output_file_url, created_at, folder_id")
+      .neq("feature_used", "flyer")
+      .order("created_at", { ascending: false })
+      .limit(80),
+    supabase
+      .from("usage_history")
+      .select("id, feature_used, input_data, output_file_url, created_at, folder_id")
+      .eq("feature_used", "flyer")
+      .order("created_at", { ascending: false })
+      .limit(300),
+    supabase.from("flyer_folders").select("id, name").order("name"),
+  ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const allRows = (data ?? []) as HistoryRow[];
-
-  // A korábban ELKÉSZÜLT hirdetések (feature_used = "flyer") külön listába kerülnek,
-  // hogy NE keveredjenek a hirdetéshez felhasználható forrásképekkel.
-  const flyerRows = allRows.filter((r) => r.feature_used === "flyer");
-  const rows = allRows.filter((r) => r.feature_used !== "flyer");
+  // A korábban ELKÉSZÜLT hirdetések külön listában, hogy NE keveredjenek a
+  // hirdetéshez felhasználható forrásképekkel.
+  const flyerRows = (flyerData ?? []) as HistoryRow[];
+  const rows = (data ?? []) as HistoryRow[];
 
   const flyers = flyerRows
     .filter((r) => isImage(r.output_file_url))
     .map((r) => {
       const d = (r.input_data ?? {}) as Record<string, unknown>;
       const title = typeof d.title === "string" && d.title.trim() ? d.title.trim() : "Hirdetés";
-      return { id: r.id, title, url: r.output_file_url as string, createdAt: r.created_at };
+      return {
+        id: r.id, title, url: r.output_file_url as string,
+        createdAt: r.created_at, folderId: r.folder_id ?? null,
+      };
     });
 
   const items: LibraryItem[] = rows.map((r) => {
@@ -105,5 +119,5 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ items, flyers });
+  return NextResponse.json({ items, flyers, folders: folderRows ?? [] });
 }

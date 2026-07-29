@@ -161,7 +161,7 @@ export default function DashboardNav() {
 
   const flyerItems: Item[] = [
     { label: "Hirdetés készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Új, márkázott ingatlanhirdetés" },
-    { label: "Korábbi hirdetések", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült hirdetéseid nézegetője" },
+    { label: "Korábbi hirdetések", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült hirdetéseid mappákba rendezve" },
     { label: "Arculatok", href: "/dashboard/branding", icon: "branding", desc: "Logó, szín, ügynök-adatok" },
   ];
 
