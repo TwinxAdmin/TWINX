@@ -66,7 +66,7 @@ export default async function AdminHomePage() {
   const quick = [
     { href: "/admin/users", title: "Felhasználók", desc: "név, cég, e-mail, használat, kredit" },
     { href: "/admin/analytics", title: "Költségfigyelő", desc: "modulonkénti API-önköltség és árrés" },
-    { href: "/admin/credits", title: "Kredit jóváírás", desc: "kézi feltöltés partnernek" },
+    { href: "/admin/users", title: "Kredit jóváírás", desc: "a Felhasználók táblában, a „+” gombbal" },
     {
       href: "/admin/ideas",
       title: "Ötletláda",
