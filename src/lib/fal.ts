@@ -11,9 +11,45 @@ const FAL_MODEL = process.env.FAL_ENHANCE_MODEL || "fal-ai/clarity-upscaler";
 const FAL_I2V_MODEL = process.env.FAL_I2V_MODEL || "fal-ai/kling-video/v1.6/standard/image-to-video";
 
 // A videó-modul (admin-szerkeszthető) alap-promptja — a prompts.ts is ezt használja.
+// PRO: minden snitt ÉL — lágy napszakváltás, beszűrődő napsugarak, filmes kameramozgás.
+// Emberek és állatok SOHA (túl sok a hibalehetőség), a szoba és a bútorok változatlanok.
 export const VIDEO_DEFAULT_PROMPT =
-  "Slow, elegant cinematic camera move through the interior. Gentle push-in, subtle parallax. " +
-  "Photorealistic real-estate showcase. Keep the room, furniture and lighting exactly as in the photo.";
+  "Cinematic real-estate interior showcase. Slow, elegant camera push-in with subtle parallax. " +
+  "Beautiful natural light shifts through the room, warm sunlight streams in through the windows " +
+  "with soft volumetric light rays and gentle dust motes drifting in the beams. " +
+  "Photorealistic, high-end architectural cinematography, calm and inviting mood. " +
+  "Keep the room, furniture and layout exactly as in the photo.";
+
+// Amit MINDIG kerüljön a modell.
+export const VIDEO_NEGATIVE_PROMPT =
+  process.env.FAL_I2V_NEGATIVE ||
+  "people, person, human, face, hands, pets, animals, text, watermark, logo, " +
+  "distorted geometry, warping walls, melting furniture, flickering, moving furniture, " +
+  "camera shake, blurry, low quality, cartoon";
+
+/** Napszak-ív: az első snitt reggeli fény, a középsők déli ragyogás sugarakkal,
+ *  az utolsó aranyló naplemente — így a videónak íve lesz.
+ *  A megadott alap-prompt (admin) elé kerül a snitt fény-hangulata. */
+export function videoClipPrompt(index: number, total: number, base?: string): string {
+  const first = index === 0;
+  const last = index === total - 1;
+  let mood: string;
+  if (first) {
+    mood =
+      "Time of day transition: soft cool early morning light slowly warms up, " +
+      "the first sun rays begin to enter through the window and gently sweep across the floor.";
+  } else if (last) {
+    mood =
+      "Time of day transition: the light turns into a rich golden-hour sunset, " +
+      "warm amber sunlight floods the room with long soft shadows and glowing window light.";
+  } else {
+    mood =
+      "Time of day transition: bright midday sunlight strengthens and streams through the window " +
+      "as clear volumetric sun rays, slowly moving across the room.";
+  }
+  return `${mood} ${base || VIDEO_DEFAULT_PROMPT}`;
+}
+
 const I2V_PROMPT = VIDEO_DEFAULT_PROMPT;
 
 /**
@@ -36,6 +72,7 @@ export async function submitImageToVideoFal(params: {
     body: JSON.stringify({
       image_url: params.imageUrl,
       prompt: params.prompt || I2V_PROMPT,
+      negative_prompt: VIDEO_NEGATIVE_PROMPT,
       duration: "5",
       aspect_ratio: params.aspectRatio,
     }),

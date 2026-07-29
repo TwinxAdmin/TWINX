@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
+import { failJobOnce } from "@/lib/video-pipeline";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,11 +35,9 @@ export async function POST(request: Request) {
   let body: Record<string, unknown> = {};
   try { body = await request.json(); } catch { body = {}; }
 
+  // Egyszeri bukás + visszatérítés (a polling is versenyben van ugyanezért).
   const fail = async (msg: string) => {
-    await admin.from("video_jobs").update({ status: "failed", error: msg }).eq("id", jobId);
-    if (job.credits_charged > 0) {
-      await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
-    }
+    await failJobOnce(jobId, job.user_id, job.credits_charged, msg);
     return NextResponse.json({ ok: true });
   };
 
@@ -64,7 +63,15 @@ export async function POST(request: Request) {
     const publicUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
     const meta = (job.meta ?? {}) as { title?: string };
-    await admin.from("video_jobs").update({ status: "done", output_url: publicUrl, error: null }).eq("id", jobId);
+    // Feltételes lezárás: ha a lekérdezéses háló már lezárta, ne írjunk DUPLA
+    // előzményt és költséget.
+    const { data: closed } = await admin
+      .from("video_jobs")
+      .update({ status: "done", output_url: publicUrl, error: null })
+      .eq("id", jobId)
+      .eq("status", "rendering")
+      .select("id");
+    if (!closed?.length) return NextResponse.json({ ok: true });
 
     await admin.from("usage_history").insert({
       user_id: job.user_id,

@@ -14,9 +14,10 @@ export const CARD_CLOSE_SECONDS = 5; // az értékesítő adatai legyenek jól l
 export const PHOTO_SECONDS = 4;
 export const AI_CLIP_SECONDS = 5; // a PRO első klipje (fal i2v alap hossza)
 
+// PRO: MINDEN snitt AI-klip (5 mp). Alap: minden snitt Ken Burns fotó (4 mp).
 export function videoLengthSeconds(imageCount: number, pro: boolean): number {
-  const photos = pro ? imageCount - 1 : imageCount;
-  return CARD_OPEN_SECONDS + (pro ? AI_CLIP_SECONDS : 0) + photos * PHOTO_SECONDS + CARD_CLOSE_SECONDS;
+  const perShot = pro ? AI_CLIP_SECONDS : PHOTO_SECONDS;
+  return CARD_OPEN_SECONDS + imageCount * perShot + CARD_CLOSE_SECONDS;
 }
 
 // Csomagok. Az ár később dől el — env-ből állítható, addig teszt admin fiókkal (bypass).

@@ -7,7 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRenderStatus } from "@/lib/shotstack";
 import { getFalVideoResult } from "@/lib/fal";
-import { startRenderWithAiClip } from "@/lib/video-pipeline";
+import {
+  startRenderWithAiClips, allClipsSettled, saveClipResult, claimRender, failJobOnce,
+  type AiClipState, type VideoMeta,
+} from "@/lib/video-pipeline";
 import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
@@ -35,31 +38,43 @@ export async function GET(
   let outputUrl = job.output_url as string | null;
   let jobError = job.error as string | null;
 
-  const meta = (job.meta ?? {}) as {
-    render_id?: string; title?: string;
-    fal_request_id?: string; fal_status_url?: string; fal_response_url?: string;
-  };
+  let meta = (job.meta ?? {}) as VideoMeta;
 
-  // 1) PRO: ha az AI-klipre várunk, de a webhook nem jött meg (pl. localhost),
-  // lekérdezzük a fal.ai-tól, és ha kész, elindítjuk a Shotstack rendert.
-  if (status === "animating" && meta.fal_request_id) {
+  // 1) PRO: ha az AI-klipekre várunk, de a webhookok nem jöttek meg (pl. localhost),
+  // MINDEN függőben lévő klipet lekérdezünk a fal.ai-tól. Ha mind lezárult, indul a render.
+  if (status === "animating" && meta.ai_clips?.length) {
     try {
-      const r = await getFalVideoResult({
-        requestId: meta.fal_request_id,
-        statusUrl: meta.fal_status_url,
-        responseUrl: meta.fal_response_url,
-      });
-      if (r.status === "done" && r.videoUrl) {
-        const site = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || new URL(_request.url).origin;
-        await startRenderWithAiClip(job, r.videoUrl, site.replace(/\/$/, ""), process.env.VIDEO_WEBHOOK_SECRET || "");
-        status = "rendering";
-      } else if (r.status === "failed") {
-        const admin = createAdminClient();
-        status = "failed";
-        jobError = "Az AI-klip generálása nem sikerült.";
-        await admin.from("video_jobs").update({ status, error: jobError }).eq("id", job.id);
-        if (job.credits_charged > 0) {
-          await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
+      let clips: AiClipState[] = meta.ai_clips;
+      for (let i = 0; i < clips.length; i++) {
+        const c = clips[i];
+        if (c.videoUrl || c.failed || !c.requestId) continue;
+        const r = await getFalVideoResult({
+          requestId: c.requestId, statusUrl: c.statusUrl, responseUrl: c.responseUrl,
+        });
+        // ATOMI beírás (a webhook is írhatja ugyanezt a mezőt).
+        if (r.status === "done" && r.videoUrl) clips = await saveClipResult(job.id, i, { videoUrl: r.videoUrl });
+        else if (r.status === "failed") clips = await saveClipResult(job.id, i, { failed: true });
+      }
+      meta = { ...meta, ai_clips: clips };
+
+      if (allClipsSettled(clips)) {
+        if (clips.every((c) => c.failed)) {
+          status = "failed";
+          jobError = "Az AI-klipek generálása nem sikerült.";
+          await failJobOnce(job.id, job.user_id, job.credits_charged, jobError);
+        } else if (await claimRender(job.id)) {
+          // Csak akkor rendereltünk, ha MI kaptuk meg a jogot (a webhook is versenyben van).
+          const site = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || new URL(_request.url).origin;
+          try {
+            await startRenderWithAiClips({ ...job, meta }, site.replace(/\/$/, ""), process.env.VIDEO_WEBHOOK_SECRET || "");
+            status = "rendering";
+          } catch (err) {
+            status = "failed";
+            jobError = (err as Error).message;
+            await failJobOnce(job.id, job.user_id, job.credits_charged, jobError);
+          }
+        } else {
+          status = "rendering"; // a másik szál indította el
         }
       }
     } catch {
@@ -68,9 +83,14 @@ export async function GET(
   }
 
   // 2) Tartalék lekérdezés a renderre, ha a Shotstack-webhook nem futott le.
-  if (status === "rendering" && meta.render_id) {
+  // A render_id-t frissen olvassuk, mert az 1) lépés épp most írhatta be.
+  if (status === "rendering") {
     try {
-      const r = await getRenderStatus(meta.render_id);
+      const admin0 = createAdminClient();
+      const { data: fresh } = await admin0.from("video_jobs").select("meta").eq("id", job.id).single();
+      const renderId = ((fresh?.meta ?? meta) as VideoMeta).render_id;
+      if (!renderId) throw new Error("nincs render_id");
+      const r = await getRenderStatus(renderId);
       const admin = createAdminClient();
       if (r.status === "done" && r.url) {
         const videoRes = await fetch(r.url);
@@ -83,30 +103,36 @@ export async function GET(
           if (!upErr) {
             outputUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
             status = "done";
-            await admin.from("video_jobs").update({ status, output_url: outputUrl, error: null }).eq("id", job.id);
-            await admin.from("usage_history").insert({
-              user_id: job.user_id,
-              service_id: job.service_id,
-              feature_used: "video",
-              input_data: { title: meta.title ?? "Ingatlan videó", package: job.package },
-              output_file_url: outputUrl,
-              credits_charged: job.credits_charged,
-            });
-            if (job.service_id) {
-              await logCost({
-                userId: job.user_id, serviceId: job.service_id, feature: "video",
-                serviceName: "shotstack", units: 1, estimatedCostUsd: shotstackRenderCostUsd(1),
+            // Feltételes lezárás: csak az EGYIK szál (webhook vagy polling) írjon
+            // előzményt és költséget — a másik már 'done'-t lát és nem érint sort.
+            const { data: closed } = await admin
+              .from("video_jobs")
+              .update({ status, output_url: outputUrl, error: null })
+              .eq("id", job.id)
+              .eq("status", "rendering")
+              .select("id");
+            if (closed?.length) {
+              await admin.from("usage_history").insert({
+                user_id: job.user_id,
+                service_id: job.service_id,
+                feature_used: "video",
+                input_data: { title: meta.title ?? "Ingatlan videó", package: job.package },
+                output_file_url: outputUrl,
+                credits_charged: job.credits_charged,
               });
+              if (job.service_id) {
+                await logCost({
+                  userId: job.user_id, serviceId: job.service_id, feature: "video",
+                  serviceName: "shotstack", units: 1, estimatedCostUsd: shotstackRenderCostUsd(1),
+                });
+              }
             }
           }
         }
       } else if (r.status === "failed") {
         status = "failed";
         jobError = r.error ?? "A videó renderelése nem sikerült.";
-        await admin.from("video_jobs").update({ status, error: jobError }).eq("id", job.id);
-        if (job.credits_charged > 0) {
-          await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
-        }
+        await failJobOnce(job.id, job.user_id, job.credits_charged, jobError);
       }
     } catch {
       /* a következő polling újrapróbálja */

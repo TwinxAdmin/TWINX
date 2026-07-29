@@ -15,6 +15,7 @@ export const COST_USD = {
   } as Record<string, number>,
   googleImagePerImage: 0.04, // Google Studio / Nano Banana, per kép
   lumaPerClip: 0.3, // Luma Image-to-Video, per snitt (6.6)
+  falI2vPerSecond: 0.056, // fal.ai Kling 1.6 standard image-to-video, per másodperc
   shotstackPerRender: 0.2, // Shotstack render (6.6)
 };
 
@@ -28,6 +29,11 @@ export function googleImageCostUsd(images: number): number {
 
 export function lumaCostUsd(clips: number): number {
   return clips * COST_USD.lumaPerClip;
+}
+
+/** fal.ai image-to-video: klipek száma × klip-hossz (mp) × másodperc-díj. */
+export function falVideoCostUsd(clips: number, secondsPerClip: number): number {
+  return clips * secondsPerClip * COST_USD.falI2vPerSecond;
 }
 
 export function shotstackRenderCostUsd(renders = 1): number {

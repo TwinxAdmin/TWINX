@@ -252,7 +252,7 @@ export default function VideoWizard({
             <div className="space-y-4">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                 {MIN_VIDEO_IMAGES}–{MAX_VIDEO_IMAGES} kép. Az első a <strong>nyitófotó</strong> —
-                PRO csomagnál ez kap AI-mozgást.
+                PRO csomagnál minden fotó AI-mozgást és napszakváltó fényt kap.
               </p>
               <div
                 onClick={() => fileRef.current?.click()}
@@ -367,7 +367,7 @@ export default function VideoWizard({
                   <button type="button" onClick={() => setPkg("pro")}
                     className="rounded-xl p-3 text-left" style={{ border: `1px solid ${pkg === "pro" ? "var(--twx-coral)" : "var(--twx-line)"}`, background: pkg === "pro" ? "var(--twx-coral-soft)" : "#fff" }}>
                     <span className="block text-sm font-semibold" style={{ color: pkg === "pro" ? "#7a2e17" : "var(--twx-ink)" }}>PRO · {VIDEO_CREDITS_PRO} kredit</span>
-                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>A nyitófotó valódi AI-kameramozgást kap</span>
+                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Minden snitt él: AI-kameramozgás, napsugarak, reggeltől aranyló estéig</span>
                   </button>
                 </div>
               </div>
@@ -404,7 +404,7 @@ export default function VideoWizard({
               ) : (
                 <div className="py-10">
                   <p className="text-sm font-medium">
-                    {job?.status === "animating" ? "AI-mozgás készül a nyitófotóból…" : "A videó renderelése folyik…"}
+                    {job?.status === "animating" ? "AI-snittek készülnek minden fotóból — ez több percig is tarthat…" : "A videó renderelése folyik…"}
                   </p>
                   <div className="mx-auto mt-4 h-2 w-64 overflow-hidden rounded-full" style={{ background: "var(--twx-line)" }}>
                     <div className="h-full rounded-full transition-all" style={{ background: "var(--twx-coral)", width: `${Math.min(95, Math.round((elapsed / 150) * 100))}%` }} />

@@ -10,15 +10,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import {
   MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES,
-  CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS,
+  CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
   creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto,
   type VideoPackage, type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
-import { submitImageToVideoFal } from "@/lib/fal";
+import { submitImageToVideoFal, videoClipPrompt } from "@/lib/fal";
+import { failJobOnce, initClips, type AiClipState } from "@/lib/video-pipeline";
 import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
-import { logCost, shotstackRenderCostUsd } from "@/lib/costs";
+import { logCost, shotstackRenderCostUsd, falVideoCostUsd } from "@/lib/costs";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 export const runtime = "nodejs";
@@ -77,8 +78,13 @@ export async function POST(request: Request) {
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }
-  const refund = async () => {
-    if (charge && !charge.bypassed) await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+  // Ha már létrejött a job, a bukást + visszatérítést az EGYSZERI úton intézzük,
+  // hogy egy később beérkező webhook ne térítsen vissza másodszor is.
+  let createdJobId: string | null = null;
+  const refund = async (message: string) => {
+    if (!charge || charge.bypassed) return;
+    if (createdJobId) await failJobOnce(createdJobId, user.id, credits, message);
+    else await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
   };
 
   try {
@@ -88,7 +94,9 @@ export async function POST(request: Request) {
       .insert({
         user_id: user.id,
         service_id: service?.id ?? null,
-        status: "rendering",
+        // PRO-nál rögtön 'animating': ha egy fal-webhook nagyon gyorsan visszaér,
+        // ne dobjuk el amiatt, hogy a job még 'rendering' állapotban áll.
+        status: pkg === "pro" ? "animating" : "rendering",
         format: format.value,
         music_style: musicStyle,
         image_count: files.length,
@@ -101,6 +109,7 @@ export async function POST(request: Request) {
       .single();
     if (jobErr || !job) throw new Error("A videó-job létrehozása nem sikerült.");
     const jobId = job.id as string;
+    createdJobId = jobId;
 
     // 3) Forrásfotók feltöltése (a Shotstack/fal publikus URL-ről olvas).
     const photoUrls: string[] = [];
@@ -147,26 +156,53 @@ export async function POST(request: Request) {
     const site = baseUrl(request);
 
     if (pkg === "pro") {
-      // PRO: előbb az 1. fotó AI-klipje (fal, webhook) — a rendert a webhook indítja.
-      const falWebhook = `${site}/api/webhooks/fal?job=${jobId}&token=${encodeURIComponent(secret)}`;
-      const fal = await submitImageToVideoFal({
-        imageUrl: photoUrls[0],
-        aspectRatio: format.value as "1:1" | "9:16",
-        webhookUrl: falWebhook,
-      });
-      await admin.from("video_jobs").update({
-        status: "animating",
+      // PRO: MINDEN fotóból AI-klip (napszak-ív: reggel → déli sugarak → aranyló este).
+      // A klipek párhuzamosan futnak; a rendert az indítja, amelyik utoljára készül el
+      // (webhook, illetve localhoston a státusz-lekérdezéses biztonsági háló).
+      // FONTOS a sorrend: előbb létrehozzuk az ÜRES kliplistát, és csak utána küldjük
+      // be a fal-jobokat. Így egy nagyon gyorsan visszaérő webhook is talál helyet
+      // magának a meta.ai_clips tömbben (különben az eredménye elveszne).
+      const { error: initErr } = await admin.from("video_jobs").update({
         source_images: photoUrls,
         music_url: musicUrl,
         poster_url: frameUrls["open.png"], // előkép: a nyitókártya
-
         meta: {
           title, frames: frameUrls, captions,
-          fal_request_id: fal.requestId,
-          fal_status_url: fal.statusUrl,
-          fal_response_url: fal.responseUrl,
+          ai_clips: photoUrls.map(() => ({ requestId: "", statusUrl: null, responseUrl: null })),
         },
       }).eq("id", jobId);
+      if (initErr) throw new Error(`A videó-job mentése nem sikerült: ${initErr.message}`);
+
+      // A beküldések PÁRHUZAMOSAN futnak — így a szerveridő nem lépi túl a limitet.
+      const aiClips: AiClipState[] = await Promise.all(
+        photoUrls.map(async (photoUrl, i): Promise<AiClipState> => {
+          const falWebhook = `${site}/api/webhooks/fal?job=${jobId}&clip=${i}&token=${encodeURIComponent(secret)}`;
+          try {
+            const fal = await submitImageToVideoFal({
+              imageUrl: photoUrl,
+              aspectRatio: format.value as "1:1" | "9:16",
+              webhookUrl: falWebhook,
+              prompt: videoClipPrompt(i, photoUrls.length),
+            });
+            return { requestId: fal.requestId, statusUrl: fal.statusUrl, responseUrl: fal.responseUrl };
+          } catch {
+            // Ez a snitt Ken Burns fotó lesz — a videó ettől még elkészül.
+            return { requestId: "", statusUrl: null, responseUrl: null, failed: true };
+          }
+        })
+      );
+      if (aiClips.every((c) => c.failed)) throw new Error("Az AI-mozgás indítása nem sikerült.");
+
+      // Az azonosítók ÖSSZEFÉSÜLÉSE: ha egy klip már vissza is ért, az eredménye marad.
+      await initClips(jobId, aiClips);
+
+      if (service) {
+        await logCost({
+          userId: user.id, serviceId: service.id, feature: "video",
+          serviceName: "fal-i2v", units: aiClips.filter((c) => !c.failed).length,
+          estimatedCostUsd: falVideoCostUsd(aiClips.filter((c) => !c.failed).length, AI_CLIP_SECONDS),
+        });
+      }
       return NextResponse.json({ ok: true, jobId, status: "animating" });
     }
 
@@ -205,7 +241,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, jobId, status: "rendering" });
   } catch (err) {
-    await refund();
+    await refund((err as Error).message);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
