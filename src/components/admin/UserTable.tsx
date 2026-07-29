@@ -103,7 +103,7 @@ export default function UserTable({
               <Th k="uses" label="Generálás" right />
               <Th k="cost" label="Költség" right />
               <Th k="revenue" label="Bevétel" right />
-              <th className="pb-2 text-right text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+              <th className="pb-2 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                 Kredit
               </th>
             </tr>
@@ -140,8 +140,9 @@ export default function UserTable({
                 <td className="py-2.5 text-right font-medium">{u.uses}</td>
                 <td className="py-2.5 text-right">{huf(u.costUsd * hufPerUsd)}</td>
                 <td className="py-2.5 text-right">{huf(u.revenueHuf)}</td>
-                <td className="py-2.5 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
+                <td className="py-2.5">
+                  {/* A szám középen, a „+" gomb közvetlenül utána. */}
+                  <div className="flex items-center justify-center gap-2">
                     <span>{u.creditsBought}</span>
                     <PlusButton u={u} />
                   </div>
@@ -161,7 +162,7 @@ export default function UserTable({
                 <td className="pt-3 text-right text-xs font-semibold">{totals.uses}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.revenue)}</td>
-                <td className="pt-3 text-right text-xs font-semibold">{totals.credits}</td>
+                <td className="pt-3 text-center text-xs font-semibold">{totals.credits}</td>
               </tr>
             </tfoot>
           )}
