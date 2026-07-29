@@ -65,6 +65,8 @@ export async function POST(request: Request) {
   try { facts = { ...EMPTY_VIDEO_FACTS, ...(JSON.parse(String(form.get("facts") ?? "{}")) as Partial<VideoCaptionFacts>) }; }
   catch { /* üres adatokkal is megy */ }
   const title = String(form.get("title") ?? "").trim() || "Eladó ingatlan";
+  // A könyvtárban ez lesz a videó neve (az ingatlan címe); ha nincs, a főcím.
+  const propertyAddress = String(form.get("propertyAddress") ?? "").trim() || title;
 
   const admin = createAdminClient();
   const { data: service } = await admin.from("services").select("id").eq("slug", SERVICE_SLUG).single();
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
         image_count: files.length,
         credits_charged: charge && !charge.bypassed ? credits : 0,
         package: pkg,
+        title: propertyAddress, // a könyvtárban ez a videó neve
         meta: { title },
       })
       .select("id")
@@ -155,6 +158,8 @@ export async function POST(request: Request) {
         status: "animating",
         source_images: photoUrls,
         music_url: musicUrl,
+        poster_url: frameUrls["open.png"], // előkép: a nyitókártya
+
         meta: {
           title, frames: frameUrls, captions,
           fal_request_id: fal.requestId,
@@ -187,6 +192,7 @@ export async function POST(request: Request) {
     await admin.from("video_jobs").update({
       source_images: photoUrls,
       music_url: musicUrl,
+      poster_url: frameUrls["open.png"], // előkép: a nyitókártya
       meta: { title, frames: frameUrls, captions, render_id: renderId },
     }).eq("id", jobId);
 

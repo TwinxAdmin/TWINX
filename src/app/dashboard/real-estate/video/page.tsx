@@ -6,15 +6,14 @@
 import { useEffect, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import VideoWizard from "@/components/video/VideoWizard";
-import { toDownloadUrl } from "@/lib/files";
+import VideoLibrary, { type VideoItem, type Folder } from "@/components/video/VideoLibrary";
 import type { BrandingProfile } from "@/lib/branding";
 import { MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES } from "@/lib/video";
-
-type VideoItem = { id: string; status: string; output_url: string | null; created_at: string; package: string };
 
 export default function VideoPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [items, setItems] = useState<VideoItem[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
@@ -29,6 +28,7 @@ export default function VideoPage() {
       if (vRes.ok) {
         const v = await vRes.json();
         setItems(v.items ?? []);
+        setFolders(v.folders ?? []);
       }
     } catch {
       /* lista nélkül is használható */
@@ -83,31 +83,11 @@ export default function VideoPage() {
       </section>
 
       <section className="twx-card p-5 sm:p-6">
-        <h3 className="text-sm font-semibold">Korábbi videóim</h3>
+        <h3 className="mb-3 text-sm font-semibold">Korábbi videóim</h3>
         {loading ? (
-          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
-        ) : items.length === 0 ? (
-          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Még nincs elkészült videód.</p>
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
         ) : (
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {items.map((it) => (
-              <div key={it.id} className="overflow-hidden rounded-xl bg-white p-3" style={{ border: "1px solid var(--twx-line)" }}>
-                {it.output_url ? (
-                  <video src={it.output_url} controls preload="metadata" className="w-full rounded-lg" style={{ maxHeight: 260 }} />
-                ) : (
-                  <p className="py-6 text-center text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {it.status === "failed" ? "Sikertelen (kredit visszatérítve)" : "Készül…"}
-                  </p>
-                )}
-                <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  <span>{new Date(it.created_at).toLocaleDateString("hu-HU")} · {it.package === "pro" ? "PRO" : "Alap"}</span>
-                  {it.output_url && (
-                    <a href={toDownloadUrl(it.output_url)} className="font-semibold" style={{ color: "var(--twx-coral)" }}>Letöltés</a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <VideoLibrary items={items} folders={folders} onChanged={() => void load()} />
         )}
       </section>
 

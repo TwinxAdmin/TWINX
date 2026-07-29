@@ -45,6 +45,7 @@ export default function VideoWizard({
 
   // 3) Adatok (nyitókártya + felirat-sávok)
   const [title, setTitle] = useState("");
+  const [street, setStreet] = useState(""); // utca, házszám — a videó neve ebből lesz
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
@@ -107,6 +108,8 @@ export default function VideoWizard({
       fd.append("profile", JSON.stringify(profileData));
       fd.append("facts", JSON.stringify(facts));
       fd.append("title", title.trim() || defaultTitle());
+      // A videó neve a könyvtárban: az ingatlan címe (település + utca).
+      fd.append("propertyAddress", [facts.location, street].map((s) => s.trim()).filter(Boolean).join(", "));
       fd.append("format", format);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
@@ -303,6 +306,7 @@ export default function VideoWizard({
                   <Field label="Főcím" value={title} onChange={setTitle} placeholder={defaultTitle()} />
                   <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="a főcímhez (pl. Eladó panellakás)" />
                   <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
+                  <Field label="Utca, házszám" value={street} onChange={setStreet} placeholder="pl. Sas utca 12." />
                   <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 100 M Ft" />
                 </div>
               </div>
