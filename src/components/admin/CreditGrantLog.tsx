@@ -1,8 +1,9 @@
 // Kredit-napló: melyik admin kinek, mikor, mennyi kreditet adott (és miért).
-// Összecsukható, hogy ne vigye el a helyet a felhasználó-táblázat elől.
+// Saját admin oldalon fut (/admin/credit-log). A kredit ADÁSA a Felhasználók
+// táblában történik, a sorvégi „+" gombbal.
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export type CreditGrant = {
   id: string;
@@ -20,60 +21,90 @@ function when(iso: string): string {
 }
 
 export default function CreditGrantLog({ grants }: { grants: CreditGrant[] }) {
-  const [open, setOpen] = useState(false);
-  const total = grants.reduce((s, g) => s + g.amount, 0);
+  const [query, setQuery] = useState("");
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return grants;
+    return grants.filter((g) =>
+      [g.user_email, g.admin_email, g.note].some((v) => (v ?? "").toLowerCase().includes(q))
+    );
+  }, [grants, query]);
+
+  const total = rows.reduce((s, g) => s + g.amount, 0);
 
   return (
-    <section className="twx-card p-4 sm:p-5">
-      <button type="button" onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 text-left">
-        <div>
-          <p className="text-sm font-semibold">Kredit-napló</p>
-          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            {grants.length
-              ? `${grants.length} kézi jóváírás · összesen ${total} kredit`
-              : "Még nem adtál kézzel kreditet."}
-          </p>
-        </div>
-        <span className="text-sm" style={{ color: "var(--twx-coral)" }}>
-          {open ? "Elrejtés ▲" : "Megnyitás ▼"}
-        </span>
-      </button>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="Keresés partner, admin vagy indoklás alapján…"
+          className="twx-input w-full text-sm sm:max-w-sm" />
+        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          {rows.length} jóváírás · összesen <strong>{total}</strong> kredit
+        </p>
+      </div>
 
-      {open && grants.length > 0 && (
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[620px] text-sm">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--twx-line)" }}>
-                {["Mikor", "Ki adta", "Kinek", "Mennyi", "Indoklás"].map((h, i) => (
-                  <th key={h}
-                    className={`pb-2 text-[11px] font-bold uppercase tracking-wide ${i === 3 ? "text-right" : "text-left"}`}
-                    style={{ color: "var(--twx-ink-muted)" }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {grants.map((g) => (
-                <tr key={g.id} style={{ borderBottom: "1px solid var(--twx-line)" }}>
-                  <td className="py-2 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {when(g.created_at)}
-                  </td>
-                  <td className="py-2 pr-3 text-xs">{g.admin_email ?? "—"}</td>
-                  <td className="py-2 pr-3 text-xs font-medium">{g.user_email ?? "—"}</td>
-                  <td className="py-2 text-right font-semibold" style={{ color: "var(--twx-coral)" }}>
-                    +{g.amount}
-                  </td>
-                  <td className="py-2 pl-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {g.note ?? "—"}
-                  </td>
+      {rows.length === 0 ? (
+        <p className="twx-card p-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          {grants.length
+            ? "Nincs találat."
+            : "Még nem adtál kézzel kreditet. A Felhasználók oldalon, a Kredit oszlop „+” gombjával tudsz."}
+        </p>
+      ) : (
+        <>
+          {/* Asztali nézet */}
+          <div className="twx-card hidden overflow-x-auto p-4 sm:block">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--twx-line)" }}>
+                  {["Mikor", "Ki adta", "Kinek", "Mennyi", "Indoklás"].map((h, i) => (
+                    <th key={h}
+                      className={`pb-2 text-[11px] font-bold uppercase tracking-wide ${i === 3 ? "text-center" : "text-left"}`}
+                      style={{ color: "var(--twx-ink-muted)" }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((g) => (
+                  <tr key={g.id} style={{ borderBottom: "1px solid var(--twx-line)" }}>
+                    <td className="py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {when(g.created_at)}
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs">{g.admin_email ?? "—"}</td>
+                    <td className="py-2.5 pr-3 text-xs font-medium">{g.user_email ?? "—"}</td>
+                    <td className="py-2.5 text-center font-semibold" style={{ color: "var(--twx-coral)" }}>
+                      +{g.amount}
+                    </td>
+                    <td className="py-2.5 pl-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                      {g.note ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobil nézet */}
+          <div className="space-y-2 sm:hidden">
+            {rows.map((g) => (
+              <div key={g.id} className="twx-card p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="truncate text-sm font-medium">{g.user_email ?? "—"}</p>
+                  <span className="flex-none font-semibold" style={{ color: "var(--twx-coral)" }}>
+                    +{g.amount}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  {when(g.created_at)} · {g.admin_email ?? "—"}
+                </p>
+                {g.note && <p className="mt-1 text-xs">{g.note}</p>}
+              </div>
+            ))}
+          </div>
+        </>
       )}
-    </section>
+    </div>
   );
 }

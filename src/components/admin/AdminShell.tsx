@@ -14,7 +14,9 @@ const GROUPS: Group[] = [
     title: "Üzlet",
     items: [
       { href: "/admin/users", label: "Felhasználók" },
-      // A kredit-adás beköltözött a Felhasználók táblába (sorvégi „+" gomb).
+      // A kredit-ADÁS a Felhasználók táblában van (sorvégi „+" gomb);
+      // itt csak a napló látszik, hogy ki kinek mikor mennyit adott.
+      { href: "/admin/credit-log", label: "Kredit-napló" },
       { href: "/admin/analytics", label: "Költségfigyelő" },
     ],
   },
