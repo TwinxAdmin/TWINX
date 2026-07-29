@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUserMetrics } from "@/lib/metrics";
-import UserMetricsBrowser from "@/components/UserMetricsBrowser";
+import UserTable from "@/components/admin/UserTable";
 import AdminShell from "@/components/admin/AdminShell";
 
 export const runtime = "nodejs";
@@ -25,7 +25,7 @@ export default async function AdminUsersPage() {
       title="Admin — Felhasználók"
       subtitle="Ki mit és mennyit használt, mennyibe került, és mennyit vásárolt."
     >
-      <UserMetricsBrowser users={users} hufPerUsd={hufPerUsd} />
+      <UserTable users={users} hufPerUsd={hufPerUsd} />
     </AdminShell>
   );
 }
