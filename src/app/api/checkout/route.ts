@@ -42,29 +42,44 @@ export async function POST(request: Request) {
 
   const origin = request.headers.get("origin") ?? "http://localhost:3000";
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: pkg.currency,
-          // HUF: a legkisebb egységben, 100 többszöröse (4990 Ft -> 499000).
-          unit_amount: pkg.priceHuf * 100,
-          product_data: { name: pkg.name },
-        },
-      },
-    ],
-    success_url: `${origin}/dashboard?purchase=success`,
-    cancel_url: `${origin}/pricing?purchase=cancel`,
-    client_reference_id: user.id,
-    metadata: {
-      user_id: user.id,
-      service_id: service.id,
-      credits: String(pkg.credits),
-      package_id: pkg.id,
-    },
-  });
+  // HUF: a Stripe a legkisebb egységet várja, és 100 többszörösének kell lennie.
+  // Egy nem egész forintos ár (pl. kedvezmény után) különben a Stripe-nál hasalna el.
+  const amount = Math.round(pkg.priceHuf) * 100;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    console.error("[checkout] Érvénytelen csomagár:", pkg.id, pkg.priceHuf);
+    return NextResponse.json({ error: "A csomag ára hibás." }, { status: 500 });
+  }
 
-  return NextResponse.json({ url: session.url });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: pkg.currency,
+            unit_amount: amount,
+            product_data: { name: pkg.name },
+          },
+        },
+      ],
+      success_url: `${origin}/dashboard?purchase=success`,
+      cancel_url: `${origin}/pricing?purchase=cancel`,
+      client_reference_id: user.id,
+      // A számlázáshoz és a partner azonosításához.
+      customer_email: user.email ?? undefined,
+      metadata: {
+        user_id: user.id,
+        service_id: service.id,
+        credits: String(pkg.credits),
+        package_id: pkg.id,
+      },
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    // Enélkül a partner egy néma 500-at kapna, és nem tudnánk, mi történt.
+    console.error("[checkout] Stripe session hiba:", (err as Error).message);
+    return NextResponse.json({ error: "A fizetés indítása nem sikerült." }, { status: 502 });
+  }
 }
