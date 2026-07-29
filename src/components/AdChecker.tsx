@@ -1,16 +1,16 @@
 // Hirdetés-ellenőrző — link (vagy bemásolt szöveg) alapján elemzi a hirdetés
-// SZÖVEGÉT, és javított változatot ad. A korábbi elemzések mappákba rendezve,
-// ablakos megtekintővel (közös FolderLibrary).
+// SZÖVEGÉT. Az elkészült elemzés NEM az oldalon jelenik meg: egy kártya jön elő,
+// onnan nyitható meg ablakban, és onnan tölthető le a PDF is.
+// A korábbi elemzések mappákba rendezve, ugyanabban az ablakos nézetben.
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
 import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
-import {
-  AD_TONES, AD_ASPECTS, ADCHECK_CREDITS, toneLabel,
-  type AdCheckResult,
-} from "@/lib/adcheck";
+import AdCheckReport, { scoreColor } from "@/components/AdCheckReport";
+import { toDownloadUrl } from "@/lib/files";
+import { AD_TONES, ADCHECK_CREDITS, toneLabel, type AdCheckResult } from "@/lib/adcheck";
 
 type SavedItem = {
   id: string;
@@ -32,50 +32,49 @@ type LibItem = {
   raw: SavedItem;
 };
 
-function scoreColor(score: number): string {
-  if (score >= 80) return "#2e7d52";
-  if (score >= 55) return "#b8860b";
-  return "#c0392b";
+function itemTitle(it: SavedItem): string {
+  return it.source_url
+    ? it.source_url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)
+    : "Bemásolt hirdetésszöveg";
 }
 
 export default function AdChecker() {
   const [url, setUrl] = useState("");
   const [manualText, setManualText] = useState("");
-  const [needsText, setNeedsText] = useState(false); // ha a link nem volt elérhető
+  const [showText, setShowText] = useState(false);
   const [tone, setTone] = useState(AD_TONES[0].slug);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AdCheckResult | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<SavedItem | null>(null);   // a most elkészült elemzés
+  const [openItem, setOpenItem] = useState<SavedItem | null>(null); // ami az ablakban van
 
   const [items, setItems] = useState<LibItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
-  const [openItem, setOpenItem] = useState<SavedItem | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/real-estate/ad-check");
       const d = await res.json();
       if (!res.ok) {
-        // Ha a migráció hiányzik, ez itt derül ki — ne maradjon néma.
         showToast(d.error || "Az előzmények betöltése nem sikerült.", "error");
         return;
       }
-      const list = ((d.items ?? []) as SavedItem[]).map((it) => ({
-        id: it.id,
-        title: it.source_url
-          ? it.source_url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)
-          : "Bemásolt hirdetésszöveg",
-        createdAt: it.created_at,
-        folderId: it.folder_id,
-        raw: it,
-      }));
-      setItems(list);
+      setItems(((d.items ?? []) as SavedItem[]).map((it) => ({
+        id: it.id, title: itemTitle(it), createdAt: it.created_at, folderId: it.folder_id, raw: it,
+      })));
       setFolders(d.folders ?? []);
     } catch { /* lista nélkül is használható */ }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  // Esc zárja az ablakot.
+  useEffect(() => {
+    if (!openItem) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenItem(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openItem]);
 
   async function analyze() {
     setError(null);
@@ -84,8 +83,7 @@ export default function AdChecker() {
       return;
     }
     setBusy(true);
-    setResult(null);
-    setPdfUrl(null);
+    setFresh(null);
     try {
       const res = await fetch("/api/real-estate/ad-check", {
         method: "POST",
@@ -94,12 +92,10 @@ export default function AdChecker() {
       });
       const d = await res.json();
       if (!res.ok) {
-        if (d.needsText) setNeedsText(true);
+        if (d.needsText) setShowText(true);
         throw new Error(d.error || "Az elemzés nem sikerült.");
       }
-      setResult(d.result as AdCheckResult);
-      setPdfUrl(d.pdfUrl ?? null);
-      setNeedsText(false);
+      setFresh(d.item as SavedItem);
       showToast("Az elemzés elkészült.", "success");
       void load();
     } catch (e) {
@@ -107,19 +103,12 @@ export default function AdChecker() {
     } finally { setBusy(false); }
   }
 
-  async function send(url: string, init: RequestInit) {
-    const res = await fetch(url, init);
+  async function send(endpoint: string, init: RequestInit) {
+    const res = await fetch(endpoint, init);
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || "A művelet nem sikerült.");
     await load();
     return d as { folder?: LibraryFolder };
-  }
-
-  function copyText(t: string) {
-    void navigator.clipboard.writeText(t).then(
-      () => showToast("Vágólapra másolva.", "success"),
-      () => showToast("A másolás nem sikerült.", "error")
-    );
   }
 
   return (
@@ -140,11 +129,11 @@ export default function AdChecker() {
           </label>
 
           <div>
-            <button type="button" onClick={() => setNeedsText((v) => !v)}
+            <button type="button" onClick={() => setShowText((v) => !v)}
               className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>
-              {needsText ? "− Szöveg elrejtése" : "+ Inkább bemásolom a szöveget"}
+              {showText ? "− Szöveg elrejtése" : "+ Inkább bemásolom a szöveget"}
             </button>
-            {needsText && (
+            {showText && (
               <label className="mt-2 block">
                 <span className="mb-1 block text-xs font-medium">A hirdetés szövege</span>
                 <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
@@ -167,8 +156,9 @@ export default function AdChecker() {
         </div>
 
         {error && (
-          <p className="mt-3 rounded-lg p-2 text-xs"
-            style={{ background: "#fdecea", color: "#c0392b" }}>{error}</p>
+          <p className="mt-3 rounded-lg p-2 text-xs" style={{ background: "#fdecea", color: "#c0392b" }}>
+            {error}
+          </p>
         )}
 
         <button type="button" onClick={analyze} disabled={busy}
@@ -178,8 +168,39 @@ export default function AdChecker() {
         </button>
       </section>
 
-      {/* --- EREDMÉNY --- */}
-      {result && <ResultView result={result} pdfUrl={pdfUrl} tone={tone} onCopy={copyText} />}
+      {/* --- AZ ELKÉSZÜLT ELEMZÉS: csak egy kártya, innen nyílik meg --- */}
+      {fresh && (
+        <section className="twx-card p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-none items-baseline gap-2">
+              <span className="text-4xl font-bold" style={{ color: scoreColor(fresh.score ?? 0) }}>
+                {fresh.score ?? 0}
+              </span>
+              <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Az elemzés elkészült</p>
+              <p className="mt-0.5 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                {itemTitle(fresh)} · {toneLabel(fresh.tone)}
+              </p>
+            </div>
+            <div className="flex flex-none flex-wrap gap-2">
+              <button type="button" onClick={() => setOpenItem(fresh)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                style={{ background: "var(--twx-coral)" }}>
+                Elemzés megnyitása
+              </button>
+              {fresh.pdf_url && (
+                <a href={toDownloadUrl(fresh.pdf_url)} download
+                  className="rounded-xl px-4 py-2 text-sm font-medium"
+                  style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                  PDF letöltése
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* --- KÖNYVTÁR --- */}
       <section className="twx-card p-5 sm:p-6">
@@ -189,13 +210,13 @@ export default function AdChecker() {
           folders={folders}
           noun="elemzés"
           emptyText="Még nincs korábbi ellenőrzésed."
-          downloadUrl={(it) => it.raw.pdf_url}
+          downloadUrl={(it) => (it.raw.pdf_url ? toDownloadUrl(it.raw.pdf_url) : null)}
           renderItem={(it) => (
             <button type="button" onClick={() => setOpenItem(it.raw)}
-              className="block w-full rounded-lg p-3 text-left"
+              className="block w-full rounded-lg p-3 text-left transition hover:shadow-sm"
               style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-              <span className="flex items-center gap-2">
-                <span className="text-lg font-bold" style={{ color: scoreColor(it.raw.score ?? 0) }}>
+              <span className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold" style={{ color: scoreColor(it.raw.score ?? 0) }}>
                   {it.raw.score ?? 0}
                 </span>
                 <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
@@ -222,170 +243,37 @@ export default function AdChecker() {
         />
       </section>
 
-      {/* --- KORÁBBI ELEMZÉS ABLAKBAN --- */}
+      {/* --- AZ ELEMZÉS ABLAKBAN --- */}
       {openItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
           style={{ background: "rgba(20,16,14,0.55)" }} onClick={() => setOpenItem(null)}>
           <div onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-5 py-3"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b px-5 py-3"
               style={{ borderColor: "var(--twx-line)" }}>
-              <p className="truncate text-sm font-semibold">
-                {openItem.source_url ?? "Bemásolt hirdetésszöveg"}
-              </p>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Hirdetés-elemzés</p>
+                <p className="truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  {new Date(openItem.created_at).toLocaleDateString("hu-HU")} · {toneLabel(openItem.tone)}
+                </p>
+              </div>
               <button type="button" onClick={() => setOpenItem(null)} aria-label="Bezárás"
-                className="rounded-lg px-3 py-1.5 text-sm" style={{ border: "1px solid var(--twx-line)" }}>
+                className="flex-none rounded-lg px-3 py-1.5 text-sm"
+                style={{ border: "1px solid var(--twx-line)" }}>
                 ✕
               </button>
             </div>
-            <div className="overflow-y-auto p-4">
-              <ResultView result={openItem.result} pdfUrl={openItem.pdf_url}
-                tone={openItem.tone} onCopy={copyText} bare />
+            <div className="overflow-y-auto p-4 sm:p-5">
+              <AdCheckReport
+                result={openItem.result}
+                pdfUrl={openItem.pdf_url}
+                tone={openItem.tone}
+                sourceUrl={openItem.source_url}
+              />
             </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-/** Az elemzés megjelenítése — az űrlap alatt és a korábbi elemzés ablakában is ez fut. */
-function ResultView({
-  result, pdfUrl, tone, onCopy, bare,
-}: {
-  result: AdCheckResult;
-  pdfUrl: string | null;
-  tone: string;
-  onCopy: (t: string) => void;
-  bare?: boolean;
-}) {
-  const Wrap = ({ children }: { children: React.ReactNode }) =>
-    bare ? <div className="space-y-5">{children}</div>
-         : <section className="twx-card space-y-5 p-5 sm:p-6">{children}</section>;
-
-  return (
-    <Wrap>
-      {/* Pontszámok */}
-      <div>
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <span className="text-4xl font-bold" style={{ color: scoreColor(result.score) }}>
-              {result.score}
-            </span>
-            <span className="ml-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
-          </div>
-          {pdfUrl && (
-            <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
-              className="ml-auto rounded-xl px-4 py-2 text-sm font-semibold text-white"
-              style={{ background: "var(--twx-coral)" }}>
-              PDF letöltése
-            </a>
-          )}
-        </div>
-        {result.summary && <p className="mt-2 text-sm">{result.summary}</p>}
-
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {result.aspects.map((a) => {
-            const label = AD_ASPECTS.find((s) => s.key === a.key)?.label ?? a.key;
-            return (
-              <div key={a.key} className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)" }}>
-                <p className="text-lg font-bold" style={{ color: scoreColor(a.score) }}>{a.score}</p>
-                <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{label}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Megállapítások */}
-      {result.aspects.some((a) => a.findings.length > 0) && (
-        <div>
-          <h4 className="text-sm font-semibold">Megállapítások</h4>
-          <div className="mt-2 space-y-3">
-            {result.aspects.filter((a) => a.findings.length).map((a) => (
-              <div key={a.key}>
-                <p className="text-xs font-semibold" style={{ color: "var(--twx-coral)" }}>
-                  {AD_ASPECTS.find((s) => s.key === a.key)?.label ?? a.key}
-                </p>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-                  {a.findings.map((f, i) => <li key={i}>{f}</li>)}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Mondatszintű javítások */}
-      {result.rewrites.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold">Javasolt átfogalmazások</h4>
-          <div className="mt-2 space-y-2">
-            {result.rewrites.map((r, i) => (
-              <div key={i} className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)" }}>
-                <p className="text-xs line-through" style={{ color: "var(--twx-ink-muted)" }}>{r.original}</p>
-                <p className="mt-1 text-sm font-medium">{r.improved}</p>
-                {r.why && <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{r.why}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Kiemelendők + fotó-ellenőrzőlista */}
-      {result.highlights.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold">Mit érdemes kiemelni</h4>
-          <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-            A fotókat nem látjuk — nézd át, hogy ezekhez van-e kép a hirdetésben.
-          </p>
-          <div className="mt-2 space-y-2">
-            {result.highlights.map((h, i) => (
-              <div key={i} className="rounded-xl p-3"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-coral-soft)" }}>
-                <p className="text-sm font-medium">{h.what}</p>
-                {h.why && <p className="mt-0.5 text-xs">{h.why}</p>}
-                {h.hasPhotoQuestion && (
-                  <p className="mt-1 text-xs font-medium" style={{ color: "#7a2e17" }}>
-                    ☐ {h.hasPhotoQuestion}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Hiányzó adatok */}
-      {result.missing.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold">Pótlandó adatok</h4>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-            {result.missing.map((m, i) => <li key={i}>{m}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {/* Újraírt szöveg */}
-      {result.rewritten && (
-        <div>
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="text-sm font-semibold">Újraírt hirdetésszöveg — {toneLabel(tone)}</h4>
-            <button type="button" onClick={() => onCopy(result.rewritten)}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium"
-              style={{ border: "1px solid var(--twx-line)" }}>
-              Másolás
-            </button>
-          </div>
-          <pre className="mt-2 whitespace-pre-wrap rounded-xl p-3 text-sm"
-            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", fontFamily: "inherit" }}>
-{result.rewritten}
-          </pre>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-            A [szögletes zárójeles] helyeket töltsd ki a valós adatokkal — ezeket szándékosan nem találjuk ki.
-          </p>
-        </div>
-      )}
-    </Wrap>
   );
 }

@@ -124,7 +124,7 @@ export default function FlyerPage() {
           className="fixed inset-0 z-[60] flex flex-col items-center justify-center p-4"
           style={{ background: "rgba(12,11,10,0.9)" }}>
           <div onClick={(e) => e.stopPropagation()} className="mb-3 flex items-center gap-2">
-            <a href={toDownloadUrl(viewUrl)} target="_blank" rel="noopener noreferrer" className="twx-btn">
+            <a href={toDownloadUrl(viewUrl)} download className="twx-btn">
               Letöltés
             </a>
             <button type="button" onClick={() => setViewUrl(null)} aria-label="Bezárás"

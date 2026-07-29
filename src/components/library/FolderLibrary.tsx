@@ -192,7 +192,9 @@ export default function FolderLibrary<T extends LibraryItem>({
 
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {dl && (
-                            <a href={dl} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                            // `download`: a böngésző töltse le, ne navigáljon el rá.
+                            <a href={dl} download
+                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
                               style={{ background: "var(--twx-coral)" }}>
                               Letöltés
                             </a>
