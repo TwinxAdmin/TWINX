@@ -23,6 +23,7 @@ type VideoDebug = {
   phase?: string;
   ageMinutes?: number;
   clips?: string[];
+  falDetail?: string;
   shotstackStatus?: string;
   shotstackError?: string;
   clipError?: string;
@@ -151,6 +152,7 @@ export default function VideoWizard({
       };
       parts.push(`Vágás: ${map[d.shotstackStatus] ?? d.shotstackStatus}`);
     }
+    if (d.falDetail) parts.push(d.falDetail);
     if (typeof d.ageMinutes === "number" && d.ageMinutes > 0) parts.push(`${d.ageMinutes} perce fut`);
     const problem = d.clipError || d.renderError || d.shotstackError || d.downloadError || d.uploadError;
     if (problem) parts.push(`⚠ ${problem}`);

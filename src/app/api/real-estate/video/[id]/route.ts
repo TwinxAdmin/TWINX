@@ -63,16 +63,19 @@ export async function GET(
   if (status === "animating" && meta.ai_clips?.length) {
     try {
       let clips: AiClipState[] = meta.ai_clips;
+      const details: string[] = [];
       for (let i = 0; i < clips.length; i++) {
         const c = clips[i];
         if (c.videoUrl || c.failed || !c.requestId) continue;
         const r = await getFalVideoResult({
           requestId: c.requestId, statusUrl: c.statusUrl, responseUrl: c.responseUrl,
         });
+        details.push(`${i}: ${r.detail}`);
         // ATOMI beírás (a webhook is írhatja ugyanezt a mezőt).
         if (r.status === "done" && r.videoUrl) clips = await saveClipResult(job.id, i, { videoUrl: r.videoUrl });
         else if (r.status === "failed") clips = await saveClipResult(job.id, i, { failed: true });
       }
+      if (details.length) debug.falDetail = details.join(" | ");
       meta = { ...meta, ai_clips: clips };
 
       if (allClipsSettled(clips)) {

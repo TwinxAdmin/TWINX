@@ -100,7 +100,7 @@ export async function getFalVideoResult(params: {
   requestId: string;
   statusUrl?: string | null;
   responseUrl?: string | null;
-}): Promise<{ status: "pending" | "done" | "failed"; videoUrl: string | null }> {
+}): Promise<{ status: "pending" | "done" | "failed"; videoUrl: string | null; detail: string }> {
   const key = process.env.FAL_KEY;
   if (!key) throw new Error("Hiányzó FAL_KEY.");
   const app = FAL_I2V_MODEL.split("/").slice(0, 2).join("/"); // pl. fal-ai/kling-video
@@ -109,17 +109,28 @@ export async function getFalVideoResult(params: {
   const headers = { Authorization: `Key ${key}` };
 
   const sRes = await fetch(statusUrl, { headers });
-  if (!sRes.ok) return { status: "pending", videoUrl: null };
+  if (!sRes.ok) {
+    // FONTOS: ezt NE tüntessük fel „még dolgozik"-ként, mert akkor a job örökre várna.
+    const body = (await sRes.text()).slice(0, 200);
+    return { status: "pending", videoUrl: null, detail: `fal státusz HTTP ${sRes.status}: ${body}` };
+  }
   const sData = await sRes.json();
   const s = String(sData?.status ?? "").toUpperCase();
-  if (s === "IN_QUEUE" || s === "IN_PROGRESS") return { status: "pending", videoUrl: null };
-  if (s && s !== "COMPLETED") return { status: "failed", videoUrl: null };
+  const queue = sData?.queue_position;
+  if (s === "IN_QUEUE") return { status: "pending", videoUrl: null, detail: `sorban áll${queue != null ? ` (${queue}.)` : ""}` };
+  if (s === "IN_PROGRESS") return { status: "pending", videoUrl: null, detail: "generálás alatt" };
+  if (s && s !== "COMPLETED") return { status: "failed", videoUrl: null, detail: `fal állapot: ${s}` };
 
   const rRes = await fetch(responseUrl, { headers });
-  if (!rRes.ok) return { status: "pending", videoUrl: null };
+  if (!rRes.ok) {
+    const body = (await rRes.text()).slice(0, 200);
+    return { status: "pending", videoUrl: null, detail: `fal eredmény HTTP ${rRes.status}: ${body}` };
+  }
   const rData = await rRes.json();
   const videoUrl: string | null = rData?.video?.url ?? rData?.url ?? null;
-  return videoUrl ? { status: "done", videoUrl } : { status: "failed", videoUrl: null };
+  return videoUrl
+    ? { status: "done", videoUrl, detail: "kész" }
+    : { status: "failed", videoUrl: null, detail: "a fal nem adott videó URL-t" };
 }
 
 // Háttéreltávolítás (logó-tisztítás) — BiRefNet v2. Csak akkor hívjuk, ha az ingyenes
