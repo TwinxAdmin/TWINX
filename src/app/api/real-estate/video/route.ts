@@ -69,6 +69,18 @@ export async function POST(request: Request) {
   // A könyvtárban ez lesz a videó neve (az ingatlan címe); ha nincs, a főcím.
   const propertyAddress = String(form.get("propertyAddress") ?? "").trim() || title;
 
+  // ELŐELLENŐRZÉS: ha a szolgáltatás nincs beállítva, ne is vonjunk kreditet, és
+  // a partner ne nyers technikai üzenetet lásson.
+  const missingConfig: string[] = [];
+  if (!process.env.SHOTSTACK_API_KEY) missingConfig.push("SHOTSTACK_API_KEY");
+  if (pkg === "pro" && !process.env.FAL_KEY) missingConfig.push("FAL_KEY");
+  if (missingConfig.length) {
+    console.error("[video] Hiányzó beállítás:", missingConfig.join(", "));
+    return NextResponse.json({
+      error: "A videó szolgáltatás jelenleg nem elérhető (hiányzó beállítás). Szólj az adminnak — kredit nem került levonásra.",
+    }, { status: 503 });
+  }
+
   const admin = createAdminClient();
   const { data: service } = await admin.from("services").select("id").eq("slug", SERVICE_SLUG).single();
 
