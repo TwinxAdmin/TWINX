@@ -1016,10 +1016,16 @@ export async function generateAdCheckPdf(params: {
   writeRight(dateStr, pageW - margin, pageH - 40, 10, C.white);
   y = pageH - bandH - 26;
 
+  // Az ingatlan felismerhető főcíme (nem a nyers link).
+  if (result.title) {
+    for (const line of wrapText(result.title, 13, contentW)) {
+      write(line, margin, y, 13, C.ink, true);
+      y -= 17;
+    }
+    y -= 4;
+  }
   if (sourceUrl) {
-    write("Vizsgált hirdetés:", margin, y, 9, C.muted);
-    y -= 13;
-    paragraph(sourceUrl, 8.5, C.muted);
+    paragraph(sourceUrl, 8, C.muted);
     y -= 6;
   }
 

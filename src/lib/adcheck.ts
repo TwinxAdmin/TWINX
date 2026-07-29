@@ -36,6 +36,9 @@ export type AdAspectKey = (typeof AD_ASPECTS)[number]["key"];
 
 /** A modell által visszaadott elemzés szerkezete. */
 export type AdCheckResult = {
+  /** Felismerhető főcím az ingatlanról (város/kerület + utca, típus, méret) —
+   *  ez lesz az elemzés neve a könyvtárban, nem a nyers link. */
+  title: string;
   score: number;                       // 0-100 összpontszám
   summary: string;                     // 2-3 mondatos összegzés
   aspects: Array<{
@@ -58,7 +61,7 @@ export type AdCheckResult = {
 };
 
 export const EMPTY_AD_CHECK: AdCheckResult = {
-  score: 0, summary: "", aspects: [], rewrites: [], highlights: [], missing: [], rewritten: "",
+  title: "", score: 0, summary: "", aspects: [], rewrites: [], highlights: [], missing: [], rewritten: "",
 };
 
 /** A modell válaszának beolvasása — a JSON köré írt szöveget is elviseli. */
@@ -93,6 +96,7 @@ export function parseAdCheck(raw: string): AdCheckResult | null {
     .filter((a): a is AdCheckResult["aspects"][number] => a !== null);
 
   return {
+    title: str(o.title).slice(0, 120),
     score: num(o.score),
     summary: str(o.summary),
     aspects,

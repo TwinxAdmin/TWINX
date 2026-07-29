@@ -36,7 +36,7 @@ export async function GET() {
   const [{ data: items, error }, { data: folders }] = await Promise.all([
     supabase
       .from("ad_checks")
-      .select("id, source_url, tone, score, result, pdf_url, folder_id, created_at")
+      .select("id, source_url, title, tone, score, result, pdf_url, folder_id, created_at")
       .order("created_at", { ascending: false })
       .limit(50), // az előzményekben max 50 elemet listázunk
     supabase.from("ad_check_folders").select("id, name").order("name"),
@@ -133,6 +133,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         // Ha bemásolt szövegből dolgoztunk, a linket NE mentsük — félrevezető lenne.
         source_url: text ? null : (url || null),
+        title: result.title || null,
         source_text: text || null,
         tone,
         score: result.score,
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
         pdf_url: pdfUrl,
         credits_charged: charge && !charge.bypassed ? credits : 0,
       })
-      .select("id, source_url, tone, score, result, pdf_url, folder_id, created_at")
+      .select("id, source_url, title, tone, score, result, pdf_url, folder_id, created_at")
       .single();
 
     // Ha a mentés nem sikerült (pl. az ad-check.sql még nem futott le), az elemzés
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { url: text ? null : (url || null), tone, score: result.score },
+      input_data: { url: text ? null : (url || null), title: result.title, tone, score: result.score },
       output_file_url: pdfUrl,
       credits_charged: charge && !charge.bypassed ? credits : 0,
     });

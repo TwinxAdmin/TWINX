@@ -18,6 +18,15 @@ create table if not exists public.ad_checks (
 
 create index if not exists ad_checks_user_idx on public.ad_checks (user_id, created_at desc);
 
+-- Felismerhető főcím az ingatlanról (város/kerület + utca, típus, méret) — ez a neve
+-- az elemzésnek a könyvtárban, a nyers link helyett.
+alter table public.ad_checks add column if not exists title text;
+
+-- A korábbi elemzések címét az eredményből emeljük ki (egyszeri).
+update public.ad_checks
+set title = nullif(trim(coalesce(result ->> 'title', '')), '')
+where title is null;
+
 -- Saját mappák az elemzésekhez (a hónap-mappák automatikusak) — mint a videónál
 -- és a hirdetéseknél.
 create table if not exists public.ad_check_folders (

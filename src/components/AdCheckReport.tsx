@@ -77,7 +77,9 @@ export default function AdCheckReport({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex-none self-center"><ScoreRing score={result.score} /></div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold" style={{ color: scoreColor(result.score) }}>
+            {result.title && <p className="text-base font-semibold">{result.title}</p>}
+            <p className={`${result.title ? "mt-0.5 " : ""}text-sm font-semibold`}
+              style={{ color: scoreColor(result.score) }}>
               {scoreWord(result.score)}
             </p>
             {result.summary && <p className="mt-1 text-sm">{result.summary}</p>}

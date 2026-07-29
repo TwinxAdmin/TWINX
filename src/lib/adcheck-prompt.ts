@@ -23,6 +23,11 @@ export const ADCHECK_DEFAULT_SEGMENTS = {
     "4) persuasion — Meggyőző erő és lezárás: életkép, előnyök kiemelése, van-e világos " +
     "felhívás a kapcsolatfelvételre.\n\n" +
     "Ezen felül:\n" +
+    "- title: RÖVID, felismerhető főcím magának az ingatlannak, amiről a hirdetés szól. " +
+    "Formátum: „Település (kerület), utca — típus, méret\", például „Budapest V. kerület, " +
+    "Sas utca — 3 szobás lakás, 78 m²\". Csak azt írd bele, ami a hirdetésből KIDERÜL; " +
+    "ha az utca nincs megadva, hagyd el, ha a település sincs, akkor a típus és a méret " +
+    "álljon ott. Ne írj bele árat, és ne találj ki adatot.\n" +
     "- rewrites: 4-8 KONKRÉT mondat az eredeti szövegből, mindegyikhez egy jobb megfogalmazás " +
     "és rövid indoklás. Az „original\" mező szó szerint az eredeti szövegből származzon.\n" +
     "- highlights: 3-6 dolog, amit érdemes lenne HANGSÚLYOSAN kiemelni, mert megfogja az " +
@@ -33,7 +38,7 @@ export const ADCHECK_DEFAULT_SEGMENTS = {
     "SOHA ne találj ki konkrét számot vagy tényt.\n\n" +
     "Csak a hirdetés tartalmát értékeld, ne a portált. A válasz KIZÁRÓLAG egy JSON objektum " +
     "legyen, magyarázó szöveg nélkül, ebben a szerkezetben:\n" +
-    '{"score":0-100,"summary":"…","aspects":[{"key":"info|opening|structure|persuasion",' +
+    '{"title":"…","score":0-100,"summary":"…","aspects":[{"key":"info|opening|structure|persuasion",' +
     '"score":0-100,"findings":["…"]}],"rewrites":[{"original":"…","improved":"…","why":"…"}],' +
     '"highlights":[{"what":"…","why":"…","hasPhotoQuestion":"…"}],"missing":["…"],"rewritten":"…"}',
 };

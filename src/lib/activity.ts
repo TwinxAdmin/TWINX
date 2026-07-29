@@ -28,9 +28,9 @@ export function activityTitle(feature: string, input: Json): string {
   const d = (input ?? {}) as Record<string, unknown>;
 
   if (feature === "ad-check") {
-    const url = s(d.url).replace(/^https?:\/\/(www\.)?/, "");
     const score = typeof d.score === "number" ? ` · ${d.score}/100` : "";
-    return `${url ? url.slice(0, 50) : "Bemásolt hirdetésszöveg"}${score}`;
+    const name = s(d.title) || s(d.url).replace(/^https?:\/\/(www\.)?/, "").slice(0, 50);
+    return `${name || "Hirdetés-elemzés"}${score}`;
   }
 
   if (feature === "valuation") {

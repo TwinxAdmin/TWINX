@@ -15,6 +15,7 @@ import { AD_TONES, ADCHECK_CREDITS, toneLabel, type AdCheckResult } from "@/lib/
 type SavedItem = {
   id: string;
   source_url: string | null;
+  title: string | null;
   tone: string;
   score: number | null;
   result: AdCheckResult;
@@ -32,10 +33,15 @@ type LibItem = {
   raw: SavedItem;
 };
 
+/** A könyvtárban megjelenő név: az ingatlan felismerhető főcíme.
+ *  Régi elemzéseknél az eredményből is kivesszük; ha semmi nincs, marad a link. */
 function itemTitle(it: SavedItem): string {
-  return it.source_url
-    ? it.source_url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)
-    : "Bemásolt hirdetésszöveg";
+  const fromResult = (it.result as { title?: string } | null)?.title?.trim();
+  return (
+    it.title?.trim() ||
+    fromResult ||
+    (it.source_url ? it.source_url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60) : "Bemásolt hirdetésszöveg")
+  );
 }
 
 export default function AdChecker() {
@@ -221,7 +227,8 @@ export default function AdChecker() {
                 </span>
                 <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
               </span>
-              <span className="mt-1 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              <span className="mt-1 block text-xs font-medium">{itemTitle(it.raw)}</span>
+              <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                 {toneLabel(it.raw.tone)} · kattints a megnyitáshoz
               </span>
             </button>
@@ -252,9 +259,9 @@ export default function AdChecker() {
             <div className="flex items-center justify-between gap-3 border-b px-5 py-3"
               style={{ borderColor: "var(--twx-line)" }}>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Hirdetés-elemzés</p>
+                <p className="truncate text-sm font-semibold">{itemTitle(openItem)}</p>
                 <p className="truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  {new Date(openItem.created_at).toLocaleDateString("hu-HU")} · {toneLabel(openItem.tone)}
+                  Hirdetés-elemzés · {new Date(openItem.created_at).toLocaleDateString("hu-HU")} · {toneLabel(openItem.tone)}
                 </p>
               </div>
               <button type="button" onClick={() => setOpenItem(null)} aria-label="Bezárás"
