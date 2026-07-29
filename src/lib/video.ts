@@ -64,31 +64,37 @@ export function isValidMusicStyle(slug: string): boolean {
 // Csak a megadott mezők jelennek meg; üres mezőt a sáv kihagy.
 export type VideoCaptionFacts = {
   location: string;   // település, kerület
+  address: string;    // pontos cím (utca, házszám)
   price: string;      // megjelenő ár
   size: string;       // m²
   rooms: string;
-  bathrooms: string;
-  floor: string;
-  structure: string;
-  condition: string;
+  bathrooms: string;  // fürdőszoba / wc
+  floor: string;      // emelet
 };
 
 export const EMPTY_VIDEO_FACTS: VideoCaptionFacts = {
-  location: "", price: "", size: "", rooms: "", bathrooms: "", floor: "", structure: "", condition: "",
+  location: "", address: "", price: "", size: "", rooms: "", bathrooms: "", floor: "",
 };
 
-/** A fotó indexéhez tartozó felirat-sor (1-2 rövid adat, ponttal elválasztva).
- *  Az ár és a méret automatikusan kapja a hiányzó mértékegységet („100" → „100 M Ft" / „100 m²"). */
-export function captionForPhoto(i: number, f: VideoCaptionFacts): string {
-  const join = (a?: string, b?: string) => [a, b].map((x) => (x ?? "").trim()).filter(Boolean).join("  ·  ");
+// Egy felirat legfeljebb két sorból áll: fő sor + kiegészítő sor.
+export type VideoCaption = { line1: string; line2: string };
+
+/** A fotó indexéhez tartozó felirat (fő + al sor).
+ *  1. kép: város + irányár · 2. kép: pontos cím (fent) + emelet (lent) ·
+ *  3. kép: méret + szobaszám · 4. kép: fürdő/wc · 5. kép: város + irányár (ismétlés).
+ *  Az ár és a méret automatikusan kapja a hiányzó mértékegységet. */
+export function captionForPhoto(i: number, f: VideoCaptionFacts): VideoCaption {
+  const clean = (s?: string) => (s ?? "").trim();
   const price = formatPrice(f.price);
   const size = formatSize(f.size);
-  const rows = [
-    join(f.location, price && `Irányár: ${price}`),
-    join(size, f.rooms),
-    join(f.bathrooms, f.floor),
-    join(f.structure, f.condition),
-    join(f.location, price && `Irányár: ${price}`), // 5. fotó: a legfontosabb ismétlése
+  const priceLine = price ? `Irányár: ${price}` : "";
+  const firstPhoto: VideoCaption = { line1: clean(f.location), line2: priceLine };
+  const rows: VideoCaption[] = [
+    firstPhoto,
+    { line1: clean(f.address) || clean(f.location), line2: clean(f.floor) },
+    { line1: size, line2: clean(f.rooms) },
+    { line1: clean(f.bathrooms), line2: "" },
+    firstPhoto, // 5. fotó: a legfontosabb ismétlése
   ];
-  return rows[i % rows.length] ?? "";
+  return rows[i % rows.length] ?? { line1: "", line2: "" };
 }

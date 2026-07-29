@@ -157,12 +157,18 @@ export async function renderPhotoFrame(
  */
 export async function renderCaptionOverlay(
   ctx: VideoFrameCtx,
-  opts: { caption: string }
+  opts: { line1: string; line2?: string }
 ): Promise<Buffer> {
   const { width: W, height: H, profile: p } = ctx;
   const u = W / 1080;
   const t = buildTheme(MOOD, p.accent_color);
-  const zoneH = Math.round(290 * u);
+  const hasLine2 = Boolean((opts.line2 ?? "").trim());
+  const zoneH = Math.round((hasLine2 ? 340 : 290) * u);
+
+  // A fő sor betűmérete a hosszhoz igazodik, hogy sose lógjon ki (kb. 22 karakter/sor 9:16-ban).
+  const line1 = truncate(opts.line1, 42);
+  const mainFs = Math.round((line1.length > 30 ? 40 : line1.length > 22 ? 48 : 58) * u);
+  const subFs = Math.round(34 * u);
 
   const el = box(
     // A gyökéren NINCS background → a PNG átlátszó marad.
@@ -170,18 +176,32 @@ export async function renderCaptionOverlay(
     [
       box({
         position: "absolute", left: 0, bottom: 0, width: W, height: zoneH,
-        backgroundImage: "linear-gradient(0deg, rgba(12,14,16,0.72) 0%, rgba(12,14,16,0.34) 55%, rgba(12,14,16,0) 100%)",
+        backgroundImage: "linear-gradient(0deg, rgba(12,14,16,0.74) 0%, rgba(12,14,16,0.36) 55%, rgba(12,14,16,0) 100%)",
       }),
       box(
-        { position: "absolute", left: 0, bottom: Math.round(66 * u), width: W, justifyContent: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u) },
-        box({
-          fontSize: Math.round(58 * u), fontWeight: 700, color: "#ffffff",
-          letterSpacing: Math.round(1 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
-        }, truncate(opts.caption, 40))
+        {
+          position: "absolute", left: 0, bottom: Math.round(66 * u), width: W,
+          flexDirection: "column", alignItems: "center",
+          paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u),
+        },
+        [
+          box({
+            fontSize: mainFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.12,
+            letterSpacing: Math.round(1 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+            textAlign: "center",
+          }, line1),
+          hasLine2
+            ? box({
+                fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.92,
+                marginTop: Math.round(8 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+                textAlign: "center",
+              }, truncate((opts.line2 ?? "").trim(), 42))
+            : null,
+        ].filter(Boolean)
       ),
       // Finom arculati hangsúly: rövid vonal a szöveg fölött.
       box({
-        position: "absolute", left: Math.round(W / 2 - 50 * u), bottom: Math.round(160 * u),
+        position: "absolute", left: Math.round(W / 2 - 50 * u), bottom: Math.round((hasLine2 ? 210 : 160) * u),
         width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)),
         background: t.hair ?? p.accent_color, opacity: 0.95,
       }),

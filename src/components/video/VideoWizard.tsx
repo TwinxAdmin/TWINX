@@ -16,7 +16,7 @@ import {
   VIDEO_CREDITS_ALAP, VIDEO_CREDITS_PRO, videoLengthSeconds,
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
-import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
+import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
 import { ROOMS_OPTIONS, BATHROOM_OPTIONS } from "@/lib/flyer";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -45,7 +45,6 @@ export default function VideoWizard({
 
   // 3) Adatok (nyitókártya + felirat-sávok)
   const [title, setTitle] = useState("");
-  const [street, setStreet] = useState(""); // utca, házszám — a videó neve ebből lesz
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
@@ -109,7 +108,7 @@ export default function VideoWizard({
       fd.append("facts", JSON.stringify(facts));
       fd.append("title", title.trim() || defaultTitle());
       // A videó neve a könyvtárban: az ingatlan címe (település + utca).
-      fd.append("propertyAddress", [facts.location, street].map((s) => s.trim()).filter(Boolean).join(", "));
+      fd.append("propertyAddress", [facts.location, facts.address].map((s) => s.trim()).filter(Boolean).join(", "));
       fd.append("format", format);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
@@ -306,22 +305,20 @@ export default function VideoWizard({
                   <Field label="Főcím" value={title} onChange={setTitle} placeholder={defaultTitle()} />
                   <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="a főcímhez (pl. Eladó panellakás)" />
                   <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
-                  <Field label="Utca, házszám" value={street} onChange={setStreet} placeholder="pl. Sas utca 12." />
+                  <Field label="Utca, házszám (2. képen)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." />
                   <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 100 M Ft" />
                 </div>
               </div>
               <div>
                 <p className="text-sm font-semibold">Felirat-sávok a fotókon</p>
                 <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Fotónként váltakozó adatok kerülnek a kép aljára — csak amit megadsz.
+                  1. kép: város + irányár · 2. kép: pontos cím + emelet · 3. kép: méret + szobaszám · 4. kép: fürdő/wc. Csak amit megadsz.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 100 m²" />
-                  <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
-                  <Combo label="Fürdő / mellékhelyiség" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
-                  <Combo label="Épület szintje" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
-                  <Combo label="Szerkezet" value={facts.structure} onChange={(v) => setF("structure", v)} options={STRUCTURE_OPTIONS} placeholder="Válassz a listából" />
-                  <Combo label="Műszaki állapot" value={facts.condition} onChange={(v) => setF("condition", v)} options={CONDITION_OPTIONS} placeholder="Válassz a listából" />
+                  <Field label="Méret (3. képen)" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 100 m²" />
+                  <Combo label="Szobaszám (3. képen)" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
+                  <Combo label="Fürdő / wc (4. képen)" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
+                  <Combo label="Emelet (2. képen)" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
                 </div>
               </div>
             </div>

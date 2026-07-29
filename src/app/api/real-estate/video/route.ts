@@ -115,9 +115,9 @@ export async function POST(request: Request) {
     // 4) Satori képkockák: nyitó/záró kártya + fotó-keretek (alsó felirat-sáv).
     const captions = photoUrls.map((_, i) => captionForPhoto(i, facts));
     const fontPack = await loadVideoFonts(profile, [
-      title, facts.location, facts.price,
+      title, facts.location, facts.address, facts.price,
       profile.display_name, profile.company, profile.title, profile.phone, profile.email, profile.website,
-      ...captions,
+      ...captions.flatMap((c) => [c.line1, c.line2]),
     ]);
     const ctx = { width: format.width, height: format.height, profile, ...fontPack };
 
@@ -126,8 +126,8 @@ export async function POST(request: Request) {
     for (let i = 0; i < photoUrls.length; i++) {
       // A fotó-keret TISZTA (a felirat külön, felső rétegen megy rá → nem zoomol el).
       frames.push({ name: `photo-${i}.png`, buf: await renderPhotoFrame(ctx, { photoUrl: photoUrls[i] }) });
-      if (captions[i]) {
-        frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, { caption: captions[i] }) });
+      if (captions[i]?.line1 || captions[i]?.line2) {
+        frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, captions[i]) });
       }
     }
     frames.push({ name: "close.png", buf: await renderClosingCard(ctx) });
