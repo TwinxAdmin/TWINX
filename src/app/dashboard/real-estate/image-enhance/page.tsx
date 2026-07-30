@@ -46,6 +46,9 @@ export default function ImageEnhancePage() {
   const [sourcePreview, setSourcePreview] = useState<string | null>(null);
   // Módonként előkészített (ráhúzott) képek — a partner indítja a folyamatot.
   const [staged, setStaged] = useState<Record<EnhanceMode, string[]>>({ feljavitas: [], rendrakas: [] });
+  // Az ablakban kiválasztott KORÁBBI képek (URL-ek) — a feltöltött fájlok mellett.
+  // A folyamat CSAK a megerősítő gombra indul el, hogy ne fogyjon véletlenül kredit.
+  const [libPicks, setLibPicks] = useState<string[]>([]);
 
   const [history, setHistory] = useState<Job[]>([]);
   const [favs, setFavs] = useState<Fav[]>([]);
@@ -83,9 +86,10 @@ export default function ImageEnhancePage() {
   }, []);
 
   // --- Ablak nyitása / zárása ---
-  function openSession(m: EnhanceMode) {
+  function openSession(m: EnhanceMode, fromLibrary: string[] = []) {
     setSession(m);
     setPicks([]);
+    setLibPicks(fromLibrary);
     setResults([]);
     setProducedMode(null);
     setSourcePreview(null);
@@ -93,6 +97,7 @@ export default function ImageEnhancePage() {
   function closeSession() {
     setSession(null);
     setPicks([]);
+    setLibPicks([]);
     setResults([]);
     setProducedMode(null);
     setSourcePreview(null);
@@ -101,6 +106,7 @@ export default function ImageEnhancePage() {
     setResults([]);
     setProducedMode(null);
     setPicks([]);
+    setLibPicks([]);
   }
 
   function addFiles(list: FileList | null) {
@@ -150,13 +156,66 @@ export default function ImageEnhancePage() {
     }
   }
 
-  // Indítás a feltöltött képekkel.
+  /** Egy korábbi kép (URL) letöltése fájllá, hogy ugyanúgy feldolgozható legyen. */
+  async function urlToFile(url: string, i: number): Promise<File> {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("A kép betöltése nem sikerült.");
+    const blob = await r.blob();
+    return new File([blob], `twinx-korabbi-${i}.jpg`, { type: blob.type || "image/jpeg" });
+  }
+
+  // Indítás: a feltöltött fájlok ÉS a kiválasztott korábbi képek együtt.
+  // Ez a MEGERŐSÍTŐ lépés — innen fogy a kredit.
   async function runInitial() {
     if (!session) return;
-    if (!picks.length) { showToast("Tölts fel legalább egy képet.", "error"); return; }
-    const ok = await process(session, picks.map((p) => p.file));
-    if (ok) setPicks([]);
+    if (!picks.length && !libPicks.length) {
+      showToast("Válassz vagy tölts fel legalább egy képet.", "error");
+      return;
+    }
+    // Amíg fut, látszódjon, melyik képpel dolgozunk.
+    setSourcePreview(picks[0]?.url ?? libPicks[0] ?? null);
+    setLoading(true);
+    let files: File[];
+    try {
+      const fromLib = await Promise.all(libPicks.map((u, i) => urlToFile(u, i)));
+      files = [...picks.map((p) => p.file), ...fromLib];
+    } catch {
+      setLoading(false);
+      setSourcePreview(null);
+      showToast("Nem sikerült betölteni a kiválasztott képeket.", "error");
+      return;
+    }
+    const ok = await process(session, files);
+    setSourcePreview(null);
+    if (ok) { setPicks([]); setLibPicks([]); }
   }
+
+  /** Korábbi kép ki/bejelölése az ablakban. */
+  function toggleLibPick(url: string) {
+    setLibPicks((prev) => {
+      if (prev.includes(url)) return prev.filter((u) => u !== url);
+      if (prev.length + picks.length >= MAX_IMAGES) {
+        showToast(`Legfeljebb ${MAX_IMAGES} kép.`, "info");
+        return prev;
+      }
+      return [...prev, url];
+    });
+  }
+
+  /** A korábbi munkák képei az ablakban való választáshoz (legfrissebb elöl). */
+  const libraryImages = (() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const f of favs) {
+      if (f.enhanced && !seen.has(f.enhanced)) { seen.add(f.enhanced); out.push(f.enhanced); }
+    }
+    for (const j of history) {
+      for (const it of j.items ?? []) {
+        if (it.enhanced && !seen.has(it.enhanced)) { seen.add(it.enhanced); out.push(it.enhanced); }
+      }
+    }
+    return out.slice(0, 24);
+  })();
 
   // Ráhúzott kép előkészítése (nem indul azonnal) — több mappából is gyűjthető.
   function stageUrl(m: EnhanceMode, url: string) {
@@ -170,26 +229,11 @@ export default function ImageEnhancePage() {
   const unstageUrl = (m: EnhanceMode, url: string) =>
     setStaged((prev) => ({ ...prev, [m]: prev[m].filter((u) => u !== url) }));
 
-  // Az előkészített képekkel indítja a folyamatot.
-  async function startStaged(m: EnhanceMode) {
-    const urls = staged[m];
-    if (!urls.length) { openSession(m); return; }
-    openSession(m);
-    setSourcePreview(urls[0]);
-    setLoading(true);
-    try {
-      const files = await Promise.all(urls.map(async (u, i) => {
-        const r = await fetch(u);
-        if (!r.ok) throw new Error();
-        const blob = await r.blob();
-        return new File([blob], `twinx-korabbi-${i}.jpg`, { type: blob.type || "image/jpeg" });
-      }));
-      setStaged((prev) => ({ ...prev, [m]: [] }));
-      await process(m, files);
-    } catch {
-      setLoading(false);
-      showToast("Nem sikerült betölteni a képeket.", "error");
-    }
+  // Megnyitja az ablakot az előkészített (ráhúzott) képekkel. A folyamat NEM indul
+  // el automatikusan — a partner az ablakban erősíti meg (1 kredit).
+  function startStaged(m: EnhanceMode) {
+    openSession(m, staged[m]);
+    setStaged((prev) => ({ ...prev, [m]: [] }));
   }
 
   // Mentés az elkészült munkák közé (egy vagy több kép).
@@ -399,7 +443,7 @@ export default function ImageEnhancePage() {
                 <div className="mt-3 flex items-center gap-2">
                   <button type="button" onClick={() => startStaged(m.value)}
                     className="text-sm font-medium" style={{ color: "var(--twx-coral)" }}>
-                    {over ? "Engedd el ide" : list.length ? `Indítás (${list.length} kép) →` : "Indítás →"}
+                    {over ? "Engedd el ide" : list.length ? `Tovább (${list.length} kép) →` : "Megnyitás →"}
                   </button>
                   {list.length > 0 && (
                     <span className="flex flex-wrap items-center gap-1">
@@ -434,7 +478,7 @@ export default function ImageEnhancePage() {
           );
         }}
         reloadKey={assetsReload}
-        note={`Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzz rá képeket (akár több mappából, max ${MAX_IMAGES}) a Feljavítás / Rendrakás kártyára, és te indítod a folyamatot.`}
+        note={`Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzz rá képeket (akár több mappából, max ${MAX_IMAGES}) a Feljavítás / Rendrakás kártyára. A folyamat csak a megerősítés után indul el, kredit addig nem fogy.`}
       />
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
@@ -470,7 +514,9 @@ export default function ImageEnhancePage() {
                 <>
                   {/* Feltöltő */}
                   <div>
-                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Fotók ({picks.length}/{MAX_IMAGES})</label>
+                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                      Fotók ({picks.length + libPicks.length}/{MAX_IMAGES})
+                    </label>
                     <div
                       onClick={() => inputRef.current?.click()}
                       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -484,7 +530,7 @@ export default function ImageEnhancePage() {
                         onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
                     </div>
 
-                    {picks.length > 0 && (
+                    {(picks.length > 0 || libPicks.length > 0) && (
                       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {picks.map((p, i) => (
                           <div key={p.url} className="relative overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
@@ -495,14 +541,54 @@ export default function ImageEnhancePage() {
                               style={{ background: "rgba(20,12,8,0.6)", color: "#fff" }}>×</button>
                           </div>
                         ))}
+                        {/* A korábbi munkákból választott képek — jelölve, hogy onnan jönnek. */}
+                        {libPicks.map((u) => (
+                          <div key={u} className="relative overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-coral)" }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={u} alt="Korábbi kép" className="h-24 w-full object-cover" />
+                            <span className="absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                              style={{ background: "rgba(255,255,255,0.9)", color: "#7a2e17" }}>korábbi</span>
+                            <button type="button" onClick={() => toggleLibPick(u)} aria-label="Eltávolítás"
+                              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                              style={{ background: "rgba(20,12,8,0.6)", color: "#fff" }}>×</button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  <button onClick={runInitial} disabled={loading || !picks.length}
+                  {/* Korábbi képek — ne kelljen újra feltölteni, ami már fent van. */}
+                  {libraryImages.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                        …vagy válassz a korábbi képeidből
+                      </p>
+                      <div className="mt-2 grid max-h-48 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
+                        {libraryImages.map((u) => {
+                          const on = libPicks.includes(u);
+                          return (
+                            <button key={u} type="button" onClick={() => toggleLibPick(u)}
+                              className="relative overflow-hidden rounded-lg transition hover:opacity-90"
+                              style={{ border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={u} alt="" className="h-16 w-full object-cover" />
+                              {on && (
+                                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                                  style={{ background: "var(--twx-coral)" }}>✓</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={runInitial} disabled={loading || (!picks.length && !libPicks.length)}
                     className="w-full rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                     style={{ background: "var(--twx-coral)" }}>
-                    {loading ? "Feldolgozás… (néhány másodperc képenként)" : `${modeLabel(session)} indítása (1 kredit)`}
+                    {loading
+                      ? "Feldolgozás… (néhány másodperc képenként)"
+                      : `${modeLabel(session)} indítása — ${picks.length + libPicks.length || ""} ${picks.length + libPicks.length ? "kép · " : ""}1 kredit`}
                   </button>
                 </>
               ) : (
