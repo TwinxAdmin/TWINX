@@ -486,11 +486,31 @@ export default function ImageEnhancePage() {
         <div onClick={loading ? undefined : closeSession} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.5)" }}>
           <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
             style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
-            <div className="flex items-center justify-between border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
-              <div className="font-display text-lg font-semibold">
-                {producedMode ? `${modeLabel(producedMode)} — kész` : modeLabel(session)}
+            {/* Fejléc a művelet ikonjával — rögtön látszik, melyik folyamatban vagyunk. */}
+            <div className="flex items-center justify-between gap-3 border-b px-5 py-4"
+              style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{
+                    background: WORK_META[(producedMode ?? session) as WorkKind].soft,
+                    color: WORK_META[(producedMode ?? session) as WorkKind].color,
+                  }}>
+                  <WorkIcon kind={(producedMode ?? session) as WorkKind} size={20} />
+                </span>
+                <div>
+                  <p className="font-display text-lg font-semibold leading-tight">
+                    {producedMode ? `${modeLabel(producedMode)} — kész` : modeLabel(session)}
+                  </p>
+                  <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {producedMode
+                      ? "Az eredmény mentve a korábbi munkáid közé."
+                      : `Válassz képeket, majd erősítsd meg — legfeljebb ${MAX_IMAGES} kép, 1 kredit.`}
+                  </p>
+                </div>
               </div>
-              <button onClick={closeSession} disabled={loading} className="rounded-lg px-2 py-1 text-xl disabled:opacity-40" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+              <button onClick={closeSession} disabled={loading}
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-lg disabled:opacity-40"
+                style={{ background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
@@ -514,9 +534,15 @@ export default function ImageEnhancePage() {
                 <>
                   {/* Feltöltő */}
                   <div>
-                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
-                      Fotók ({picks.length + libPicks.length}/{MAX_IMAGES})
-                    </label>
+                    <div className="mb-1.5 flex items-baseline justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                        Új fotó feltöltése
+                      </label>
+                      <span className="text-[11px] font-medium"
+                        style={{ color: picks.length + libPicks.length ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                        {picks.length + libPicks.length}/{MAX_IMAGES} kiválasztva
+                      </span>
+                    </div>
                     <div
                       onClick={() => inputRef.current?.click()}
                       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -530,51 +556,69 @@ export default function ImageEnhancePage() {
                         onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
                     </div>
 
-                    {(picks.length > 0 || libPicks.length > 0) && (
-                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        {picks.map((p, i) => (
-                          <div key={p.url} className="relative overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
+                  </div>
+
+                  {/* KIVÁLASZTVA — külön, kiemelt sáv, hogy egyértelmű legyen, mivel dolgozunk. */}
+                  {(picks.length > 0 || libPicks.length > 0) && (
+                    <div className="rounded-xl p-3"
+                      style={{ background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }}>
+                      <p className="mb-2 text-xs font-semibold" style={{ color: "#7a2e17" }}>
+                        Ezekkel dolgozunk ({picks.length + libPicks.length})
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                        {[
+                          ...picks.map((p, i) => ({ key: p.url, url: p.url, from: "upload" as const, i })),
+                          ...libPicks.map((u) => ({ key: u, url: u, from: "library" as const, i: -1 })),
+                        ].map((it, idx) => (
+                          <div key={it.key} className="relative overflow-hidden rounded-lg bg-white"
+                            style={{ border: "2px solid var(--twx-coral)", boxShadow: "0 2px 10px rgba(239,122,90,0.25)" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p.url} alt="Feltöltött fotó" className="h-24 w-full object-cover" />
-                            <button type="button" onClick={() => removePick(i)} aria-label="Eltávolítás"
-                              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
-                              style={{ background: "rgba(20,12,8,0.6)", color: "#fff" }}>×</button>
-                          </div>
-                        ))}
-                        {/* A korábbi munkákból választott képek — jelölve, hogy onnan jönnek. */}
-                        {libPicks.map((u) => (
-                          <div key={u} className="relative overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-coral)" }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={u} alt="Korábbi kép" className="h-24 w-full object-cover" />
-                            <span className="absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
-                              style={{ background: "rgba(255,255,255,0.9)", color: "#7a2e17" }}>korábbi</span>
-                            <button type="button" onClick={() => toggleLibPick(u)} aria-label="Eltávolítás"
-                              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm"
-                              style={{ background: "rgba(20,12,8,0.6)", color: "#fff" }}>×</button>
+                            <img src={it.url} alt="" className="h-24 w-full object-cover" />
+                            {/* Sorszám — látszik, hányadik kép a sorban. */}
+                            <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                              style={{ background: "var(--twx-coral)" }}>{idx + 1}</span>
+                            {it.from === "library" && (
+                              <span className="absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                                style={{ background: "rgba(255,255,255,0.92)", color: "#7a2e17" }}>korábbi</span>
+                            )}
+                            <button type="button" aria-label="Eltávolítás"
+                              onClick={() => (it.from === "upload" ? removePick(it.i) : toggleLibPick(it.url))}
+                              className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm transition hover:opacity-80"
+                              style={{ background: "rgba(20,12,8,0.7)", color: "#fff" }}>×</button>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Korábbi képek — ne kelljen újra feltölteni, ami már fent van. */}
                   {libraryImages.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
-                        …vagy válassz a korábbi képeidből
-                      </p>
-                      <div className="mt-2 grid max-h-48 grid-cols-4 gap-2 overflow-y-auto pr-1 sm:grid-cols-6">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+                        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                          vagy válassz a korábbi képeidből
+                        </span>
+                        <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
+                      </div>
+                      <div className="grid max-h-52 grid-cols-4 gap-2 overflow-y-auto rounded-xl p-2 sm:grid-cols-6"
+                        style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
                         {libraryImages.map((u) => {
                           const on = libPicks.includes(u);
                           return (
                             <button key={u} type="button" onClick={() => toggleLibPick(u)}
-                              className="relative overflow-hidden rounded-lg transition hover:opacity-90"
-                              style={{ border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)" }}>
+                              className="relative overflow-hidden rounded-lg transition"
+                              style={on
+                                ? { outline: "3px solid var(--twx-coral)", outlineOffset: "-3px", boxShadow: "0 2px 10px rgba(239,122,90,0.35)" }
+                                : { border: "1px solid var(--twx-line)", opacity: 0.85 }}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={u} alt="" className="h-16 w-full object-cover" />
                               {on && (
-                                <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                                  style={{ background: "var(--twx-coral)" }}>✓</span>
+                                <>
+                                  <span className="absolute inset-0" style={{ background: "rgba(239,122,90,0.18)" }} />
+                                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white shadow"
+                                    style={{ background: "var(--twx-coral)" }}>✓</span>
+                                </>
                               )}
                             </button>
                           );
@@ -583,13 +627,21 @@ export default function ImageEnhancePage() {
                     </div>
                   )}
 
-                  <button onClick={runInitial} disabled={loading || (!picks.length && !libPicks.length)}
-                    className="w-full rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                    style={{ background: "var(--twx-coral)" }}>
-                    {loading
-                      ? "Feldolgozás… (néhány másodperc képenként)"
-                      : `${modeLabel(session)} indítása — ${picks.length + libPicks.length || ""} ${picks.length + libPicks.length ? "kép · " : ""}1 kredit`}
-                  </button>
+                  <div className="sticky bottom-0 -mx-4 -mb-4 border-t px-4 pb-4 pt-3 sm:-mx-5 sm:-mb-5 sm:px-5"
+                    style={{ background: "var(--twx-cream-card)", borderColor: "var(--twx-line)" }}>
+                    <button onClick={runInitial} disabled={loading || (!picks.length && !libPicks.length)}
+                      className="w-full rounded-xl px-5 py-3 text-sm font-semibold text-white transition disabled:opacity-50"
+                      style={{ background: "var(--twx-coral)" }}>
+                      {loading
+                        ? "Feldolgozás… (néhány másodperc képenként)"
+                        : picks.length + libPicks.length
+                          ? `${modeLabel(session)} indítása — ${picks.length + libPicks.length} kép · 1 kredit`
+                          : "Válassz legalább egy képet"}
+                    </button>
+                    <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      A kredit csak a gomb megnyomásakor fogy.
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>
