@@ -360,28 +360,38 @@ function freshnessBlock(input: ValuationInput): string {
 
   return `ADATFRISSESSÉG ÉS MINTAVÉTEL:
 
-Mai dátum: ${d(now)}. ELSŐDLEGESEN a ${d(from)} és ${d(now)} közötti időszakban
-publikált, jelenleg is aktív hirdetésekkel dolgozz. Preferált források:
-ingatlan.com, dh.hu, oc.hu, valamint a ${now.getFullYear()}-os hivatalos piaci
-jelentések (KSH, Duna House Barométer).
+Mai dátum: ${d(now)}. Elsődlegesen a ${d(from)} és ${d(now)} közötti időszak friss
+piaci adataival dolgozz: hirdetési portálok (ingatlan.com, dh.hu, oc.hu) kínálati
+árai és statisztikái, valamint a ${now.getFullYear()}-os hivatalos jelentések
+(KSH, Duna House Barométer, kerületi/települési átlagos négyzetméterárak).
 
-Ideális minta: 5-8 (lehetőleg 15) valós, aktív, a paraméterekkel egyező hirdetés,
-a vizsgált ingatlannal AZONOS műszaki állapotban${allapot ? ` (itt: ${allapot})` : ""}.
+Ideális esetben 5-8 (lehetőleg 15) hasonló, a vizsgált ingatlannal azonos műszaki
+állapotú${allapot ? ` (itt: ${allapot})` : ""} kínálati adatot veszel alapul.
 
-HA NINCS ELÉG TALÁLAT, EBBEN A SORRENDBEN LAZÍTS (mindig jelezd, meddig jutottál):
-1. Terjeszd ki a keresést a közvetlen, azonos árfekvésű szomszédos utcákra,
-   majd az azonos megítélésű városrészre (a kerület/település határán belül).
-2. Bővítsd az időablakot ${d(half)}-ig, ha kell, ${d(year)}-ig — a régebbi árakat
-   igazítsd az azóta eltelt piaci árváltozáshoz.
-3. Vonj be eltérő műszaki állapotú referenciát is, de az árát korrigáld az
-   állapotkülönbséggel, és a listában tüntesd fel az állapotot.
-4. Végső esetben hivatalos statisztikákból (KSH, Duna House Barométer, a kerület
-   átlagos nm-ára) vezesd le a becslést.
+HA A KONKRÉT HIRDETÉSEK NEM AZONOSÍTHATÓK BE, EBBEN A SORRENDBEN LÉPJ TOVÁBB
+(a végén mindig írd meg, meddig kellett menned):
+1. Szomszédos, azonos árfekvésű utcák, majd az azonos megítélésű városrész
+   (a kerület/település határán belül).
+2. Tágabb időablak: ${d(half)}, ha kell ${d(year)} — a régebbi árakat igazítsd az
+   azóta eltelt piaci árváltozáshoz.
+3. Eltérő műszaki állapotú referencia is bevonható, de az árát korrigáld az
+   állapotkülönbséggel, és tüntesd fel az állapotot.
+4. Aggregált piaci adat: a kerület/városrész publikált átlagos négyzetméterára az
+   adott szegmensben (típus, állapot, méretkategória), a paraméterekkel korrigálva.
 
-FONTOS: a becslést SOHA ne tagadd meg, és ne írd azt, hogy "nem meghatározható".
-Minden kért értékre adj konkrét számot vagy ársávot. Adatot ne találj ki: ha kevés
-vagy közvetett forrásból dolgoztál, azt az ADATMINŐSÉG sorban írd meg őszintén
-(hány hirdetést találtál, milyen időablakból, melyik lazítási lépésig kellett menni).`;
+EZ A LEGFONTOSABB SZABÁLY:
+- A becslést SOHA ne tagadd meg. Nem elfogadható válasz a "nem tudok becslést
+  készíteni", a "nem meghatározható" vagy a felhasználótól adatot kérő mondat.
+  A kimenet MINDIG a kért 1-10 pontos struktúra, minden számmal kitöltve.
+- Az ár akkor is megbecsülhető, ha EGYETLEN konkrét hirdetést sem tudsz
+  beazonosítani: ilyenkor a kerületi/városrészi átlagos négyzetméterárból és a
+  megadott paraméterekből (típus, méret, állapot, építés éve, szint, extrák)
+  vezesd le, szakértői korrekciókkal.
+- Amit tilos: KITALÁLT konkrét hirdetést közölni (kitalált cím, link, hirdető).
+  Ha nincs beazonosítható hirdetés, a "5 db hasonló ingatlan" pontban a szegmensre
+  JELLEMZŐ kínálati sávokat mutasd be, és jelezd, hogy aggregált adatból származnak.
+- Az ADATMINŐSÉG sorban írd meg őszintén: hány konkrét hirdetést sikerült
+  azonosítani, milyen időablakból, és melyik lépésig kellett lazítani.`;
 }
 
 /** A lokációs korrekció sorai. Ha nincs felár, ezt egyértelműen kimondjuk,
@@ -444,14 +454,14 @@ Keresési és elemzési instrukciók (ezt a háttérben végezd el):
 2. ELEMZÉS: A háttérben vizsgálj meg lehetőleg tizenöt darab (15 db) releváns összehasonlító ingatlant (semmiképp se téveszd össze a darabszámot Budapest 15. kerületével!). Ha ennyi nem érhető el, kevesebből is dolgozz — a becslés akkor is elkészül, csak jelezd a minta méretét.
 3. ÁRELLENŐRZÉS: Első lépésként vizsgáld meg a kapott árakat. Zárd ki az irreálisan magas vagy alacsony (outlier) hirdetéseket. Ha a megmaradt adatokból számolt átlagár jelentősen eltér a normál piaci trendektől, futtasd le újra a keresést és finomítsd a számítást a legtisztább adatok alapján.
 4. IDŐBELI ÉS FORRÁS KORLÁT: Elsődlegesen az elmúlt 3 hónapban publikált, jelenleg is aktív adatokkal és hirdetésekkel dolgozz (a pontos dátumtartomány az adatblokkban szerepel). Kereséskor preferáld az ingatlan.com, dh.hu és oc.hu adatait, valamint az aktuális évi hivatalos piaci jelentéseket (KSH, Duna House Barométer).
-5. MINTA MÉRETE: Cél legalább 5-8 valós, aktív, a paramétereknek megfelelő hirdetés. Adatot NE találj ki. Ha nincs elegendő találat, az adatblokkban leírt LAZÍTÁSI SORREND szerint bővítsd a keresést (szomszédos utcák → tágabb időablak → eltérő állapot korrekcióval → hivatalos statisztika).
+5. MINTA MÉRETE: Cél legalább 5-8 hasonló, a paramétereknek megfelelő kínálati adat. KITALÁLT konkrét hirdetést (cím, link, hirdető) közölni tilos. Ha nincs elegendő beazonosítható találat, az adatblokkban leírt sorrend szerint lépj tovább (szomszédos utcák → tágabb időablak → eltérő állapot korrekcióval → aggregált kerületi átlagár).
 6. ÁLLAPOT-SZŰRŐ: Az átlagszámításba elsősorban a vizsgált ingatlannal AZONOS műszaki állapotú (pl. felújított / közepes / felújítandó) referenciákat vedd be. Eltérő állapotú csak akkor kerülhet be, ha másképp nincs elég adat — ilyenkor az árát korrigáld az állapotkülönbséggel, és jelezd.
-7. NINCS MEGTAGADÁS: Minden kért értékre adj konkrét számot vagy ársávot. A "nem meghatározható" válasz nem elfogadható; ha kevés az adat, a bizonytalanságot az ADATMINŐSÉG sorban írd le.
+7. NINCS MEGTAGADÁS: A becslés minden esetben elkészül. Ha egyetlen konkrét hirdetést sem tudsz beazonosítani, a kerületi/városrészi átlagos négyzetméterárból és a megadott paraméterekből vezesd le az árat. Tilos a "nem tudok becslést készíteni", a "nem meghatározható" és a felhasználótól adatot kérő válasz — a kimenet mindig a kért 1-10 pontos struktúra, minden számmal kitöltve. A bizonytalanságot az ADATMINŐSÉG sorban írd le.
 8. LOKÁCIÓS PRÉMIUM KORREKCIÓ: Az árellenőrzés után kapott tiszta piaci átlagárat (bázisár) KÖTELEZŐEN súlyozd a megadott "Lokációs prémium" értékkel. A százalékot NE te határozd meg: pontosan a megadott értékkel számolj. Ha a prémium 0% vagy "NINCS", semmilyen lokációs szorzót ne alkalmazz, és a korrekciós sorban ezt jelezd. A korrekció a bázisárra vonatkozik, és a további levezetett értékeket (négyzetméterár, gyors eladási ár) is ehhez a korrigált árhoz igazítsd.`,
   task: `Kimeneti struktúra (kérlek, SZIGORÚAN ezt a formát kövesd, rövid, vázlatpontos formában):
 
 1. RÖVID ÖSSZEFOGLALÓ: (2-3 mondat a lokáció aktuális piaci helyzetéről).
-2. 5 DB HASONLÓ INGATLAN: (Az elemzett darabokból a legrelevánsabb 5 listája. Tartalmazza: méret, állapot, irányár, becsült eladási idő, valamint a FORRÁS és a hirdetés dátuma — hogy a frissesség ellenőrizhető legyen).
+2. 5 DB HASONLÓ INGATLAN: (Az elemzett kínálatból a legrelevánsabb 5 tétel. Tartalmazza: méret, állapot, irányár, becsült eladási idő, valamint a forrás és — ha ismert — a hirdetés dátuma. Ha konkrét hirdetés nem azonosítható be, a szegmensre jellemző kínálati sávokat mutasd be, és jelöld meg, hogy aggregált piaci adatból származnak.)
 3. LOKÁCIÓS PRÉMIUM KORREKCIÓ: (Önálló sor. KIZÁRÓLAG ezt a hármat tartalmazza, más szöveget ne: a módosítás pontos százalékos mértéke; az összegszerű különbség HUF-ban; a korrigált végső ár HUF-ban. Ha nincs prémium, csak ennyit írj: "0% — nincs lokációs korrekció".)
 4. PIACI ÁR: (HUF — a lokációs korrekcióval együtt)
 5. ÁTLAGOS NÉGYZETMÉTERÁR: (HUF/nm)
@@ -459,7 +469,9 @@ Keresési és elemzési instrukciók (ezt a háttérben végezd el):
 7. VÁRHATÓ ELADÁSI IDŐ: (Hónapban megadva, normál piaci áron).
 8. SWOT-ANALÍZIS: (Csak tömör kulcsszavas felsorolás a 4 ponthoz).
 9. ÖSSZEGZÉS: (1-2 mondatos tényszerű konklúzió az eladhatóságról).
-10. ADATMINŐSÉG: (1-2 mondat: hány összehasonlító hirdetést használtál, milyen időablakból, kellett-e lazítani a szűrőkön, és mennyire megbízható ettől a becslés.)`,
+10. ADATMINŐSÉG: (1-2 mondat: hány összehasonlító hirdetést használtál, milyen időablakból, kellett-e lazítani a szűrőkön, és mennyire megbízható ettől a becslés.)
+
+Mind a 10 pont kötelező, mindegyik konkrét értékkel. Ne kérj vissza adatot, ne tegyél fel kérdést, és ne írj a struktúrán kívüli mentegetőzést.`,
 };
 
 export function composeValuationPrompt(
