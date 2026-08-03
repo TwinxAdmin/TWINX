@@ -227,6 +227,10 @@ function tryParseStored(raw: string, facts: ValuationFacts): ReportDoc | null {
 }
 
 const HIGHLIGHT_RULES: { test: RegExp; label: string; accent?: boolean }[] = [
+  // Új struktúra (2026-08): Becsült piaci érték + Értéksáv
+  { test: /becsült\s*piaci\s*érték|piaci\s*érték/i, label: "Becsült piaci érték", accent: true },
+  { test: /értéksáv/i, label: "Értéksáv" },
+  // Visszamenőleges kompatibilitás a korábbi riportokkal
   { test: /piaci\s*ár/i, label: "Piaci ár", accent: true },
   { test: /négyzetméterár|nm-?ár/i, label: "Átlagos nm-ár" },
   { test: /gyors\s*eladási/i, label: "Gyors eladási ár" },

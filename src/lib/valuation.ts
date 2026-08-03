@@ -346,51 +346,22 @@ ${freshnessBlock(input)}`;
  * "az elmúlt 3 hónap". A kódból generáljuk, mert az ai_prompts aktív szegmensei
  * felülírhatják az intro/task szövegét.
  */
-function freshnessBlock(input: ValuationInput): string {
+function freshnessBlock(_input: ValuationInput): string {
   const now = new Date();
   const from = new Date(now);
-  from.setMonth(from.getMonth() - 3);
+  from.setMonth(from.getMonth() - 6);
   const d = (x: Date) => x.toISOString().slice(0, 10);
-  const allapot = String(input.allapot ?? "").trim();
 
-  const half = new Date(now);
-  half.setMonth(half.getMonth() - 6);
-  const year = new Date(now);
-  year.setFullYear(year.getFullYear() - 1);
-
-  return `ADATFRISSESSÉG ÉS MINTAVÉTEL:
-
-Mai dátum: ${d(now)}. A keresés NYILVÁNOS, szabadon elérhető szakmai forrásokra van
-szűkítve — ne próbálj zárt hirdetési adatbázisból tételes hirdetéseket kinyerni.
-Amiből dolgozz: a legfrissebb (${now.getFullYear()}-os) piaci elemzések, cikkek,
-statisztikák és a publikált kerületi/települési átlagos négyzetméterárak — KSH,
-MNB lakásárindex, ingatlan.com piaci elemzések, Duna House Barométer, Otthon Centrum,
-otthonterkep.hu, ingatlannet statisztikák, szakmai sajtó.
-Elsődlegesen a ${d(from)} és ${d(now)} közötti közlésekre támaszkodj; ha ilyen nincs,
-${d(half)}-ig, végső esetben ${d(year)}-ig menj vissza, és a régebbi árat igazítsd az
-azóta publikált piaci árváltozáshoz.
-
-A SZÁMÍTÁS MENETE (ezt kövesd, és a levezetést írd is le):
-1. BÁZIS NÉGYZETMÉTERÁR: keresd meg a konkrét kerület/városrész publikált átlagos
-   négyzetméterárát a megfelelő szegmensben (ingatlantípus, ${allapot ? `állapot: ${allapot}` : "állapot"},
-   méretkategória). Ha csak tágabb bontás érhető el (pl. teljes kerület), abból indulj ki,
-   és jelezd. Több forrás esetén a frissebb és a szűkebb bontású adat az erősebb.
-2. MIKROLOKÁCIÓS IGAZÍTÁS: a megadott utca/városrész megítélése alapján igazítsd a
-   bázis nm-árat a kerületi átlaghoz képest (jellemzően ±10%), indokolva.
-3. INGATLAN-SPECIFIKUS KORREKCIÓK: százalékosan, tételesen felsorolva — műszaki
-   állapot, építés éve, emelet és lift, tájolás, fűtés/energetika, telek, extrák
-   (erkély, garázs, klíma, panoráma). Minden korrekciónál írd le a mértékét és az okát.
-4. VÉGSŐ NM-ÁR × MÉRET = piaci ár. Az eredményt kerekítsd, és adj hozzá ±5% ársávot.
-
-MIT NE CSINÁLJ:
-- Ne találj ki konkrét hirdetést (kitalált cím, link, hirdető, irányár). Ha egy publikus
-  elemzés konkrét árakat közöl, azt idézheted a forrás megjelölésével.
-- Ne tagadd meg a becslést. Nem elfogadható a "nem tudok becslést készíteni", a
-  "nem meghatározható" vagy a felhasználótól adatot kérő mondat: a kerületi átlagár és a
-  megadott paraméterek MINDIG elegendő matematikai alapot adnak. A kimenet mindig a kért
-  1-11 pontos struktúra, minden számmal kitöltve.
-- Az ADATMINŐSÉG sorban írd meg őszintén, mely forrásokra és milyen keltezésű adatokra
-  támaszkodtál, és mennyire szűk bontású volt a bázisár.`;
+  return `ADATFRISSESSÉG (konkrét dátumtartomány a fenti "Források" szabályhoz):
+- Mai dátum: ${d(now)}. Elsődlegesen a ${d(from)} és ${d(now)} közötti (elmúlt 6 hónap)
+  nyilvános piaci közlésekre támaszkodj. Ha ebből nincs elég, mehetsz régebbre, de a
+  régebbi árat igazítsd az azóta publikált piaci árváltozáshoz, és ezt az Adatminőség
+  szakaszban jelezd.
+- Nyilvános források, amiket használhatsz: országos és helyi ingatlanpiaci statisztikák,
+  hirdetési átlagárak és kerületi/települési átlagos négyzetméterárak, szakmai elemzések
+  és cikkek (pl. KSH, MNB lakásárindex, ingatlan.com és Duna House piaci elemzések,
+  Otthon Centrum, otthonterkep.hu, szakmai sajtó). Zárt hirdetési adatbázisból NE próbálj
+  tételes hirdetéseket kinyerni; kitalált konkrét hirdetést (cím, link, hirdető) tilos közölni.`;
 }
 
 /** A lokációs korrekció sorai. Ha nincs felár, ezt egyértelműen kimondjuk,
@@ -402,24 +373,19 @@ function locationBlock(input: ValuationInput): string {
     return `- Lokációs kategória: ${category || "Átlagos"}
 - Lokációs prémium: NINCS (0%) — ne alkalmazz semmilyen lokációs szorzót
 
-KÖTELEZŐ LOKÁCIÓS SZABÁLY: a lokáció átlagos, ezért a piaci átlagárat NEM
-módosítod felfelé. A levezetésben ettől függetlenül szerepeljen egy
-"Lokációs prémium korrekció" nevű önálló sor, ezzel a tartalommal:
-0% — 0 Ft — a korrigált ár megegyezik a piaci átlagárral.`;
+KÖTELEZŐ LOKÁCIÓS SZABÁLY: a lokáció átlagos, ezért a bázisárat NEM módosítod felfelé.
+A "Korrekciós táblázat" szakaszban ettől függetlenül szerepeljen egy "Lokációs prémium"
+sor, ezzel a tartalommal: 0% — 0 Ft — a korrigált ár megegyezik a bázisárral.`;
   }
   return `- Lokációs kategória: ${category}
 - Lokációs prémium: ${pct}% (a partner által megadott, KÖTELEZŐEN ezzel számolj)
 
-KÖTELEZŐ LOKÁCIÓS SZABÁLY: az árellenőrzés után kapott tiszta piaci átlagárat
-KÖTELEZŐEN súlyozd pontosan ${pct}%-os értéknövelő szorzóval (bázisár × ${(1 + pct / 100).toFixed(2)}).
-Saját szorzót NE találj ki, és a ${pct}%-tól semmilyen irányban ne térj el.
-A végső strukturált levezetésben hozz létre egy önálló, "Lokációs prémium korrekció"
-nevű sort, amely KIZÁRÓLAG ezt a három adatot tartalmazza:
-1) a módosítás pontos százalékos mértéke (${pct}%),
-2) az összegszerű különbség forintban,
-3) a korrigált végső ár.
-Minden ezt követő ár (ársáv, ajánlott hirdetési ár, összegzés) már a korrigált
-árra épüljön.`;
+KÖTELEZŐ LOKÁCIÓS SZABÁLY: a bázisárat KÖTELEZŐEN súlyozd pontosan ${pct}%-os értéknövelő
+szorzóval (bázisár × ${(1 + pct / 100).toFixed(2)}). Saját szorzót NE találj ki, és a ${pct}%-tól
+semmilyen irányban ne térj el. A "Korrekciós táblázat" szakaszban szerepeljen egy "Lokációs
+prémium" sor, amely tartalmazza: a százalékos mértéket (${pct}%), a forintos különbséget és a
+korrigált árat. Minden ezt követő érték (végső nm-ár, becsült piaci érték, értéksáv) már a
+lokációs prémiummal korrigált árra épüljön.`;
 }
 
 export const VALUATION_DATA_BLOCK_PREVIEW = `Az értékelt ingatlan adatai:
@@ -441,37 +407,110 @@ export const VALUATION_DATA_BLOCK_PREVIEW = `Az értékelt ingatlan adatai:
 - Lokációs prémium: {lokációs prémium %}`;
 
 export const VALUATION_DEFAULT_SEGMENTS = {
-  intro: `Bújj egy tapasztalt, adatalapú ingatlanpiaci szakértő szerepébe. Száraz, tényszerű, strukturált elemzést várok tőled. A válaszodban NE utalj a szemléletedre, a stílusodra, és ne használj olyan kifejezéseket a saját elemzésedre, mint "reális", "óvatos" vagy "pesszimista" – csak a tiszta adatokat és a végeredményt add meg a kért formátumban. Ne írj felesleges körítést vagy bevezetőt.
+  intro: `Bújj egy tapasztalt, adatalapú ingatlanpiaci szakértő szerepébe. Száraz, tényszerű, strukturált elemzést adj. Ne írj felesleges bevezetőt, ne kommentáld a saját módszeredet, és ne használj önértékelő vagy bizonytalanító kifejezéseket. A feladat kizárólag az, hogy a megadott lakásra a lehető legpontosabb piaci értékbecslést készítsd a legrelevánsabb és legfrissebb elérhető nyilvános adatok alapján.
 
-Feladat: Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező ingatlanról.
+### Feladat
+Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező **lakásról**.
 
-Keresési és elemzési instrukciók (ezt a háttérben végezd el):
-1. LOKÁCIÓ ÉS KERESÉS: Az összehasonlító ingatlanok felkutatásakor szigorúan tartsd be az alábbi földrajzi szabályokat:
-   - Ha Budapest: Csak és kizárólag az adott kerületen belül keress.
-   - Ha Pest megye (vagy egyéb agglomeráció/vidék): Csak az adott települést és a közvetlenül szomszédos településeket veheted figyelembe.
-   - Mikrolokáció ellenőrzés: Ha meg van adva városrész és utca, a háttérben többszörösen ellenőrizd le, hogy a megadott utca valóban abba a városrészbe esik-e. Az összehasonlításhoz csak azonos megítélésű és árfekvésű városrészből hozz példákat.
-2. ADATGYŰJTÉS: Gyűjtsd össze a lokációra vonatkozó NYILVÁNOS piaci adatokat — a kerület/városrész publikált átlagos négyzetméterárait szegmensenként (típus, állapot, méretkategória), a friss piaci elemzések ártrendjeit, és ha egy elemzés konkrét kínálati árakat közöl, azokat is. Legalább 3-5 egymástól független forrásra támaszkodj.
-3. ÁRELLENŐRZÉS: Vesd össze a forrásokat. Zárd ki az irreálisan magas vagy alacsony (outlier) adatokat, és ahol a források eltérnek, a frissebb és a szűkebb bontású adatot súlyozd erősebben. Ha a végeredmény jelentősen eltér a kerületi átlagtól, azt indokold meg.
-4. IDŐBELI ÉS FORRÁS KORLÁT: Elsődlegesen az elmúlt 3 hónap közléseivel dolgozz (a pontos dátumtartomány az adatblokkban szerepel), az aktuális évi publikus elemzésekre, cikkekre és kerületi átlagárakra építve (KSH, MNB, ingatlan.com elemzések, Duna House Barométer, Otthon Centrum, otthonterkep, szakmai sajtó). Zárt hirdetési adatbázisból NE próbálj tételes hirdetéseket kinyerni.
-5. SZÁMÍTÁSI MENET: Az adatblokkban leírt négy lépést kövesd — bázis négyzetméterár → mikrolokációs igazítás → ingatlan-specifikus korrekciók (százalékosan, tételesen) → végső nm-ár × méret. A levezetést írd is le, hogy a partner ellenőrizni tudja.
-6. ÁLLAPOT: A bázisárat lehetőleg a vizsgált ingatlannal AZONOS műszaki állapotú szegmensből vedd (pl. felújított / közepes / felújítandó). Ha csak vegyes bontású adat érhető el, korrigáld az állapotkülönbséggel, és jelezd.
-7. NINCS MEGTAGADÁS: A becslés minden esetben elkészül. A kerületi átlagár és a megadott paraméterek mindig elegendő matematikai alapot adnak. Tilos a "nem tudok becslést készíteni", a "nem meghatározható" és a felhasználótól adatot kérő válasz — a kimenet mindig a kért 1-11 pontos struktúra, minden számmal kitöltve. A bizonytalanságot az ADATMINŐSÉG sorban írd le.
-8. LOKÁCIÓS PRÉMIUM KORREKCIÓ: Az árellenőrzés után kapott tiszta piaci átlagárat (bázisár) KÖTELEZŐEN súlyozd a megadott "Lokációs prémium" értékkel. A százalékot NE te határozd meg: pontosan a megadott értékkel számolj. Ha a prémium 0% vagy "NINCS", semmilyen lokációs szorzót ne alkalmazz, és a korrekciós sorban ezt jelezd. A korrekció a bázisárra vonatkozik, és a további levezetett értékeket (négyzetméterár, gyors eladási ár) is ehhez a korrigált árhoz igazítsd.`,
-  task: `Kimeneti struktúra (kérlek, SZIGORÚAN ezt a formát kövesd, rövid, vázlatpontos formában):
+### Kötelező elemzési logika
+1. **Lokációs szűrés**
+   - Budapest esetén csak az adott kerületben keress.
+   - Pest megye és más települések esetén az adott település és közvetlenül szomszédos települések vehetők figyelembe.
+   - Ha városrész és utca is meg van adva, ellenőrizd, hogy az utca valóban a megadott városrészhez tartozik-e.
+   - Csak azonos vagy nagyon közeli mikrolokációból válassz összehasonlító adatokat.
 
-1. RÖVID ÖSSZEFOGLALÓ: (2-3 mondat a lokáció aktuális piaci helyzetéről).
-2. PIACI REFERENCIAADATOK: (3-5 adatpont a nyilvános forrásokból: a kerület/városrész átlagos négyzetméterára a megfelelő szegmensben, jellemző ársávok, ártrend. Mindegyiknél tüntesd fel a FORRÁST és a közlés keltét.)
-3. SZÁMÍTÁS LEVEZETÉSE: (Bázis nm-ár → mikrolokációs igazítás → ingatlan-specifikus korrekciók százalékosan, tételesen felsorolva → végső nm-ár. Legyen látható a matematika.)
-4. LOKÁCIÓS PRÉMIUM KORREKCIÓ: (Önálló sor. KIZÁRÓLAG ezt a hármat tartalmazza, más szöveget ne: a módosítás pontos százalékos mértéke; az összegszerű különbség HUF-ban; a korrigált végső ár HUF-ban. Ha nincs prémium, csak ennyit írj: "0% — nincs lokációs korrekció".)
-5. PIACI ÁR: (HUF — a lokációs korrekcióval együtt, ±5% ársávval)
-6. ÁTLAGOS NÉGYZETMÉTERÁR: (HUF/nm)
-7. GYORS ELADÁSI ÁR: (Az az ár, amin 2-3 hónapon belül biztosan likvidálható, HUF).
-8. VÁRHATÓ ELADÁSI IDŐ: (Hónapban megadva, normál piaci áron).
-9. SWOT-ANALÍZIS: (Csak tömör kulcsszavas felsorolás a 4 ponthoz).
-10. ÖSSZEGZÉS: (1-2 mondatos tényszerű konklúzió az eladhatóságról).
-11. ADATMINŐSÉG: (1-2 mondat: mely forrásokra és milyen keltezésű adatokra támaszkodtál, mennyire szűk bontású volt a bázisár, és mennyire megbízható ettől a becslés.)
+2. **Források**
+   - Elsődlegesen az elmúlt 6 hónap nyilvános piaci adatait használd.
+   - Támaszkodj több egymástól független, nyilvános forrásra.
+   - Előnyben részesítendők: országos és helyi ingatlanpiaci statisztikák, hirdetési átlagárak, szakmai elemzések, aktuális kínálati adatok.
+   - Ha források eltérnek, a frissebb, szűkebb bontású és lokálisan releváns adatot súlyozd feljebb.
 
-Mind a 11 pont kötelező, mindegyik konkrét értékkel. Ne kérj vissza adatot, ne tegyél fel kérdést, és ne írj a struktúrán kívüli mentegetőzést.`,
+3. **Compok kiválasztása**
+   - Legalább 5, legfeljebb 8 összehasonlító lakást válassz.
+   - A compsok legyenek a lehető legközelebbiek lokációban, alapterületben, állapotban és ingatlantípusban.
+   - Szűrd ki az outliereket, a szélsőségesen magas vagy alacsony adatokat, valamint a jogilag problémás vagy erősen torzító példákat.
+   - Osztatlan közös, használati megosztásos vagy rendezetlen jogi helyzetű ingatlanokat csak külön megjegyzéssel, csökkentett súllyal vedd figyelembe.
+
+4. **Állapot szerinti illesztés**
+   - A bázisárat lehetőleg azonos műszaki állapotú lakásokból állítsd össze.
+   - Ha ez nem lehetséges, akkor a különbséget külön százalékos korrekcióval kezeld.
+   - Az állapotkorrekció legyen tételes és átlátható.
+
+5. **Lakásspecifikus szempontok**
+   - Külön kezeld az emeletet.
+   - Külön kezeld a lift meglétét vagy hiányát.
+   - Külön kezeld az erkélyt, loggiát, teraszt.
+   - Külön kezeld az utcai vagy belső fekvést.
+   - Külön kezeld a tájolást, benapozottságot, panorámát.
+   - Külön kezeld a közös költséget.
+   - Külön kezeld a társasház állapotát és műszaki színvonalát.
+   - Külön kezeld az energetikai jellemzőket, ha elérhetők.
+
+6. **Számítási menet**
+   - Határozz meg egy bázis négyzetméterárat.
+   - Alkalmazz mikrolokációs korrekciót.
+   - Alkalmazz lakás-specifikus korrekciókat tételesen.
+   - Számíts végső korrigált négyzetméterárat.
+   - Számíts becsült forgalmi értéket a korrigált négyzetméterár és a lakás hasznos alapterülete alapján.
+   - Ha releváns, adj külön értéksávot is.
+
+7. **Lokációs prémium**
+   - A megadott lokációs prémiumot pontosan alkalmazd (a pontos értéket az adatblokk tartalmazza).
+   - Ha a prémium 0% vagy nincs megadva, ne alkalmazz külön lokációs szorzót.
+   - A lokációs prémiumot a bázisárra kell alkalmazni, és minden további levezetést ehhez kell igazítani.
+
+8. **Súlyozás**
+   - A compsokat pontozd a relevancia alapján.
+   - A súlyozás alapja legyen:
+     - lokáció,
+     - időbeliség,
+     - alapterület,
+     - állapot,
+     - emelet és lift,
+     - közös költség,
+     - erkély/loggia/terasz,
+     - jogi tisztaság,
+     - különleges jellemzők.
+   - A leginkább hasonló compok kapjanak nagyobb súlyt.
+   - A súlyozott átlag számítása legyen átlátható.
+
+9. **Bizonytalanság kezelése**
+   - Ne tagadd meg a becslést.
+   - Ha kevés az adat, akkor is készíts becslést a legjobb rendelkezésre álló adatokból.
+   - Az adatkorlátokat az **Adatminőség** sorban jelezd.
+   - Az esetleges bizonytalanságot ne szöveges kitérőkkel, hanem külön mezőben jelenítsd meg.
+
+### Számítási elv
+- Bázisár = a kiválasztott compsok súlyozott átlagos fajlagos ára.
+- Korrigált nm-ár = bázisár + mikrolokációs korrekció + lakás-specifikus korrekciók.
+- Becsült érték = korrigált nm-ár × hasznos alapterület.
+- Ha szükséges, külön jelezd az emelet-, lift-, erkély- és közös költség-hatást.
+
+### Stílus
+- Tényszerű, tömör, strukturált.
+- Csak a lényeges információk szerepeljenek.
+- Számokat, százalékokat és levezetést mindig tételesen mutass.
+- A végső válasz legyen ellenőrizhető és visszakövethető.`,
+  task: `### Kimeneti forma
+A választ KIZÁRÓLAG az alábbi 11 szakaszban add meg. Minden szakaszt önálló, "## " kezdetű markdown címsorként írj ki (pontosan a megadott címmel), a szakaszon belül pedig sima felsorolással vagy rövid bekezdésekkel. Ne tegyél fel kérdést, ne kérj vissza adatot, és ne írj a szerkezeten kívüli szöveget.
+
+## 1. Vizsgált ingatlan adatai
+## 2. Felhasznált források
+## 3. Összehasonlító ingatlanok listája
+## 4. Korlátozások és szűrési elvek
+## 5. Korrekciós táblázat
+## 6. Súlyozás és számítás
+## 7. Becsült piaci érték
+## 8. Értéksáv
+## 9. Adatminőség
+## 10. Rövid szakmai indoklás
+## 11. Végső összegzés
+
+Kötelező tartalmi elvárások:
+- A "Becsült piaci érték" szakaszban egyetlen fő szám szerepeljen forintban (a lokációs prémiummal együtt), az "Értéksáv" szakaszban pedig egy alsó–felső HUF sáv.
+- A "Korrekciós táblázat" tartalmazza a lokációs prémium sort is (a megadott százalék, a forintos különbség és a korrigált ár), valamint a lakás-specifikus korrekciókat tételesen, százalékosan.
+- A "Súlyozás és számítás" mutassa a bázis nm-árat, a compok súlyait és a súlyozott átlagot, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).
+- Mind a 11 szakasz kötelező, konkrét számokkal kitöltve.`,
 };
 
 export function composeValuationPrompt(
