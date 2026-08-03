@@ -157,7 +157,7 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
   let headlinePrice = "";
   const priceIdx = sections.findIndex((s) => /javasolt\s*ár/i.test(s.heading));
   if (priceIdx >= 0) {
-    headlinePrice = firstLine(sections[priceIdx].body);
+    headlinePrice = toSinglePrice(firstLine(sections[priceIdx].body));
     sections.splice(priceIdx, 1);
   }
 
@@ -175,7 +175,7 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
     const est = sections.find((s) =>
       /becsült\s*piaci\s*érték|piaci\s*érték|piaci\s*ár/i.test(s.heading)
     );
-    if (est) headlinePrice = firstValue(est.body);
+    if (est) headlinePrice = toSinglePrice(firstValue(est.body));
   }
 
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
@@ -208,6 +208,33 @@ function firstLine(body: string): string {
       .map((l) => l.replace(/^[-•]\s*/, "").replace(/\*\*/g, "").trim())
       .find((l) => l.length > 0) ?? ""
   );
+}
+
+/**
+ * A fejléc-ár MINDIG egyetlen vételár legyen. A modell néha sávot vagy zárójeles
+ * kiegészítést ad — ezt egy számmá alakítjuk: a zárójeles részt levágjuk, sáv
+ * esetén a középértéket vesszük, és egységes ezres-tagolással formázzuk.
+ */
+function toSinglePrice(raw: string): string {
+  if (!raw) return "";
+  // Zárójeles rész és kósza zárójelek el.
+  let s = raw.replace(/\([^)]*\)?/g, " ").replace(/[()]/g, " ").trim();
+
+  // Számok kигyűjtése (ezres-tagolás lehet szóköz, pont vagy nbsp).
+  const nums = (s.match(/\d[\d.\s ]*\d|\d/g) ?? [])
+    .map((n) => Number(n.replace(/[.\s ]/g, "")))
+    .filter((n) => Number.isFinite(n) && n >= 100000); // csak reális árak
+
+  if (nums.length >= 2) {
+    // Sáv → középérték, ezresre kerekítve.
+    const mid = Math.round((nums[0] + nums[1]) / 2 / 1000) * 1000;
+    return `${mid.toLocaleString("hu-HU").replace(/ /g, " ")} Ft`;
+  }
+  if (nums.length === 1) {
+    return `${nums[0].toLocaleString("hu-HU").replace(/ /g, " ")} Ft`;
+  }
+  // Nincs értelmezhető szám: a nyers szöveget adjuk vissza, kósza zárójel nélkül.
+  return s.replace(/\s+/g, " ").trim();
 }
 
 const STORE_MARKER = "twinxReport";
