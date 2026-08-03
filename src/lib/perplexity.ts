@@ -16,27 +16,33 @@ export function buildValuationPrompt(input: ValuationInput): string {
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
 export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
-// KONKRÉT hirdetések: kizárólag az ingatlan.com — a legnagyobb, legteljesebb
-// magyar kínálat. A többi portál szándékosan kimarad (kevesebb zaj, egységes adat).
-export const LISTING_DOMAINS = ["ingatlan.com"];
-
-// Szakmai elemzések, statisztikák, kerületi átlagárak — a matematikai kontrollhoz.
+// ADATFORRÁS-DÖNTÉS: NEM a zárt hirdetési adatbázisokat próbáljuk feltörni
+// (ÁSZF-be ütközne, és a tételes hirdetésadat úgysem érhető el megbízhatóan).
+// Helyette a NYILVÁNOS, szabadon hozzáférhető szakmai adatokra építünk:
+// friss piaci elemzések, statisztikák és kerületi/települési átlagárak.
+// Ezek stabilabbak és ellenőrizhetők, így a becslés is kiszámíthatóbb lesz.
 export const MARKET_ANALYSIS_DOMAINS = [
-  "ksh.hu", // hivatalos lakáspiaci statisztika
+  // Hivatalos statisztika
+  "ksh.hu", // KSH lakáspiaci jelentések
   "mnb.hu", // MNB lakásárindex
+  // Ingatlanpiaci szereplők publikus elemzései
+  "ingatlan.com/elemzes", // ingatlan.com piaci elemzések (nyilvános rovat)
   "dunahouse.hu", // Duna House Barométer
-  "otthoncentrum.hu", // OC piaci elemzések
-  "portfolio.hu", // ingatlanpiaci elemzések
+  "otthoncentrum.hu", // OC piaci körkép
+  "otthonterkep.hu", // nyilvános kerületi átlagár-térkép
+  "ingatlannet.hu/statisztika", // nyilvános ár-statisztikák
+  // Szakmai sajtó
+  "portfolio.hu",
   "bankmonitor.hu",
-  "ingatlanhirek.hu",
   "penzcentrum.hu",
+  "ingatlanhirek.hu",
+  "g7.hu",
 ];
 
 // Az értékbecslés keresési köre. A Perplexity max 20 domaint fogad el.
 // Env-ből felülírható vesszős listával (VALUATION_SEARCH_DOMAINS).
 export const HU_PROPERTY_DOMAINS: string[] = (
-  process.env.VALUATION_SEARCH_DOMAINS ||
-  [...LISTING_DOMAINS, ...MARKET_ANALYSIS_DOMAINS].join(",")
+  process.env.VALUATION_SEARCH_DOMAINS || MARKET_ANALYSIS_DOMAINS.join(",")
 )
   .split(",")
   .map((d) => d.trim())

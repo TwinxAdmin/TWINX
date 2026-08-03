@@ -91,7 +91,9 @@ export async function POST(request: Request) {
     //    így nagyobb eséllyel dolgozik KONKRÉT hirdetésekből, nem általános cikkekből.
     const prompt = await buildValuationPromptActive(input);
     const { content, sources } = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
-      temperature: 0.2,
+      // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság fontosabb,
+      // mint a fogalmazás változatossága (két futás ne adjon eltérő árat).
+      temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
       recency: VALUATION_RECENCY,
     });
