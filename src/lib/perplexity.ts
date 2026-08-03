@@ -16,32 +16,27 @@ export function buildValuationPrompt(input: ValuationInput): string {
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
 export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
-// Magyar ingatlanpiaci források — ezekre szűkítjük az értékbecslés keresését.
-// A Perplexity max 20 domaint fogad el; a sorrend a fontosság szerinti.
+// KONKRÉT hirdetések: kizárólag az ingatlan.com — a legnagyobb, legteljesebb
+// magyar kínálat. A többi portál szándékosan kimarad (kevesebb zaj, egységes adat).
+export const LISTING_DOMAINS = ["ingatlan.com"];
+
+// Szakmai elemzések, statisztikák, kerületi átlagárak — a matematikai kontrollhoz.
+export const MARKET_ANALYSIS_DOMAINS = [
+  "ksh.hu", // hivatalos lakáspiaci statisztika
+  "mnb.hu", // MNB lakásárindex
+  "dunahouse.hu", // Duna House Barométer
+  "otthoncentrum.hu", // OC piaci elemzések
+  "portfolio.hu", // ingatlanpiaci elemzések
+  "bankmonitor.hu",
+  "ingatlanhirek.hu",
+  "penzcentrum.hu",
+];
+
+// Az értékbecslés keresési köre. A Perplexity max 20 domaint fogad el.
 // Env-ből felülírható vesszős listával (VALUATION_SEARCH_DOMAINS).
 export const HU_PROPERTY_DOMAINS: string[] = (
   process.env.VALUATION_SEARCH_DOMAINS ||
-  [
-    // Hirdetési portálok — innen jönnek a KONKRÉT ingatlanok
-    "ingatlan.com",
-    "oc.hu",
-    "dh.hu",
-    "ingatlannet.hu",
-    "ingatlanbazar.hu",
-    "jofogas.hu",
-    "otthonterkep.hu",
-    "startlak.hu",
-    "alapkolcson.hu",
-    "ingatlantajolo.hu",
-    // Piaci elemzések, hivatalos statisztika — a kontroll-adatokhoz
-    "ksh.hu",
-    "mnb.hu",
-    "dunahouse.hu",
-    "otthoncentrum.hu",
-    "ingatlan.com/elemzes",
-    "portfolio.hu",
-    "bankmonitor.hu",
-  ].join(",")
+  [...LISTING_DOMAINS, ...MARKET_ANALYSIS_DOMAINS].join(",")
 )
   .split(",")
   .map((d) => d.trim())
