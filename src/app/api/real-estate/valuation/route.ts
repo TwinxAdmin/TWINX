@@ -8,7 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { chargeCredit } from "@/lib/credits";
-import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
+import {
+  runSonarWithSources,
+  PERPLEXITY_MODEL,
+  HU_PROPERTY_DOMAINS,
+  VALUATION_RECENCY,
+  type SonarSource,
+} from "@/lib/perplexity";
 import { buildValuationPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
@@ -17,6 +23,15 @@ export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";
+
+/** A felhasznált források külön szakaszként a riport végén (ellenőrizhetőség). */
+function sourcesSection(sources: SonarSource[]): string {
+  if (!sources.length) return "";
+  const lines = sources
+    .slice(0, 12)
+    .map((s) => `- ${s.title}${s.date ? ` (${s.date})` : ""} — ${s.url}`);
+  return `\n\n## Felhasznált források\n${lines.join("\n")}`;
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -72,8 +87,15 @@ export async function POST(request: Request) {
 
   try {
     // 2) Perplexity (Sonar) hívás a validált adatokból (az aktív prompttal).
+    //    A keresést a magyar ingatlanportálokra és piaci forrásokra szűkítjük —
+    //    így nagyobb eséllyel dolgozik KONKRÉT hirdetésekből, nem általános cikkekből.
     const prompt = await buildValuationPromptActive(input);
-    const report = await runSonar(prompt, PERPLEXITY_MODEL, { temperature: 0.2 });
+    const { content, sources } = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
+      temperature: 0.2,
+      domains: HU_PROPERTY_DOMAINS,
+      recency: VALUATION_RECENCY,
+    });
+    const report = content + sourcesSection(sources);
 
     // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
     //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan

@@ -16,6 +16,43 @@ export function buildValuationPrompt(input: ValuationInput): string {
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
 export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
+// Magyar ingatlanpiaci források — ezekre szűkítjük az értékbecslés keresését.
+// A Perplexity max 20 domaint fogad el; a sorrend a fontosság szerinti.
+// Env-ből felülírható vesszős listával (VALUATION_SEARCH_DOMAINS).
+export const HU_PROPERTY_DOMAINS: string[] = (
+  process.env.VALUATION_SEARCH_DOMAINS ||
+  [
+    // Hirdetési portálok — innen jönnek a KONKRÉT ingatlanok
+    "ingatlan.com",
+    "oc.hu",
+    "dh.hu",
+    "ingatlannet.hu",
+    "ingatlanbazar.hu",
+    "jofogas.hu",
+    "otthonterkep.hu",
+    "startlak.hu",
+    "alapkolcson.hu",
+    "ingatlantajolo.hu",
+    // Piaci elemzések, hivatalos statisztika — a kontroll-adatokhoz
+    "ksh.hu",
+    "mnb.hu",
+    "dunahouse.hu",
+    "otthoncentrum.hu",
+    "ingatlan.com/elemzes",
+    "portfolio.hu",
+    "bankmonitor.hu",
+  ].join(",")
+)
+  .split(",")
+  .map((d) => d.trim())
+  .filter(Boolean);
+
+// A források frissessége. Alapból "year": a hirdetésoldalak publikálási dátuma
+// gyakran bizonytalan, egy "month" szűrő könnyen kinullázná a találatokat —
+// a 3 hónapos preferenciát a prompt kéri. Env-ből szigorítható.
+export const VALUATION_RECENCY = (process.env.VALUATION_SEARCH_RECENCY ||
+  "year") as SonarRecency;
+
 export async function runValuation(input: ValuationInput): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) throw new Error("Hiányzó PERPLEXITY_API_KEY.");
@@ -55,12 +92,21 @@ function apiKeyOrThrow(): string {
   return apiKey;
 }
 
+export type SonarRecency = "hour" | "day" | "week" | "month" | "year";
+
 // Szinkron hívás egy tetszőleges modellel (pl. sonar-pro a "normál" szinthez).
 // opts.disableSearch: webkeresés kikapcsolása (pl. copywritinghez, csak a megadott tények).
+// opts.domains: a keresés ezekre a domainekre szűkül (allowlist, max 20 elem).
+// opts.recency: a források publikálási ideje ennél frissebb legyen.
 export async function runSonar(
   prompt: string,
   model: string,
-  opts?: { disableSearch?: boolean; temperature?: number }
+  opts?: {
+    disableSearch?: boolean;
+    temperature?: number;
+    domains?: string[];
+    recency?: SonarRecency;
+  }
 ): Promise<string> {
   const apiKey = apiKeyOrThrow();
   const body: Record<string, unknown> = {
@@ -69,6 +115,9 @@ export async function runSonar(
     temperature: opts?.temperature ?? 0.2,
   };
   if (opts?.disableSearch) body.disable_search = true;
+  // A Perplexity legfeljebb 20 domaint fogad el az allowlistában.
+  if (opts?.domains?.length) body.search_domain_filter = opts.domains.slice(0, 20);
+  if (opts?.recency) body.search_recency_filter = opts.recency;
 
   const res = await fetch(`${PPLX_BASE}/chat/completions`, {
     method: "POST",
@@ -83,6 +132,56 @@ export async function runSonar(
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Üres válasz a keresőtől.");
   return content as string;
+}
+
+export type SonarSource = { title: string; url: string; date?: string };
+
+/**
+ * Ugyanaz, mint a runSonar, de a felhasznált FORRÁSOKAT is visszaadja.
+ * Így a riportban valódi hivatkozások szerepelhetnek (ellenőrizhető adat).
+ * A Perplexity a `search_results` (újabb) vagy a `citations` (régebbi) mezőt adja.
+ */
+export async function runSonarWithSources(
+  prompt: string,
+  model: string,
+  opts?: { temperature?: number; domains?: string[]; recency?: SonarRecency }
+): Promise<{ content: string; sources: SonarSource[] }> {
+  const apiKey = apiKeyOrThrow();
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: opts?.temperature ?? 0.2,
+  };
+  if (opts?.domains?.length) body.search_domain_filter = opts.domains.slice(0, 20);
+  if (opts?.recency) body.search_recency_filter = opts.recency;
+
+  const res = await fetch(`${PPLX_BASE}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Üres válasz a keresőtől.");
+
+  const sources: SonarSource[] = [];
+  const raw = data?.search_results;
+  if (Array.isArray(raw)) {
+    for (const r of raw) {
+      const url = typeof r?.url === "string" ? r.url : "";
+      if (!url) continue;
+      sources.push({ title: typeof r?.title === "string" ? r.title : url, url, date: r?.date });
+    }
+  } else if (Array.isArray(data?.citations)) {
+    for (const c of data.citations) {
+      if (typeof c === "string" && c) sources.push({ title: c, url: c });
+    }
+  }
+  return { content: content as string, sources };
 }
 
 // Aszinkron beküldés (pl. sonar-deep-research a "magas" szinthez).
