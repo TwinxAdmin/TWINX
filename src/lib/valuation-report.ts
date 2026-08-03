@@ -169,10 +169,13 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
 
   for (const s of sections) s.body = s.body.replace(/\n{3,}/g, "\n\n").trim();
 
-  // Ha az AI nem adott külön "Javasolt ár"-t, a Becsült piaci értékből vezetjük le.
+  // Ha az AI nem adott külön "Javasolt ár"-t, a Becsült piaci értékből (vagy a
+  // régi riportoknál a "Piaci ár"-ból) vezetjük le a fejléc-árat.
   if (!headlinePrice) {
-    const est = sections.find((s) => /becsült\s*piaci\s*érték|piaci\s*érték/i.test(s.heading));
-    if (est) headlinePrice = firstLine(est.body);
+    const est = sections.find((s) =>
+      /becsült\s*piaci\s*érték|piaci\s*érték|piaci\s*ár/i.test(s.heading)
+    );
+    if (est) headlinePrice = firstValue(est.body);
   }
 
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
@@ -265,13 +268,23 @@ const HIGHLIGHT_RULES: { test: RegExp; label: string; accent?: boolean }[] = [
   { test: /eladási\s*idő/i, label: "Várható eladási idő" },
 ];
 
-/** Az első értelmes érték a szakasz szövegéből (szám + mértékegység). */
+/** Az első értelmes érték a szakasz szövegéből (lehetőleg szám + mértékegység). */
 function firstValue(body: string): string {
-  const line = body
+  const lines = body
     .split("\n")
     .map((l) => l.replace(/^-\s*/, "").replace(/\*\*/g, "").trim())
-    .find((l) => l.length > 0);
-  if (!line) return "";
+    .filter((l) => l.length > 0);
+  if (!lines.length) return "";
+
+  // Elsőként egy olyan sort keresünk, amiben tényleg szerepel összeg/szám —
+  // így nem a leíró mondatot (pl. "Az az ár, amin...") emeljük ki.
+  const numeric = lines.find((l) => /\d/.test(l));
+  let line = numeric ?? lines[0];
+
+  // "Piaci ár: 62 000 000 Ft" -> a kettőspont utáni érték a lényeg.
+  const afterColon = line.split(":").slice(1).join(":").trim();
+  if (afterColon && /\d/.test(afterColon)) line = afterColon;
+
   // "kb. 62 000 000 Ft (62 M Ft)" -> az első zárójel előtti rész elég.
   const short = line.split(/[(（]/)[0].trim();
   const value = short.length > 42 ? `${short.slice(0, 42).trim()}…` : short;

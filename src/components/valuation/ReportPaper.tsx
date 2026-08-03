@@ -4,7 +4,7 @@
 // A szerkesztő csak "ráül" erre a dizájnra (editable prop), a kinézet nem változik.
 "use client";
 
-import { useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 import type { ReportDoc, ReportSection } from "@/lib/valuation-report";
 import { reportHighlights } from "@/lib/valuation-report";
 
@@ -242,8 +242,11 @@ function Cover({
         </span>
       </div>
 
-      {/* Kiemelt JAVASOLT ÁR a dokumentum tetején */}
-      {(doc.headlinePrice || tools) && (
+      {/* Kiemelt JAVASOLT ÁR a dokumentum tetején.
+          - van érték: nagy, korall sávban;
+          - szerkesztőben, érték nélkül: halvány, keretes felhívás;
+          - PDF-ben, érték nélkül: nem jelenik meg. */}
+      {doc.headlinePrice ? (
         <div
           style={{
             marginTop: 22,
@@ -253,63 +256,112 @@ function Cover({
             color: "#1c1005",
           }}
         >
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              opacity: 0.8,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div style={priceLabelStyle}>
             Javasolt ár
             {tools && (
-              <button
-                type="button"
+              <HeaderEditBtn
                 onClick={() => tools.setEditingId(editingPrice ? null : "__headline")}
-                style={{
-                  borderRadius: 999,
-                  border: "1px solid rgba(28,16,5,0.35)",
-                  background: "transparent",
-                  color: "#1c1005",
-                  fontSize: 11,
-                  padding: "2px 9px",
-                }}
-              >
-                {editingPrice ? "Kész" : "Szerkeszt"}
-              </button>
+                label={editingPrice ? "Kész" : "Szerkeszt"}
+                onDark
+              />
             )}
           </div>
           {editingPrice ? (
-            <input
-              value={doc.headlinePrice}
-              onChange={(e) => tools?.onChange("__headline", { body: e.target.value })}
-              placeholder="pl. 64 800 000 Ft (61,5–68,0 M Ft)"
-              style={{
-                marginTop: 6,
-                width: "100%",
-                fontSize: 24,
-                fontWeight: 700,
-                letterSpacing: "-0.01em",
-                color: "#1c1005",
-                background: "rgba(255,255,255,0.5)",
-                border: "1px solid rgba(28,16,5,0.3)",
-                borderRadius: 8,
-                padding: "4px 8px",
-                outline: "none",
-                fontFamily: "inherit",
-              }}
-            />
+            <HeadlineInput value={doc.headlinePrice} onChange={(v) => tools?.onChange("__headline", { body: v })} />
           ) : (
             <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4, letterSpacing: "-0.01em" }}>
-              {doc.headlinePrice || "—"}
+              {doc.headlinePrice}
             </div>
           )}
         </div>
-      )}
+      ) : tools ? (
+        <div
+          style={{
+            marginTop: 22,
+            borderRadius: 14,
+            border: "1px dashed rgba(244,239,231,0.35)",
+            padding: "12px 16px",
+          }}
+        >
+          <div style={{ ...priceLabelStyle, color: C.onDarkMuted }}>
+            Javasolt ár
+            <HeaderEditBtn
+              onClick={() => tools.setEditingId(editingPrice ? null : "__headline")}
+              label={editingPrice ? "Kész" : "Megadás"}
+            />
+          </div>
+          {editingPrice ? (
+            <HeadlineInput value={doc.headlinePrice} onChange={(v) => tools?.onChange("__headline", { body: v })} />
+          ) : (
+            <div style={{ fontSize: 13, marginTop: 4, color: C.onDarkMuted, fontStyle: "italic" }}>
+              Nincs megadva — kattints a „Megadás” gombra.
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+const priceLabelStyle: CSSProperties = {
+  fontSize: 11,
+  letterSpacing: "0.16em",
+  textTransform: "uppercase",
+  opacity: 0.85,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+function HeaderEditBtn({
+  onClick,
+  label,
+  onDark,
+}: {
+  onClick: () => void;
+  label: string;
+  onDark?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        borderRadius: 999,
+        border: `1px solid ${onDark ? "rgba(28,16,5,0.35)" : "rgba(244,239,231,0.35)"}`,
+        background: "transparent",
+        color: onDark ? "#1c1005" : C.onDark,
+        fontSize: 11,
+        padding: "2px 9px",
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function HeadlineInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="pl. 98 000 000 Ft (94–102 M Ft)"
+      style={{
+        marginTop: 8,
+        width: "100%",
+        fontSize: 22,
+        fontWeight: 700,
+        letterSpacing: "-0.01em",
+        color: "#1c1005",
+        background: "rgba(255,255,255,0.85)",
+        border: "1px solid rgba(28,16,5,0.25)",
+        borderRadius: 8,
+        padding: "6px 10px",
+        outline: "none",
+        fontFamily: "inherit",
+      }}
+    />
   );
 }
 
