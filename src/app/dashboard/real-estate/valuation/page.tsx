@@ -3,37 +3,109 @@
 "use client";
 import ModuleIntro from "@/components/ModuleIntro";
 import ComboField from "@/components/ComboField";
+import SelectField from "@/components/SelectField";
 
-import { useEffect, useState, type FormEvent } from "react";
+import ValuationEditor from "@/components/valuation/ValuationEditor";
+
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  parseValuationReport,
+  reportTitle,
+  type ReportDoc,
+  type ValuationFacts,
+} from "@/lib/valuation-report";
 import {
   VALUATION_FIELDS,
   EMPTY_VALUATION,
   validateValuationInput,
+  LOCATION_CATEGORIES,
+  LOCATION_PREMIUM_MIN,
+  LOCATION_PREMIUM_MAX,
+  isPremiumCategory,
+  suggestedLocationPremium,
   type ValuationInput,
 } from "@/lib/valuation";
 import { toDownloadUrl } from "@/lib/files";
+
+// A lokációs prémium mezői külön blokkban jelennek meg, ezért kimaradnak a fő rácsból.
+const LOCATION_KEYS: string[] = ["lokacioKategoria", "lokacioSzazalek"];
+
+type HistoryItem = {
+  id: string;
+  input_data: Record<string, unknown> | null;
+  output_text: string | null;
+  output_file_url: string | null;
+  created_at: string;
+  edited_at: string | null;
+};
+
+type EditorState = {
+  id: string | null;
+  doc: ReportDoc;
+  url: string | null;
+  dateLabel: string;
+};
+
+function historyTitle(h: HistoryItem): string {
+  return reportTitle((h.input_data ?? {}) as ValuationFacts);
+}
 
 export default function ValuationPage() {
   const [values, setValues] = useState<ValuationInput>({ ...EMPTY_VALUATION });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [report, setReport] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [result, setResult] = useState<EditorState | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/real-estate/valuation/history");
+      const data = await res.json();
+      if (res.ok) setHistory((data.items ?? []) as HistoryItem[]);
+    } catch {
+      // Az előzmény-lista hiánya ne akadályozza a munkát.
+    }
+  }, []);
 
   useEffect(() => {
-    if (!viewerOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setViewerOpen(false);
-    window.addEventListener("keydown", onKey);
+    loadHistory();
+  }, [loadHistory]);
+
+  useEffect(() => {
+    if (!editorOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [viewerOpen]);
+  }, [editorOpen]);
+
+  function closeEditor() {
+    // A szerkesztő állapota bezáráskor elveszik — nem mentett módosításnál kérdezünk.
+    if (
+      editorDirty &&
+      !window.confirm("Vannak nem mentett módosítások. Biztosan bezárod?")
+    )
+      return;
+    setEditorDirty(false);
+    setEditorOpen(false);
+  }
+
+  function openHistoryItem(h: HistoryItem) {
+    if (!h.output_text) return;
+    const facts = (h.input_data ?? {}) as ValuationFacts;
+    setResult({
+      id: h.id,
+      doc: parseValuationReport(h.output_text, facts),
+      url: h.output_file_url,
+      dateLabel: new Date(h.created_at).toLocaleDateString("hu-HU"),
+    });
+    setEditorOpen(true);
+  }
 
   function setField(key: keyof ValuationInput, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -43,12 +115,11 @@ export default function ValuationPage() {
     e.preventDefault();
     setServerError(null);
     setMessage(null);
-    setResultUrl(null);
-    setReport(null);
+    setResult(null);
 
-    const result = validateValuationInput(values);
-    setErrors(result.errors);
-    if (!result.valid) {
+    const check = validateValuationInput(values);
+    setErrors(check.errors);
+    if (!check.valid) {
       setServerError("Tölts ki minden kötelező mezőt.");
       return;
     }
@@ -66,9 +137,17 @@ export default function ValuationPage() {
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
         return;
       }
-      if (data.url) setResultUrl(data.url);
-      if (data.report) setReport(data.report);
-      setMessage("Kész! Az értékbecslés elkészült.");
+      if (data.report) {
+        setResult({
+          id: data.id ?? null,
+          doc: parseValuationReport(String(data.report), values as ValuationFacts),
+          url: null,
+          dateLabel: new Date().toLocaleDateString("hu-HU"),
+        });
+        setEditorOpen(true);
+      }
+      setMessage("Kész! Nézd át, szerkeszd, majd készítsd el a PDF-et.");
+      loadHistory();
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
     } finally {
@@ -88,7 +167,7 @@ export default function ValuationPage() {
 
       <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {VALUATION_FIELDS.map((field) => (
+          {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => (
             <div
               key={field.key}
               className={field.fullWidth ? "sm:col-span-2" : ""}
@@ -123,6 +202,67 @@ export default function ValuationPage() {
           ))}
         </div>
 
+        {/* --- Lokációs prémium: külön blokk, mert a partner helyismerete adja. --- */}
+        <div className="rounded-xl p-4" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
+          <p className="text-sm font-semibold">Lokációs prémium korrekció</p>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Ha az ingatlan keresett vagy kiemelten prémium környéken van, a piaci átlagárat
+            felfelé korrigáljuk. A százalékot te adod meg — te ismered a mikrolokációt.
+          </p>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                Lokációs kategória
+              </span>
+              <SelectField
+                value={values.lokacioKategoria}
+                onChange={(v) => {
+                  setField("lokacioKategoria", v);
+                  // Prémium kategóriánál a csúszka a sávra jellemző értékről indul.
+                  setField("lokacioSzazalek", isPremiumCategory(v) ? String(suggestedLocationPremium(v)) : "");
+                }}
+                ariaLabel="Lokációs kategória"
+                options={LOCATION_CATEGORIES.map((c) => ({ value: c.value, label: `${c.value} · ${c.range}` }))}
+              />
+              {/* A magyarázat a mező ALATT teljes hosszban — a legördülőben levágódna. */}
+              <span className="mt-1 block text-[11px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>
+                {LOCATION_CATEGORIES.find((c) => c.value === values.lokacioKategoria)?.hint}
+              </span>
+            </label>
+
+            {isPremiumCategory(values.lokacioKategoria) && (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                  Felár mértéke ({LOCATION_PREMIUM_MIN}-{LOCATION_PREMIUM_MAX}%) — ajánlott:{" "}
+                  {LOCATION_CATEGORIES.find((c) => c.value === values.lokacioKategoria)?.range}
+                </span>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={LOCATION_PREMIUM_MIN}
+                    max={LOCATION_PREMIUM_MAX}
+                    step={1}
+                    value={Number(values.lokacioSzazalek) || LOCATION_PREMIUM_MIN}
+                    onChange={(e) => setField("lokacioSzazalek", e.target.value)}
+                    className="flex-1"
+                    style={{ accentColor: "var(--twx-coral)" }}
+                  />
+                  <span className="w-14 text-right text-sm font-bold" style={{ color: "var(--twx-coral)" }}>
+                    {Number(values.lokacioSzazalek) || LOCATION_PREMIUM_MIN}%
+                  </span>
+                </div>
+              </label>
+            )}
+          </div>
+
+          {isPremiumCategory(values.lokacioKategoria) && (
+            <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              A becslés külön sorban mutatja majd a százalékot, a forintos különbséget és a korrigált árat.
+            </p>
+          )}
+        </div>
+
         <button
           type="submit"
           disabled={loading}
@@ -138,71 +278,108 @@ export default function ValuationPage() {
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
 
-      {resultUrl && (
-        <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={() => setViewerOpen(true)} className="twx-btn">
-            PDF megtekintése
+      {/* Kész becslés — kártya, ami megnyitja a szerkeszthető előnézetet */}
+      {result && (
+        <div className="twx-card flex flex-wrap items-center gap-3 p-4">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">{result.doc.title}</p>
+            <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              {result.doc.subtitle || "Elkészült értékbecslés"} · szerkeszthető
+            </p>
+          </div>
+          <button type="button" className="twx-btn" onClick={() => setEditorOpen(true)}>
+            Megnyitás és szerkesztés
           </button>
-          <a
-            href={toDownloadUrl(resultUrl)}
-            className="rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
-            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", color: "var(--twx-ink)" }}
-          >
-            Letöltés
-          </a>
+          {result.url && (
+            <a className="twx-btn-outline" href={toDownloadUrl(result.url)}>
+              PDF letöltése
+            </a>
+          )}
         </div>
       )}
 
-      {/* PDF-megtekintő ablak */}
-      {viewerOpen && resultUrl && (
-        <div
-          onClick={() => setViewerOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(12,11,10,0.85)" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
-            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
-          >
-            <div className="flex items-center justify-between gap-3 p-3">
-              <span className="pl-2 text-sm font-medium">Ingatlan értékbecslés</span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={toDownloadUrl(resultUrl)}
-                  className="rounded-full px-4 py-1.5 text-sm font-medium"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                >
-                  Letöltés
-                </a>
-                <a
-                  href={resultUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full px-4 py-1.5 text-sm font-medium"
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }}
-                >
-                  Új lapon
-                </a>
+      {/* Korábbi értékbecslések — újranyithatók és tovább szerkeszthetők */}
+      {history.length > 0 && (
+        <section className="twx-card p-4">
+          <h2 className="text-sm font-semibold">Korábbi értékbecslések</h2>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Bármelyik megnyitható, átírható, és új PDF készíthető belőle.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {history.map((h) => (
+              <li
+                key={h.id}
+                className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm">{historyTitle(h)}</p>
+                  <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {new Date(h.created_at).toLocaleString("hu-HU")}
+                    {h.edited_at ? " · szerkesztve" : ""}
+                    {h.output_file_url ? "" : " · nincs még PDF"}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setViewerOpen(false)}
-                  aria-label="Bezárás"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
-                  style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
+                  className="twx-btn-outline"
+                  onClick={() => openHistoryItem(h)}
+                  disabled={!h.output_text}
                 >
-                  ×
+                  Megnyitás
                 </button>
-              </div>
-            </div>
-            <iframe src={`${resultUrl}#view=FitH&toolbar=1&navpanes=0`} title="Ingatlan értékbecslés" className="w-full flex-1 bg-white" />
-          </div>
-        </div>
+                {h.output_file_url && (
+                  <a className="twx-btn-outline" href={toDownloadUrl(h.output_file_url)}>
+                    PDF
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {report && (
-        <div className="twx-card whitespace-pre-wrap p-4 text-sm">
-          {report}
+      {/* Szerkesztő ablak */}
+      {editorOpen && result && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4"
+          style={{ background: "rgba(12,11,10,0.88)" }}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl p-4"
+            style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Értékbecslés szerkesztése</p>
+                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Amit itt látsz, pontosan az kerül a PDF-be.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditor}
+                aria-label="Bezárás"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
+                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
+              >
+                ×
+              </button>
+            </div>
+
+            <ValuationEditor
+              key={result.id ?? "new"}
+              historyId={result.id}
+              initialDoc={result.doc}
+              initialUrl={result.url}
+              dateLabel={result.dateLabel}
+              onDirtyChange={setEditorDirty}
+              onSaved={(url) => {
+                setResult((prev) => (prev ? { ...prev, url } : prev));
+                loadHistory();
+              }}
+            />
+          </div>
         </div>
       )}
     </main>

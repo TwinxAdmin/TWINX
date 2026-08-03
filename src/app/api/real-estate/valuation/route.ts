@@ -1,23 +1,22 @@
 // POST /api/real-estate/valuation — Ingatlan Értékbecslő teljes lánc.
 // Sorrend: validáció -> kredit levonás (admin/sales megkerül) -> Perplexity (Sonar)
-// -> PDF -> Supabase Storage -> usage_history. Hiba esetén kredit-visszatérítés.
+// -> usage_history. Hiba esetén kredit-visszatérítés.
+// A PDF-et NEM itt készítjük: a partner előbb szerkeszti a riportot, és a
+// böngésző rendereli a végleges dokumentumot (lásd ./save).
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildValuationPromptActive } from "@/lib/prompts";
-import { generateReportPdf } from "@/lib/report-pdf";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // Perplexity + PDF renderelés hosszabb lehet
+export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";
-const BUCKET = "reports";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -54,10 +53,16 @@ export async function POST(request: Request) {
   }
 
   // 1) Kredit levonás (admin/sales megkerüli). Sikertelen generálásnál visszatérítjük.
-  const charge = await chargeCredit({
-    userId: user.id,
-    amount: 1,
-  });
+  let charge: Awaited<ReturnType<typeof chargeCredit>>;
+  try {
+    charge = await chargeCredit({ userId: user.id, amount: 1 });
+  } catch {
+    // A levonás technikai hibája ne nyers 500-as hibaként érje a partnert.
+    return NextResponse.json(
+      { error: "A kredit levonása most nem sikerült. Próbáld újra." },
+      { status: 503 }
+    );
+  }
   if (!charge.ok) {
     return NextResponse.json(
       { error: "Nincs elég kredit ehhez a modulhoz." },
@@ -70,39 +75,21 @@ export async function POST(request: Request) {
     const prompt = await buildValuationPromptActive(input);
     const report = await runSonar(prompt, PERPLEXITY_MODEL, { temperature: 0.2 });
 
-    // 3) PDF generálás.
-    const pdfBytes = await generateReportPdf({
-      title: "Ingatlan értékbecslés",
-      meta: [
-        `Elhelyezkedés: ${input.telepules}${input.utca ? " · " + input.utca : ""}`,
-        `Típus: ${input.tipus} · ${input.meret} · ${input.szobak}`,
-        `Állapot: ${input.allapot} · Építés: ${input.epitesEve}`,
-        `Készült: ${new Date().toLocaleString("hu-HU")}`,
-      ],
-      body: report,
-    });
-
-    // 4) Feltöltés a Supabase Storage-ba.
-    const filePath = `valuation/${user.id}/${randomUUID()}.pdf`;
-    const { error: uploadError } = await admin.storage
-      .from(BUCKET)
-      .upload(filePath, pdfBytes, {
-        contentType: "application/pdf",
-        upsert: false,
-      });
-    if (uploadError) throw new Error(`Storage feltöltés hiba: ${uploadError.message}`);
-
-    const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(filePath);
-
-    // 5) Mentés a usage_history táblába.
-    const { error: histError } = await admin.from("usage_history").insert({
-      user_id: user.id,
-      service_id: service.id,
-      feature_used: FEATURE,
-      input_data: input,
-      output_file_url: pub.publicUrl,
-      credits_charged: charge.bypassed ? 0 : 1,
-    });
+    // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
+    //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan
+    //    az kerül a dokumentumba, amit a partner az előnézetben jóváhagyott.
+    const { data: hist, error: histError } = await admin
+      .from("usage_history")
+      .insert({
+        user_id: user.id,
+        service_id: service.id,
+        feature_used: FEATURE,
+        input_data: input,
+        output_text: report,
+        credits_charged: charge.bypassed ? 0 : 1,
+      })
+      .select("id")
+      .single();
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
 
     // Nyers API-önköltség logolása (admin-only, best-effort).
@@ -117,7 +104,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      url: pub.publicUrl,
+      id: hist?.id ?? null,
       report,
       charged: !charge.bypassed,
     });
