@@ -81,9 +81,11 @@ export default function ValuationEditor({
 
   const patch = useCallback((id: string, p: Partial<Omit<ReportSection, "id">>) => {
     setDirty(true);
-    setDoc((prev) =>
-      id === "__intro" ? { ...prev, intro: p.body ?? prev.intro } : updateSection(prev, id, p)
-    );
+    setDoc((prev) => {
+      if (id === "__intro") return { ...prev, intro: p.body ?? prev.intro };
+      if (id === "__headline") return { ...prev, headlinePrice: p.body ?? prev.headlinePrice };
+      return updateSection(prev, id, p);
+    });
   }, []);
 
   const tools = useMemo(

@@ -18,6 +18,7 @@ export type ReportDoc = {
   title: string; // fő cím (cím/település)
   subtitle: string; // alcím (típus · méret · szobák)
   meta: ReportMeta[]; // fejléc-adatok
+  headlinePrice: string; // a dokumentum tetején kiemelt JAVASOLT ÁR
   intro: string; // szerkeszthető bevezető (a "Rövid összefoglaló")
   sections: ReportSection[];
   closing: string; // záró megjegyzés / aláírás blokk
@@ -152,6 +153,14 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
     preamble = [];
   }
 
+  // A "Javasolt ár" szakaszt kiemeljük a fejlécbe, és kivesszük a szakaszok közül.
+  let headlinePrice = "";
+  const priceIdx = sections.findIndex((s) => /javasolt\s*ár/i.test(s.heading));
+  if (priceIdx >= 0) {
+    headlinePrice = firstLine(sections[priceIdx].body);
+    sections.splice(priceIdx, 1);
+  }
+
   // Az első szakasz, ha összefoglaló, a bevezetőbe kerül (kiemelt tördeléssel).
   let intro = preamble.join("\n").trim();
   if (!intro && sections.length && /összefoglal|áttekint/i.test(sections[0].heading)) {
@@ -159,6 +168,12 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
   }
 
   for (const s of sections) s.body = s.body.replace(/\n{3,}/g, "\n\n").trim();
+
+  // Ha az AI nem adott külön "Javasolt ár"-t, a Becsült piaci értékből vezetjük le.
+  if (!headlinePrice) {
+    const est = sections.find((s) => /becsült\s*piaci\s*érték|piaci\s*érték/i.test(s.heading));
+    if (est) headlinePrice = firstLine(est.body);
+  }
 
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
     .filter(Boolean)
@@ -174,11 +189,22 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
     title: reportTitle(facts),
     subtitle: detail,
     meta,
+    headlinePrice,
     intro,
     sections,
     closing:
       "Ez a dokumentum tájékoztató jellegű piaci becslés, nem minősül hivatalos ingatlan-értékbecslésnek.",
   };
+}
+
+/** Az első nem üres, formázástól megtisztított sor. */
+function firstLine(body: string): string {
+  return (
+    body
+      .split("\n")
+      .map((l) => l.replace(/^[-•]\s*/, "").replace(/\*\*/g, "").trim())
+      .find((l) => l.length > 0) ?? ""
+  );
 }
 
 const STORE_MARKER = "twinxReport";
@@ -190,6 +216,7 @@ export function serializeReportDoc(doc: ReportDoc): string {
     title: doc.title,
     subtitle: doc.subtitle,
     meta: doc.meta,
+    headlinePrice: doc.headlinePrice,
     intro: doc.intro,
     closing: doc.closing,
     sections: doc.sections.map((s) => ({
@@ -217,6 +244,7 @@ function tryParseStored(raw: string, facts: ValuationFacts): ReportDoc | null {
       title: typeof o.title === "string" && o.title ? o.title : reportTitle(facts),
       subtitle: typeof o.subtitle === "string" ? o.subtitle : "",
       meta: Array.isArray(o.meta) ? (o.meta as ReportMeta[]) : [],
+      headlinePrice: typeof o.headlinePrice === "string" ? o.headlinePrice : "",
       intro: typeof o.intro === "string" ? o.intro : "",
       closing: typeof o.closing === "string" ? o.closing : "",
       sections,

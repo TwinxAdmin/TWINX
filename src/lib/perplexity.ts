@@ -16,43 +16,40 @@ export function buildValuationPrompt(input: ValuationInput): string {
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
 export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
-// ADATFORRÁS-DÖNTÉS: NEM a zárt hirdetési adatbázisokat próbáljuk feltörni
-// (ÁSZF-be ütközne, és a tételes hirdetésadat úgysem érhető el megbízhatóan).
-// Helyette a NYILVÁNOS, szabadon hozzáférhető szakmai adatokra építünk:
-// friss piaci elemzések, statisztikák és kerületi/települési átlagárak.
-// Ezek stabilabbak és ellenőrizhetők, így a becslés is kiszámíthatóbb lesz.
+// ADATFORRÁS: elsődlegesen a jelenleg aktív ingatlan.com hirdetések (comps-lista),
+// kiegészítésként pedig a nyilvános piaci statisztikák és szakmai elemzések
+// (ellenőrzés, árszint-beágyazás, outlier-szűrés). A Perplexity max 20 domaint fogad el;
+// az ingatlan.com áll elöl, hogy a keresés onnan induljon.
+export const LISTING_DOMAINS = ["ingatlan.com"];
+
 export const MARKET_ANALYSIS_DOMAINS = [
-  // Hivatalos statisztika
   "ksh.hu", // KSH lakáspiaci jelentések
   "mnb.hu", // MNB lakásárindex
-  // Ingatlanpiaci szereplők publikus elemzései
-  "ingatlan.com/elemzes", // ingatlan.com piaci elemzések (nyilvános rovat)
   "dunahouse.hu", // Duna House Barométer
   "otthoncentrum.hu", // OC piaci körkép
   "otthonterkep.hu", // nyilvános kerületi átlagár-térkép
-  "ingatlannet.hu/statisztika", // nyilvános ár-statisztikák
-  // Szakmai sajtó
+  "ingatlannet.hu", // ár-statisztikák
   "portfolio.hu",
   "bankmonitor.hu",
   "penzcentrum.hu",
   "ingatlanhirek.hu",
-  "g7.hu",
 ];
 
-// Az értékbecslés keresési köre. A Perplexity max 20 domaint fogad el.
-// Env-ből felülírható vesszős listával (VALUATION_SEARCH_DOMAINS).
+// Az értékbecslés keresési köre. Env-ből felülírható vesszős listával.
 export const HU_PROPERTY_DOMAINS: string[] = (
-  process.env.VALUATION_SEARCH_DOMAINS || MARKET_ANALYSIS_DOMAINS.join(",")
+  process.env.VALUATION_SEARCH_DOMAINS ||
+  [...LISTING_DOMAINS, ...MARKET_ANALYSIS_DOMAINS].join(",")
 )
   .split(",")
   .map((d) => d.trim())
   .filter(Boolean);
 
-// A források frissessége. Alapból "year": a hirdetésoldalak publikálási dátuma
-// gyakran bizonytalan, egy "month" szűrő könnyen kinullázná a találatokat —
-// a 3 hónapos preferenciát a prompt kéri. Env-ből szigorítható.
-export const VALUATION_RECENCY = (process.env.VALUATION_SEARCH_RECENCY ||
-  "year") as SonarRecency;
+// A források frissessége. Alapból nincs szűrő (undefined): az aktív hirdetésoldalak
+// dátuma bizonytalan, egy szűrő könnyen kinullázná a találatokat — az "aktív"
+// követelményt a prompt kéri. Env-ből bekapcsolható (pl. "month").
+export const VALUATION_RECENCY = (process.env.VALUATION_SEARCH_RECENCY || "") as
+  | SonarRecency
+  | "";
 
 export async function runValuation(input: ValuationInput): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY;

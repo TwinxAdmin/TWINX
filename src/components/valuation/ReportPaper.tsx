@@ -151,7 +151,16 @@ function AutoTextarea({
 }
 
 // --- fejléc -------------------------------------------------------------------
-function Cover({ doc, dateLabel }: { doc: ReportDoc; dateLabel: string }) {
+function Cover({
+  doc,
+  dateLabel,
+  tools,
+}: {
+  doc: ReportDoc;
+  dateLabel: string;
+  tools?: SectionTools;
+}) {
+  const editingPrice = tools?.editingId === "__headline";
   return (
     <div
       style={{
@@ -232,6 +241,74 @@ function Cover({ doc, dateLabel }: { doc: ReportDoc; dateLabel: string }) {
           {dateLabel}
         </span>
       </div>
+
+      {/* Kiemelt JAVASOLT ÁR a dokumentum tetején */}
+      {(doc.headlinePrice || tools) && (
+        <div
+          style={{
+            marginTop: 22,
+            borderRadius: 14,
+            background: `linear-gradient(120deg, ${C.coral}, #f2946f)`,
+            padding: "16px 20px",
+            color: "#1c1005",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              opacity: 0.8,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            Javasolt ár
+            {tools && (
+              <button
+                type="button"
+                onClick={() => tools.setEditingId(editingPrice ? null : "__headline")}
+                style={{
+                  borderRadius: 999,
+                  border: "1px solid rgba(28,16,5,0.35)",
+                  background: "transparent",
+                  color: "#1c1005",
+                  fontSize: 11,
+                  padding: "2px 9px",
+                }}
+              >
+                {editingPrice ? "Kész" : "Szerkeszt"}
+              </button>
+            )}
+          </div>
+          {editingPrice ? (
+            <input
+              value={doc.headlinePrice}
+              onChange={(e) => tools?.onChange("__headline", { body: e.target.value })}
+              placeholder="pl. 64 800 000 Ft (61,5–68,0 M Ft)"
+              style={{
+                marginTop: 6,
+                width: "100%",
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                color: "#1c1005",
+                background: "rgba(255,255,255,0.5)",
+                border: "1px solid rgba(28,16,5,0.3)",
+                borderRadius: 8,
+                padding: "4px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+          ) : (
+            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4, letterSpacing: "-0.01em" }}>
+              {doc.headlinePrice || "—"}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -239,7 +316,10 @@ function Cover({ doc, dateLabel }: { doc: ReportDoc; dateLabel: string }) {
 function Highlights({ doc }: { doc: ReportDoc }) {
   const items = reportHighlights(doc);
   if (!items.length) return null;
-  const main = items.find((i) => i.accent);
+  // Ha a javasolt ár már a fejlécben ki van emelve, a fő ár-kártyát elhagyjuk
+  // (ne legyen kétszer ugyanaz a szám), csak a kiegészítő értékeket mutatjuk.
+  const hasHeadline = Boolean(doc.headlinePrice);
+  const main = hasHeadline ? undefined : items.find((i) => i.accent);
   const rest = items.filter((i) => !i.accent);
 
   return (
@@ -464,7 +544,7 @@ export default function ReportPaper({
       }}
     >
       <div data-flow="1">
-        <Cover doc={doc} dateLabel={dateLabel} />
+        <Cover doc={doc} dateLabel={dateLabel} tools={tools} />
       </div>
 
       <div data-flow="1">

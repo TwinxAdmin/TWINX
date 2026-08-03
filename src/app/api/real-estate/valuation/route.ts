@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       // mint a fogalmazás változatossága (két futás ne adjon eltérő árat).
       temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
-      recency: VALUATION_RECENCY,
+      recency: VALUATION_RECENCY || undefined,
     });
     const report = content + sourcesSection(sources);
 

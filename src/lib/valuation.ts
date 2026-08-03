@@ -352,16 +352,15 @@ function freshnessBlock(_input: ValuationInput): string {
   from.setMonth(from.getMonth() - 6);
   const d = (x: Date) => x.toISOString().slice(0, 10);
 
-  return `ADATFRISSESSÉG (konkrét dátumtartomány a fenti "Források" szabályhoz):
-- Mai dátum: ${d(now)}. Elsődlegesen a ${d(from)} és ${d(now)} közötti (elmúlt 6 hónap)
-  nyilvános piaci közlésekre támaszkodj. Ha ebből nincs elég, mehetsz régebbre, de a
-  régebbi árat igazítsd az azóta publikált piaci árváltozáshoz, és ezt az Adatminőség
-  szakaszban jelezd.
-- Nyilvános források, amiket használhatsz: országos és helyi ingatlanpiaci statisztikák,
-  hirdetési átlagárak és kerületi/települési átlagos négyzetméterárak, szakmai elemzések
-  és cikkek (pl. KSH, MNB lakásárindex, ingatlan.com és Duna House piaci elemzések,
-  Otthon Centrum, otthonterkep.hu, szakmai sajtó). Zárt hirdetési adatbázisból NE próbálj
-  tételes hirdetéseket kinyerni; kitalált konkrét hirdetést (cím, link, hirdető) tilos közölni.`;
+  return `ADATFRISSESSÉG:
+- Mai dátum: ${d(now)}. Elsődlegesen a JELENLEG AKTÍV ingatlan.com hirdetéseket használd
+  (comps-lista). Ha egy hirdetés láthatóan régi vagy már nem elérhető, csak ellenőrző
+  háttérként vedd figyelembe, csökkentett súllyal.
+- Kiegészítő, ellenőrző források: friss (${d(from)} utáni) nyilvános piaci statisztikák és
+  szakmai elemzések — KSH, MNB lakásárindex, ingatlan.com és Duna House piaci elemzések,
+  Otthon Centrum, otthonterkep.hu, szakmai sajtó. Ezekből NE indulj ki, csak az aktív
+  kínálatot velük ellenőrizd és ágyazd be.
+- Kitalált konkrét hirdetést (cím, link, hirdető) tilos közölni.`;
 }
 
 /** A lokációs korrekció sorai. Ha nincs felár, ezt egyértelműen kimondjuk,
@@ -407,36 +406,41 @@ export const VALUATION_DATA_BLOCK_PREVIEW = `Az értékelt ingatlan adatai:
 - Lokációs prémium: {lokációs prémium %}`;
 
 export const VALUATION_DEFAULT_SEGMENTS = {
-  intro: `Bújj egy tapasztalt, adatalapú ingatlanpiaci szakértő szerepébe. Száraz, tényszerű, strukturált elemzést adj. Ne írj felesleges bevezetőt, ne kommentáld a saját módszeredet, és ne használj önértékelő vagy bizonytalanító kifejezéseket. A feladat kizárólag az, hogy a megadott lakásra a lehető legpontosabb piaci értékbecslést készítsd a legrelevánsabb és legfrissebb elérhető nyilvános adatok alapján.
+  intro: `Bújj egy tapasztalt, adatalapú ingatlanpiaci szakértő szerepébe. Száraz, tényszerű, strukturált elemzést adj. Ne írj felesleges bevezetőt, ne kommentáld a saját módszeredet, és ne használj önértékelő vagy bizonytalanító kifejezéseket. A feladat kizárólag az, hogy a megadott ingatlanra a lehető legpontosabb piaci értékbecslést készítsd a **jelenleg aktív, valós ingatlan.com hirdetések** és a legrelevánsabb kiegészítő nyilvános piaci adatok alapján.
 
-### Feladat
-Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező **lakásról**.
+## Feladat
+Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező lakásról.
 
-### Kötelező elemzési logika
-1. **Lokációs szűrés**
+## Kötelező elemzési logika
+1. **Elsődleges adatforrás: aktív ingatlan.com hirdetések**
+   - Az összehasonlítás alapja mindig a jelenleg aktív, nyilvános ingatlan.com hirdetések legyenek.
+   - Elsősorban ezeket használd a comps-lista felépítéséhez.
+   - A piaci átlagokat, statisztikákat és szakmai elemzéseket csak kiegészítő, ellenőrző forrásként használd.
+   - Ha az aktív hirdetések és az átlagadatok eltérnek, az aktív kínálatot súlyozd feljebb.
+
+2. **Lokációs szűrés**
    - Budapest esetén csak az adott kerületben keress.
    - Pest megye és más települések esetén az adott település és közvetlenül szomszédos települések vehetők figyelembe.
    - Ha városrész és utca is meg van adva, ellenőrizd, hogy az utca valóban a megadott városrészhez tartozik-e.
    - Csak azonos vagy nagyon közeli mikrolokációból válassz összehasonlító adatokat.
 
-2. **Források**
-   - Elsődlegesen az elmúlt 6 hónap nyilvános piaci adatait használd.
-   - Támaszkodj több egymástól független, nyilvános forrásra.
-   - Előnyben részesítendők: országos és helyi ingatlanpiaci statisztikák, hirdetési átlagárak, szakmai elemzések, aktuális kínálati adatok.
-   - Ha források eltérnek, a frissebb, szűkebb bontású és lokálisan releváns adatot súlyozd feljebb.
-
 3. **Compok kiválasztása**
-   - Legalább 5, legfeljebb 8 összehasonlító lakást válassz.
-   - A compsok legyenek a lehető legközelebbiek lokációban, alapterületben, állapotban és ingatlantípusban.
-   - Szűrd ki az outliereket, a szélsőségesen magas vagy alacsony adatokat, valamint a jogilag problémás vagy erősen torzító példákat.
-   - Osztatlan közös, használati megosztásos vagy rendezetlen jogi helyzetű ingatlanokat csak külön megjegyzéssel, csökkentett súllyal vedd figyelembe.
+   - Legalább 5, legfeljebb 8 aktív hirdetést válassz.
+   - Elsődlegesen a következőket vizsgáld: alapterület, állapot, emelet, lift, erkély/loggia/terasz, közös költség, jogi helyzet, mikrolokáció.
+   - Szűrd ki az outliereket, a szélsőségesen magas vagy alacsony hirdetéseket, és a félrevezető vagy torzító példákat.
+   - Osztatlan közös, használati megosztásos vagy rendezetlen jogi helyzetű hirdetéseket csak külön megjegyzéssel, csökkentett súllyal vedd figyelembe.
 
-4. **Állapot szerinti illesztés**
+4. **Kiegészítő piaci források**
+   - A jelenlegi aktív hirdetéseket egészítsd ki friss piaci statisztikákkal, ha szükséges.
+   - Ezek szerepe az ellenőrzés, az árszint beágyazása és az outlierek kiszűrése.
+   - Ne ezekből indulj ki, hanem az aktív kínálatból.
+
+5. **Állapot szerinti illesztés**
    - A bázisárat lehetőleg azonos műszaki állapotú lakásokból állítsd össze.
    - Ha ez nem lehetséges, akkor a különbséget külön százalékos korrekcióval kezeld.
    - Az állapotkorrekció legyen tételes és átlátható.
 
-5. **Lakásspecifikus szempontok**
+6. **Lakásspecifikus korrekciók**
    - Külön kezeld az emeletet.
    - Külön kezeld a lift meglétét vagy hiányát.
    - Külön kezeld az erkélyt, loggiát, teraszt.
@@ -446,20 +450,20 @@ Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező **lak
    - Külön kezeld a társasház állapotát és műszaki színvonalát.
    - Külön kezeld az energetikai jellemzőket, ha elérhetők.
 
-6. **Számítási menet**
-   - Határozz meg egy bázis négyzetméterárat.
+7. **Számítási menet**
+   - Határozz meg egy bázis négyzetméterárat az aktív hirdetések súlyozott átlagából.
    - Alkalmazz mikrolokációs korrekciót.
    - Alkalmazz lakás-specifikus korrekciókat tételesen.
    - Számíts végső korrigált négyzetméterárat.
    - Számíts becsült forgalmi értéket a korrigált négyzetméterár és a lakás hasznos alapterülete alapján.
    - Ha releváns, adj külön értéksávot is.
 
-7. **Lokációs prémium**
+8. **Lokációs prémium**
    - A megadott lokációs prémiumot pontosan alkalmazd (a pontos értéket az adatblokk tartalmazza).
    - Ha a prémium 0% vagy nincs megadva, ne alkalmazz külön lokációs szorzót.
-   - A lokációs prémiumot a bázisárra kell alkalmazni, és minden további levezetést ehhez kell igazítani.
+   - A lokációs prémiumot az aktív hirdetésekből képzett bázisárra kell alkalmazni, és minden további levezetést ehhez kell igazítani.
 
-8. **Súlyozás**
+9. **Súlyozás**
    - A compsokat pontozd a relevancia alapján.
    - A súlyozás alapja legyen:
      - lokáció,
@@ -471,32 +475,35 @@ Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező **lak
      - erkély/loggia/terasz,
      - jogi tisztaság,
      - különleges jellemzők.
-   - A leginkább hasonló compok kapjanak nagyobb súlyt.
+   - A leginkább hasonló, **jelenleg aktív** compok kapjanak nagyobb súlyt.
+   - A régi vagy lezárt hirdetéseket csak ellenőrző háttérelemként használd, ha egyáltalán szükséges.
    - A súlyozott átlag számítása legyen átlátható.
 
-9. **Bizonytalanság kezelése**
+10. **Bizonytalanság kezelése**
    - Ne tagadd meg a becslést.
-   - Ha kevés az adat, akkor is készíts becslést a legjobb rendelkezésre álló adatokból.
+   - Ha kevés az aktív adat, akkor is készíts becslést a legjobb rendelkezésre álló aktív hirdetésekből.
    - Az adatkorlátokat az **Adatminőség** sorban jelezd.
    - Az esetleges bizonytalanságot ne szöveges kitérőkkel, hanem külön mezőben jelenítsd meg.
 
-### Számítási elv
-- Bázisár = a kiválasztott compsok súlyozott átlagos fajlagos ára.
+## Számítási elv
+- Bázisár = a kiválasztott aktív ingatlan.com hirdetések súlyozott átlagos fajlagos ára.
 - Korrigált nm-ár = bázisár + mikrolokációs korrekció + lakás-specifikus korrekciók.
 - Becsült érték = korrigált nm-ár × hasznos alapterület.
+- A piaci átlagok és statisztikák csak kiegészítő ellenőrző szerepűek.
 - Ha szükséges, külön jelezd az emelet-, lift-, erkély- és közös költség-hatást.
 
-### Stílus
+## Stílus
 - Tényszerű, tömör, strukturált.
 - Csak a lényeges információk szerepeljenek.
 - Számokat, százalékokat és levezetést mindig tételesen mutass.
 - A végső válasz legyen ellenőrizhető és visszakövethető.`,
-  task: `### Kimeneti forma
-A választ KIZÁRÓLAG az alábbi 11 szakaszban add meg. Minden szakaszt önálló, "## " kezdetű markdown címsorként írj ki (pontosan a megadott címmel), a szakaszon belül pedig sima felsorolással vagy rövid bekezdésekkel. Ne tegyél fel kérdést, ne kérj vissza adatot, és ne írj a szerkezeten kívüli szöveget.
+  task: `## Kimeneti forma
+A választ KIZÁRÓLAG az alábbi 12 szakaszban add meg. Minden szakaszt önálló, "## " kezdetű markdown címsorként írj ki (pontosan a megadott címmel), a szakaszon belül pedig sima felsorolással vagy rövid bekezdésekkel. Ne tegyél fel kérdést, ne kérj vissza adatot, és ne írj a szerkezeten kívüli szöveget.
 
+## Javasolt ár
 ## 1. Vizsgált ingatlan adatai
-## 2. Felhasznált források
-## 3. Összehasonlító ingatlanok listája
+## 2. Aktív összehasonlító ingatlanok listája
+## 3. Kiegészítő piaci források
 ## 4. Korlátozások és szűrési elvek
 ## 5. Korrekciós táblázat
 ## 6. Súlyozás és számítás
@@ -507,10 +514,12 @@ A választ KIZÁRÓLAG az alábbi 11 szakaszban add meg. Minden szakaszt önáll
 ## 11. Végső összegzés
 
 Kötelező tartalmi elvárások:
-- A "Becsült piaci érték" szakaszban egyetlen fő szám szerepeljen forintban (a lokációs prémiummal együtt), az "Értéksáv" szakaszban pedig egy alsó–felső HUF sáv.
+- A LEGELSŐ szakasz a "Javasolt ár": ide EGYETLEN sorba írd a javasolt piaci árat forintban (a lokációs prémiummal együtt), mögötte zárójelben a rövid értéksávval. Pl.: "64 800 000 Ft (61,5–68,0 M Ft)". Semmi más ne legyen ebben a szakaszban.
+- Az "Aktív összehasonlító ingatlanok listája" szakaszban 5-8 jelenleg aktív ingatlan.com hirdetést sorolj fel: alapterület, állapot, emelet/lift, irányár, fajlagos ár, és ahol lehet, a hirdetés linkje vagy azonosítója. Kitalált hirdetést tilos közölni.
 - A "Korrekciós táblázat" tartalmazza a lokációs prémium sort is (a megadott százalék, a forintos különbség és a korrigált ár), valamint a lakás-specifikus korrekciókat tételesen, százalékosan.
-- A "Súlyozás és számítás" mutassa a bázis nm-árat, a compok súlyait és a súlyozott átlagot, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).
-- Mind a 11 szakasz kötelező, konkrét számokkal kitöltve.`,
+- A "Súlyozás és számítás" mutassa a bázis nm-árat (az aktív hirdetések súlyozott átlaga), a compok súlyait, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).
+- A "Becsült piaci érték" a fő szám forintban, az "Értéksáv" alsó–felső HUF sáv.
+- Mind a 12 szakasz kötelező, konkrét számokkal kitöltve.`,
 };
 
 export function composeValuationPrompt(
