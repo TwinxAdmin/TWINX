@@ -353,7 +353,7 @@ export default function ValuationPage() {
             emptyText="Még nincs elkészült értékbecslésed."
             downloadUrl={(v) => (v.url ? toDownloadUrl(v.url) : null)}
             renderItem={(v) => (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                   {new Date(v.createdAt).toLocaleString("hu-HU")}
                   {v.editedAt ? " · szerkesztve" : ""}
@@ -361,11 +361,12 @@ export default function ValuationPage() {
                 </p>
                 <button
                   type="button"
-                  className="twx-btn w-full"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                  style={{ background: "var(--twx-coral)" }}
                   onClick={() => openLibItem(v)}
                   disabled={!v.outputText}
                 >
-                  Megnyitás és szerkesztés
+                  Megnyitás
                 </button>
               </div>
             )}
