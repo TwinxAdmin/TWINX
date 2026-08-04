@@ -615,19 +615,28 @@ Készíts ingatlan-értékbecslést az alábbi paraméterekkel rendelkező ingat
    - Ne tagadd meg a becslést. Ha a GDN-en kevés az adat, a lazító létra és a kiegészítő piaci statisztikák alapján akkor is készíts becslést.
    - Az adatkorlátokat és a felhasznált lazítási fokot az "Adatminőség" sorban jelezd.
 
+## Stabilizálás és konzisztencia (KÖTELEZŐ)
+A cél, hogy két azonos adatokkal indított futás KÖZEL AZONOS árat adjon. Ezért ebben a sorrendben dolgozz:
+- HORGONY: MIELŐTT a GDN-compokat súlyoznád, rögzíts egy referencia (átlag) négyzetméterárat a mikrolokációra és az ingatlan típusára/állapotára, nyilvános piaci adatokból (otthonterkep.hu kerületi/települési átlag, KSH, MNB lakásárindex, ingatlannet.hu, ingatlan.com piaci elemzések). Ez a HORGONY-nm-ár, ez a stabil referencia.
+- SÁV: a GDN-compokból számított bázis nm-ár a HORGONY ±12%-os sávjában maradjon. Csak akkor lépj ki a sávból, ha tételes, számszerű indokod van (pl. kiemelt mikrolokáció vagy állapot), és akkor is legfeljebb ±20%-ig.
+- MEDIÁN + KEREKÍTÉS: a bázis nm-árat a kiválasztott GDN-compok MEDIÁNJÁBÓL számítsd (nem a szélsőségekre érzékeny egyszerű átlagból), majd kerekítsd a legközelebbi 5 000 Ft/nm értékre. Így a kis eltérések nem ugráltatják az eredményt.
+- A riportban KÖTELEZŐEN tüntesd fel a HORGONY-nm-árat, a GDN-alapú bázis nm-árat és a kettő eltérését százalékban.
+- A lokációs prémiumot és a lakás-specifikus korrekciókat a sávon belül maradó bázisárra alkalmazd.
+
 ## Számítási elv
-- Bázisár = a kiválasztott GDN-compok súlyozott átlagos fajlagos ára (a lazító létra szerint a legközelebbi hasonló ingatlanokból).
+- HORGONY-nm-ár = a mikrolokáció + típus/állapot nyilvános piaci átlag négyzetméterára (referencia).
+- Bázisár = a kiválasztott GDN-compok MEDIÁN fajlagos ára, a HORGONY ±12%-os sávjába illesztve (a lazító létra szerint a legközelebbi hasonló ingatlanokból), 5 000 Ft/nm-re kerekítve.
 - Korrigált nm-ár = bázisár + mikrolokációs korrekció + lakás-specifikus korrekciók.
 - Becsült érték = korrigált nm-ár × hasznos alapterület.
-- A nyilvános piaci statisztikák csak kiegészítő ellenőrző szerepűek.
 
 ## Stílus
 - Tényszerű, tömör, strukturált. Csak a lényeges információk. Számokat, százalékokat és levezetést tételesen mutass. A végső válasz legyen ellenőrizhető és visszakövethető.`,
   source: `ADATFORRÁS ÉS ELEMZÉSI BÁZIS:
 - Elsődleges adatforrás: a GDN Ingatlan iroda kínálata és adatai (gdn-ingatlan.hu) — a GDN által hirdetett / kezelt ingatlanok.
 - A GDN kínálata kisebb (kb. 6000 ingatlan), mint az országos portáloké (kb. 40000), ezért ALKALMAZD A LAZÍTÓ LÉTRÁT: ne ragaszkodj a pontos paraméterekhez, hanem mindig a keresett ingatlanhoz LEGKÖZELEBB álló, leginkább hasonló GDN-ingatlant vedd alapul. A hasonló árfekvésű, közeli paraméterű ingatlan is jó alap.
-- Kiegészítő, ellenőrző források: nyilvános piaci statisztikák és szakmai elemzések — KSH, MNB lakásárindex, ingatlan.com és Duna House piaci elemzések, Otthon Centrum, otthonterkep.hu. Ezekből NE indulj ki; a GDN-ből képzett árszintet velük ellenőrizd és ágyazd be. Ha a GDN-minta nagyon szűk, a piaci statisztikák nagyobb ellenőrző súlyt kapnak.
-- Jelezd, hányadik lazítási fokot használtad, és a kiválasztott compok mennyiben térnek el a keresett ingatlantól.`,
+- Kiegészítő, ellenőrző források: nyilvános piaci statisztikák és szakmai elemzések — KSH, MNB lakásárindex, ingatlan.com és Duna House piaci elemzések, Otthon Centrum, otthonterkep.hu, ingatlannet.hu. Ezekből számítsd a HORGONY-nm-árat (a mikrolokáció + típus/állapot piaci átlag négyzetmétere), és a GDN-ből képzett bázis nm-ár ennek a ±12%-os sávjában maradjon.
+- STABILIZÁLÁS: a bázis nm-árat a GDN-compok MEDIÁNJÁBÓL számítsd, 5 000 Ft/nm-re kerekítve, és a HORGONY ±12%-os sávjában tartsd (kilépés csak tételes indokkal, max. ±20%). Így két azonos futás közel azonos árat ad.
+- Jelezd, hányadik lazítási fokot használtad, a HORGONY-nm-árat, a GDN-bázis nm-árat és a kettő eltérését %-ban.`,
   task: `## Kimeneti forma
 A választ KIZÁRÓLAG az alábbi 12 szakaszban add meg. Minden szakaszt önálló, "## " kezdetű markdown címsorként írj ki (pontosan a megadott címmel), a szakaszon belül pedig sima felsorolással vagy rövid bekezdésekkel. Ne tegyél fel kérdést, ne kérj vissza adatot, és ne írj a szerkezeten kívüli szöveget.
 
@@ -649,9 +658,9 @@ Kötelező tartalmi elvárások:
 - A "GDN összehasonlító ingatlanok listája" szakaszban a GDN kínálatából (gdn-ingatlan.hu) sorolj fel 5-8 (vagy ha kevesebb elérhető, annyi) leginkább hasonló ingatlant: alapterület, állapot, emelet/lift, irányár, fajlagos ár, mikrolokáció, és ahol lehet, a hirdetés linkje vagy azonosítója. Minden compnál jelöld, melyik lazítási fokkal került be és mennyire tér el a keresett ingatlantól. Kitalált hirdetést tilos közölni.
 - A "Korlátozások és lazítási elvek" szakasz mondja ki, meddig kellett lazítani a mintáért, és mennyire hasonlóak a compok a keresett ingatlanhoz.
 - A "Korrekciós táblázat" tartalmazza a lokációs prémium sort is (a megadott százalék, a forintos különbség és a korrigált ár), valamint a lakás-specifikus korrekciókat tételesen, százalékosan.
-- A "Súlyozás és számítás" mutassa a bázis nm-árat (a GDN-compok súlyozott átlaga), a compok súlyait, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).
-- A "Becsült piaci érték" a fő szám forintban, az "Értéksáv" alsó–felső HUF sáv.
-- Az "Adatminőség" sorban jelezd a GDN-minta méretét, a felhasznált lazítási fokot és a kiegészítő piaci ellenőrzés súlyát.
+- A "Súlyozás és számítás" KÖTELEZŐEN mutassa: a HORGONY-nm-árat (nyilvános piaci átlag), a GDN-compok MEDIÁNJÁBÓL számított bázis nm-árat (5 000 Ft/nm-re kerekítve, a HORGONY ±12%-os sávjában), a kettő eltérését %-ban, a compok súlyait, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).
+- A "Becsült piaci érték" a fő szám forintban, az "Értéksáv" alsó–felső HUF sáv (a bázis nm-ár sávjából, tehát szűk, nem tág tartomány).
+- Az "Adatminőség" sorban jelezd a GDN-minta méretét, a felhasznált lazítási fokot, a HORGONY és a GDN-bázis eltérését, és a kiegészítő piaci ellenőrzés súlyát.
 - Mind a 12 szakasz kötelező, konkrét számokkal kitöltve.`,
 };
 
