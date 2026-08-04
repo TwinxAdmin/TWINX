@@ -80,6 +80,7 @@ export default function ValuationPage() {
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]); // rendszerből behúzott képek
   const [showLibrary, setShowLibrary] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const PHOTO_MAX = 5;
   const photoCount = photos.length + photoUrls.length;
 
@@ -116,12 +117,21 @@ export default function ValuationPage() {
   }
   function onPhotoDrop(e: React.DragEvent) {
     e.preventDefault();
+    setDragActive(false);
     if (e.dataTransfer.files?.length) {
       void addFiles(e.dataTransfer.files);
       return;
     }
     const url = readTwxDragUrl(e.dataTransfer);
     if (url) addUrl(url);
+  }
+  function onPhotoDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    if (photoCount < PHOTO_MAX && !dragActive) setDragActive(true);
+  }
+  function onPhotoDragLeave(e: React.DragEvent) {
+    // Csak akkor kapcsoljuk ki, ha ténylegesen elhagytuk a mezőt (nem gyerek-elemre léptünk).
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragActive(false);
   }
 
   const loadHistory = useCallback(async () => {
@@ -312,36 +322,50 @@ export default function ValuationPage() {
           </p>
 
           <div
-            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={onPhotoDragOver}
+            onDragOver={onPhotoDragOver}
+            onDragLeave={onPhotoDragLeave}
             onDrop={onPhotoDrop}
-            className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border-2 border-dashed p-3"
-            style={{ borderColor: "var(--twx-line)" }}
+            className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border-2 border-dashed p-3 transition-colors"
+            style={{
+              borderColor: dragActive ? "var(--twx-coral)" : "var(--twx-line)",
+              background: dragActive ? "var(--twx-coral-soft)" : "transparent",
+            }}
           >
-            <label
-              className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-              style={{ background: "var(--twx-coral)", opacity: photoCount >= PHOTO_MAX ? 0.5 : 1 }}
-            >
-              Tallózás…
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                disabled={photoCount >= PHOTO_MAX}
-                onChange={(e) => { void addFiles(e.target.files); e.currentTarget.value = ""; }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowLibrary((v) => !v)}
-              className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-              style={{ border: "1px solid var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
-            >
-              {showLibrary ? "Rendszer-képek elrejtése" : "Rendszerből behúzás"}
-            </button>
-            <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-              vagy húzd ide a képeket · {photoCount}/{PHOTO_MAX}
-            </span>
+            {dragActive ? (
+              <div className="pointer-events-none flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold" style={{ color: "#7a2e17" }}>
+                <span aria-hidden className="text-lg leading-none">⬇</span>
+                Engedd el a képet a hozzáadáshoz
+              </div>
+            ) : (
+              <>
+                <label
+                  className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ background: "var(--twx-coral)", opacity: photoCount >= PHOTO_MAX ? 0.5 : 1 }}
+                >
+                  Tallózás…
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    disabled={photoCount >= PHOTO_MAX}
+                    onChange={(e) => { void addFiles(e.target.files); e.currentTarget.value = ""; }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowLibrary((v) => !v)}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  style={{ border: "1px solid var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
+                >
+                  {showLibrary ? "Rendszer-képek elrejtése" : "Rendszerből behúzás"}
+                </button>
+                <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  vagy húzd ide a képeket · {photoCount}/{PHOTO_MAX}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Kiválasztott fotók bélyegképei (feltöltött + rendszerből) */}
