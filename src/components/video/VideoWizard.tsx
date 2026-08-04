@@ -3,7 +3,7 @@
 // Hang: csak zene. Feliratok: nyitó/záró kártya + a fotók alsó felirat-sávja (Satori).
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import ComboField from "@/components/ComboField";
@@ -290,12 +290,6 @@ export default function VideoWizard({
                           style={{ height: 88, background: `linear-gradient(135deg, ${d.preview.from}, ${d.preview.to})`, color: d.preview.ink }}
                         >
                           <div className="font-display text-base font-bold">{d.name}</div>
-                        </div>
-                        <div className="px-3 pt-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            {d.introPanel && <Chip>Intro-panel</Chip>}
-                            {d.agentCard && <Chip>Ügynökkártya</Chip>}
-                          </div>
                         </div>
                       </button>
                       {/* Méret-választó — csak a dizájn elérhető arányai */}
@@ -594,17 +588,5 @@ function Combo({ label, value, onChange, options, placeholder }: {
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
       <ComboField className="mt-1 w-full" value={value} onChange={onChange} options={options} placeholder={placeholder} />
     </div>
-  );
-}
-
-/** Kis címke-chip a sablon-galéria kártyáin. */
-function Chip({ children }: { children: ReactNode }) {
-  return (
-    <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-      style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
-    >
-      {children}
-    </span>
   );
 }
