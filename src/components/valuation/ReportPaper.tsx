@@ -161,11 +161,14 @@ function Cover({
   tools?: SectionTools;
 }) {
   const editingPrice = tools?.editingId === "__headline";
+  // Nyomtatóbarát, világos fejléc (a korábbi fekete sáv helyett).
+  const coverBg = "#f3ede1"; // meleg, halvány homok
+  const coverBorder = "#e3d9c8";
   return (
     <div
       style={{
-        background: C.dark,
-        color: C.onDark,
+        background: coverBg,
+        color: C.ink,
         margin: `-${PAPER_PAD}px -${PAPER_PAD}px 0`,
         padding: `${PAPER_PAD - 8}px ${PAPER_PAD}px ${PAPER_PAD - 12}px`,
         position: "relative",
@@ -189,7 +192,7 @@ function Cover({
           fontSize: 11,
           letterSpacing: "0.18em",
           textTransform: "uppercase",
-          color: C.onDarkMuted,
+          color: C.muted,
         }}
       >
         <span style={{ color: C.coral, fontWeight: 700 }}>TWINX</span>
@@ -203,13 +206,13 @@ function Cover({
           lineHeight: 1.18,
           fontWeight: 700,
           letterSpacing: "-0.01em",
-          color: "#fff",
+          color: C.ink,
         }}
       >
         {doc.title}
       </h1>
       {doc.subtitle && (
-        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: C.onDarkMuted }}>{doc.subtitle}</p>
+        <p style={{ margin: "8px 0 0", fontSize: 13.5, color: C.muted }}>{doc.subtitle}</p>
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18 }}>
@@ -218,26 +221,26 @@ function Cover({
             key={m.label}
             style={{
               borderRadius: 999,
-              border: `1px solid rgba(244,239,231,0.22)`,
+              border: `1px solid ${coverBorder}`,
               padding: "5px 11px",
               fontSize: 11.5,
-              color: C.onDark,
+              color: C.ink,
             }}
           >
-            <span style={{ color: C.onDarkMuted }}>{m.label}: </span>
+            <span style={{ color: C.muted }}>{m.label}: </span>
             {m.value}
           </span>
         ))}
         <span
           style={{
             borderRadius: 999,
-            border: `1px solid rgba(244,239,231,0.22)`,
+            border: `1px solid ${coverBorder}`,
             padding: "5px 11px",
             fontSize: 11.5,
-            color: C.onDark,
+            color: C.ink,
           }}
         >
-          <span style={{ color: C.onDarkMuted }}>Készült: </span>
+          <span style={{ color: C.muted }}>Készült: </span>
           {dateLabel}
         </span>
       </div>
@@ -279,11 +282,11 @@ function Cover({
           style={{
             marginTop: 22,
             borderRadius: 14,
-            border: "1px dashed rgba(244,239,231,0.35)",
+            border: `1px dashed ${coverBorder}`,
             padding: "12px 16px",
           }}
         >
-          <div style={{ ...priceLabelStyle, color: C.onDarkMuted }}>
+          <div style={{ ...priceLabelStyle, color: C.muted }}>
             Javasolt ár
             <HeaderEditBtn
               onClick={() => tools.setEditingId(editingPrice ? null : "__headline")}
@@ -293,7 +296,7 @@ function Cover({
           {editingPrice ? (
             <HeadlineInput value={doc.headlinePrice} onChange={(v) => tools?.onChange("__headline", { body: v })} />
           ) : (
-            <div style={{ fontSize: 13, marginTop: 4, color: C.onDarkMuted, fontStyle: "italic" }}>
+            <div style={{ fontSize: 13, marginTop: 4, color: C.muted, fontStyle: "italic" }}>
               Nincs megadva — kattints a „Megadás” gombra.
             </div>
           )}
@@ -328,9 +331,9 @@ function HeaderEditBtn({
       onClick={onClick}
       style={{
         borderRadius: 999,
-        border: `1px solid ${onDark ? "rgba(28,16,5,0.35)" : "rgba(244,239,231,0.35)"}`,
+        border: `1px solid ${onDark ? "rgba(28,16,5,0.35)" : C.line}`,
         background: "transparent",
-        color: onDark ? "#1c1005" : C.onDark,
+        color: onDark ? "#1c1005" : C.muted,
         fontSize: 11,
         padding: "2px 9px",
         cursor: "pointer",
