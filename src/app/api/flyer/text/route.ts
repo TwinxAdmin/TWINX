@@ -7,6 +7,7 @@ import { buildFlyerCopyPromptActive } from "@/lib/prompts";
 import type { FlyerFacts, FlyerText } from "@/lib/flyer";
 
 export const runtime = "nodejs";
+export const maxDuration = 60; // a Perplexity szöveg-hívás lassabb lehet (elkerüli a FUNCTION_INVOCATION_TIMEOUT-ot)
 
 const TONE_DESC: Record<string, string> = {
   tenyszeru: "tényszerű, lényegre törő, tárgyilagos",
