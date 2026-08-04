@@ -17,6 +17,12 @@ import {
   type FbAdsInput,
 } from "@/lib/fbads-prompt";
 import {
+  GOOGLE_ADS_DEFAULT_SEGMENTS,
+  GOOGLE_ADS_DATA_BLOCK_PREVIEW,
+  composeGoogleAdsPrompt,
+  type GoogleAdsInput,
+} from "@/lib/googleads-prompt";
+import {
   LAND_DEFAULT_SEGMENTS,
   LAND_DATA_BLOCK_PREVIEW,
   composeLandPrompt,
@@ -371,6 +377,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
+    key: "google_ads",
+    label: "Google Ads (PPC) szöveg + kulcsszó",
+    dataBlockPreview: GOOGLE_ADS_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A PPC-szakértő szerepe és az alapszabály (csak a hirdetésből, ne találjon ki adatot). Változó nem használható.",
+        default: GOOGLE_ADS_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / struktúra (JSON)",
+        hint: "A reszponzív keresési hirdetés szövegei (címsorok ≤30, leírások ≤90) és a kulcsszólista (célzott + kizáró). A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: GOOGLE_ADS_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
     key: "professional_hospitality",
     label: "Szakember-kereső (vendéglátás)",
     dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
@@ -586,6 +612,15 @@ export async function buildFbAdsPromptActive(input: FbAdsInput): Promise<string>
   return composeFbAdsPrompt(input, {
     intro: segments.intro ?? FBADS_DEFAULT_SEGMENTS.intro,
     task: segments.task ?? FBADS_DEFAULT_SEGMENTS.task,
+  });
+}
+
+/** Google Ads (PPC) generátor: az aktív prompt összeállítása. */
+export async function buildGoogleAdsPromptActive(input: GoogleAdsInput): Promise<string> {
+  const segments = await getActiveSegments("google_ads");
+  return composeGoogleAdsPrompt(input, {
+    intro: segments.intro ?? GOOGLE_ADS_DEFAULT_SEGMENTS.intro,
+    task: segments.task ?? GOOGLE_ADS_DEFAULT_SEGMENTS.task,
   });
 }
 

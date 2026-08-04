@@ -8,10 +8,10 @@ export default function FbAdsPage() {
     <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro
         eyebrow="Ingatlan · Marketing"
-        title="Facebook hirdetésszöveg"
-        subtitle="Illeszd be egy ingatlanhirdetés linkjét, és kapsz 3 kész, B2C Facebook hirdetésszöveget: egy rövid és pörgőset, egy érzelmi/sztori-alapút és egy adatvezérelt, felsorolásosat — hookkal, emojikkal és CTA-val, azonnal posztolható formában."
+        title="Hirdetésszöveg generátor"
+        subtitle="Illeszd be egy ingatlanhirdetés linkjét, és kapsz kész hirdetésszövegeket. Facebook: 3 stílusú B2C poszt (rövid, sztori-alapú, felsorolásos). Google Ads: reszponzív keresési hirdetés címsorai (≤30) és leírásai (≤90) + célzott és kizáró kulcsszavak."
         icon="flyer"
-        chips={["Link alapján", "3 stílus", "Másolható"]}
+        chips={["Link alapján", "Facebook + Google Ads", "Másolható"]}
       />
       <FbAdsGenerator />
     </main>

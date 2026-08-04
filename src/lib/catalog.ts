@@ -30,7 +30,7 @@ export const CATEGORIES: Category[] = [
       { label: "Videó generálás", href: "/dashboard/real-estate/video", icon: "video", desc: "Profi bemutató videó a fotókból" },
       { label: "Hirdetéskészítő", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott ingatlanhirdetés" },
       { label: "Szöveg ellenőrzés", href: "/dashboard/real-estate/ad-check", icon: "history", desc: "Meglévő hirdetés elemzése link alapján" },
-      { label: "Facebook hirdetésszöveg", href: "/dashboard/real-estate/fb-ads", icon: "flyer", desc: "3 kész FB-hirdetésszöveg link alapján" },
+      { label: "Hirdetésszöveg generátor", href: "/dashboard/real-estate/fb-ads", icon: "flyer", desc: "Facebook + Google Ads szövegek link alapján" },
       { label: "Szakember-kereső", href: "/dashboard/real-estate/professionals", icon: "pro", desc: "Közvetítő, ügyvéd, energetikus, kivitelező…" },
     ],
   },
