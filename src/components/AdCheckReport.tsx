@@ -1,7 +1,9 @@
-// A hirdetés-elemzés megjelenítése — TÖMÖR értékelés:
-// Megfelelőség %, Miben jó, Miben rossz, Mit kell javítani.
+// A hirdetés-elemzés megjelenítése — TÖMÖR értékelés + SZERKESZTHETŐ javított
+// hirdetésszöveg. A javított szöveg elfogadásakor (esetleg átírva) készül a PDF.
 "use client";
 
+import { useState } from "react";
+import { showToast } from "@/components/Toast";
 import { toDownloadUrl } from "@/lib/files";
 import type { AdCheckResult } from "@/lib/adcheck";
 
@@ -60,12 +62,45 @@ function VerdictList({
 }
 
 export default function AdCheckReport({
-  result, pdfUrl, sourceUrl,
+  result, pdfUrl, sourceUrl, recordId, onSaved,
 }: {
   result: AdCheckResult;
   pdfUrl: string | null;
   sourceUrl?: string | null;
+  recordId?: string | null;
+  onSaved?: (pdfUrl: string) => void;
 }) {
+  const [draft, setDraft] = useState(result.rewritten ?? "");
+  const [pdf, setPdf] = useState<string | null>(pdfUrl);
+  const [saving, setSaving] = useState(false);
+
+  const copy = (t: string) =>
+    void navigator.clipboard.writeText(t).then(
+      () => showToast("Vágólapra másolva.", "success"),
+      () => showToast("A másolás nem sikerült.", "error")
+    );
+
+  async function acceptAndPdf() {
+    if (!recordId || saving || draft.trim().length < 20) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/real-estate/ad-check/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: recordId, rewritten: draft.trim() }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "A PDF elkészítése nem sikerült.");
+      setPdf(d.pdf_url as string);
+      onSaved?.(d.pdf_url as string);
+      showToast("Elfogadva — a PDF elkészült.", "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* --- FEJLÉC: megfelelőség + cím --- */}
@@ -85,8 +120,8 @@ export default function AdCheckReport({
               </p>
             )}
           </div>
-          {pdfUrl && (
-            <a href={toDownloadUrl(pdfUrl)} download
+          {pdf && (
+            <a href={toDownloadUrl(pdf)} download
               className="flex-none self-start rounded-xl px-4 py-2 text-sm font-semibold text-white"
               style={{ background: "var(--twx-coral)" }}>
               PDF letöltése
@@ -95,14 +130,41 @@ export default function AdCheckReport({
         </div>
       </div>
 
-      {/* --- MIBEN JÓ --- */}
+      {/* --- MIBEN JÓ / MIBEN ROSSZ / MIT KELL JAVÍTANI --- */}
       <VerdictList title="Miben jó" items={result.good} dot="#2e7d52" bg="#f2f9f5" border="#bfe0cd" />
-
-      {/* --- MIBEN ROSSZ --- */}
       <VerdictList title="Miben rossz" items={result.bad} dot="#c0392b" bg="#fdf3f2" border="#e6bdb8" />
-
-      {/* --- MIT KELL JAVÍTANI --- */}
       <VerdictList title="Mit kell javítani" items={result.fixes} dot="#7a2e17" bg="var(--twx-coral-soft)" border="var(--twx-coral)" />
+
+      {/* --- JAVÍTOTT, SZERKESZTHETŐ HIRDETÉSSZÖVEG --- */}
+      <section className="rounded-xl p-4" style={{ border: "1px solid var(--twx-line)" }}>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold">Javított hirdetésszöveg</h4>
+          <button type="button" onClick={() => copy(draft)}
+            className="rounded-lg px-2.5 py-1 text-xs font-medium" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+            Szöveg másolása
+          </button>
+        </div>
+        <p className="mb-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+          Az AI által javított szöveg — szerkeszd tetszés szerint. A [szögletes zárójeles] helyeket töltsd ki a valós adatokkal.
+        </p>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={12}
+          className="twx-input w-full text-sm leading-relaxed"
+          placeholder="A javított hirdetésszöveg…"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={acceptAndPdf} disabled={saving || !recordId || draft.trim().length < 20}
+            className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: "var(--twx-coral)" }}>
+            {saving ? "PDF készítése…" : (pdf ? "Újra elfogadom és PDF" : "Szöveg elfogadása és PDF készítése")}
+          </button>
+          {pdf && (
+            <span className="text-[11px]" style={{ color: "#2e7d52" }}>A PDF elkészült — fent letöltheted.</span>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

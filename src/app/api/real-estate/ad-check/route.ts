@@ -4,21 +4,18 @@
 //
 // Fotókat NEM elemzünk; a kiemelendőknél csak felhívjuk a figyelmet, mihez érdemes kép.
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildAdCheckPromptActive } from "@/lib/prompts";
-import { ADCHECK_CREDITS, isValidTone, parseAdCheck, toneLabel } from "@/lib/adcheck";
-import { generateAdCheckPdf } from "@/lib/pdf";
+import { ADCHECK_CREDITS, isValidTone, parseAdCheck } from "@/lib/adcheck";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 const FEATURE = "ad-check";
-const BUCKET = "reports";
 const MAX_TEXT = 20000;
 
 function isHttpUrl(s: string): boolean {
@@ -188,17 +185,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Az elemzés nem sikerült, próbáld újra." }, { status: 502 });
     }
 
-    // 3) PDF a Storage-ba (ha nem megy, az elemzés attól még használható).
-    let pdfUrl: string | null = null;
-    try {
-      const bytes = await generateAdCheckPdf({
-        result, sourceUrl: url || null, toneLabel: toneLabel(tone),
-      });
-      const path = `ad-check/${user.id}/${randomUUID()}.pdf`;
-      const { error: upErr } = await admin.storage
-        .from(BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: false });
-      if (!upErr) pdfUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-    } catch { pdfUrl = null; }
+    // 3) A PDF-et NEM itt készítjük: a partner előbb átnézi/szerkeszti a javított
+    //    hirdetésszöveget, és az ELFOGADÁSKOR (külön végpont) készül a PDF.
+    const pdfUrl: string | null = null;
 
     // 4) Mentés + előzmény.
     const { data: saved, error: saveErr } = await admin

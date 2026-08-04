@@ -268,6 +268,11 @@ export default function AdChecker() {
                 result={openItem.result}
                 pdfUrl={openItem.pdf_url}
                 sourceUrl={openItem.source_url}
+                recordId={openItem.id}
+                onSaved={(pdfUrl) => {
+                  setOpenItem((prev) => (prev ? { ...prev, pdf_url: pdfUrl } : prev));
+                  void load();
+                }}
               />
             </div>
           </div>

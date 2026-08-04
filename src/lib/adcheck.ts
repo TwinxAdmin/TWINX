@@ -32,9 +32,10 @@ export type AdCheckResult = {
   good: string[];   // Miben jó — tőmondatok
   bad: string[];    // Miben rossz — tőmondatok
   fixes: string[];  // Mit kell javítani — konkrét lépések
+  rewritten: string; // a javított, közlésre kész (szerkeszthető) hirdetésszöveg
 };
 
-export const EMPTY_AD_CHECK: AdCheckResult = { title: "", score: 0, good: [], bad: [], fixes: [] };
+export const EMPTY_AD_CHECK: AdCheckResult = { title: "", score: 0, good: [], bad: [], fixes: [], rewritten: "" };
 
 /** A modell válaszának beolvasása — a JSON köré írt szöveget is elviseli. */
 export function parseAdCheck(raw: string): AdCheckResult | null {
@@ -64,5 +65,6 @@ export function parseAdCheck(raw: string): AdCheckResult | null {
     good: list(o.good),
     bad: list(o.bad),
     fixes: list(o.fixes),
+    rewritten: str(o.rewritten),
   };
 }

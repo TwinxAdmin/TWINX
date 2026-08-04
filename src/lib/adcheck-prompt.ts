@@ -21,10 +21,16 @@ export const ADCHECK_DEFAULT_SEGMENTS = {
     "- Mit kell javítani: pontosan 2 KONKRÉT, azonnal elvégezhető lépés.\n" +
     "Ezen felül adj egy rövid, felismerhető FŐCÍMET az ingatlanról (title), formátum: " +
     "„Település (kerület), utca — típus, méret\", pl. „Budapest V. kerület, Sas utca — 3 szobás " +
-    "lakás, 78 m²\". Csak azt írd bele, ami a hirdetésből KIDERÜL; ne írj bele árat, és ne találj ki adatot.\n\n" +
+    "lakás, 78 m²\". Csak azt írd bele, ami a hirdetésből KIDERÜL; ne írj bele árat, és ne találj ki adatot.\n" +
+    "Írd meg a TELJES, javított, közlésre kész hirdetésszöveget is (rewritten): erős, figyelemfelkeltő " +
+    "címsor; jól tagolt, olvasható leírás (rövid bekezdések, szükség szerint felsorolás); a technikai " +
+    "adatok rendezetten; a célcsoportnak szóló előnyök kiemelve; a végén világos felhívás a " +
+    "kapcsolatfelvételre (CTA). A javított szöveg a lehető legjobb legyen. Ahol a hirdetésből egy konkrét " +
+    "adat HIÁNYZIK, tegyél oda szögletes zárójeles kitöltendő helyet, pl. [REZSI: …] — SOHA ne találj ki " +
+    "számot vagy tényt.\n\n" +
     "A válasz KIZÁRÓLAG egyetlen JSON objektum legyen, más szöveg nélkül, ebben a szerkezetben:\n" +
     '{"title":"…","score":0-100,"good":["tőmondat 1","tőmondat 2"],' +
-    '"bad":["tőmondat 1","tőmondat 2"],"fixes":["konkrét lépés 1","konkrét lépés 2"]}',
+    '"bad":["tőmondat 1","tőmondat 2"],"fixes":["konkrét lépés 1","konkrét lépés 2"],"rewritten":"a teljes javított hirdetésszöveg"}',
 };
 
 /** Az admin felületen mutatott (zárolt) adat-blokk előnézete. */

@@ -1047,5 +1047,11 @@ export async function generateAdCheckPdf(params: {
   bulletSection("Miben rossz", result.bad);
   bulletSection("Mit kell javítani", result.fixes);
 
+  // Javított, közlésre kész hirdetésszöveg (az elfogadott/szerkesztett változat).
+  if (result.rewritten) {
+    sectionTitle("Javított hirdetésszöveg");
+    paragraph(result.rewritten, 9.5, C.ink);
+  }
+
   return pdfDoc.save();
 }
