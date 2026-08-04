@@ -9,6 +9,7 @@ import { chargeCredit } from "@/lib/credits";
 import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
 export const runtime = "nodejs";
+export const maxDuration = 30; // nagyobb kép feltöltése is beleférjen
 const BUCKET = "reports";
 const FEATURE = "flyer";
 
