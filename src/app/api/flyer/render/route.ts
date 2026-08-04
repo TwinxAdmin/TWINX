@@ -11,7 +11,7 @@ import { loadGoogleFont, googleFamilyOf } from "@/lib/google-font";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const FALLBACK_FAMILY = "Montserrat";
@@ -93,16 +93,20 @@ export async function POST(request: Request) {
       thumbSlots = raw.map((s) => (s === "up1" || s === "up2" ? s : "row"));
     } catch { thumbSlots = []; }
     // Nagy felbontás: minden (szöveg, logó, fotó) élesebb; a sablon u-alapú, ezért
-    // arányosan skálázódik. Előnézet (vízjeles): 2× — gyors. Végleges: 3× — maximális
-    // minőség. A kész képet a kliens JPEG-ként tölti fel (méretlimit).
-    const SCALE = watermark ? 2 : 3;
+    // arányosan skálázódik. Előnézet (vízjeles): 2× — gyors. Végleges: 2,5× — magas
+    // minőség, de a renderidő a szerverkorlát alatt marad (a 3× nagy méretnél time-outolt).
+    // Env-ből felülírható (FLYER_FINAL_SCALE). A kész képet a kliens JPEG-ként tölti fel.
+    const finalScale = Number(process.env.FLYER_FINAL_SCALE) || 2.5;
+    const SCALE = watermark ? 2 : finalScale;
+    const W = Math.round(size.w * SCALE);
+    const H = Math.round(size.h * SCALE);
     const opts: RenderOpts = {
-      images, width: size.w * SCALE, height: size.h * SCALE, profile, text, mood, watermark,
+      images, width: W, height: H, profile, text, mood, watermark,
       heroPos, thumbSlots, heroDim: heroDim.w && heroDim.h ? heroDim : undefined,
     };
     const element = buildFlyerElement(opts, family);
 
-    return new ImageResponse(element, { width: size.w * SCALE, height: size.h * SCALE, fonts });
+    return new ImageResponse(element, { width: W, height: H, fonts });
   } catch (err) {
     return new Response("Render hiba: " + (err as Error).message, { status: 500 });
   }
