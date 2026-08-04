@@ -62,6 +62,7 @@ export default function AdWizard({
   const [finals, setFinals] = useState<Record<string, string>>({}); // elfogadott (mentett) URL-ek
   const [rendering, setRendering] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const curSize = sizes[Math.min(previewIdx, sizes.length - 1)] ?? SIZES[0].value;
   const sizeDef = getFlyerSize(curSize);
@@ -212,6 +213,38 @@ export default function AdWizard({
     } catch (e) {
       setError("Nem sikerült az előnézet: " + (e as Error).message);
     } finally { setRendering(false); }
+  }
+
+  // Kész hirdetés megosztása: mobilon a rendszer megosztó-panelje (Instagram,
+  // Facebook, Messenger, WhatsApp…) a képpel; asztali böngészőben letöltés-fallback.
+  async function shareFinal() {
+    if (!finalUrl || sharing) return;
+    setSharing(true); setError(null);
+    try {
+      const blob = await (await fetch(toDownloadUrl(finalUrl))).blob();
+      const file = new File([blob], "hirdetes.jpg", { type: blob.type || "image/jpeg" });
+      const nav = navigator as Navigator & {
+        canShare?: (data?: { files?: File[] }) => boolean;
+        share?: (data?: { files?: File[]; title?: string; text?: string }) => Promise<void>;
+      };
+      if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: "Ingatlan hirdetés" });
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "hirdetes.jpg";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        showToast("A böngésző nem támogatja a közvetlen megosztást — a kép letöltődött, töltsd fel a platformra.", "info");
+      }
+    } catch (e) {
+      // A megosztó-panel bezárása AbortError-t dob — ez nem hiba.
+      if ((e as Error).name !== "AbortError") setError("A megosztás nem sikerült. Töltsd le a képet és oszd meg kézzel.");
+    } finally {
+      setSharing(false);
+    }
   }
 
   async function accept() {
@@ -625,8 +658,13 @@ export default function AdWizard({
               Tovább
             </button>
           ) : finalUrl ? (
-            <div className="flex gap-2">
-              <a href={toDownloadUrl(finalUrl)} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Letöltés</a>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={shareFinal} disabled={sharing}
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
+                {sharing ? "Megosztás…" : "Megosztás"}
+              </button>
+              <a href={toDownloadUrl(finalUrl)} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-line)" }}>Letöltés</a>
               <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>
             </div>
           ) : (
