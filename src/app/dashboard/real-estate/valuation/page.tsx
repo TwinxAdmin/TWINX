@@ -318,23 +318,35 @@ export default function ValuationPage() {
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
 
-      {/* Kész becslés — kártya, ami megnyitja a szerkeszthető előnézetet */}
+      {/* Kész becslés — a legutóbb megnyitott/elkészített munka gyors elérése */}
       {result && (
-        <div className="twx-card flex flex-wrap items-center gap-3 p-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{result.doc.title}</p>
-            <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              {result.doc.subtitle || "Elkészült értékbecslés"} · szerkeszthető
-            </p>
+        <div className="twx-card overflow-hidden">
+          {/* Vékony infósáv: elmagyarázza, miért ez látszik itt */}
+          <div
+            className="flex items-center gap-2 px-4 py-2 text-[11px]"
+            style={{ background: "var(--twx-cream)", borderBottom: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+          >
+            <span aria-hidden>ℹ️</span>
+            <span>
+              Ez a legutóbb megnyitott vagy elkészített becslésed — gyors folytatásra. Az összes munkád a lenti mappákban található.
+            </span>
           </div>
-          <button type="button" className="twx-btn" onClick={() => setEditorOpen(true)}>
-            Megnyitás és szerkesztés
-          </button>
-          {result.url && (
-            <a className="twx-btn-outline" href={toDownloadUrl(result.url)}>
-              PDF letöltése
-            </a>
-          )}
+          <div className="flex flex-wrap items-center gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{result.doc.title}</p>
+              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                {result.doc.subtitle || "Elkészült értékbecslés"} · szerkeszthető
+              </p>
+            </div>
+            <button type="button" className="twx-btn" onClick={() => setEditorOpen(true)}>
+              Megnyitás és szerkesztés
+            </button>
+            {result.url && (
+              <a className="twx-btn-outline" href={toDownloadUrl(result.url)}>
+                PDF letöltése
+              </a>
+            )}
+          </div>
         </div>
       )}
 
