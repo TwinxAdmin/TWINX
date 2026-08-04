@@ -16,11 +16,12 @@ export function buildValuationPrompt(input: ValuationInput): string {
 // Env-ből felülírható: pl. sonar-reasoning-pro (analitikus) vagy sonar-deep-research (legmélyebb).
 export const PERPLEXITY_MODEL = process.env.PERPLEXITY_MODEL || "sonar-pro";
 
-// ADATFORRÁS: elsődlegesen a jelenleg aktív ingatlan.com hirdetések (comps-lista),
-// kiegészítésként pedig a nyilvános piaci statisztikák és szakmai elemzések
-// (ellenőrzés, árszint-beágyazás, outlier-szűrés). A Perplexity max 20 domaint fogad el;
-// az ingatlan.com áll elöl, hogy a keresés onnan induljon.
-export const LISTING_DOMAINS = ["ingatlan.com"];
+// ADATFORRÁS: elsődlegesen a GDN Ingatlan iroda kínálata (gdn-ingatlan.hu) és a
+// jelenleg aktív ingatlan.com hirdetések (comps-lista), kiegészítésként pedig a
+// nyilvános piaci statisztikák és szakmai elemzések (ellenőrzés, árszint-beágyazás,
+// outlier-szűrés). A Perplexity max 20 domaint fogad el; a GDN áll elöl, hogy az
+// aktív GDN-prompt a saját kínálatból induljon (a régi prompt is használhatja).
+export const LISTING_DOMAINS = ["gdn-ingatlan.hu", "ingatlan.com"];
 
 export const MARKET_ANALYSIS_DOMAINS = [
   "ksh.hu", // KSH lakáspiaci jelentések

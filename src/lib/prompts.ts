@@ -123,6 +123,12 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
         default: VALUATION_DEFAULT_SEGMENTS.intro,
       },
       {
+        id: "source",
+        label: "Adatforrás és elemzési bázis",
+        hint: "Melyik adatbázisból induljon a becslés (pl. aktív ingatlan.com hirdetések vagy a GDN iroda kínálata + lazító létra). Ez a szegmens váltja a régi és az új verziót. Változó nem használható.",
+        default: VALUATION_DEFAULT_SEGMENTS.source,
+      },
+      {
         id: "task",
         label: "Kimeneti struktúra",
         hint: "A jelentés pontjai és formátuma. Változó nem használható.",
