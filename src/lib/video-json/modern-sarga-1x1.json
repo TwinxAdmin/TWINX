@@ -474,68 +474,6 @@
         "clips": [
           {
             "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_7d943fbf.webm"
-            },
-            "start": 0,
-            "position": "center",
-            "scale": 1,
-            "length": 4.52,
-            "offset": {
-              "x": -0.025925925925925908,
-              "y": 0.23333333333333334
-            }
-          },
-          {
-            "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_485c573e.webm"
-            },
-            "start": 4.52,
-            "length": 4.52,
-            "position": "center",
-            "scale": 1
-          },
-          {
-            "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_aecd6a26.webm"
-            },
-            "length": 3,
-            "start": 10.56,
-            "scale": 1
-          },
-          {
-            "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_85c87589.webm"
-            },
-            "start": 16.56,
-            "length": 3
-          },
-          {
-            "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_3991a892.webm"
-            },
-            "length": 3,
-            "start": 22.56
-          },
-          {
-            "asset": {
-              "type": "video",
-              "src": "https://templates.shotstack.io/real-estate-slideshow-sd-overlays-merge/q1w52dk2mltj9cly309unqdf/source_fb9044df.webm"
-            },
-            "start": 29,
-            "length": 7,
-            "position": "center"
-          }
-        ]
-      },
-      {
-        "clips": [
-          {
-            "asset": {
               "type": "image",
               "src": "{{ IMAGE_1 }}"
             },
