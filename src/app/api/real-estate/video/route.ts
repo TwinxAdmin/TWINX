@@ -25,6 +25,7 @@ import { failJobOnce, initClips, type AiClipState } from "@/lib/video-pipeline";
 import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
 import { logCost, shotstackRenderCostUsd, falVideoCostUsd } from "@/lib/costs";
 import type { FlyerProfileData } from "@/lib/flyer-template";
+import { formatPrice, formatSize } from "@/lib/flyer-poster";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -150,9 +151,12 @@ export async function POST(request: Request) {
       const musicUrl = await pickMusic(musicStyle);
       const digits = (s: string) => (String(s).match(/\d+/)?.[0] ?? "");
       const clean = (s: string | undefined) => String(s ?? "").trim();
+      // Ha a partner csak számot ír, kiegészítjük: ár → „M Ft", méret → „m²".
+      const price = formatPrice(clean(facts.price));
+      const size = formatSize(clean(facts.size));
       // Összevont adatsor a zárókártyához: méret · szoba · fürdő · emelet (üres kimarad).
       const specs = [
-        clean(facts.size),
+        size,
         clean(facts.rooms),
         clean(facts.bathrooms),
         clean(facts.floor),
@@ -166,12 +170,13 @@ export async function POST(request: Request) {
         BATHROOMS: digits(facts.bathrooms),
         CARPORTS: "",
         TYPE: (clean((facts as { propertyType?: string }).propertyType) || "ELADÓ").toUpperCase(),
-        PRICE: clean(facts.price),
-        SIZE: clean(facts.size),
+        PRICE: price,
+        SIZE: size,
         FLOOR: clean(facts.floor),
         SPECS: specs,
         AGENT_NAME: (profile.display_name || profile.company || "").toUpperCase(),
-        AGENT_EMAIL: profile.email || profile.phone || "",
+        AGENT_EMAIL: profile.email || "",
+        AGENT_PHONE: profile.phone || "",
         AGENT_PICTURE: profile.agent_photo_url || "",
         AGENCY_LOGO: profile.logo_url || "",
       };
