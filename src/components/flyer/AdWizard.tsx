@@ -41,6 +41,7 @@ export default function AdWizard({
   // 2) Képek
   const [images, setImages] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [arranging, setArranging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 3) Adatok + szöveg
@@ -109,6 +110,36 @@ export default function AdWizard({
       if (to < 0 || to >= prev.length) return prev;
       const n = [...prev]; const [m] = n.splice(from, 1); n.splice(to, 0, m); return n;
     });
+
+  // "AI elrendezés": a fotókat esztétikai/főkép-alkalmassági pontszám alapján
+  // értékeli, és a legjobbat teszi FŐKÉPnek (index 0). A partner utólag átrendezheti.
+  async function arrangeByAI() {
+    if (images.length < 2 || arranging) return;
+    setArranging(true); setError(null);
+    try {
+      const fd = new FormData();
+      for (const u of images) {
+        const blob = await (await fetch(u)).blob();
+        const f = new File([blob], "kep.jpg", { type: blob.type || "image/jpeg" });
+        fd.append("images", await compressImage(f, 1024, 0.8));
+      }
+      const res = await fetch("/api/flyer/arrange", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Az AI-elrendezés nem sikerült.");
+      if (data.applied && typeof data.bestIndex === "number" && data.bestIndex > 0) {
+        moveImage(data.bestIndex, 0);
+        showToast("A legjobb fotó lett a főkép — igény szerint átrendezheted.", "success");
+      } else if (data.applied) {
+        showToast("A jelenlegi főkép már a legjobb választás.", "info");
+      } else {
+        showToast("Az AI-elrendezés most nem elérhető — a sorrend változatlan.", "info");
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setArranging(false);
+    }
+  }
 
   // --- AI szöveg ---
   async function generateText() {
@@ -375,6 +406,23 @@ export default function AdWizard({
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
                   onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
               </div>
+              {images.length >= 2 && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={arrangeByAI}
+                    disabled={arranging}
+                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                    style={{ border: "1px solid var(--twx-coral)", color: "#7a2e17", background: "var(--twx-coral-soft)" }}
+                  >
+                    <span aria-hidden>✨</span>
+                    {arranging ? "AI elrendezés folyamatban…" : "AI elrendezés — legjobb fotó a főképbe"}
+                  </button>
+                  <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    A képelemzés a legvonzóbb fotót teszi főképnek. Utána szabadon átrendezheted.
+                  </span>
+                </div>
+              )}
               {images.length > 0 && (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {images.map((src, i) => (

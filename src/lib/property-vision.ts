@@ -144,6 +144,51 @@ export async function analyzePropertyPhotos(
   }
 }
 
+// --- Hirdetés főkép-választás: esztétikai pontszám képenként ------------------
+const HERO_PROMPT = `Ingatlan-hirdetéshez FŐKÉPET választasz. Az alábbi képeket a SORRENDJÜKBEN értékeld 0-100 pont között aszerint, mennyire alkalmas vonzó, figyelemfelkeltő FŐKÉPNEK egy hirdetés tetején.
+Magasabb pont: világos, jól exponált, tágas, rendezett, jó kompozíciójú, hívogató FŐHELYISÉG (nappali, konyha-étkező, panorámás vagy kertkapcsolatos tér).
+Alacsonyabb pont: sötét, zsúfolt, szűk vagy mellékes helyiség (fürdő, WC, tároló, folyosó), életlen, rossz szögből készült vagy zavaros kép.
+VÁLASZ: KIZÁRÓLAG egyetlen JSON, más szöveg nélkül: {"scores":[<szám a 1. képhez>, <szám a 2. képhez>, ...]} — pontosan annyi szám, ahány kép van, a képek sorrendjében.`;
+
+/**
+ * Minden hirdetés-fotóhoz esztétikai/főkép-alkalmassági pontszám (0-100), a képek
+ * sorrendjében. Hibatűrő: hiba esetén null (a hívó marad az eredeti sorrendnél).
+ */
+export async function scoreFlyerPhotos(images: VisionImage[]): Promise<number[] | null> {
+  const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
+  if (!apiKey || images.length === 0) return null;
+
+  const parts: Array<Record<string, unknown>> = [{ text: HERO_PROMPT }];
+  for (const img of images.slice(0, 8)) {
+    parts.push({
+      inline_data: { mime_type: img.mimeType, data: Buffer.from(img.bytes).toString("base64") },
+    });
+  }
+
+  try {
+    const res = await fetch(`${ENDPOINT}/${TEXT_MODEL}:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: { temperature: 0, responseModalities: ["TEXT"] },
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text: string =
+      data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p?.text ?? "").join("") ?? "";
+    const obj = extractJson(text);
+    const arr = obj?.scores;
+    if (!Array.isArray(arr)) return null;
+    const scores = arr.map((n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0))));
+    // Csak akkor fogadjuk el, ha minden képhez van pont.
+    return scores.length >= images.length ? scores.slice(0, images.length) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** A jelentés promptba illeszthető szöveges blokkja (a ±5% plafonra emlékeztetve). */
 export function renderConditionBlock(r: PropertyConditionReport): string {
   const pos = r.positives.length ? r.positives.join("; ") : "—";
