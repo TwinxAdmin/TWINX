@@ -3,12 +3,20 @@
 //  • Google Ads (PPC): reszponzív keresési hirdetés címsorai/leírásai + kulcsszólista.
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { FBADS_CREDITS, EMPTY_FBADS, type FbAdsResult } from "@/lib/fbads";
 import { type GoogleAdsResult } from "@/lib/googleads";
 
 type Platform = "facebook" | "google";
+
+type HistoryItem = {
+  id: string;
+  feature_used: "fb-ads" | "google-ads";
+  input_data: { url?: string | null; title?: string | null } | null;
+  output_text: string | null;
+  created_at: string;
+};
 
 const FB_STYLES: { key: keyof Pick<FbAdsResult, "short" | "story" | "bullets">; label: string; note: string }[] = [
   { key: "short", label: "Rövid és pörgős", note: "Max 3-4 mondat, a legfőbb egyedi előny (USP) a fókuszban." },
@@ -27,6 +35,43 @@ export default function FbAdsGenerator() {
   const [fb, setFb] = useState<FbAdsResult | null>(null);
   const [fbDrafts, setFbDrafts] = useState<FbAdsResult>({ ...EMPTY_FBADS });
   const [g, setG] = useState<GoogleAdsResult | null>(null);
+
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/real-estate/fb-ads");
+      const d = await res.json();
+      if (res.ok) setHistory((d.items ?? []) as HistoryItem[]);
+    } catch { /* lista nélkül is használható */ }
+  }, []);
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
+
+  function openHistory(it: HistoryItem) {
+    if (!it.output_text) return;
+    if (it.feature_used === "google-ads") {
+      setPlatform("google");
+      setFb(null);
+      setG({ csv: it.output_text });
+    } else {
+      try {
+        const r = JSON.parse(it.output_text) as FbAdsResult;
+        setPlatform("facebook");
+        setG(null);
+        setFb(r);
+        setFbDrafts(r);
+      } catch {
+        showToast("Ezt az elemet nem sikerült megnyitni.", "error");
+        return;
+      }
+    }
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function histTitle(it: HistoryItem): string {
+    return (
+      it.input_data?.title?.trim() ||
+      (it.input_data?.url ? it.input_data.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60) : "Bemásolt szöveg")
+    );
+  }
 
   const copy = (t: string, msg = "Vágólapra másolva.") =>
     void navigator.clipboard.writeText(t).then(
@@ -73,6 +118,7 @@ export default function FbAdsGenerator() {
         setFbDrafts(d.result as FbAdsResult);
       }
       showToast("A hirdetésszövegek elkészültek.", "success");
+      void loadHistory();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -192,6 +238,40 @@ export default function FbAdsGenerator() {
           <p className="mt-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
             Importálás: Google Ads Editor → Account → Import → From file. A kampány „Paused”, ellenőrzés után indítható.
           </p>
+        </section>
+      )}
+
+      {/* --- KORÁBBI GENERÁLÁSOK --- */}
+      {history.length > 0 && (
+        <section className="twx-card p-4 sm:p-5">
+          <h3 className="text-sm font-semibold">Korábbi generálások</h3>
+          <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Nyiss meg egy korábbi eredményt — a szövegek/CSV újra megjelennek fent.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {history.map((it) => {
+              const isG = it.feature_used === "google-ads";
+              return (
+                <button key={it.id} type="button" onClick={() => openHistory(it)}
+                  className="flex items-center justify-between gap-2 rounded-xl p-3 text-left transition hover:shadow-sm"
+                  style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                  <span className="min-w-0">
+                    <span className="mb-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={isG
+                        ? { background: "#e8f0fe", color: "#1a56c4" }
+                        : { background: "#eef3ff", color: "#3b5998" }}>
+                      {isG ? "Google Ads" : "Facebook"}
+                    </span>
+                    <span className="block truncate text-xs font-medium">{histTitle(it)}</span>
+                    <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      {new Date(it.created_at).toLocaleString("hu-HU")}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[11px] font-semibold" style={{ color: "var(--twx-coral)" }}>Megnyitás</span>
+                </button>
+              );
+            })}
+          </div>
         </section>
       )}
     </div>

@@ -25,6 +25,24 @@ function isHttpUrl(s: string): boolean {
   } catch { return false; }
 }
 
+// GET — a korábbi Facebook + Google Ads generálások (usage_history, saját sorok).
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("usage_history")
+    .select("id, feature_used, input_data, output_text, created_at")
+    .eq("user_id", user.id)
+    .in("feature_used", ["fb-ads", "google-ads"])
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return NextResponse.json({ items: data ?? [] });
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
