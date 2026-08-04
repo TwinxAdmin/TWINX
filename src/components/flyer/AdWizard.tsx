@@ -127,11 +127,16 @@ export default function AdWizard({
       const res = await fetch("/api/flyer/arrange", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Az AI-elrendezés nem sikerült.");
-      if (data.applied && typeof data.bestIndex === "number" && data.bestIndex > 0) {
-        moveImage(data.bestIndex, 0);
-        showToast("A legjobb fotó lett a főkép — igény szerint átrendezheted.", "success");
+      const order: number[] = Array.isArray(data.order) ? data.order : [];
+      const validOrder =
+        order.length === images.length &&
+        order.every((n) => Number.isInteger(n) && n >= 0 && n < images.length) &&
+        new Set(order).size === images.length;
+      if (data.applied && validOrder) {
+        setImages((prev) => order.map((i) => prev[i]));
+        showToast("Elrendezve: a legjobb fotó a főkép, a kisképekben eltérő helyiségek.", "success");
       } else if (data.applied) {
-        showToast("A jelenlegi főkép már a legjobb választás.", "info");
+        showToast("Az AI-elrendezés nem hozott változást.", "info");
       } else {
         showToast("Az AI-elrendezés most nem elérhető — a sorrend változatlan.", "info");
       }
@@ -449,10 +454,10 @@ export default function AdWizard({
                     style={{ border: "1px solid var(--twx-coral)", color: "#7a2e17", background: "var(--twx-coral-soft)" }}
                   >
                     <span aria-hidden>✨</span>
-                    {arranging ? "AI elrendezés folyamatban…" : "AI elrendezés — legjobb fotó a főképbe"}
+                    {arranging ? "AI elrendezés folyamatban…" : "AI elrendezés — főkép + változatos kisképek"}
                   </button>
                   <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                    A képelemzés a legvonzóbb fotót teszi főképnek. Utána szabadon átrendezheted.
+                    A legvonzóbb fotó lesz a főkép, a kisképekbe eltérő helyiségek kerülnek. Utána szabadon átrendezheted.
                   </span>
                 </div>
               )}

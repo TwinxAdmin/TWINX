@@ -145,16 +145,18 @@ export async function analyzePropertyPhotos(
 }
 
 // --- Hirdetés főkép-választás: esztétikai pontszám képenként ------------------
-const HERO_PROMPT = `Ingatlan-hirdetéshez FŐKÉPET választasz. Az alábbi képeket a SORRENDJÜKBEN értékeld 0-100 pont között aszerint, mennyire alkalmas vonzó, figyelemfelkeltő FŐKÉPNEK egy hirdetés tetején.
-Magasabb pont: világos, jól exponált, tágas, rendezett, jó kompozíciójú, hívogató FŐHELYISÉG (nappali, konyha-étkező, panorámás vagy kertkapcsolatos tér).
-Alacsonyabb pont: sötét, zsúfolt, szűk vagy mellékes helyiség (fürdő, WC, tároló, folyosó), életlen, rossz szögből készült vagy zavaros kép.
-VÁLASZ: KIZÁRÓLAG egyetlen JSON, más szöveg nélkül: {"scores":[<szám a 1. képhez>, <szám a 2. képhez>, ...]} — pontosan annyi szám, ahány kép van, a képek sorrendjében.`;
+const HERO_PROMPT = `Ingatlan-hirdetéshez FŐKÉPET választasz és a képeket helyiség szerint sorolod. Az alábbi képeket a SORRENDJÜKBEN elemezd. Mindegyikhez adj:
+- score: 0-100 pont, mennyire alkalmas vonzó, figyelemfelkeltő FŐKÉPNEK. Magasabb: világos, tágas, rendezett, jó kompozíciójú, hívogató FŐHELYISÉG (nappali, konyha-étkező, panorámás/kertkapcsolatos tér). Alacsonyabb: sötét, zsúfolt, szűk vagy mellékes helyiség (fürdő, WC, tároló, folyosó), életlen kép.
+- room: a képen látható helyiség/tér egyike: "nappali", "konyha", "étkező", "háló", "fürdő", "wc", "előszoba", "erkély/terasz", "kert/kültér", "homlokzat", "egyéb".
+VÁLASZ: KIZÁRÓLAG egyetlen JSON, más szöveg nélkül: {"photos":[{"score":<szám>,"room":"<helyiség>"}, ...]} — pontosan annyi elem, ahány kép van, a képek sorrendjében.`;
+
+export type FlyerPhotoInfo = { score: number; room: string };
 
 /**
- * Minden hirdetés-fotóhoz esztétikai/főkép-alkalmassági pontszám (0-100), a képek
- * sorrendjében. Hibatűrő: hiba esetén null (a hívó marad az eredeti sorrendnél).
+ * Minden hirdetés-fotóhoz pontszám (0-100, főkép-alkalmasság) + helyiség-besorolás,
+ * a képek sorrendjében. Hibatűrő: hiba esetén null (a hívó marad az eredeti sorrendnél).
  */
-export async function scoreFlyerPhotos(images: VisionImage[]): Promise<number[] | null> {
+export async function analyzeFlyerPhotos(images: VisionImage[]): Promise<FlyerPhotoInfo[] | null> {
   const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
   if (!apiKey || images.length === 0) return null;
 
@@ -179,11 +181,16 @@ export async function scoreFlyerPhotos(images: VisionImage[]): Promise<number[] 
     const text: string =
       data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p?.text ?? "").join("") ?? "";
     const obj = extractJson(text);
-    const arr = obj?.scores;
+    const arr = obj?.photos;
     if (!Array.isArray(arr)) return null;
-    const scores = arr.map((n) => Math.max(0, Math.min(100, Math.round(Number(n) || 0))));
-    // Csak akkor fogadjuk el, ha minden képhez van pont.
-    return scores.length >= images.length ? scores.slice(0, images.length) : null;
+    const info: FlyerPhotoInfo[] = arr.map((x) => {
+      const o = (x ?? {}) as Record<string, unknown>;
+      return {
+        score: Math.max(0, Math.min(100, Math.round(Number(o.score) || 0))),
+        room: typeof o.room === "string" && o.room.trim() ? o.room.trim().toLowerCase() : "egyéb",
+      };
+    });
+    return info.length >= images.length ? info.slice(0, images.length) : null;
   } catch {
     return null;
   }
