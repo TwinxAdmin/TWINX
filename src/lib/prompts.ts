@@ -11,6 +11,12 @@ import {
   type AdCheckInput,
 } from "@/lib/adcheck-prompt";
 import {
+  FBADS_DEFAULT_SEGMENTS,
+  FBADS_DATA_BLOCK_PREVIEW,
+  composeFbAdsPrompt,
+  type FbAdsInput,
+} from "@/lib/fbads-prompt";
+import {
   LAND_DEFAULT_SEGMENTS,
   LAND_DATA_BLOCK_PREVIEW,
   composeLandPrompt,
@@ -345,6 +351,26 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
+    key: "fb_ads",
+    label: "Facebook hirdetésszöveg-generátor",
+    dataBlockPreview: FBADS_DATA_BLOCK_PREVIEW,
+    dataBlockAfter: "intro",
+    segments: [
+      {
+        id: "intro",
+        label: "Bevezető / szerep",
+        hint: "A marketinges szerep és az alapszabály (csak a hirdetésből, ne találjon ki adatot). Változó nem használható.",
+        default: FBADS_DEFAULT_SEGMENTS.intro,
+      },
+      {
+        id: "task",
+        label: "Feladat / 3 verzió (JSON)",
+        hint: "A közös követelmények (hook, emoji, CTA, link-helyőrző) és a 3 stílus (rövid, sztori, felsorolásos). A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
+        default: FBADS_DEFAULT_SEGMENTS.task,
+      },
+    ],
+  },
+  {
     key: "professional_hospitality",
     label: "Szakember-kereső (vendéglátás)",
     dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
@@ -551,6 +577,15 @@ export async function buildAdCheckPromptActive(input: AdCheckInput): Promise<str
   return composeAdCheckPrompt(input, {
     intro: segments.intro ?? ADCHECK_DEFAULT_SEGMENTS.intro,
     task: segments.task ?? ADCHECK_DEFAULT_SEGMENTS.task,
+  });
+}
+
+/** Facebook hirdetésszöveg-generátor: az aktív prompt összeállítása. */
+export async function buildFbAdsPromptActive(input: FbAdsInput): Promise<string> {
+  const segments = await getActiveSegments("fb_ads");
+  return composeFbAdsPrompt(input, {
+    intro: segments.intro ?? FBADS_DEFAULT_SEGMENTS.intro,
+    task: segments.task ?? FBADS_DEFAULT_SEGMENTS.task,
   });
 }
 
