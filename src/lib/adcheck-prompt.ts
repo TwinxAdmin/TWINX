@@ -3,44 +3,28 @@
 // böngészőbe letöltött kódba.
 // FONTOS: ezt a fájlt CSAK szerveroldali kód importálhatja (lib/prompts.ts,
 // API route-ok). Kliens komponensbe behúzva a teljes prompt a böngészőbe kerülne.
-import { AD_TONES } from "@/lib/adcheck";
 
 /** Az admin felületen SZERKESZTHETŐ szegmensek alapértéke. */
 export const ADCHECK_DEFAULT_SEGMENTS = {
   intro:
     "Tapasztalt magyar ingatlanmarketing-szakértő vagy, aki hirdetésszövegeket auditál. " +
-    "A feladatod, hogy egy meglévő ingatlanhirdetés SZÖVEGÉT értékeld, és konkrét, azonnal " +
-    "használható javításokat adj. Kizárólag a szöveggel foglalkozz — a fotókat NE értékeld, " +
-    "mert nem látod őket. Magyarul válaszolj, közvetlen, szakmai hangon. " +
-    "Ne találj ki adatot: amit a hirdetés nem állít, azt ne állítsd te sem.",
+    "Értékeld a megadott ingatlanhirdetést a legfontosabb szakmai szempontok alapján: " +
+    "címsor, technikai adatok, struktúra, célcsoport és CTA (felhívás a kapcsolatfelvételre). " +
+    "Kizárólag a SZÖVEGGEL foglalkozz — a fotókat NE értékeld, mert nem látod őket. " +
+    "Magyarul, közvetlen, szakmai hangon válaszolj. Ne találj ki adatot: amit a hirdetés nem " +
+    "állít, azt ne állítsd te sem.",
   task:
-    "Vizsgáld meg a hirdetést négy szempont szerint, és adj mindegyikre 0-100 pontot:\n" +
-    "1) info — Hiányzó információk: mit keresne a vevő, ami nincs benne (rezsi, tájolás, emelet, " +
-    "lift, parkolás, közlekedés, fűtés, állapot, költözhetőség).\n" +
-    "2) opening — Cím és első mondat: felkelti-e a figyelmet, kiderül-e azonnal a lényeg.\n" +
-    "3) structure — Szerkezet és olvashatóság: túl hosszú tömbök, felsorolások hiánya, csupa " +
-    "nagybetű, túl sok emoji, helyesírás, ismétlés.\n" +
-    "4) persuasion — Meggyőző erő és lezárás: életkép, előnyök kiemelése, van-e világos " +
-    "felhívás a kapcsolatfelvételre.\n\n" +
-    "Ezen felül:\n" +
-    "- title: RÖVID, felismerhető főcím magának az ingatlannak, amiről a hirdetés szól. " +
-    "Formátum: „Település (kerület), utca — típus, méret\", például „Budapest V. kerület, " +
-    "Sas utca — 3 szobás lakás, 78 m²\". Csak azt írd bele, ami a hirdetésből KIDERÜL; " +
-    "ha az utca nincs megadva, hagyd el, ha a település sincs, akkor a típus és a méret " +
-    "álljon ott. Ne írj bele árat, és ne találj ki adatot.\n" +
-    "- rewrites: 4-8 KONKRÉT mondat az eredeti szövegből, mindegyikhez egy jobb megfogalmazás " +
-    "és rövid indoklás. Az „original\" mező szó szerint az eredeti szövegből származzon.\n" +
-    "- highlights: 3-6 dolog, amit érdemes lenne HANGSÚLYOSAN kiemelni, mert megfogja az " +
-    "érdeklődőt; mindegyikhez egy kérdés a hirdetőnek, hogy van-e erről fotó a hirdetésben.\n" +
-    "- missing: a pótlandó adatok listája.\n" +
-    "- rewritten: a TELJES újraírt hirdetésszöveg a kért hangnemben, tagolva, felsorolásokkal. " +
-    "Ahol adat hiányzik, tegyél oda szögletes zárójeles kitöltendő helyet, például [REZSI: …] — " +
-    "SOHA ne találj ki konkrét számot vagy tényt.\n\n" +
-    "Csak a hirdetés tartalmát értékeld, ne a portált. A válasz KIZÁRÓLAG egy JSON objektum " +
-    "legyen, magyarázó szöveg nélkül, ebben a szerkezetben:\n" +
-    '{"title":"…","score":0-100,"summary":"…","aspects":[{"key":"info|opening|structure|persuasion",' +
-    '"score":0-100,"findings":["…"]}],"rewrites":[{"original":"…","improved":"…","why":"…"}],' +
-    '"highlights":[{"what":"…","why":"…","hasPhotoQuestion":"…"}],"missing":["…"],"rewritten":"…"}',
+    "Add meg SZIGORÚAN az alábbi tömör értékelést, tőmondatokban, konkrétan:\n" +
+    "- Megfelelőség: egyetlen szám 0-100 között (az egész hirdetés összesített szakmai minősége).\n" +
+    "- Miben jó: pontosan 2 tőmondat a hirdetés erősségeiről.\n" +
+    "- Miben rossz: pontosan 2 tőmondat a hirdetés gyengeségeiről.\n" +
+    "- Mit kell javítani: pontosan 2 KONKRÉT, azonnal elvégezhető lépés.\n" +
+    "Ezen felül adj egy rövid, felismerhető FŐCÍMET az ingatlanról (title), formátum: " +
+    "„Település (kerület), utca — típus, méret\", pl. „Budapest V. kerület, Sas utca — 3 szobás " +
+    "lakás, 78 m²\". Csak azt írd bele, ami a hirdetésből KIDERÜL; ne írj bele árat, és ne találj ki adatot.\n\n" +
+    "A válasz KIZÁRÓLAG egyetlen JSON objektum legyen, más szöveg nélkül, ebben a szerkezetben:\n" +
+    '{"title":"…","score":0-100,"good":["tőmondat 1","tőmondat 2"],' +
+    '"bad":["tőmondat 1","tőmondat 2"],"fixes":["konkrét lépés 1","konkrét lépés 2"]}',
 };
 
 /** Az admin felületen mutatott (zárolt) adat-blokk előnézete. */
@@ -62,7 +46,6 @@ export function composeAdCheckPrompt(
   input: AdCheckInput,
   segments: { intro: string; task: string }
 ): string {
-  const tone = AD_TONES.find((t) => t.slug === input.tone) ?? AD_TONES[0];
   const source = input.text?.trim()
     ? "a partner által bemásolt szöveg"
     : (input.url ?? "").trim() || "ismeretlen";
@@ -79,7 +62,6 @@ export function composeAdCheckPrompt(
     "",
     "--- A VIZSGÁLT HIRDETÉS ---",
     `Forrás: ${source}`,
-    `Kért hangnem az újraírt szöveghez: ${tone.label} (${tone.hint})`,
     body,
     "---------------------------",
     "",

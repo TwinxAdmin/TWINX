@@ -11,7 +11,7 @@ import {
   professionLabel, professionsFor,
   type Industry, type ProfessionalQuery, type ProfessionalResult,
 } from "@/lib/professionals";
-import { AD_ASPECTS, type AdCheckResult } from "@/lib/adcheck";
+import { type AdCheckResult } from "@/lib/adcheck";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -953,9 +953,9 @@ export async function generateProfessionalsPdf(params: {
 export async function generateAdCheckPdf(params: {
   result: AdCheckResult;
   sourceUrl: string | null;
-  toneLabel: string;
+  toneLabel?: string;
 }): Promise<Uint8Array> {
-  const { result, sourceUrl, toneLabel: tone } = params;
+  const { result, sourceUrl } = params;
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(await loadFontBytes());
@@ -1029,71 +1029,23 @@ export async function generateAdCheckPdf(params: {
     y -= 6;
   }
 
-  // Összpontszám + alpontszámok
-  const boxH = 66;
+  // Megfelelőség (összpontszám)
+  const boxH = 60;
   page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });
-  write(String(result.score), margin + 16, y - 42, 30, C.coralDeep, true);
-  write("/ 100 pont", margin + 16 + font.widthOfTextAtSize(String(result.score), 30) + 6, y - 42, 10, C.muted);
-  let ax = margin + 150;
-  for (const a of result.aspects) {
-    const label = AD_ASPECTS.find((s) => s.key === a.key)?.label ?? a.key;
-    write(`${a.score}`, ax, y - 30, 14, C.ink, true);
-    for (const [i, line] of wrapText(label, 7.5, 92).entries()) {
-      write(line, ax, y - 44 - i * 9, 7.5, C.muted);
-    }
-    ax += 100;
-  }
-  y -= boxH + 18;
+  write("Megfelelőség", margin + 16, y - 24, 11, C.muted);
+  write(`${result.score}%`, margin + 16, y - 48, 28, C.coralDeep, true);
+  y -= boxH + 20;
 
-  if (result.summary) { paragraph(result.summary, 10); y -= 8; }
-
-  // Szempontonkénti megállapítások
-  sectionTitle("Megállapítások");
-  for (const a of result.aspects) {
-    const label = AD_ASPECTS.find((s) => s.key === a.key)?.label ?? a.key;
-    if (y - 20 < margin + 40) newPage();
-    write(`${label} — ${a.score}/100`, margin, y - 10, 10, C.coralDeep, true);
-    y -= 18;
-    for (const f of a.findings) paragraph(`•  ${f}`, 9, C.ink, 10);
+  // Három tömör szakasz.
+  const bulletSection = (label: string, items: string[]) => {
+    if (!items.length) return;
+    sectionTitle(label);
+    for (const t of items) paragraph(`•  ${t}`, 10, C.ink, 0);
     y -= 6;
-  }
-
-  // Mondatszintű javítások
-  if (result.rewrites.length) {
-    sectionTitle("Javasolt átfogalmazások");
-    result.rewrites.forEach((r, i) => {
-      if (y - 40 < margin + 40) newPage();
-      write(`${i + 1}.`, margin, y - 10, 9.5, C.muted);
-      paragraph(`Eredeti: ${r.original}`, 9, C.muted, 16);
-      paragraph(`Javasolt: ${r.improved}`, 9.5, C.ink, 16);
-      if (r.why) paragraph(`Miért jobb: ${r.why}`, 8.5, C.muted, 16);
-      y -= 8;
-    });
-  }
-
-  // Kiemelendők + fotó-kérdés
-  if (result.highlights.length) {
-    sectionTitle("Mit érdemes kiemelni");
-    for (const h of result.highlights) {
-      if (y - 34 < margin + 40) newPage();
-      paragraph(`•  ${h.what}`, 9.5, C.ink, 0);
-      if (h.why) paragraph(h.why, 8.5, C.muted, 14);
-      if (h.hasPhotoQuestion) paragraph(`☐  ${h.hasPhotoQuestion}`, 8.5, C.coralDeep, 14);
-      y -= 6;
-    }
-  }
-
-  // Hiányzó adatok
-  if (result.missing.length) {
-    sectionTitle("Pótlandó adatok");
-    for (const m of result.missing) paragraph(`•  ${m}`, 9.5, C.ink, 0);
-  }
-
-  // Újraírt szöveg
-  if (result.rewritten) {
-    sectionTitle(`Újraírt hirdetésszöveg — ${tone}`);
-    paragraph(result.rewritten, 9.5, C.ink);
-  }
+  };
+  bulletSection("Miben jó", result.good);
+  bulletSection("Miben rossz", result.bad);
+  bulletSection("Mit kell javítani", result.fixes);
 
   return pdfDoc.save();
 }

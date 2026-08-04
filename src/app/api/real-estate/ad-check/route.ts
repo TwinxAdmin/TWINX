@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     const result = parseAdCheck(raw);
-    if (!result || (!result.rewritten && !result.aspects.length)) {
+    if (!result || (!result.good.length && !result.bad.length && !result.fixes.length)) {
       await refund();
       return NextResponse.json({ error: "Az elemzés nem sikerült, próbáld újra." }, { status: 502 });
     }

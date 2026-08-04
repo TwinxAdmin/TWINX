@@ -6,11 +6,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
-import SelectField from "@/components/SelectField";
 import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
 import AdCheckReport, { scoreColor } from "@/components/AdCheckReport";
 import { toDownloadUrl } from "@/lib/files";
-import { AD_TONES, ADCHECK_CREDITS, toneLabel, type AdCheckResult } from "@/lib/adcheck";
+import { AD_TONES, ADCHECK_CREDITS, type AdCheckResult } from "@/lib/adcheck";
 
 type SavedItem = {
   id: string;
@@ -48,7 +47,8 @@ export default function AdChecker() {
   const [url, setUrl] = useState("");
   const [manualText, setManualText] = useState("");
   const [showText, setShowText] = useState(false);
-  const [tone, setTone] = useState(AD_TONES[0].slug);
+  // A hangnem már nem befolyásolja a tömör értékelést, de a mentéshez/előzményhez megtartjuk.
+  const [tone] = useState(AD_TONES[0].slug);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,13 +152,6 @@ export default function AdChecker() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium">Az újraírt szöveg hangneme</span>
-              <SelectField value={tone} onChange={setTone} ariaLabel="Hangnem"
-                options={AD_TONES.map((t) => ({ value: t.slug, label: `${t.label} — ${t.hint}` }))} />
-            </label>
-          </div>
         </div>
 
         {error && (
@@ -180,14 +173,14 @@ export default function AdChecker() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex flex-none items-baseline gap-2">
               <span className="text-4xl font-bold" style={{ color: scoreColor(fresh.score ?? 0) }}>
-                {fresh.score ?? 0}
+                {fresh.score ?? 0}%
               </span>
-              <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
+              <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>megfelelőség</span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Az elemzés elkészült</p>
               <p className="mt-0.5 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {itemTitle(fresh)} · {toneLabel(fresh.tone)}
+                {itemTitle(fresh)}
               </p>
             </div>
             <div className="flex flex-none flex-wrap gap-2">
@@ -223,13 +216,13 @@ export default function AdChecker() {
               style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
               <span className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold" style={{ color: scoreColor(it.raw.score ?? 0) }}>
-                  {it.raw.score ?? 0}
+                  {it.raw.score ?? 0}%
                 </span>
-                <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>/ 100 pont</span>
+                <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>megfelelőség</span>
               </span>
               <span className="mt-1 block text-xs font-medium">{itemTitle(it.raw)}</span>
               <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                {toneLabel(it.raw.tone)} · kattints a megnyitáshoz
+                kattints a megnyitáshoz
               </span>
             </button>
           )}
@@ -261,7 +254,7 @@ export default function AdChecker() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">{itemTitle(openItem)}</p>
                 <p className="truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  Hirdetés-elemzés · {new Date(openItem.created_at).toLocaleDateString("hu-HU")} · {toneLabel(openItem.tone)}
+                  Hirdetés-elemzés · {new Date(openItem.created_at).toLocaleDateString("hu-HU")}
                 </p>
               </div>
               <button type="button" onClick={() => setOpenItem(null)} aria-label="Bezárás"
@@ -274,7 +267,6 @@ export default function AdChecker() {
               <AdCheckReport
                 result={openItem.result}
                 pdfUrl={openItem.pdf_url}
-                tone={openItem.tone}
                 sourceUrl={openItem.source_url}
               />
             </div>
