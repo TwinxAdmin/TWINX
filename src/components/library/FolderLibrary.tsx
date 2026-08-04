@@ -41,6 +41,10 @@ export type FolderLibraryProps<T extends LibraryItem> = {
   onMove: (itemId: string, folderId: string | null) => Promise<unknown>;
   /** Végleges törlés (ha nincs megadva, nincs törlés gomb). */
   onDelete?: (item: T) => Promise<unknown>;
+  /** Saját mappa átnevezése (ha nincs megadva, nincs átnevezés gomb). */
+  onRenameFolder?: (folderId: string, name: string) => Promise<unknown>;
+  /** Saját mappa törlése (a benne lévő elemek visszakerülnek a dátum-mappába). */
+  onDeleteFolder?: (folderId: string) => Promise<unknown>;
   /** Letöltési URL (ha nincs, nincs letöltés gomb). */
   downloadUrl?: (item: T) => string | null;
   emptyText?: string;
@@ -50,6 +54,7 @@ export type FolderLibraryProps<T extends LibraryItem> = {
 
 export default function FolderLibrary<T extends LibraryItem>({
   items, folders, renderItem, onCreateFolder, onMove, onDelete, downloadUrl,
+  onRenameFolder, onDeleteFolder,
   emptyText = "Még nincs elkészült munkád.",
   noun = "elem",
 }: FolderLibraryProps<T>) {
@@ -58,6 +63,8 @@ export default function FolderLibrary<T extends LibraryItem>({
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");     // a mappanézet mezője
   const [moveFolder, setMoveFolder] = useState("");   // az áthelyezés-panel mezője
+  const [renaming, setRenaming] = useState(false);    // a megnyitott mappa átnevezése
+  const [renameVal, setRenameVal] = useState("");
 
   // Csoportosítás: saját mappák előre, majd a mappa nélküliek hónap szerint.
   const groups = useMemo(() => {
@@ -156,19 +163,65 @@ export default function FolderLibrary<T extends LibraryItem>({
           onClick={() => setOpenKey(null)}>
           <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b px-5 py-3"
+            <div className="flex items-center justify-between gap-3 border-b px-5 py-3"
               style={{ borderColor: "var(--twx-line)" }}>
-              <div>
-                <p className="text-sm font-semibold">{open.label}</p>
-                <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  {open.items.length} {noun}
-                </p>
+              <div className="min-w-0 flex-1">
+                {renaming && open.kind === "folder" ? (
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={renameVal} autoFocus
+                      onChange={(e) => setRenameVal(e.target.value)}
+                      className="twx-input text-sm" placeholder="Mappa neve" />
+                    <button type="button" disabled={busy || !renameVal.trim()}
+                      onClick={() => {
+                        const fid = open.key.replace("folder:", "");
+                        void guard(async () => { await onRenameFolder?.(fid, renameVal.trim()); setRenaming(false); }, "Átnevezve.");
+                      }}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                      style={{ background: "var(--twx-coral)" }}>
+                      Mentés
+                    </button>
+                    <button type="button" onClick={() => setRenaming(false)}
+                      className="rounded-lg px-3 py-1.5 text-xs" style={{ border: "1px solid var(--twx-line)" }}>
+                      Mégse
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="truncate text-sm font-semibold">{open.label}</p>
+                    <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      {open.items.length} {noun}{open.kind === "folder" ? " · saját mappa" : ""}
+                    </p>
+                  </>
+                )}
               </div>
-              <button type="button" onClick={() => setOpenKey(null)}
-                className="rounded-lg px-3 py-1.5 text-sm" aria-label="Bezárás"
-                style={{ border: "1px solid var(--twx-line)" }}>
-                ✕
-              </button>
+
+              <div className="flex items-center gap-1.5">
+                {open.kind === "folder" && !renaming && onRenameFolder && (
+                  <button type="button" disabled={busy}
+                    onClick={() => { setRenameVal(open.label); setRenaming(true); }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                    Átnevezés
+                  </button>
+                )}
+                {open.kind === "folder" && !renaming && onDeleteFolder && (
+                  <button type="button" disabled={busy}
+                    onClick={() => {
+                      const fid = open.key.replace("folder:", "");
+                      if (!confirm(`Törlöd a(z) „${open.label}" mappát?\n\nA benne lévő ${noun}ek NEM törlődnek, visszakerülnek a dátum szerinti mappába.`)) return;
+                      void guard(async () => { await onDeleteFolder(fid); setOpenKey(null); }, "Mappa törölve.");
+                    }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                    style={{ border: "1px solid #f0b3b3", color: "#c0392b", background: "#fff" }}>
+                    Mappa törlése
+                  </button>
+                )}
+                <button type="button" onClick={() => { setRenaming(false); setOpenKey(null); }}
+                  className="rounded-lg px-3 py-1.5 text-sm" aria-label="Bezárás"
+                  style={{ border: "1px solid var(--twx-line)" }}>
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="overflow-y-auto p-4">

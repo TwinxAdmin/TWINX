@@ -6,6 +6,10 @@ import ComboField from "@/components/ComboField";
 import SelectField from "@/components/SelectField";
 
 import ValuationEditor from "@/components/valuation/ValuationEditor";
+import FolderLibrary, {
+  type LibraryFolder,
+  type LibraryItem,
+} from "@/components/library/FolderLibrary";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
@@ -37,6 +41,14 @@ type HistoryItem = {
   output_file_url: string | null;
   created_at: string;
   edited_at: string | null;
+  valuation_folder_id: string | null;
+};
+
+// A FolderLibrary-nek megfelelő elem (a nyers becslés-adattal együtt).
+type ValItem = LibraryItem & {
+  outputText: string | null;
+  url: string | null;
+  editedAt: string | null;
 };
 
 type EditorState = {
@@ -60,12 +72,16 @@ export default function ValuationPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [folders, setFolders] = useState<LibraryFolder[]>([]);
 
   const loadHistory = useCallback(async () => {
     try {
       const res = await fetch("/api/real-estate/valuation/history");
       const data = await res.json();
-      if (res.ok) setHistory((data.items ?? []) as HistoryItem[]);
+      if (res.ok) {
+        setHistory((data.items ?? []) as HistoryItem[]);
+        setFolders((data.folders ?? []) as LibraryFolder[]);
+      }
     } catch {
       // Az előzmény-lista hiánya ne akadályozza a munkát.
     }
@@ -105,6 +121,30 @@ export default function ValuationPage() {
       dateLabel: new Date(h.created_at).toLocaleDateString("hu-HU"),
     });
     setEditorOpen(true);
+  }
+
+  // A könyvtár elemei (hónap- és saját mappákba rendezve).
+  const libraryItems: ValItem[] = history.map((h) => ({
+    id: h.id,
+    title: historyTitle(h),
+    createdAt: h.created_at,
+    folderId: h.valuation_folder_id,
+    outputText: h.output_text,
+    url: h.output_file_url,
+    editedAt: h.edited_at,
+  }));
+
+  function openLibItem(v: ValItem) {
+    const h = history.find((x) => x.id === v.id);
+    if (h) openHistoryItem(h);
+  }
+
+  async function manage(url: string, init: RequestInit) {
+    const res = await fetch(url, init);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "A művelet nem sikerült.");
+    await loadHistory();
+    return d as { folder?: LibraryFolder };
   }
 
   function setField(key: keyof ValuationInput, value: string) {
@@ -298,44 +338,66 @@ export default function ValuationPage() {
         </div>
       )}
 
-      {/* Korábbi értékbecslések — újranyithatók és tovább szerkeszthetők */}
+      {/* Korábbi értékbecslések — hónap szerinti és saját mappákban */}
       {history.length > 0 && (
-        <section className="twx-card p-4">
+        <section className="twx-card p-4 sm:p-5">
           <h2 className="text-sm font-semibold">Korábbi értékbecslések</h2>
-          <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            Bármelyik megnyitható, átírható, és új PDF készíthető belőle.
+          <p className="mt-0.5 mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Hónap szerinti és saját mappákba rendezve. Nyiss meg egy mappát, ott
+            megnyithatod, szerkesztheted, letöltheted, áthelyezheted vagy törölheted a becsléseket.
           </p>
-          <ul className="mt-3 space-y-2">
-            {history.map((h) => (
-              <li
-                key={h.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl px-3 py-2"
-                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">{historyTitle(h)}</p>
-                  <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                    {new Date(h.created_at).toLocaleString("hu-HU")}
-                    {h.edited_at ? " · szerkesztve" : ""}
-                    {h.output_file_url ? "" : " · nincs még PDF"}
-                  </p>
-                </div>
+          <FolderLibrary<ValItem>
+            items={libraryItems}
+            folders={folders}
+            noun="értékbecslés"
+            emptyText="Még nincs elkészült értékbecslésed."
+            downloadUrl={(v) => (v.url ? toDownloadUrl(v.url) : null)}
+            renderItem={(v) => (
+              <div className="space-y-1">
+                <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  {new Date(v.createdAt).toLocaleString("hu-HU")}
+                  {v.editedAt ? " · szerkesztve" : ""}
+                  {v.url ? "" : " · nincs még PDF"}
+                </p>
                 <button
                   type="button"
-                  className="twx-btn-outline"
-                  onClick={() => openHistoryItem(h)}
-                  disabled={!h.output_text}
+                  className="twx-btn w-full"
+                  onClick={() => openLibItem(v)}
+                  disabled={!v.outputText}
                 >
-                  Megnyitás
+                  Megnyitás és szerkesztés
                 </button>
-                {h.output_file_url && (
-                  <a className="twx-btn-outline" href={toDownloadUrl(h.output_file_url)}>
-                    PDF
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
+              </div>
+            )}
+            onCreateFolder={async (name) => {
+              const d = await manage("/api/real-estate/valuation/manage", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+              });
+              return d.folder;
+            }}
+            onMove={(id, folderId) =>
+              manage("/api/real-estate/valuation/manage", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, folderId }),
+              })
+            }
+            onDelete={(v) =>
+              manage(`/api/real-estate/valuation/manage?id=${v.id}&kind=item`, { method: "DELETE" })
+            }
+            onRenameFolder={(id, name) =>
+              manage("/api/real-estate/valuation/manage", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, name }),
+              })
+            }
+            onDeleteFolder={(id) =>
+              manage(`/api/real-estate/valuation/manage?id=${id}&kind=folder`, { method: "DELETE" })
+            }
+          />
         </section>
       )}
 
