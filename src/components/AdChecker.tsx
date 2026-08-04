@@ -163,7 +163,7 @@ export default function AdChecker() {
         <button type="button" onClick={analyze} disabled={busy}
           className="mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: "var(--twx-coral)" }}>
-          {busy ? "Elemzés folyamatban…" : `Hirdetés ellenőrzése (${ADCHECK_CREDITS} kredit)`}
+          {busy ? "Elemzés folyamatban…" : `Szöveg ellenőrzés (${ADCHECK_CREDITS} kredit)`}
         </button>
       </section>
 
