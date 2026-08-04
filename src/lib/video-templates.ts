@@ -46,7 +46,7 @@ export type VideoDesign = {
 export const VIDEO_DESIGNS: VideoDesign[] = [
   {
     id: "twinx-premium",
-    name: "TWINX Prémium",
+    name: "TWINX Klasszikus",
     tagline: "Arculati bronz · feliratsávok · nyitó/záró kártya",
     kind: "satori",
     aspects: ["9:16", "1:1", "16:9"],
@@ -83,23 +83,6 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
     agentCard: true,
     preview: { from: "#111111", to: "#2a2408", ink: "#f0c20c" },
     defaultMusic: "cinematic",
-  },
-  {
-    id: "minimal-negyzet",
-    name: "Minimál",
-    tagline: "Letisztult · finom feliratok · semleges paletta",
-    kind: "satori",
-    aspects: ["1:1", "9:16", "16:9"],
-    minImages: 4,
-    maxImages: 6,
-    accent: "#111111",
-    useProfileAccent: true,
-    font: "",
-    motions: ["zoomIn", "zoomOut", "zoomIn", "zoomOut", "zoomIn", "zoomOut"],
-    introPanel: false,
-    agentCard: true,
-    preview: { from: "#f2efe9", to: "#e0d8cb", ink: "#1c1815" },
-    defaultMusic: "nyugodt",
   },
 ];
 

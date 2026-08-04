@@ -22,7 +22,7 @@ export function videoLengthSeconds(imageCount: number, pro: boolean): number {
 
 // Csomagok. Az ár később dől el — env-ből állítható, addig teszt admin fiókkal (bypass).
 export type VideoPackage = "alap" | "pro";
-export const VIDEO_CREDITS_ALAP = Number(process.env.VIDEO_CREDITS_ALAP ?? 5);
+export const VIDEO_CREDITS_ALAP = Number(process.env.VIDEO_CREDITS_ALAP ?? 3);
 export const VIDEO_CREDITS_PRO = Number(process.env.VIDEO_CREDITS_PRO ?? 10);
 
 export function creditsForPackage(pkg: VideoPackage): number {

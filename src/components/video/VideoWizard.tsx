@@ -13,7 +13,7 @@ import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
 import {
   MUSIC_STYLES,
-  VIDEO_CREDITS_ALAP, VIDEO_CREDITS_PRO, videoLengthSeconds,
+  VIDEO_CREDITS_ALAP, videoLengthSeconds,
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import {
@@ -83,7 +83,7 @@ export default function VideoWizard({
   // 4) Beállítás — a formátumot a dizájn+méret köti; a zene és a csomag választható.
   const format = aspect; // a választott méret
   const [musicStyle, setMusicStyle] = useState<string>(VIDEO_DESIGNS[0].defaultMusic);
-  const [pkg, setPkg] = useState<"alap" | "pro">("alap");
+  const pkg: "alap" | "pro" = "alap";
 
   // Dizájnváltáskor a zenei alapértelmezés kövesse a dizájnt (a partner átállíthatja).
   useEffect(() => {
@@ -231,7 +231,7 @@ export default function VideoWizard({
   const setQ = <K extends keyof typeof quick>(k: K, v: string) => setQuick({ ...quick, [k]: v });
   const setF = <K extends keyof typeof facts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
-  const lengthSec = Math.round(videoLengthSeconds(images.length || imageRange(design, aspect).min, pkg === "pro"));
+  const lengthSec = Math.round(videoLengthSeconds(images.length || imageRange(design, aspect).min, false));
 
   return (
     <div onClick={() => !busy && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
@@ -488,17 +488,11 @@ export default function VideoWizard({
               </div>
               <div>
                 <p className="text-sm font-semibold">Csomag</p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button type="button" onClick={() => setPkg("alap")}
-                    className="rounded-xl p-3 text-left" style={{ border: `1px solid ${pkg === "alap" ? "var(--twx-coral)" : "var(--twx-line)"}`, background: pkg === "alap" ? "var(--twx-coral-soft)" : "#fff" }}>
-                    <span className="block text-sm font-semibold" style={{ color: pkg === "alap" ? "#7a2e17" : "var(--twx-ink)" }}>Alap · {VIDEO_CREDITS_ALAP} kredit</span>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  <div className="rounded-xl p-3 text-left" style={{ border: "1px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
+                    <span className="block text-sm font-semibold" style={{ color: "#7a2e17" }}>Standard · {VIDEO_CREDITS_ALAP} kredit</span>
                     <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Finom kameramozgás (Ken Burns) minden fotón</span>
-                  </button>
-                  <button type="button" onClick={() => setPkg("pro")}
-                    className="rounded-xl p-3 text-left" style={{ border: `1px solid ${pkg === "pro" ? "var(--twx-coral)" : "var(--twx-line)"}`, background: pkg === "pro" ? "var(--twx-coral-soft)" : "#fff" }}>
-                    <span className="block text-sm font-semibold" style={{ color: pkg === "pro" ? "#7a2e17" : "var(--twx-ink)" }}>PRO · {VIDEO_CREDITS_PRO} kredit</span>
-                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Minden snitt él: AI-kameramozgás, napsugarak, reggeltől aranyló estéig</span>
-                  </button>
+                  </div>
                 </div>
               </div>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -573,7 +567,7 @@ export default function VideoWizard({
           ) : (
             <button type="button" onClick={generate} disabled={busy}
               className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-              {busy ? "Generálás folyamatban…" : `Videó generálása (${pkg === "pro" ? VIDEO_CREDITS_PRO : VIDEO_CREDITS_ALAP} kredit)`}
+              {busy ? "Generálás folyamatban…" : `Videó generálása (${VIDEO_CREDITS_ALAP} kredit)`}
             </button>
           )}
         </div>
