@@ -1,51 +1,53 @@
-// Videó-sablonok — a partner egy kész sablont választ (mint egy profi videógenerátor).
-// Minden sablon meghatározza a formátumot, a kötelező képszámot, az arculati
-// akcentet, a betűt, a fotónkénti mozgásokat és a kiegészítő elemeket (intro
-// panel, ügynök-zárókártya). A render ezt a leírást olvassa.
+// Videó-DIZÁJNOK — a partner egy dizájnt választ, majd egy MÉRETET (9:16/1:1/16:9).
+// Ugyanaz a dizájn több arányban is elérhető: minden méret a saját változatával.
 //
-// A képszám-kötöttség KIKÖTÉS: ha egy sablon pontosan 5 képet kér, a varázsló
-// addig nem enged tovább, amíg nincs meg pontosan 5.
+// Kétféle dizájn:
+//  - "json": kész Shotstack template merge-mezőkkel, méretenként külön JSON-nal.
+//  - "satori": a saját (kód-alapú) renderünk, ami bármely méretben megy.
+//
+// A képszám KIKÖTÉS: json dizájnnál a JSON IMAGE_n helyőrzőinek száma adja;
+// satori dizájnnál a design min/max mezője.
 
 import modernSargaJson from "@/lib/video-json/modern-sarga.json";
-import type { TemplateJson } from "@/lib/video-merge";
+import { countImagePlaceholders, type TemplateJson } from "@/lib/video-merge";
 
-export type VideoAspect = "1:1" | "9:16" | "16:9";
+export type VideoAspect = "9:16" | "1:1" | "16:9";
+export const ALL_ASPECTS: VideoAspect[] = ["9:16", "1:1", "16:9"];
+export const ASPECT_LABEL: Record<VideoAspect, string> = {
+  "9:16": "Álló 9:16",
+  "1:1": "Négyzet 1:1",
+  "16:9": "Fekvő 16:9",
+};
 
-export type VideoTemplate = {
+export type VideoDesign = {
   id: string;
   name: string;
   tagline: string;
-  /** "satori" = a saját (kód-alapú) render; "json" = kész Shotstack sablon merge-mezőkkel. */
   kind: "satori" | "json";
-  /** JSON-sablonhoz a kész Shotstack template. */
-  json?: TemplateJson;
-  aspect: VideoAspect;
+  /** Elérhető méretek (ebben a sorrendben jelennek meg). */
+  aspects: VideoAspect[];
+  /** JSON dizájnnál: méretenkénti Shotstack template. */
+  jsonByAspect?: Partial<Record<VideoAspect, TemplateJson>>;
+  /** Satori dizájn képszám-tartománya (json-nál a JSON-ból jön). */
   minImages: number;
   maxImages: number;
-  /** Akcentszín. Ha useProfileAccent = true, az arculati profilé felülírja. */
   accent: string;
   useProfileAccent: boolean;
-  /** Google-betűcsalád; üres = az arculati profil betűje. */
   font: string;
-  /** Fotónkénti mozgás-sorrend (körbe forog, ha kevesebb a kép). */
   motions: string[];
-  /** Intro infópanel az elején (cím + típus + szoba/fürdő ikonok). */
   introPanel: boolean;
-  /** Ügynök-zárókártya (fotó + név + kontakt + logó). */
   agentCard: boolean;
-  /** Előnézeti színátmenet + betűszín a galéria-kártyához. */
   preview: { from: string; to: string; ink: string };
-  /** Alapértelmezett zenei stílus (a partner felülírhatja). */
   defaultMusic: string;
 };
 
-export const VIDEO_TEMPLATES: VideoTemplate[] = [
+export const VIDEO_DESIGNS: VideoDesign[] = [
   {
     id: "twinx-premium",
     name: "TWINX Prémium",
-    tagline: "Álló reel · arculati bronz · feliratsávok",
+    tagline: "Arculati bronz · feliratsávok · nyitó/záró kártya",
     kind: "satori",
-    aspect: "9:16",
+    aspects: ["9:16", "1:1", "16:9"],
     minImages: 4,
     maxImages: 5,
     accent: "#1e3a5f",
@@ -60,16 +62,17 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
   {
     id: "modern-sarga",
     name: "Modern Sárga",
-    tagline: "Fekvő 16:9 · sárga kiemelés · intro-panel + ügynökkártya",
+    tagline: "Sárga kiemelés · intro-panel ikonokkal · ügynökkártya",
     kind: "json",
-    json: modernSargaJson as unknown as TemplateJson,
-    aspect: "16:9",
+    // Jelenleg csak a 16:9 elérhető; a 9:16 és 1:1 JSON-t utólag tesszük be.
+    aspects: ["16:9"],
+    jsonByAspect: { "16:9": modernSargaJson as unknown as TemplateJson },
     minImages: 5,
-    maxImages: 5, // KIKÖTÉS: pontosan 5 kép (a JSON-ban 5 IMAGE_n helyőrző van)
+    maxImages: 5,
     accent: "#f0c20c",
     useProfileAccent: false,
     font: "Manrope",
-    motions: ["zoomIn", "slideLeft", "slideRight", "zoomOut", "slideLeft"],
+    motions: [],
     introPanel: true,
     agentCard: true,
     preview: { from: "#111111", to: "#2a2408", ink: "#f0c20c" },
@@ -77,10 +80,10 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
   },
   {
     id: "minimal-negyzet",
-    name: "Minimál Négyzet",
-    tagline: "Négyzetes 1:1 · letisztult · finom feliratok",
+    name: "Minimál",
+    tagline: "Letisztult · finom feliratok · semleges paletta",
     kind: "satori",
-    aspect: "1:1",
+    aspects: ["1:1", "9:16", "16:9"],
     minImages: 4,
     maxImages: 6,
     accent: "#111111",
@@ -94,22 +97,37 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
   },
 ];
 
-export function getTemplate(id: string): VideoTemplate | null {
-  return VIDEO_TEMPLATES.find((t) => t.id === id) ?? null;
+export function getDesign(id: string): VideoDesign | null {
+  return VIDEO_DESIGNS.find((d) => d.id === id) ?? null;
 }
 
-export function isValidTemplate(id: string): boolean {
-  return VIDEO_TEMPLATES.some((t) => t.id === id);
+export function aspectAvailable(design: VideoDesign, aspect: string): boolean {
+  return design.aspects.includes(aspect as VideoAspect);
 }
 
-/** A képszám megfelel-e a sablon kötöttségének. */
-export function imageCountOk(t: VideoTemplate, count: number): boolean {
-  return count >= t.minImages && count <= t.maxImages;
+/** A dizájn adott méretéhez tartozó Shotstack JSON (json dizájnnál). */
+export function variantJson(design: VideoDesign, aspect: VideoAspect): TemplateJson | null {
+  return design.jsonByAspect?.[aspect] ?? null;
 }
 
-/** Emberi szöveg a képszám-követelményről. */
-export function imageCountLabel(t: VideoTemplate): string {
-  return t.minImages === t.maxImages
-    ? `Pontosan ${t.minImages} kép`
-    : `${t.minImages}–${t.maxImages} kép`;
+/** Képszám-tartomány a dizájn adott méretéhez. */
+export function imageRange(design: VideoDesign, aspect: VideoAspect): { min: number; max: number } {
+  if (design.kind === "json") {
+    const json = variantJson(design, aspect);
+    if (json) {
+      const n = countImagePlaceholders(json);
+      return { min: n, max: n };
+    }
+  }
+  return { min: design.minImages, max: design.maxImages };
+}
+
+export function imageCountOk(design: VideoDesign, aspect: VideoAspect, count: number): boolean {
+  const r = imageRange(design, aspect);
+  return count >= r.min && count <= r.max;
+}
+
+export function imageCountLabel(design: VideoDesign, aspect: VideoAspect): string {
+  const r = imageRange(design, aspect);
+  return r.min === r.max ? `Pontosan ${r.min} kép` : `${r.min}–${r.max} kép`;
 }

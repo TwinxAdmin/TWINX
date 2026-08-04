@@ -13,7 +13,10 @@ import {
   creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto,
   type VideoPackage, type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
-import { getTemplate, imageCountOk, imageCountLabel, VIDEO_TEMPLATES } from "@/lib/video-templates";
+import {
+  getDesign, aspectAvailable, variantJson, imageCountOk, imageCountLabel,
+  VIDEO_DESIGNS, type VideoAspect,
+} from "@/lib/video-templates";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, submitTemplateRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 import { buildMergeRenderBody } from "@/lib/video-merge";
@@ -45,19 +48,19 @@ export async function POST(request: Request) {
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
-  // A sablon köti a formátumot és a képszámot. Visszafelé kompatibilis: ha nincs
-  // templateId (régi kliens), az első sablon a default.
-  const template = getTemplate(String(form.get("templateId") ?? "")) ?? VIDEO_TEMPLATES[0];
-  const format = getFormat(template.aspect);
-  if (!format) return NextResponse.json({ error: "Érvénytelen formátum." }, { status: 422 });
+  // A dizájn + méret köti a formátumot és a képszámot. Visszafelé kompatibilis.
+  const design = getDesign(String(form.get("designId") ?? "")) ?? VIDEO_DESIGNS[0];
+  const aspect = (aspectAvailable(design, String(form.get("aspect") ?? "")) ? String(form.get("aspect")) : design.aspects[0]) as VideoAspect;
+  const format = getFormat(aspect);
+  if (!format) return NextResponse.json({ error: "Érvénytelen méret." }, { status: 422 });
   const musicStyle = String(form.get("musicStyle") ?? "");
   if (!isValidMusicStyle(musicStyle)) return NextResponse.json({ error: "Érvénytelen zenei stílus." }, { status: 422 });
   const pkg: VideoPackage = String(form.get("package") ?? "alap") === "pro" ? "pro" : "alap";
 
   const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
-  if (!imageCountOk(template, files.length)) {
+  if (!imageCountOk(design, aspect, files.length)) {
     return NextResponse.json(
-      { error: `Ehhez a sablonhoz ${imageCountLabel(template).toLowerCase()} szükséges.` },
+      { error: `Ehhez a mérethez ${imageCountLabel(design, aspect).toLowerCase()} szükséges.` },
       { status: 422 }
     );
   }
@@ -140,9 +143,10 @@ export async function POST(request: Request) {
       photoUrls.push(admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
     }
 
-    // 3/B) JSON-SABLON ÁG: kész Shotstack template merge-mezőkkel.
+    // 3/B) JSON-SABLON ÁG: kész Shotstack template merge-mezőkkel (a választott mérethez).
     //      A dizájn a JSON-ban van; mi csak a helyőrzőket töltjük ki + a zenét cseréljük.
-    if (template.kind === "json" && template.json) {
+    const designJson = design.kind === "json" ? variantJson(design, aspect) : null;
+    if (designJson) {
       const musicUrl = await pickMusic(musicStyle);
       const digits = (s: string) => (String(s).match(/\d+/)?.[0] ?? "");
       const values: Record<string, string> = {
@@ -161,7 +165,7 @@ export async function POST(request: Request) {
       };
       const secret = process.env.VIDEO_WEBHOOK_SECRET || "";
       const callback = `${baseUrl(request)}/api/webhooks/shotstack?job=${jobId}&token=${encodeURIComponent(secret)}`;
-      const body = buildMergeRenderBody(template.json, {
+      const body = buildMergeRenderBody(designJson, {
         images: photoUrls, musicUrl, values, callbackUrl: callback,
       });
       const renderId = await submitTemplateRender(body);
@@ -170,7 +174,7 @@ export async function POST(request: Request) {
         source_images: photoUrls,
         music_url: musicUrl,
         poster_url: photoUrls[0], // előkép: az első fotó
-        meta: { title, template: template.id, render_id: renderId },
+        meta: { title, template: design.id, aspect, render_id: renderId },
       }).eq("id", jobId);
 
       if (service) {

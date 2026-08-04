@@ -17,8 +17,8 @@ import {
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import {
-  VIDEO_TEMPLATES, getTemplate, imageCountOk, imageCountLabel,
-  type VideoTemplate,
+  VIDEO_DESIGNS, getDesign, imageCountOk, imageCountLabel, imageRange,
+  ASPECT_LABEL, type VideoDesign, type VideoAspect,
 } from "@/lib/video-templates";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
 
@@ -48,9 +48,17 @@ export default function VideoWizard({
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // 0) Sablon — a kiválasztott sablon köti a formátumot és a képszámot.
-  const [templateId, setTemplateId] = useState<string>(VIDEO_TEMPLATES[0].id);
-  const template: VideoTemplate = getTemplate(templateId) ?? VIDEO_TEMPLATES[0];
+  // 0) Sablon (dizájn) + méret — ez köti a formátumot és a képszámot.
+  const [designId, setDesignId] = useState<string>(VIDEO_DESIGNS[0].id);
+  const design: VideoDesign = getDesign(designId) ?? VIDEO_DESIGNS[0];
+  const [aspect, setAspect] = useState<VideoAspect>(design.aspects[0]);
+
+  // Dizájnváltáskor a méret a dizájn első elérhető arányára ugrik.
+  function pickDesign(id: string) {
+    const d = getDesign(id) ?? VIDEO_DESIGNS[0];
+    setDesignId(id);
+    setAspect(d.aspects.includes(aspect) ? aspect : d.aspects[0]);
+  }
 
   // 1) Arculat
   const [brandMode, setBrandMode] = useState<"saved" | "quick">(profiles.length ? "saved" : "quick");
@@ -72,16 +80,16 @@ export default function VideoWizard({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
 
-  // 4) Beállítás — a formátumot a sablon köti; a zene és a csomag választható.
-  const format = template.aspect; // a sablon határozza meg
-  const [musicStyle, setMusicStyle] = useState<string>(VIDEO_TEMPLATES[0].defaultMusic);
+  // 4) Beállítás — a formátumot a dizájn+méret köti; a zene és a csomag választható.
+  const format = aspect; // a választott méret
+  const [musicStyle, setMusicStyle] = useState<string>(VIDEO_DESIGNS[0].defaultMusic);
   const [pkg, setPkg] = useState<"alap" | "pro">("alap");
 
-  // Sablonváltáskor a zenei alapértelmezés kövesse a sablont (a partner átállíthatja).
+  // Dizájnváltáskor a zenei alapértelmezés kövesse a dizájnt (a partner átállíthatja).
   useEffect(() => {
-    setMusicStyle(template.defaultMusic);
+    setMusicStyle(design.defaultMusic);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId]);
+  }, [designId]);
 
   // 5) Generálás
   const [jobId, setJobId] = useState<string | null>(null);
@@ -110,12 +118,13 @@ export default function VideoWizard({
   // --- Képek ---
   function addFiles(list: FileList | null) {
     if (!list) return;
-    const room = template.maxImages - images.length;
-    if (room <= 0) { showToast(`Ehhez a sablonhoz legfeljebb ${template.maxImages} kép.`, "info"); return; }
+    const max = imageRange(design, aspect).max;
+    const room = max - images.length;
+    if (room <= 0) { showToast(`Ehhez a mérethez legfeljebb ${max} kép.`, "info"); return; }
     setImages((prev) => [...prev, ...Array.from(list).slice(0, room).map((f) => URL.createObjectURL(f))]);
   }
   const addUrl = (u: string) =>
-    setImages((prev) => (prev.includes(u) || prev.length >= template.maxImages ? prev : [...prev, u]));
+    setImages((prev) => (prev.includes(u) || prev.length >= imageRange(design, aspect).max ? prev : [...prev, u]));
   const removeImage = (i: number) => setImages((prev) => prev.filter((_, j) => j !== i));
   const moveImage = (from: number, to: number) =>
     setImages((prev) => {
@@ -139,7 +148,8 @@ export default function VideoWizard({
       // A videó neve a könyvtárban: az ingatlan címe (település + utca).
       fd.append("propertyAddress", [facts.location, facts.address].map((s) => s.trim()).filter(Boolean).join(", "));
       fd.append("format", format);
-      fd.append("templateId", templateId);
+      fd.append("designId", designId);
+      fd.append("aspect", aspect);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
       const res = await fetch("/api/real-estate/video", { method: "POST", body: fd });
@@ -209,9 +219,9 @@ export default function VideoWizard({
         setError("Adj meg legalább egy elérhetőséget."); return;
       }
     }
-    // 2) Képek — a sablon KÖTÖTTSÉGE szerint.
-    if (step === 2 && !imageCountOk(template, images.length)) {
-      setError(`Ehhez a sablonhoz ${imageCountLabel(template).toLowerCase()} szükséges (most ${images.length}).`);
+    // 2) Képek — a dizájn+méret KÖTÖTTSÉGE szerint.
+    if (step === 2 && !imageCountOk(design, aspect, images.length)) {
+      setError(`Ehhez a mérethez ${imageCountLabel(design, aspect).toLowerCase()} szükséges (most ${images.length}).`);
       return;
     }
     setError(null);
@@ -221,7 +231,7 @@ export default function VideoWizard({
   const setQ = <K extends keyof typeof quick>(k: K, v: string) => setQuick({ ...quick, [k]: v });
   const setF = <K extends keyof typeof facts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
-  const lengthSec = Math.round(videoLengthSeconds(images.length || template.minImages, pkg === "pro"));
+  const lengthSec = Math.round(videoLengthSeconds(images.length || imageRange(design, aspect).min, pkg === "pro"));
 
   return (
     <div onClick={() => !busy && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
@@ -251,56 +261,72 @@ export default function VideoWizard({
 
         {/* Tartalom */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {/* 0) SABLON — galéria, kötöttségekkel */}
+          {/* 0) SABLON — dizájn + méret választás */}
           {step === 0 && (
             <div className="space-y-4">
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Válassz sablont. Minden sablon meghatározza a videó <strong>formátumát</strong> és a
-                szükséges <strong>képek számát</strong> — a következő lépések ehhez igazodnak.
+                Először válaszd ki, <strong>melyik dizájnnal</strong> dolgozol, és <strong>milyen méretben</strong>.
+                Ugyanaz a dizájn több arányban is elérhető — a méretre kattintva választhatsz.
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {VIDEO_TEMPLATES.map((t) => {
-                  const on = t.id === templateId;
+                {VIDEO_DESIGNS.map((d) => {
+                  const on = d.id === designId;
                   return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTemplateId(t.id)}
-                      className="overflow-hidden rounded-xl text-left transition"
+                    <div
+                      key={d.id}
+                      className="overflow-hidden rounded-xl transition"
                       style={{
                         border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
                         boxShadow: on ? "0 6px 20px rgba(239,122,90,0.18)" : "none",
                       }}
                     >
-                      {/* Előnézet-csík: a sablon arculati színe + arány-jelölés */}
-                      <div
-                        className="flex items-center justify-center"
-                        style={{
-                          height: 92,
-                          background: `linear-gradient(135deg, ${t.preview.from}, ${t.preview.to})`,
-                          color: t.preview.ink,
-                        }}
+                      <button
+                        type="button"
+                        onClick={() => pickDesign(d.id)}
+                        className="block w-full text-left"
                       >
-                        <div className="text-center">
-                          <div className="font-display text-base font-bold">{t.name}</div>
-                          <div className="text-[11px] opacity-80">{t.aspect} formátum</div>
+                        <div
+                          className="flex items-center justify-center"
+                          style={{ height: 88, background: `linear-gradient(135deg, ${d.preview.from}, ${d.preview.to})`, color: d.preview.ink }}
+                        >
+                          <div className="font-display text-base font-bold">{d.name}</div>
                         </div>
-                      </div>
-                      <div className="p-3">
-                        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{t.tagline}</p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          <Chip>{imageCountLabel(t)}</Chip>
-                          {t.introPanel && <Chip>Intro-panel</Chip>}
-                          {t.agentCard && <Chip>Ügynökkártya</Chip>}
+                        <div className="px-3 pt-3">
+                          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{d.tagline}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {d.introPanel && <Chip>Intro-panel</Chip>}
+                            {d.agentCard && <Chip>Ügynökkártya</Chip>}
+                          </div>
                         </div>
+                      </button>
+                      {/* Méret-választó — csak a dizájn elérhető arányai */}
+                      <div className="flex flex-wrap gap-1.5 p-3">
+                        {d.aspects.map((a) => {
+                          const active = on && a === aspect;
+                          return (
+                            <button
+                              key={a}
+                              type="button"
+                              onClick={() => { pickDesign(d.id); setAspect(a); }}
+                              className="rounded-lg px-2.5 py-1 text-xs font-semibold"
+                              style={{
+                                border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                                background: active ? "var(--twx-coral)" : "#fff",
+                                color: active ? "#1c1005" : "var(--twx-ink)",
+                              }}
+                            >
+                              {a}
+                            </button>
+                          );
+                        })}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
               <div className="rounded-xl p-3 text-xs" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                Kiválasztva: <strong>{template.name}</strong> — {template.aspect} formátum,
-                {" "}{imageCountLabel(template).toLowerCase()}. A képek lépésnél pontosan ennyit kérünk.
+                Kiválasztva: <strong>{design.name}</strong> · <strong>{ASPECT_LABEL[aspect]}</strong> —
+                {" "}{imageCountLabel(design, aspect).toLowerCase()}. A képek lépésnél pontosan ennyit kérünk.
               </div>
             </div>
           )}
@@ -360,7 +386,7 @@ export default function VideoWizard({
           {step === 2 && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                <strong>{template.name}</strong>: {imageCountLabel(template).toLowerCase()} szükséges
+                <strong>{design.name} · {aspect}</strong>: {imageCountLabel(design, aspect).toLowerCase()} szükséges
                 {" "}(most {images.length}). Az első a <strong>nyitófotó</strong> —
                 PRO csomagnál minden fotó AI-mozgást és napszakváltó fényt kap.
               </p>
@@ -442,7 +468,7 @@ export default function VideoWizard({
                 <div className="mt-2 flex items-center gap-2 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
                   <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{format}</span>
                   <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    A <strong>{template.name}</strong> sablon formátuma. Módosításhoz válts sablont az első lépésben.
+                    A <strong>{design.name}</strong> dizájn <strong>{ASPECT_LABEL[aspect]}</strong> mérete. Módosításhoz válts az első lépésben.
                   </span>
                 </div>
               </div>
@@ -476,7 +502,7 @@ export default function VideoWizard({
                 </div>
               </div>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Várható hossz: ~{lengthSec} mp (nyitókártya + {images.length || template.minImages} fotó + zárókártya). Hang: csak zene.
+                Várható hossz: ~{lengthSec} mp (nyitókártya + {images.length || imageRange(design, aspect).min} fotó + zárókártya). Hang: csak zene.
               </p>
             </div>
           )}
