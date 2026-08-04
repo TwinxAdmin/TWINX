@@ -93,6 +93,29 @@ export const STRUCTURE_OPTIONS = [
   "Vályog / Vegyes falazat",
 ];
 
+// Szobaszám — a leggyakoribb kombinációk; saját érték is beírható (ComboField).
+export const ROOM_OPTIONS = [
+  "1 szoba",
+  "1 + 1 fél szoba",
+  "2 szoba",
+  "2 + 1 fél szoba",
+  "3 szoba",
+  "3 + 1 fél szoba",
+  "4 szoba",
+  "4 + 1 fél szoba",
+  "5 szoba",
+  "5 vagy több szoba",
+];
+
+// Fürdőszobák / mellékhelyiségek.
+export const BATHROOM_OPTIONS = [
+  "1 fürdőszoba (WC-vel egyben)",
+  "1 fürdőszoba + külön WC",
+  "2 fürdőszoba",
+  "2 fürdőszoba + külön WC",
+  "3 vagy több fürdőszoba",
+];
+
 export const CONDITION_OPTIONS = [
   "Új építésű (kulcsrakész)",
   "Új építésű (szerkezetkész/félkész)",
@@ -195,14 +218,16 @@ export const VALUATION_FIELDS: ValuationField[] = [
   {
     key: "szobak",
     label: "Szobák száma",
-    placeholder: "pl. 2 szoba + 1 félszoba",
+    placeholder: "Válassz a listából vagy írj sajátot",
     required: true,
+    options: ROOM_OPTIONS,
   },
   {
     key: "furdok",
     label: "Fürdőszobák/mellékhelyiségek",
-    placeholder: "pl. 1 fürdő, 1 külön WC",
+    placeholder: "Válassz a listából vagy írj sajátot",
     required: true,
+    options: BATHROOM_OPTIONS,
   },
   {
     key: "epitesEve",
