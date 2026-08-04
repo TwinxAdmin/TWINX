@@ -539,7 +539,7 @@ A választ KIZÁRÓLAG az alábbi 12 szakaszban add meg. Minden szakaszt önáll
 ## 11. Végső összegzés
 
 Kötelező tartalmi elvárások:
-- A LEGELSŐ szakasz a "Javasolt ár": ide PONTOSAN EGY darab konkrét vételárat írj forintban (a lokációs prémiummal együtt), semmi mást. NE írj ársávot, tartományt, kötőjelet, zárójelet vagy magyarázatot — csak egyetlen számot mértékegységgel. Pl.: "80 000 000 Ft". Az ársáv külön, a "8. Értéksáv" szakaszba kerül.
+- A LEGELSŐ szakasz a "Javasolt ár": ide PONTOSAN EGY darab konkrét TELJES VÉTELÁRAT írj forintban (a lakás teljes forgalmi értéke = korrigált nm-ár × alapterület, a lokációs prémiummal együtt), semmi mást. Ez NEM a négyzetméterár, hanem a teljes ingatlan ára — így jellemzően tíz- vagy százmilliós nagyságrend. NE írj ársávot, tartományt, kötőjelet, zárójelet, nm-árat vagy magyarázatot — csak egyetlen számot mértékegységgel. Pl.: "80 000 000 Ft". Az ársáv külön, a "8. Értéksáv" szakaszba kerül.
 - Az "Aktív összehasonlító ingatlanok listája" szakaszban 5-8 jelenleg aktív ingatlan.com hirdetést sorolj fel: alapterület, állapot, emelet/lift, irányár, fajlagos ár, és ahol lehet, a hirdetés linkje vagy azonosítója. Kitalált hirdetést tilos közölni.
 - A "Korrekciós táblázat" tartalmazza a lokációs prémium sort is (a megadott százalék, a forintos különbség és a korrigált ár), valamint a lakás-specifikus korrekciókat tételesen, százalékosan.
 - A "Súlyozás és számítás" mutassa a bázis nm-árat (az aktív hirdetések súlyozott átlaga), a compok súlyait, majd a korrigált nm-árat és a végső értéket (nm-ár × alapterület).

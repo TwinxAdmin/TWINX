@@ -178,6 +178,9 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
     if (est) headlinePrice = toSinglePrice(firstValue(est.body));
   }
 
+  // A fejléc-ár a teljes forgalmi érték legyen (ne a nm-ár) — ha kell, korrigáljuk.
+  headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
     .filter(Boolean)
     .join(" · ");
@@ -235,6 +238,64 @@ function toSinglePrice(raw: string): string {
   }
   // Nincs értelmezhető szám: a nyers szöveget adjuk vissza, kósza zárójel nélkül.
   return s.replace(/\s+/g, " ").trim();
+}
+
+/** Egy forint-összeg egységes formázása. */
+function formatFt(n: number): string {
+  return `${Math.round(n).toLocaleString("hu-HU").replace(/ /g, " ")} Ft`;
+}
+
+/** Az első, ezres-tagolt szám a szövegből (min. határértékkel). */
+function firstBigNumber(text: string, min = 100000): number | null {
+  const matches = text.match(/\d[\d.\s ]*\d|\d/g) ?? [];
+  for (const m of matches) {
+    const n = Number(m.replace(/[.\s ]/g, ""));
+    if (Number.isFinite(n) && n >= min) return n;
+  }
+  return null;
+}
+
+/** A lakás alapterülete a form „méret" mezőjéből (pl. „60 nm" → 60). */
+function parseSizeSqm(meret: string): number | null {
+  const m = String(meret ?? "").match(/\d+([.,]\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0].replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** A négyzetméterár a riport szövegéből (első „… Ft/nm" vagy „… Ft/m²"). */
+function findUnitPrice(sections: ReportSection[]): number | null {
+  for (const s of sections) {
+    const m = s.body.match(/([\d][\d.\s ]*\d)\s*(?:e?\s?Ft|forint)?\s*\/\s*(?:nm|m²|m2|négyzet)/i);
+    if (m) {
+      const n = Number(m[1].replace(/[.\s ]/g, ""));
+      if (Number.isFinite(n) && n >= 100000) return n;
+    }
+  }
+  return null;
+}
+
+/**
+ * A fejléc-ár a TELJES forgalmi érték legyen, ne a négyzetméterár. A modell néha
+ * a nm-árat teszi a „Javasolt ár" mezőbe — ezt úgy szűrjük ki, hogy a nm-ár ×
+ * alapterület alapján kiszámoljuk a várható teljes árat, és ha a megadott szám
+ * ennek töredéke (nm-ár méretű), a számított teljes árat használjuk.
+ */
+function ensureTotalPrice(
+  headline: string,
+  sections: ReportSection[],
+  meret: string
+): string {
+  const size = parseSizeSqm(meret);
+  const unit = findUnitPrice(sections);
+  if (!size || !unit) return headline; // nincs mivel korrigálni
+
+  const expectedTotal = Math.round((unit * size) / 1000) * 1000;
+  const current = firstBigNumber(headline);
+  // Ha nincs szám, vagy a szám a várható teljes ár felénél kisebb (tehát
+  // valószínűleg a nm-ár csúszott ide), a számított teljes árra cseréljük.
+  if (!current || current < expectedTotal * 0.5) return formatFt(expectedTotal);
+  return headline;
 }
 
 const STORE_MARKER = "twinxReport";
