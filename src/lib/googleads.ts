@@ -1,56 +1,27 @@
-// Google Ads (keresési/PPC) szöveg- és kulcsszó-generátor — egy landing page link
-// alapján reszponzív keresési hirdetés szövegei + kulcsszólista B2C ingatlanra.
-// A kredit a Facebook-generátorral közös konstansból jön (lib/fbads.ts).
+// Google Ads (keresési/PPC) generátor — egy landing page link alapján egy azonnal
+// Google Ads Editorba importálható, pontosvesszővel (;) elválasztott CSV-t ad
+// Search kampányhoz (10 kulcsszavas sor + RSA-oszlopok). A kredit a Facebook-
+// generátorral közös konstansból jön (lib/fbads.ts).
 
-/** Google Ads karakterkorlátok (reszponzív keresési hirdetés). */
-export const GADS_HEADLINE_MAX = 30;
-export const GADS_DESC_MAX = 90;
+/** A várt CSV kötelező fejléce (a Google Ads Editor oszlopai). */
+export const GADS_CSV_HEADER =
+  "Campaign;Campaign Type;Ad Group;Keyword;Criterion Type;Headline 1;Headline 2;Headline 3;Description 1;Description 2;Final URL;Campaign Status";
 
-export type GoogleAdsResult = {
-  title: string;         // felismerhető főcím az ingatlanról
-  headlines: string[];   // max 5, egyenként ≤30 karakter
-  descriptions: string[]; // max 3, egyenként ≤90 karakter
-  keywords: string[];    // ~10 magas vásárlási szándékú kifejezés
-  negatives: string[];   // 5-10 kizáró kulcsszó
-};
+export type GoogleAdsResult = { csv: string };
+export const EMPTY_GOOGLE_ADS: GoogleAdsResult = { csv: "" };
 
-export const EMPTY_GOOGLE_ADS: GoogleAdsResult = {
-  title: "", headlines: [], descriptions: [], keywords: [], negatives: [],
-};
-
-/** A modell válaszának beolvasása — a JSON köré írt szöveget is elviseli, és a
- *  karakterkorlátokat biztonságból betartatja (a túl hosszút levágja). */
-export function parseGoogleAds(raw: string): GoogleAdsResult | null {
-  const text = String(raw ?? "").trim();
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== "object") return null;
-
-  const o = parsed as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const listCapped = (v: unknown, maxItems: number, maxChars?: number) =>
-    (Array.isArray(v) ? v : [])
-      .map((x) => {
-        const s = str(x);
-        return maxChars ? s.slice(0, maxChars) : s;
-      })
-      .filter(Boolean)
-      .slice(0, maxItems);
-
-  const res: GoogleAdsResult = {
-    title: str(o.title).slice(0, 120),
-    headlines: listCapped(o.headlines, 5, GADS_HEADLINE_MAX),
-    descriptions: listCapped(o.descriptions, 3, GADS_DESC_MAX),
-    keywords: listCapped(o.keywords, 12),
-    negatives: listCapped(o.negatives, 12),
-  };
-  if (!res.headlines.length && !res.descriptions.length && !res.keywords.length) return null;
-  return res;
+/**
+ * A modell válaszából kinyeri a CSV-t: levágja az esetleges kódblokk-jelölőt, és
+ * ellenőrzi, hogy tartalmazza-e a fejlécet + legalább egy adatsort. Hibánál null.
+ */
+export function extractGoogleAdsCsv(raw: string): string | null {
+  let t = String(raw ?? "").trim();
+  const fence = t.match(/```(?:csv)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  if (/"error"\s*:\s*"unreachable"/i.test(t)) return null;
+  // Legyen "Campaign;" kezdetű fejléc valahol, és legalább 2 nem üres sor.
+  if (!/(^|\n)\s*Campaign\s*;/.test(t)) return null;
+  const lines = t.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim().length);
+  if (lines.length < 2) return null;
+  return lines.join("\n");
 }

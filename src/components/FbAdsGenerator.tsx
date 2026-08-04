@@ -6,9 +6,7 @@
 import { useState } from "react";
 import { showToast } from "@/components/Toast";
 import { FBADS_CREDITS, EMPTY_FBADS, type FbAdsResult } from "@/lib/fbads";
-import {
-  EMPTY_GOOGLE_ADS, GADS_HEADLINE_MAX, GADS_DESC_MAX, type GoogleAdsResult,
-} from "@/lib/googleads";
+import { type GoogleAdsResult } from "@/lib/googleads";
 
 type Platform = "facebook" | "google";
 
@@ -35,6 +33,18 @@ export default function FbAdsGenerator() {
       () => showToast(msg, "success"),
       () => showToast("A másolás nem sikerült.", "error")
     );
+
+  function downloadCsv(csv: string) {
+    // UTF-8 BOM az ékezetek miatt (Excel/Google Ads Editor barát).
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "google-ads-kampany.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
 
   async function generate() {
     setError(null);
@@ -155,84 +165,33 @@ export default function FbAdsGenerator() {
         </section>
       )}
 
-      {/* --- GOOGLE ADS EREDMÉNY --- */}
+      {/* --- GOOGLE ADS EREDMÉNY: importálható CSV --- */}
       {g && (
-        <section className="space-y-4">
-          {g.title && <p className="text-sm font-semibold">{g.title}</p>}
-
-          {g.headlines.length > 0 && (
-            <div className="twx-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Címsorok <span style={{ color: "var(--twx-ink-muted)" }}>(≤{GADS_HEADLINE_MAX} karakter)</span></h3>
-                <button type="button" onClick={() => copy(g.headlines.join("\n"), "Címsorok másolva.")}
-                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Mind másolása</button>
-              </div>
-              <ul className="space-y-1.5">
-                {g.headlines.map((h, i) => {
-                  const over = h.length > GADS_HEADLINE_MAX;
-                  return (
-                    <li key={i} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-sm" style={{ border: "1px solid var(--twx-line)" }}>
-                      <span className="min-w-0 flex-1 truncate">{h}</span>
-                      <span className="shrink-0 text-[11px]" style={{ color: over ? "#c0392b" : "var(--twx-ink-muted)" }}>{h.length}/{GADS_HEADLINE_MAX}</span>
-                      <button type="button" onClick={() => copy(h)} className="shrink-0 text-[11px] font-medium" style={{ color: "var(--twx-coral)" }}>másolás</button>
-                    </li>
-                  );
-                })}
-              </ul>
+        <section className="twx-card p-4 sm:p-5">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold">Google Ads kampány (CSV)</h3>
+              <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                Pontosvesszős CSV — közvetlenül a Google Ads Editorba importálható (Search, „Konkrét Ingatlanok”, Paused).
+              </p>
             </div>
-          )}
-
-          {g.descriptions.length > 0 && (
-            <div className="twx-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Leírások <span style={{ color: "var(--twx-ink-muted)" }}>(≤{GADS_DESC_MAX} karakter)</span></h3>
-                <button type="button" onClick={() => copy(g.descriptions.join("\n"), "Leírások másolva.")}
-                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Mind másolása</button>
-              </div>
-              <ul className="space-y-1.5">
-                {g.descriptions.map((d, i) => {
-                  const over = d.length > GADS_DESC_MAX;
-                  return (
-                    <li key={i} className="flex items-start justify-between gap-2 rounded-lg px-2.5 py-1.5 text-sm" style={{ border: "1px solid var(--twx-line)" }}>
-                      <span className="min-w-0 flex-1">{d}</span>
-                      <span className="shrink-0 text-[11px]" style={{ color: over ? "#c0392b" : "var(--twx-ink-muted)" }}>{d.length}/{GADS_DESC_MAX}</span>
-                      <button type="button" onClick={() => copy(d)} className="shrink-0 text-[11px] font-medium" style={{ color: "var(--twx-coral)" }}>másolás</button>
-                    </li>
-                  );
-                })}
-              </ul>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => downloadCsv(g.csv)}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                CSV letöltése
+              </button>
+              <button type="button" onClick={() => copy(g.csv, "CSV a vágólapon.")}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                Másolás
+              </button>
             </div>
-          )}
-
-          {g.keywords.length > 0 && (
-            <div className="twx-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Célzott kulcsszavak</h3>
-                <button type="button" onClick={() => copy(g.keywords.join("\n"), "Kulcsszavak másolva.")}
-                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Mind másolása</button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {g.keywords.map((k, i) => (
-                  <span key={i} className="rounded-full px-3 py-1 text-xs" style={{ background: "#f2f9f5", border: "1px solid #bfe0cd" }}>{k}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {g.negatives.length > 0 && (
-            <div className="twx-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Kizáró kulcsszavak</h3>
-                <button type="button" onClick={() => copy(g.negatives.join("\n"), "Kizáró kulcsszavak másolva.")}
-                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Mind másolása</button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {g.negatives.map((k, i) => (
-                  <span key={i} className="rounded-full px-3 py-1 text-xs" style={{ background: "#fdf3f2", border: "1px solid #e6bdb8" }}>{k}</span>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
+          <textarea readOnly value={g.csv} rows={14}
+            className="twx-input w-full text-[11px] leading-relaxed"
+            style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "pre" }} />
+          <p className="mt-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+            Importálás: Google Ads Editor → Account → Import → From file. A kampány „Paused”, ellenőrzés után indítható.
+          </p>
         </section>
       )}
     </div>

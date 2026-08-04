@@ -9,7 +9,7 @@ import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildGoogleAdsPromptActive } from "@/lib/prompts";
 import { fetchPageText } from "@/lib/fetch-page-text";
 import { FBADS_CREDITS } from "@/lib/fbads";
-import { parseGoogleAds } from "@/lib/googleads";
+import { extractGoogleAdsCsv } from "@/lib/googleads";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
@@ -87,22 +87,22 @@ export async function POST(request: Request) {
       }, { status: 422 });
     }
 
-    const result = parseGoogleAds(raw);
-    if (!result) {
+    const csv = extractGoogleAdsCsv(raw);
+    if (!csv) {
       await refund();
-      return NextResponse.json({ error: "A generálás nem sikerült, próbáld újra." }, { status: 502 });
+      return NextResponse.json({ error: "A CSV generálása nem sikerült, próbáld újra." }, { status: 502 });
     }
 
     await admin.from("usage_history").insert({
       user_id: user.id,
       service_id: null,
       feature_used: FEATURE,
-      input_data: { url: text ? null : (url || null), title: result.title },
-      output_text: JSON.stringify(result),
+      input_data: { url: text ? null : (url || null) },
+      output_text: csv,
       credits_charged: charge && !charge.bypassed ? credits : 0,
     });
 
-    return NextResponse.json({ ok: true, result, charged: !!charge && !charge.bypassed });
+    return NextResponse.json({ ok: true, result: { csv }, charged: !!charge && !charge.bypassed });
   } catch (err) {
     await refund();
     return NextResponse.json({ error: (err as Error).message || "A generálás nem sikerült." }, { status: 500 });
