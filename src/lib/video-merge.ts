@@ -85,6 +85,22 @@ function pruneEmptyImageClips(tpl: TemplateJson, values: Record<string, string>)
   tpl.timeline.tracks = tpl.timeline.tracks.filter((t) => t.clips.length > 0);
 }
 
+/**
+ * Kiüríti azokat a rich-text feliratokat, amelyek NEM tartalmaznak {{ helyőrzőt }},
+ * vagyis fix, sablonba drótozott szövegek (pl. „HOUSE"). Így a videóban csak a
+ * partner által megadott, merge-mezőből jövő szöveg jelenik meg — más semmi.
+ */
+function blankLiteralText(tpl: TemplateJson): void {
+  for (const track of tpl.timeline.tracks) {
+    for (const clip of track.clips) {
+      const a = clip?.asset;
+      if (a?.type === "rich-text" && typeof a.text === "string" && !/\{\{/.test(a.text)) {
+        a.text = "";
+      }
+    }
+  }
+}
+
 export type MergeInput = {
   images: string[];              // publikus fotó-URL-ek, sorrendben
   musicUrl: string | null;       // saját zene
@@ -96,16 +112,17 @@ export type MergeInput = {
 export function buildMergeRenderBody(tpl: TemplateJson, input: MergeInput): Record<string, unknown> {
   const t = clone(tpl);
 
-  // 1) A helyőrzők végső értékei: a sablon saját merge-alapértelmezései, felülírva
-  //    a mi értékeinkkel és a fotókkal.
+  // 1) A helyőrzők végső értékei: KIZÁRÓLAG a partner adatai + a fotói.
+  //    A sablon saját példa-értékeit (MAROUBRA, NSW, AUCTION, minta-képek stb.)
+  //    SZÁNDÉKOSAN nem vesszük át — csak az jelenjen meg, amit a partner megadott.
   const values: Record<string, string> = {};
-  for (const d of t.merge ?? []) values[d.find] = d.replace;
   for (const [k, v] of Object.entries(input.values)) values[k] = v ?? "";
   input.images.forEach((url, i) => { values[`IMAGE_${i + 1}`] = url; });
 
-  // 2) Zene + üres képek kezelése.
+  // 2) Zene, üres képek, és a NEM-ADAT (fix) feliratok kiürítése.
   swapAudio(t, input.musicUrl);
   pruneEmptyImageClips(t, values);
+  blankLiteralText(t); // pl. a fixen bedrótozott „HOUSE" — nem a partner adata
 
   // 3) A merge-tömb a végső értékekből (csak amikre van helyőrző a sablonban).
   const used = new Set(collectPlaceholders(t));
