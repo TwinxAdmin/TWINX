@@ -203,9 +203,9 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         { position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u * sealK), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
         [
           box({ fontSize: Math.round(18 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u * sealK), marginBottom: Math.round(4 * u) }, "ÁR"),
-          box({ alignItems: "baseline", justifyContent: "center", gap: Math.round(6 * u * sealK) }, [
-            box({ fontSize: Math.round((priceNum.length > 8 ? 34 : priceNum.length > 4 ? 44 : 54) * u * sealK), fontWeight: 700, color: accInk, lineHeight: 1.05 }, priceNum),
-            priceSuffix ? box({ fontSize: Math.round(24 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.95 }, priceSuffix) : null,
+          box({ alignItems: "baseline", justifyContent: "center", flexWrap: "nowrap", gap: Math.round(6 * u * sealK) }, [
+            box({ fontSize: Math.round((priceNum.length > 8 ? 28 : priceNum.length > 4 ? 34 : 42) * u * sealK), fontWeight: 700, color: accInk, lineHeight: 1.05, flexShrink: 0, whiteSpace: "nowrap" }, priceNum),
+            priceSuffix ? box({ fontSize: Math.round(20 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.95, flexShrink: 0, whiteSpace: "nowrap" }, priceSuffix) : null,
           ].filter(Boolean)),
         ]
       )
