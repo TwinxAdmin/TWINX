@@ -149,6 +149,14 @@ export async function POST(request: Request) {
     if (designJson) {
       const musicUrl = await pickMusic(musicStyle);
       const digits = (s: string) => (String(s).match(/\d+/)?.[0] ?? "");
+      const clean = (s: string | undefined) => String(s ?? "").trim();
+      // Összevont adatsor a zárókártyához: méret · szoba · fürdő · emelet (üres kimarad).
+      const specs = [
+        clean(facts.size),
+        clean(facts.rooms),
+        clean(facts.bathrooms),
+        clean(facts.floor),
+      ].filter(Boolean).join("   ·   ");
       const values: Record<string, string> = {
         ADDRESS: facts.address || propertyAddress,
         SUBURB: facts.location,
@@ -157,7 +165,11 @@ export async function POST(request: Request) {
         BEDROOMS: digits(facts.rooms),
         BATHROOMS: digits(facts.bathrooms),
         CARPORTS: "",
-        TYPE: (String((facts as { propertyType?: string }).propertyType ?? "").trim() || "ELADÓ").toUpperCase(),
+        TYPE: (clean((facts as { propertyType?: string }).propertyType) || "ELADÓ").toUpperCase(),
+        PRICE: clean(facts.price),
+        SIZE: clean(facts.size),
+        FLOOR: clean(facts.floor),
+        SPECS: specs,
         AGENT_NAME: (profile.display_name || profile.company || "").toUpperCase(),
         AGENT_EMAIL: profile.email || profile.phone || "",
         AGENT_PICTURE: profile.agent_photo_url || "",
