@@ -292,8 +292,7 @@ export default function VideoWizard({
                           <div className="font-display text-base font-bold">{d.name}</div>
                         </div>
                         <div className="px-3 pt-3">
-                          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{d.tagline}</p>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap gap-1.5">
                             {d.introPanel && <Chip>Intro-panel</Chip>}
                             {d.agentCard && <Chip>Ügynökkártya</Chip>}
                           </div>
