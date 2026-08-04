@@ -40,7 +40,6 @@ export type VideoFormat = {
 export const VIDEO_FORMATS: VideoFormat[] = [
   { value: "1:1", label: "Négyzet 1:1", width: 1080, height: 1080 },
   { value: "9:16", label: "Álló 9:16", width: 1080, height: 1920 },
-  { value: "16:9", label: "Fekvő 16:9", width: 1920, height: 1080 },
 ];
 
 export function getFormat(value: string): VideoFormat | null {

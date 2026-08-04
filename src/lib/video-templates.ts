@@ -1,4 +1,4 @@
-// Videó-DIZÁJNOK — a partner egy dizájnt választ, majd egy MÉRETET (9:16/1:1/16:9).
+// Videó-DIZÁJNOK — a partner egy dizájnt választ, majd egy MÉRETET (9:16/1:1).
 // Ugyanaz a dizájn több arányban is elérhető: minden méret a saját változatával.
 //
 // Kétféle dizájn:
@@ -8,17 +8,15 @@
 // A képszám KIKÖTÉS: json dizájnnál a JSON IMAGE_n helyőrzőinek száma adja;
 // satori dizájnnál a design min/max mezője.
 
-import modernSarga169 from "@/lib/video-json/modern-sarga-16x9.json";
 import modernSarga916 from "@/lib/video-json/modern-sarga-9x16.json";
 import modernSarga11 from "@/lib/video-json/modern-sarga-1x1.json";
 import { countImagePlaceholders, type TemplateJson } from "@/lib/video-merge";
 
-export type VideoAspect = "9:16" | "1:1" | "16:9";
-export const ALL_ASPECTS: VideoAspect[] = ["9:16", "1:1", "16:9"];
+export type VideoAspect = "9:16" | "1:1";
+export const ALL_ASPECTS: VideoAspect[] = ["9:16", "1:1"];
 export const ASPECT_LABEL: Record<VideoAspect, string> = {
   "9:16": "Álló 9:16",
   "1:1": "Négyzet 1:1",
-  "16:9": "Fekvő 16:9",
 };
 
 export type VideoDesign = {
@@ -49,7 +47,7 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
     name: "TWINX Klasszikus",
     tagline: "Arculati bronz · feliratsávok · nyitó/záró kártya",
     kind: "satori",
-    aspects: ["9:16", "1:1", "16:9"],
+    aspects: ["9:16", "1:1"],
     minImages: 4,
     maxImages: 5,
     accent: "#1e3a5f",
@@ -66,12 +64,11 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
     name: "Modern Sárga",
     tagline: "Sárga kiemelés · intro-panel ikonokkal · ügynökkártya",
     kind: "json",
-    // Mindhárom méret elérhető, méretenként külön Shotstack-JSON-nal.
-    aspects: ["9:16", "1:1", "16:9"],
+    // Két méret elérhető, méretenként külön Shotstack-JSON-nal.
+    aspects: ["9:16", "1:1"],
     jsonByAspect: {
       "9:16": modernSarga916 as unknown as TemplateJson,
       "1:1": modernSarga11 as unknown as TemplateJson,
-      "16:9": modernSarga169 as unknown as TemplateJson,
     },
     minImages: 5,
     maxImages: 5,

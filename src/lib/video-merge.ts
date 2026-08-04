@@ -41,7 +41,7 @@ export function outputSize(tpl: TemplateJson): { width: number; height: number; 
   const w = tpl.output?.size?.width ?? 1024;
   const h = tpl.output?.size?.height ?? 576;
   const r = w / h;
-  const aspect = Math.abs(r - 1) < 0.05 ? "1:1" : r < 1 ? "9:16" : "16:9";
+  const aspect = r < 1 ? "9:16" : "1:1";
   return { width: w, height: h, aspect };
 }
 
