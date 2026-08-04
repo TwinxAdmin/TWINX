@@ -51,10 +51,8 @@ export type MusicStyle = { slug: string; label: string };
 
 export const MUSIC_STYLES: MusicStyle[] = [
   { slug: "elegans", label: "Elegáns" },
-  { slug: "porgos", label: "Pörgős / energikus" },
   { slug: "nyugodt", label: "Nyugodt / letisztult" },
   { slug: "cinematic", label: "Cinematic / filmzenei" },
-  { slug: "vidam", label: "Vidám / könnyed" },
 ];
 
 export function isValidMusicStyle(slug: string): boolean {
