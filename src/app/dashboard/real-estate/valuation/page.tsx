@@ -10,6 +10,8 @@ import FolderLibrary, {
   type LibraryFolder,
   type LibraryItem,
 } from "@/components/library/FolderLibrary";
+import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
+import { compressImage } from "@/lib/image-compress";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
@@ -73,6 +75,54 @@ export default function ValuationPage() {
   const [editorDirty, setEditorDirty] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
+
+  // --- Ingatlan fotói (opcionális, a becslés állapot-korrekciójához) ---
+  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]); // rendszerből behúzott képek
+  const [showLibrary, setShowLibrary] = useState(false);
+  const PHOTO_MAX = 5;
+  const photoCount = photos.length + photoUrls.length;
+
+  const addFiles = useCallback(async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const room = PHOTO_MAX - (photos.length + photoUrls.length);
+    if (room <= 0) return;
+    const picked = Array.from(files).slice(0, room);
+    const next: { file: File; preview: string }[] = [];
+    for (const f of picked) {
+      if (!f.type.startsWith("image/")) continue;
+      const c = await compressImage(f, 1600, 0.85);
+      next.push({ file: c, preview: URL.createObjectURL(c) });
+    }
+    setPhotos((prev) => [...prev, ...next]);
+  }, [photos.length, photoUrls.length]);
+
+  const addUrl = useCallback((url: string) => {
+    setPhotoUrls((prev) =>
+      prev.includes(url) || photos.length + prev.length >= PHOTO_MAX ? prev : [...prev, url]
+    );
+  }, [photos.length]);
+
+  function removePhoto(i: number) {
+    setPhotos((prev) => {
+      const clone = [...prev];
+      const [gone] = clone.splice(i, 1);
+      if (gone) URL.revokeObjectURL(gone.preview);
+      return clone;
+    });
+  }
+  function removeUrl(url: string) {
+    setPhotoUrls((prev) => prev.filter((u) => u !== url));
+  }
+  function onPhotoDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer.files?.length) {
+      void addFiles(e.dataTransfer.files);
+      return;
+    }
+    const url = readTwxDragUrl(e.dataTransfer);
+    if (url) addUrl(url);
+  }
 
   const loadHistory = useCallback(async () => {
     try {
@@ -166,11 +216,22 @@ export default function ValuationPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/real-estate/valuation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
+      // Fotóval multipart FormData, fotó nélkül a megszokott JSON (visszafelé kompatibilis).
+      const hasPhotos = photos.length > 0 || photoUrls.length > 0;
+      let res: Response;
+      if (hasPhotos) {
+        const fd = new FormData();
+        fd.append("data", JSON.stringify(values));
+        photos.forEach((p, i) => fd.append("images", p.file, `foto-${i + 1}.jpg`));
+        fd.append("systemUrls", JSON.stringify(photoUrls));
+        res = await fetch("/api/real-estate/valuation", { method: "POST", body: fd });
+      } else {
+        res = await fetch("/api/real-estate/valuation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
@@ -240,6 +301,82 @@ export default function ValuationPage() {
               )}
             </div>
           ))}
+        </div>
+
+        {/* --- Ingatlan fotói (opcionális): a látható állapotot beépíti a becslésbe. --- */}
+        <div className="rounded-xl p-4" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
+          <p className="text-sm font-semibold">Ingatlan fotói (opcionális)</p>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Tölts fel 3-5 fotót (pl. nappali, konyha, fürdő, +1 szoba vagy kilátás). A gép a látható
+            állapotot és minőséget beépíti a becslésbe, a ±5%-os korrekción belül. Nem kötelező.
+          </p>
+
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onPhotoDrop}
+            className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border-2 border-dashed p-3"
+            style={{ borderColor: "var(--twx-line)" }}
+          >
+            <label
+              className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+              style={{ background: "var(--twx-coral)", opacity: photoCount >= PHOTO_MAX ? 0.5 : 1 }}
+            >
+              Tallózás…
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                disabled={photoCount >= PHOTO_MAX}
+                onChange={(e) => { void addFiles(e.target.files); e.currentTarget.value = ""; }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowLibrary((v) => !v)}
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+              style={{ border: "1px solid var(--twx-line)", color: "var(--twx-coral)", background: "#fff" }}
+            >
+              {showLibrary ? "Rendszer-képek elrejtése" : "Rendszerből behúzás"}
+            </button>
+            <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              vagy húzd ide a képeket · {photoCount}/{PHOTO_MAX}
+            </span>
+          </div>
+
+          {/* Kiválasztott fotók bélyegképei (feltöltött + rendszerből) */}
+          {photoCount > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {photos.map((p, i) => (
+                <div key={p.preview} className="relative overflow-hidden rounded-lg border" style={{ borderColor: "var(--twx-line)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.preview} alt="Feltöltött fotó" className="h-20 w-full object-cover" />
+                  <button type="button" onClick={() => removePhoto(i)} aria-label="Törlés"
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-xs" style={{ background: "rgba(20,12,8,0.65)", color: "#fff" }}>×</button>
+                </div>
+              ))}
+              {photoUrls.map((url) => (
+                <div key={url} className="relative overflow-hidden rounded-lg border" style={{ borderColor: "var(--twx-line)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Rendszer-kép" className="h-20 w-full object-cover" />
+                  <button type="button" onClick={() => removeUrl(url)} aria-label="Törlés"
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-xs" style={{ background: "rgba(20,12,8,0.65)", color: "#fff" }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Rendszerben lévő képek — mappa-struktúra + jobb oldali panel, drag-drop / kattintás */}
+          {showLibrary && (
+            <div className="mt-3">
+              <AssetTray
+                onPick={(url) => addUrl(url)}
+                selectedUrls={photoUrls}
+                title="Rendszerben lévő képek"
+                note="Nyiss meg egy mappát, majd húzd a fenti fotó-mezőbe a képet, vagy kattints rá a hozzáadáshoz."
+              />
+            </div>
+          )}
         </div>
 
         {/* --- Lokációs prémium: külön blokk, mert a partner helyismerete adja. --- */}

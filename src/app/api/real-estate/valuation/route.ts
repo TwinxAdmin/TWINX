@@ -16,6 +16,11 @@ import {
   type SonarSource,
 } from "@/lib/perplexity";
 import { buildValuationPromptActive } from "@/lib/prompts";
+import {
+  analyzePropertyPhotos,
+  renderConditionBlock,
+  type VisionImage,
+} from "@/lib/property-vision";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 
 export const runtime = "nodejs";
@@ -23,6 +28,22 @@ export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";
+
+/** Egy publikus kép-URL letöltése bájttá (méret- és típus-korláttal). Hibatűrő: null. */
+async function fetchImageBytes(url: string): Promise<VisionImage | null> {
+  try {
+    if (!/^https?:\/\//i.test(url)) return null;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const mimeType = res.headers.get("content-type") || "image/jpeg";
+    if (!mimeType.startsWith("image/")) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > 8_000_000) return null;
+    return { bytes: buf, mimeType };
+  } catch {
+    return null;
+  }
+}
 
 /** A felhasznált források külön szakaszként a riport végén (ellenőrizhetőség). */
 function sourcesSection(sources: SonarSource[]): string {
@@ -43,9 +64,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
   }
 
+  // A kérés kétféle lehet: sima JSON (fotó nélkül, visszafelé kompatibilis) vagy
+  // multipart FormData (ha fotók is jönnek): "data" mező a JSON, "images" a feltöltött
+  // fájlok, "systemUrls" a rendszerből behúzott képek URL-listája.
   let body: unknown;
+  const photoImages: VisionImage[] = [];
+  const contentType = request.headers.get("content-type") || "";
   try {
-    body = await request.json();
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      body = JSON.parse(String(form.get("data") ?? "{}"));
+      // Feltöltött fájlok → bájtok (max 5 kép).
+      for (const f of form.getAll("images")) {
+        if (photoImages.length >= 5) break;
+        if (f instanceof File && f.size > 0 && f.size <= 8_000_000) {
+          const buf = new Uint8Array(await f.arrayBuffer());
+          photoImages.push({ bytes: buf, mimeType: f.type || "image/jpeg" });
+        }
+      }
+      // Rendszerből behúzott URL-ek → szerveroldali letöltés bájttá.
+      const urlsRaw = form.get("systemUrls");
+      const urls: string[] = urlsRaw ? (JSON.parse(String(urlsRaw)) as string[]) : [];
+      for (const u of urls) {
+        if (photoImages.length >= 5) break;
+        const img = await fetchImageBytes(u);
+        if (img) photoImages.push(img);
+      }
+    } else {
+      body = await request.json();
+    }
   } catch {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
@@ -89,7 +136,15 @@ export async function POST(request: Request) {
     // 2) Perplexity (Sonar) hívás a validált adatokból (az aktív prompttal).
     //    A keresést a magyar ingatlanportálokra és piaci forrásokra szűkítjük —
     //    így nagyobb eséllyel dolgozik KONKRÉT hirdetésekből, nem általános cikkekből.
-    const prompt = await buildValuationPromptActive(input);
+    // Fotó-alapú állapotértékelés (opcionális): ha jött fotó, gépi képelemzés →
+    // strukturált állapot-blokk, amit a modell a lakás-korrekcióknál használ (±5% plafon).
+    let conditionText: string | undefined;
+    if (photoImages.length > 0) {
+      const report = await analyzePropertyPhotos(photoImages);
+      if (report) conditionText = renderConditionBlock(report);
+    }
+
+    const prompt = await buildValuationPromptActive(input, conditionText);
     const { content, sources } = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
       // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság fontosabb,
       // mint a fogalmazás változatossága (két futás ne adjon eltérő árat).
@@ -125,6 +180,18 @@ export async function POST(request: Request) {
       units: 1,
       estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
     });
+
+    // A fotó-elemzés (Gemini) nyers költsége — best-effort, admin-only.
+    if (photoImages.length > 0 && conditionText) {
+      await logCost({
+        userId: user.id,
+        serviceId: service.id,
+        feature: FEATURE,
+        serviceName: "gemini-vision",
+        units: photoImages.length,
+        estimatedCostUsd: 0.03,
+      });
+    }
 
     return NextResponse.json({
       ok: true,

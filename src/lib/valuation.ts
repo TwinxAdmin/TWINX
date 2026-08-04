@@ -627,6 +627,7 @@ A cél, hogy két azonos adatokkal indított futás KÖZEL AZONOS árat adjon. E
 - TIPIKUS SZEGMENS A HORGONYHOZ: a HORGONY és a bázis a zóna TIPIKUS, a megadotthoz hasonló méretű és állapotú lakását tükrözze. A nagypolgári, kiemelt prémium, panorámás vagy kiugróan eltérő méretű ingatlanokat NE építsd sem a HORGONY-ba, sem a bázis-mediánba — ezek csak külön, tételes korrekcióként jelenhetnek meg (és outlierként kis súllyal). Így a HORGONY futásonként stabil marad.
 - HIRDETÉSI → TRANZAKCIÓS ÁR (KÖTELEZŐ): a GDN- és portál-compok IRÁNYÁRAK (hirdetési árak), amelyek jellemzően magasabbak a tényleges eladási árnál. A becslés célja a reálisan ELÉRHETŐ eladási ár, ezért a bázis nm-árra alkalmazz egy tételes alku/tranzakciós korrekciót: a jelenlegi magyar piacon jellemzően -5...-10% (belső budapesti, népszerű zónákban 2025-2026-ban kb. -6...-8%). Ha van valós, zárt tranzakciós adat (KSH/MNB tranzakciós index, GDN eladott ingatlanok), azzal kalibráld. A végső korrigált nm-ár már a TRANZAKCIÓS szintet tükrözze, ne a hirdetési szintet.
 - LAKÁS-KORREKCIÓK PLAFONJA: a lakás-specifikus korrekciók EGYÜTTES nettó hatása szokásos (nem kiemelt) ingatlannál maradjon ±5%-on belül; efölé csak tételes, erős indokkal lépj (pl. teljes felújítás, panoráma, kiemelt extra). Így egy átlagos lakás korrekciói nem tolják el jelentősen a bázisárat.
+- FOTÓ-ALAPÚ ÁLLAPOT: ha a bemenetben szerepel "FOTÓ-ALAPÚ ÁLLAPOTÉRTÉKELÉS" blokk (a partner feltöltött fotóiból), azt a lakás-specifikus korrekcióknál vedd figyelembe — de a fotók hirdetési célúak, lehetnek beállítottak, ezért KONZERVATÍVAN: a fotó-alapú korrekció önmagában ne lépje túl a ±5%-ot, alacsony megbízhatóságnál kisebb súllyal számolj, és a "Korrekciós táblázat"-ban külön, tételes sorként tüntesd fel.
 - MECHANIKUS VÉGSŐ ÁR: a "Javasolt ár" KÖTELEZŐEN a korrigált (tranzakciós szintű) nm-ár × hasznos alapterület (a lokációs prémiummal együtt), a legközelebbi 500 000 Ft-ra kerekítve. Ez PONTOSAN egyezzen meg a "Becsült piaci érték" szakasz fő számával, és essen bele az "Értéksáv"-ba. A hirdetési→tranzakciós korrekció a korrigált nm-ár RÉSZE (nem külön, utólagos csökkentés); ezen felül TILOS a számított érték alá csökkenteni vagy fölé emelni — a végső ár mechanikusan a levezetésből jöjjön.
 - A riportban KÖTELEZŐEN tüntesd fel a HORGONY-nm-árat, a GDN-alapú bázis nm-árat és a kettő eltérését százalékban.
 - A lokációs prémiumot és a lakás-specifikus korrekciókat a sávon belül maradó bázisárra alkalmazd.
@@ -675,10 +676,14 @@ Kötelező tartalmi elvárások:
 
 export function composeValuationPrompt(
   input: ValuationInput,
-  segments: { intro?: string; source?: string; task?: string }
+  segments: { intro?: string; source?: string; task?: string },
+  // Opcionális, fotó-alapú állapot-blokk (lásd lib/property-vision.ts). Ha van,
+  // az adatblokk után kerül be — a modell a lakás-korrekcióknál használja fel.
+  conditionText?: string
 ): string {
   const intro = (segments.intro ?? VALUATION_DEFAULT_SEGMENTS.intro).trim();
   const source = (segments.source ?? VALUATION_DEFAULT_SEGMENTS.source).trim();
   const task = (segments.task ?? VALUATION_DEFAULT_SEGMENTS.task).trim();
-  return `${intro}\n\n${valuationDataBlock(input)}\n\n${valuationDateNote()}\n\n${source}\n\n${task}`;
+  const condition = conditionText && conditionText.trim() ? `\n\n${conditionText.trim()}` : "";
+  return `${intro}\n\n${valuationDataBlock(input)}${condition}\n\n${valuationDateNote()}\n\n${source}\n\n${task}`;
 }

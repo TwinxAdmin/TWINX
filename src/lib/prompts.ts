@@ -458,9 +458,12 @@ export async function buildLandPromptActive(input: LandInput): Promise<string> {
   return composeLandPrompt(input, segments);
 }
 
-export async function buildValuationPromptActive(input: ValuationInput): Promise<string> {
+export async function buildValuationPromptActive(
+  input: ValuationInput,
+  conditionText?: string
+): Promise<string> {
   const segments = await getActiveSegments("valuation");
-  return composeValuationPrompt(input, segments);
+  return composeValuationPrompt(input, segments, conditionText);
 }
 
 export async function buildRoomPromptActive(
