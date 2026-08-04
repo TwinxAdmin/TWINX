@@ -88,6 +88,25 @@ export async function submitVideoRender(params: {
   return id as string;
 }
 
+/** Kész render-test (JSON-merge sablonból) beküldése. */
+export async function submitTemplateRender(body: Record<string, unknown>): Promise<string> {
+  const apiKey = process.env.SHOTSTACK_API_KEY;
+  if (!apiKey) throw new Error("Hiányzó SHOTSTACK_API_KEY.");
+  const res = await fetch(`${BASE}/render`, {
+    method: "POST",
+    headers: { "x-api-key": apiKey, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Shotstack hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const id = data?.response?.id;
+  if (!id) throw new Error("A Shotstack nem adott render id-t.");
+  return id as string;
+}
+
 /** Render állapot lekérése (tartalék a webhook mellé). */
 export async function getRenderStatus(id: string): Promise<{ status: string; url: string | null; error: string | null }> {
   const apiKey = process.env.SHOTSTACK_API_KEY;

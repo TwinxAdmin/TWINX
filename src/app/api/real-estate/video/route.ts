@@ -15,7 +15,8 @@ import {
 } from "@/lib/video";
 import { getTemplate, imageCountOk, imageCountLabel, VIDEO_TEMPLATES } from "@/lib/video-templates";
 import { pickMusic } from "@/lib/music";
-import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
+import { submitVideoRender, submitTemplateRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
+import { buildMergeRenderBody } from "@/lib/video-merge";
 import { submitImageToVideoFal, videoClipPrompt } from "@/lib/fal";
 import { failJobOnce, initClips, type AiClipState } from "@/lib/video-pipeline";
 import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
@@ -137,6 +138,48 @@ export async function POST(request: Request) {
       const { error } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: files[i].type, upsert: true });
       if (error) throw new Error(`Fotó mentés hiba: ${error.message}`);
       photoUrls.push(admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+    }
+
+    // 3/B) JSON-SABLON ÁG: kész Shotstack template merge-mezőkkel.
+    //      A dizájn a JSON-ban van; mi csak a helyőrzőket töltjük ki + a zenét cseréljük.
+    if (template.kind === "json" && template.json) {
+      const musicUrl = await pickMusic(musicStyle);
+      const digits = (s: string) => (String(s).match(/\d+/)?.[0] ?? "");
+      const values: Record<string, string> = {
+        ADDRESS: facts.address || propertyAddress,
+        SUBURB: facts.location,
+        STATE: "",
+        POSTCODE: "",
+        BEDROOMS: digits(facts.rooms),
+        BATHROOMS: digits(facts.bathrooms),
+        CARPORTS: "",
+        TYPE: (String((facts as { propertyType?: string }).propertyType ?? "").trim() || "ELADÓ").toUpperCase(),
+        AGENT_NAME: (profile.display_name || profile.company || "").toUpperCase(),
+        AGENT_EMAIL: profile.email || profile.phone || "",
+        AGENT_PICTURE: profile.agent_photo_url || "",
+        AGENCY_LOGO: profile.logo_url || "",
+      };
+      const secret = process.env.VIDEO_WEBHOOK_SECRET || "";
+      const callback = `${baseUrl(request)}/api/webhooks/shotstack?job=${jobId}&token=${encodeURIComponent(secret)}`;
+      const body = buildMergeRenderBody(template.json, {
+        images: photoUrls, musicUrl, values, callbackUrl: callback,
+      });
+      const renderId = await submitTemplateRender(body);
+
+      await admin.from("video_jobs").update({
+        source_images: photoUrls,
+        music_url: musicUrl,
+        poster_url: photoUrls[0], // előkép: az első fotó
+        meta: { title, template: template.id, render_id: renderId },
+      }).eq("id", jobId);
+
+      if (service) {
+        await logCost({
+          userId: user.id, serviceId: service.id, feature: "video",
+          serviceName: "shotstack", units: 1, estimatedCostUsd: shotstackRenderCostUsd(1),
+        });
+      }
+      return NextResponse.json({ ok: true, jobId, status: "rendering" });
     }
 
     // 4) Satori képkockák: nyitó/záró kártya + fotó-keretek (alsó felirat-sáv).

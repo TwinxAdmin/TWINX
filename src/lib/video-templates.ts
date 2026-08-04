@@ -6,12 +6,19 @@
 // A képszám-kötöttség KIKÖTÉS: ha egy sablon pontosan 5 képet kér, a varázsló
 // addig nem enged tovább, amíg nincs meg pontosan 5.
 
+import modernSargaJson from "@/lib/video-json/modern-sarga.json";
+import type { TemplateJson } from "@/lib/video-merge";
+
 export type VideoAspect = "1:1" | "9:16" | "16:9";
 
 export type VideoTemplate = {
   id: string;
   name: string;
   tagline: string;
+  /** "satori" = a saját (kód-alapú) render; "json" = kész Shotstack sablon merge-mezőkkel. */
+  kind: "satori" | "json";
+  /** JSON-sablonhoz a kész Shotstack template. */
+  json?: TemplateJson;
   aspect: VideoAspect;
   minImages: number;
   maxImages: number;
@@ -37,6 +44,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     id: "twinx-premium",
     name: "TWINX Prémium",
     tagline: "Álló reel · arculati bronz · feliratsávok",
+    kind: "satori",
     aspect: "9:16",
     minImages: 4,
     maxImages: 5,
@@ -53,9 +61,11 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     id: "modern-sarga",
     name: "Modern Sárga",
     tagline: "Fekvő 16:9 · sárga kiemelés · intro-panel + ügynökkártya",
+    kind: "json",
+    json: modernSargaJson as unknown as TemplateJson,
     aspect: "16:9",
     minImages: 5,
-    maxImages: 5, // KIKÖTÉS: pontosan 5 kép
+    maxImages: 5, // KIKÖTÉS: pontosan 5 kép (a JSON-ban 5 IMAGE_n helyőrző van)
     accent: "#f0c20c",
     useProfileAccent: false,
     font: "Manrope",
@@ -69,6 +79,7 @@ export const VIDEO_TEMPLATES: VideoTemplate[] = [
     id: "minimal-negyzet",
     name: "Minimál Négyzet",
     tagline: "Négyzetes 1:1 · letisztult · finom feliratok",
+    kind: "satori",
     aspect: "1:1",
     minImages: 4,
     maxImages: 6,
