@@ -8,7 +8,9 @@
 // A képszám KIKÖTÉS: json dizájnnál a JSON IMAGE_n helyőrzőinek száma adja;
 // satori dizájnnál a design min/max mezője.
 
-import modernSargaJson from "@/lib/video-json/modern-sarga.json";
+import modernSarga169 from "@/lib/video-json/modern-sarga-16x9.json";
+import modernSarga916 from "@/lib/video-json/modern-sarga-9x16.json";
+import modernSarga11 from "@/lib/video-json/modern-sarga-1x1.json";
 import { countImagePlaceholders, type TemplateJson } from "@/lib/video-merge";
 
 export type VideoAspect = "9:16" | "1:1" | "16:9";
@@ -64,9 +66,13 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
     name: "Modern Sárga",
     tagline: "Sárga kiemelés · intro-panel ikonokkal · ügynökkártya",
     kind: "json",
-    // Jelenleg csak a 16:9 elérhető; a 9:16 és 1:1 JSON-t utólag tesszük be.
-    aspects: ["16:9"],
-    jsonByAspect: { "16:9": modernSargaJson as unknown as TemplateJson },
+    // Mindhárom méret elérhető, méretenként külön Shotstack-JSON-nal.
+    aspects: ["9:16", "1:1", "16:9"],
+    jsonByAspect: {
+      "9:16": modernSarga916 as unknown as TemplateJson,
+      "1:1": modernSarga11 as unknown as TemplateJson,
+      "16:9": modernSarga169 as unknown as TemplateJson,
+    },
     minImages: 5,
     maxImages: 5,
     accent: "#f0c20c",
