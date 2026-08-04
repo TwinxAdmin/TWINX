@@ -9,11 +9,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import {
-  MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES,
   CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
   creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto,
   type VideoPackage, type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
+import { getTemplate, imageCountOk, imageCountLabel, VIDEO_TEMPLATES } from "@/lib/video-templates";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 import { submitImageToVideoFal, videoClipPrompt } from "@/lib/fal";
@@ -44,15 +44,21 @@ export async function POST(request: Request) {
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
-  const format = getFormat(String(form.get("format") ?? ""));
+  // A sablon köti a formátumot és a képszámot. Visszafelé kompatibilis: ha nincs
+  // templateId (régi kliens), az első sablon a default.
+  const template = getTemplate(String(form.get("templateId") ?? "")) ?? VIDEO_TEMPLATES[0];
+  const format = getFormat(template.aspect);
   if (!format) return NextResponse.json({ error: "Érvénytelen formátum." }, { status: 422 });
   const musicStyle = String(form.get("musicStyle") ?? "");
   if (!isValidMusicStyle(musicStyle)) return NextResponse.json({ error: "Érvénytelen zenei stílus." }, { status: 422 });
   const pkg: VideoPackage = String(form.get("package") ?? "alap") === "pro" ? "pro" : "alap";
 
   const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
-  if (files.length < MIN_VIDEO_IMAGES || files.length > MAX_VIDEO_IMAGES) {
-    return NextResponse.json({ error: `${MIN_VIDEO_IMAGES}-${MAX_VIDEO_IMAGES} kép szükséges.` }, { status: 422 });
+  if (!imageCountOk(template, files.length)) {
+    return NextResponse.json(
+      { error: `Ehhez a sablonhoz ${imageCountLabel(template).toLowerCase()} szükséges.` },
+      { status: 422 }
+    );
   }
   if (files.some((f) => !ALLOWED.includes(f.type))) {
     return NextResponse.json({ error: "Csak JPG, PNG vagy WEBP használható." }, { status: 422 });

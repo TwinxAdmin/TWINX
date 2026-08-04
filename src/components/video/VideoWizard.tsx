@@ -3,7 +3,7 @@
 // Hang: csak zene. Feliratok: nyitó/záró kártya + a fotók alsó felirat-sávja (Satori).
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { showToast } from "@/components/Toast";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import ComboField from "@/components/ComboField";
@@ -12,10 +12,14 @@ import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
 import {
-  MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES, VIDEO_FORMATS, MUSIC_STYLES,
+  MUSIC_STYLES,
   VIDEO_CREDITS_ALAP, VIDEO_CREDITS_PRO, videoLengthSeconds,
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
+import {
+  VIDEO_TEMPLATES, getTemplate, imageCountOk, imageCountLabel,
+  type VideoTemplate,
+} from "@/lib/video-templates";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
 
 /** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
@@ -34,7 +38,7 @@ type VideoDebug = {
 import { ROOMS_OPTIONS, BATHROOM_OPTIONS } from "@/lib/flyer";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-const STEPS = ["Arculat", "Képek", "Adatok", "Beállítás", "Generálás"] as const;
+const STEPS = ["Sablon", "Arculat", "Képek", "Adatok", "Beállítás", "Generálás"] as const;
 
 type JobState = { status: string; output_url: string | null; error: string | null };
 
@@ -43,6 +47,10 @@ export default function VideoWizard({
 }: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void }) {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // 0) Sablon — a kiválasztott sablon köti a formátumot és a képszámot.
+  const [templateId, setTemplateId] = useState<string>(VIDEO_TEMPLATES[0].id);
+  const template: VideoTemplate = getTemplate(templateId) ?? VIDEO_TEMPLATES[0];
 
   // 1) Arculat
   const [brandMode, setBrandMode] = useState<"saved" | "quick">(profiles.length ? "saved" : "quick");
@@ -64,10 +72,16 @@ export default function VideoWizard({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
 
-  // 4) Beállítás
-  const [format, setFormat] = useState<string>(VIDEO_FORMATS[0].value);
-  const [musicStyle, setMusicStyle] = useState<string>(MUSIC_STYLES[0].slug);
+  // 4) Beállítás — a formátumot a sablon köti; a zene és a csomag választható.
+  const format = template.aspect; // a sablon határozza meg
+  const [musicStyle, setMusicStyle] = useState<string>(VIDEO_TEMPLATES[0].defaultMusic);
   const [pkg, setPkg] = useState<"alap" | "pro">("alap");
+
+  // Sablonváltáskor a zenei alapértelmezés kövesse a sablont (a partner átállíthatja).
+  useEffect(() => {
+    setMusicStyle(template.defaultMusic);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateId]);
 
   // 5) Generálás
   const [jobId, setJobId] = useState<string | null>(null);
@@ -96,12 +110,12 @@ export default function VideoWizard({
   // --- Képek ---
   function addFiles(list: FileList | null) {
     if (!list) return;
-    const room = MAX_VIDEO_IMAGES - images.length;
-    if (room <= 0) { showToast(`Legfeljebb ${MAX_VIDEO_IMAGES} kép.`, "info"); return; }
+    const room = template.maxImages - images.length;
+    if (room <= 0) { showToast(`Ehhez a sablonhoz legfeljebb ${template.maxImages} kép.`, "info"); return; }
     setImages((prev) => [...prev, ...Array.from(list).slice(0, room).map((f) => URL.createObjectURL(f))]);
   }
   const addUrl = (u: string) =>
-    setImages((prev) => (prev.includes(u) || prev.length >= MAX_VIDEO_IMAGES ? prev : [...prev, u]));
+    setImages((prev) => (prev.includes(u) || prev.length >= template.maxImages ? prev : [...prev, u]));
   const removeImage = (i: number) => setImages((prev) => prev.filter((_, j) => j !== i));
   const moveImage = (from: number, to: number) =>
     setImages((prev) => {
@@ -125,6 +139,7 @@ export default function VideoWizard({
       // A videó neve a könyvtárban: az ingatlan címe (település + utca).
       fd.append("propertyAddress", [facts.location, facts.address].map((s) => s.trim()).filter(Boolean).join(", "));
       fd.append("format", format);
+      fd.append("templateId", templateId);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
       const res = await fetch("/api/real-estate/video", { method: "POST", body: fd });
@@ -184,7 +199,8 @@ export default function VideoWizard({
   }, [jobId, job?.status]);
 
   function next() {
-    if (step === 0) {
+    // 1) Arculat
+    if (step === 1) {
       if (brandMode === "saved" && !profileId) { setError("Válassz arculatot."); return; }
       if (brandMode === "quick" && !quick.display_name.trim() && !quick.company.trim()) {
         setError("Adj meg egy nevet vagy cégnevet."); return;
@@ -193,8 +209,10 @@ export default function VideoWizard({
         setError("Adj meg legalább egy elérhetőséget."); return;
       }
     }
-    if (step === 1 && (images.length < MIN_VIDEO_IMAGES || images.length > MAX_VIDEO_IMAGES)) {
-      setError(`${MIN_VIDEO_IMAGES}-${MAX_VIDEO_IMAGES} kép szükséges.`); return;
+    // 2) Képek — a sablon KÖTÖTTSÉGE szerint.
+    if (step === 2 && !imageCountOk(template, images.length)) {
+      setError(`Ehhez a sablonhoz ${imageCountLabel(template).toLowerCase()} szükséges (most ${images.length}).`);
+      return;
     }
     setError(null);
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
@@ -203,7 +221,7 @@ export default function VideoWizard({
   const setQ = <K extends keyof typeof quick>(k: K, v: string) => setQuick({ ...quick, [k]: v });
   const setF = <K extends keyof typeof facts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
-  const lengthSec = Math.round(videoLengthSeconds(images.length || MIN_VIDEO_IMAGES, pkg === "pro"));
+  const lengthSec = Math.round(videoLengthSeconds(images.length || template.minImages, pkg === "pro"));
 
   return (
     <div onClick={() => !busy && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
@@ -233,8 +251,62 @@ export default function VideoWizard({
 
         {/* Tartalom */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {/* 1) ARCULAT */}
+          {/* 0) SABLON — galéria, kötöttségekkel */}
           {step === 0 && (
+            <div className="space-y-4">
+              <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                Válassz sablont. Minden sablon meghatározza a videó <strong>formátumát</strong> és a
+                szükséges <strong>képek számát</strong> — a következő lépések ehhez igazodnak.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {VIDEO_TEMPLATES.map((t) => {
+                  const on = t.id === templateId;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTemplateId(t.id)}
+                      className="overflow-hidden rounded-xl text-left transition"
+                      style={{
+                        border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
+                        boxShadow: on ? "0 6px 20px rgba(239,122,90,0.18)" : "none",
+                      }}
+                    >
+                      {/* Előnézet-csík: a sablon arculati színe + arány-jelölés */}
+                      <div
+                        className="flex items-center justify-center"
+                        style={{
+                          height: 92,
+                          background: `linear-gradient(135deg, ${t.preview.from}, ${t.preview.to})`,
+                          color: t.preview.ink,
+                        }}
+                      >
+                        <div className="text-center">
+                          <div className="font-display text-base font-bold">{t.name}</div>
+                          <div className="text-[11px] opacity-80">{t.aspect} formátum</div>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{t.tagline}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <Chip>{imageCountLabel(t)}</Chip>
+                          {t.introPanel && <Chip>Intro-panel</Chip>}
+                          {t.agentCard && <Chip>Ügynökkártya</Chip>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="rounded-xl p-3 text-xs" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                Kiválasztva: <strong>{template.name}</strong> — {template.aspect} formátum,
+                {" "}{imageCountLabel(template).toLowerCase()}. A képek lépésnél pontosan ennyit kérünk.
+              </div>
+            </div>
+          )}
+
+          {/* 1) ARCULAT */}
+          {step === 1 && (
             <div className="space-y-4">
               <div className="flex gap-2">
                 <button type="button" onClick={() => setBrandMode("saved")} disabled={!profiles.length}
@@ -285,10 +357,11 @@ export default function VideoWizard({
           )}
 
           {/* 2) KÉPEK */}
-          {step === 1 && (
+          {step === 2 && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {MIN_VIDEO_IMAGES}–{MAX_VIDEO_IMAGES} kép. Az első a <strong>nyitófotó</strong> —
+                <strong>{template.name}</strong>: {imageCountLabel(template).toLowerCase()} szükséges
+                {" "}(most {images.length}). Az első a <strong>nyitófotó</strong> —
                 PRO csomagnál minden fotó AI-mozgást és napszakváltó fényt kap.
               </p>
               <div
@@ -334,7 +407,7 @@ export default function VideoWizard({
           )}
 
           {/* 3) ADATOK */}
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-semibold">Nyitókártya</p>
@@ -362,21 +435,15 @@ export default function VideoWizard({
           )}
 
           {/* 4) BEÁLLÍTÁS */}
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-semibold">Méret</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {VIDEO_FORMATS.map((f) => {
-                    const on = format === f.value;
-                    return (
-                      <button key={f.value} type="button" onClick={() => setFormat(f.value)}
-                        className="rounded-xl p-3 text-left" style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{f.label}</span>
-                        <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{f.value === "9:16" ? "Story, Reels, TikTok" : "Instagram, Facebook"}</span>
-                      </button>
-                    );
-                  })}
+                <div className="mt-2 flex items-center gap-2 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
+                  <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{format}</span>
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    A <strong>{template.name}</strong> sablon formátuma. Módosításhoz válts sablont az első lépésben.
+                  </span>
                 </div>
               </div>
               <div>
@@ -409,13 +476,13 @@ export default function VideoWizard({
                 </div>
               </div>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Várható hossz: ~{lengthSec} mp (nyitókártya + {images.length || MIN_VIDEO_IMAGES} fotó + zárókártya). Hang: csak zene.
+                Várható hossz: ~{lengthSec} mp (nyitókártya + {images.length || template.minImages} fotó + zárókártya). Hang: csak zene.
               </p>
             </div>
           )}
 
           {/* 5) GENERÁLÁS */}
-          {step === 4 && (
+          {step === 5 && (
             <div className="space-y-4 text-center">
               {!jobId ? (
                 <div className="py-8">
@@ -508,5 +575,17 @@ function Combo({ label, value, onChange, options, placeholder }: {
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
       <ComboField className="mt-1 w-full" value={value} onChange={onChange} options={options} placeholder={placeholder} />
     </div>
+  );
+}
+
+/** Kis címke-chip a sablon-galéria kártyáin. */
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+      style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}
+    >
+      {children}
+    </span>
   );
 }
