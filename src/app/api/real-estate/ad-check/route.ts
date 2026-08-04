@@ -28,6 +28,50 @@ function isHttpUrl(s: string): boolean {
   } catch { return false; }
 }
 
+/**
+ * Szerveroldali oldal-letöltés: a hirdetés-oldal HTML-jéből kinyeri az olvasható
+ * szöveget. Ez megbízhatóbb, mint a keresőt kérni, hogy "nyissa meg" az URL-t —
+ * sok portál (pl. gdn-ingatlan.hu) így elérhető. Hibánál üres stringet ad, és a
+ * hívó visszaesik a kereső-alapú megnyitásra.
+ */
+async function fetchAdText(url: string): Promise<string> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "hu-HU,hu;q=0.9,en;q=0.7",
+      },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return "";
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("text/html") && !ct.includes("text/plain")) return "";
+
+    const html = await res.text();
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<\/(p|div|li|br|h[1-6]|tr|section|article)>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/[ \t ]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/^[ \t]+|[ \t]+$/gm, "")
+      .trim();
+    return text.slice(0, MAX_TEXT);
+  } catch {
+    return "";
+  }
+}
+
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -83,10 +127,24 @@ export async function POST(request: Request) {
   };
 
   try {
-    // 2) Elemzés. Ha a partner bemásolta a szöveget, nem kell webes keresés.
-    const prompt = await buildAdCheckPromptActive({ url: url || null, text: text || null, tone });
+    // 2) Ha csak LINK jött, előbb szerveroldalról letöltjük az oldal szövegét —
+    //    ez megbízhatóbb, mint a keresőt kérni, hogy nyissa meg. Ha nem sikerül
+    //    (üres / túl rövid), visszaesünk a kereső-alapú megnyitásra.
+    let fetchedText = "";
+    if (url && !text) {
+      fetchedText = await fetchAdText(url);
+      if (fetchedText.length < 200) fetchedText = "";
+    }
+    const analysisText = text || fetchedText;
+
+    // Ha van szövegünk (bemásolt vagy letöltött), nem kell webes keresés.
+    const prompt = await buildAdCheckPromptActive({
+      url: analysisText ? null : (url || null),
+      text: analysisText || null,
+      tone,
+    });
     const raw = await runSonar(prompt, PERPLEXITY_MODEL, {
-      disableSearch: Boolean(text),
+      disableSearch: Boolean(analysisText),
       temperature: 0.3,
     });
 
@@ -134,7 +192,7 @@ export async function POST(request: Request) {
         // Ha bemásolt szövegből dolgoztunk, a linket NE mentsük — félrevezető lenne.
         source_url: text ? null : (url || null),
         title: result.title || null,
-        source_text: text || null,
+        source_text: analysisText || null,
         tone,
         score: result.score,
         result,
