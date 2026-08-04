@@ -34,18 +34,25 @@ function isHttpUrl(s: string): boolean {
  * sok portál (pl. gdn-ingatlan.hu) így elérhető. Hibánál üres stringet ad, és a
  * hívó visszaesik a kereső-alapú megnyitásra.
  */
-async function fetchAdText(url: string): Promise<string> {
+async function fetchAdTextOnce(url: string, timeoutMs: number): Promise<string> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: "follow",
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "hu-HU,hu;q=0.9,en;q=0.7",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "hu-HU,hu;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Upgrade-Insecure-Requests": "1",
       },
     });
     clearTimeout(timer);
@@ -70,6 +77,15 @@ async function fetchAdText(url: string): Promise<string> {
   } catch {
     return "";
   }
+}
+
+/** Több próbálkozás, növekvő időkerettel — a lassabb oldalaknak több idő. */
+async function fetchAdText(url: string): Promise<string> {
+  for (const ms of [20000, 30000]) {
+    const t = await fetchAdTextOnce(url, ms);
+    if (t.length >= 200) return t;
+  }
+  return "";
 }
 
 export async function GET() {
