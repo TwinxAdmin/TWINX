@@ -237,7 +237,7 @@ export default function FbAdsGenerator() {
         </label>
 
         <button type="button" onClick={() => setShowText((v) => !v)}
-          className="mt-2 text-xs font-medium" style={{ color: "var(--twx-coral)" }}>
+          className="mt-2 block text-left text-xs font-medium" style={{ color: "var(--twx-coral)" }}>
           {showText ? "– Szöveg elrejtése" : "+ Inkább bemásolom a szöveget"}
         </button>
 
@@ -257,7 +257,7 @@ export default function FbAdsGenerator() {
         )}
 
         <button type="button" onClick={generate} disabled={busy}
-          className="mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="mt-4 block rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: "var(--twx-coral)" }}>
           {busy ? "Generálás folyamatban…" : `${platform === "google" ? "Google Ads szövegek" : "Facebook szövegek"} generálása (${FBADS_CREDITS} kredit)`}
         </button>
