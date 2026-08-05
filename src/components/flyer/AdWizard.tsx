@@ -24,6 +24,9 @@ import type { FlyerProfileData } from "@/lib/flyer-template";
 const STEPS = ["Arculat", "Képek", "Adatok", "Méret", "Előnézet"] as const;
 const FLYER_MOOD = "luxus"; // egyetlen, prémium megjelenés (a fő szín az arculatból)
 const SIZES = FLYER_SIZES;
+// A saját cím/alcím max hossza — e fölött a hirdetésen levágódna, ezért blokkoljuk a továbblépést.
+const FLYER_TITLE_MAX = 38;
+const FLYER_SUBTITLE_MAX = 46;
 
 export default function AdWizard({
   profiles, onClose, onDone,
@@ -337,7 +340,19 @@ export default function AdWizard({
     }
     if (step === 1 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
     if (step === 3 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
-    if (step === 2 && !text.title?.trim()) { setError("Adj címet a hirdetésnek."); return; }
+    if (step === 2) {
+      if (!text.title?.trim()) { setError("Adj címet a hirdetésnek."); return; }
+      const tl = (text.title ?? "").trim().length;
+      const sl = (text.subtitle ?? "").trim().length;
+      if (tl > FLYER_TITLE_MAX) {
+        setError(`A főcím túl hosszú: ${tl}/${FLYER_TITLE_MAX} karakter. Rövidítsd le a folytatáshoz, különben levágódna a hirdetésen.`);
+        return;
+      }
+      if (sl > FLYER_SUBTITLE_MAX) {
+        setError(`Az alcím túl hosszú: ${sl}/${FLYER_SUBTITLE_MAX} karakter. Rövidítsd le a folytatáshoz, különben levágódna a hirdetésen.`);
+        return;
+      }
+    }
     setError(null);
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
   }
@@ -540,8 +555,8 @@ export default function AdWizard({
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-semibold">A hirdetés szövege</p>
-                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={38} mem={titleMem} />
-                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={46} mem={subtitleMem} />
+                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={FLYER_TITLE_MAX} mem={titleMem} />
+                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={FLYER_SUBTITLE_MAX} mem={subtitleMem} />
                 <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} mem={dispPriceMem} />
               </div>
             </div>
@@ -845,18 +860,25 @@ function Limit({ label, value, onChange, max, mem }: {
   mem?: { items: string[]; remove: (v: string) => void };
 }) {
   const len = (value ?? "").length;
+  const over = len > max;
   const [focus, setFocus] = useState(false);
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
-        <span className="text-[11px]" style={{ color: len > max * 0.9 ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>{len}/{max}</span>
+        <span className="text-[11px]" style={{ color: over ? "#c0392b" : len > max * 0.9 ? "var(--twx-coral)" : "var(--twx-ink-muted)", fontWeight: over ? 700 : 400 }}>{len}/{max}</span>
       </div>
       <div className="relative">
-        <input type="text" value={value} maxLength={max} onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} className="twx-input mt-1 w-full text-sm" />
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} className="twx-input mt-1 w-full text-sm"
+          style={over ? { borderColor: "#c0392b", boxShadow: "0 0 0 1px #c0392b" } : undefined} />
         {mem && <FieldSuggestions open={focus} value={value} items={mem.items} onPick={onChange} onRemove={mem.remove} />}
       </div>
+      {over && (
+        <p className="mt-1 text-[11px] font-medium" style={{ color: "#c0392b" }}>
+          Túllépted a {max} karakteres limitet — rövidítsd le, különben nem léphetsz tovább (a hirdetésen levágódna).
+        </p>
+      )}
     </div>
   );
 }
