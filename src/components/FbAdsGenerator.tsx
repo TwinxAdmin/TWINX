@@ -36,6 +36,66 @@ export default function FbAdsGenerator() {
   const [fbDrafts, setFbDrafts] = useState<FbAdsResult>({ ...EMPTY_FBADS });
   const [g, setG] = useState<GoogleAdsResult | null>(null);
 
+  // --- Google Ads közvetlen feltöltés ---
+  type Conn = { configured: boolean; connected: boolean; customerId: string | null };
+  const [conn, setConn] = useState<Conn | null>(null);
+  const [upBudget, setUpBudget] = useState("2000");
+  const [upEnd, setUpEnd] = useState("");
+  const [upLoc, setUpLoc] = useState("");
+  const [upCustomer, setUpCustomer] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const loadConnection = useCallback(async () => {
+    try {
+      const res = await fetch("/api/real-estate/google-ads/connection");
+      const d = await res.json();
+      if (res.ok) setConn(d as Conn);
+    } catch { /* összekötés nélkül is látszik a CSV */ }
+  }, []);
+  useEffect(() => { void loadConnection(); }, [loadConnection]);
+
+  // OAuth visszatérés jelzése
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const s = new URLSearchParams(window.location.search).get("gads");
+    if (!s) return;
+    if (s === "connected") showToast("A Google Ads fiók összekötve.", "success");
+    else if (s === "norefresh") showToast("Nem kaptunk frissítő tokent — próbáld újra, és add meg a hozzáférést.", "error");
+    else if (s === "error") showToast("A Google Ads összekötés nem sikerült.", "error");
+    window.history.replaceState({}, "", window.location.pathname);
+    void loadConnection();
+  }, [loadConnection]);
+
+  async function uploadToGoogle() {
+    if (!g) return;
+    if (!upBudget.trim() || Number(upBudget) <= 0) { showToast("Adj meg egy napi keretet (HUF).", "error"); return; }
+    if (!upEnd.trim()) { showToast("Adj meg egy lejárati dátumot.", "error"); return; }
+    setUploading(true);
+    try {
+      const res = await fetch("/api/real-estate/google-ads/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          csv: g.csv,
+          dailyBudgetHuf: Number(upBudget),
+          endDate: upEnd,
+          location: upLoc.trim(),
+          customerId: upCustomer.replace(/\D/g, "") || undefined,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        if (d.needsConnect) showToast("Előbb kösd össze a Google Ads fiókot.", "error");
+        throw new Error(d.error || "A feltöltés nem sikerült.");
+      }
+      showToast("Kampány létrehozva a Google Ads-ban (szüneteltetve). Ellenőrizd, majd indítsd.", "success");
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const loadHistory = useCallback(async () => {
     try {
@@ -238,6 +298,62 @@ export default function FbAdsGenerator() {
           <p className="mt-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
             Importálás: Google Ads Editor → Account → Import → From file. A kampány „Paused”, ellenőrzés után indítható.
           </p>
+
+          {/* --- KÖZVETLEN FELTÖLTÉS A GOOGLE ADS-BA --- */}
+          <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-coral-soft)" }}>
+            <h4 className="text-sm font-semibold">Feltöltés egy kattintással a Google Ads-ba</h4>
+            <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              Kézi importálás helyett a rendszer közvetlenül létrehozza a kampányt a saját Google Ads fiókodban —
+              mindig <b>szüneteltetve</b>, hogy ellenőrizd, mielőtt élesítenéd.
+            </p>
+
+            {conn && !conn.configured && (
+              <p className="mt-2 rounded-lg p-2 text-[11px]" style={{ background: "#fff7ed", color: "#9a3412" }}>
+                A közvetlen feltöltés még nincs bekapcsolva (fejlesztői token / OAuth kliens hiányzik). Addig a CSV-import működik.
+              </p>
+            )}
+
+            {conn?.configured && !conn.connected && (
+              <a href="/api/real-estate/google-ads/oauth/start"
+                className="mt-3 inline-block rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                style={{ background: "var(--twx-coral)" }}>
+                Google Ads fiók összekötése
+              </a>
+            )}
+
+            {conn?.configured && conn.connected && (
+              <div className="mt-3 space-y-3">
+                <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  Összekötött fiók: <b>{conn.customerId ? conn.customerId : "add meg az ügyfél-ID-t"}</b>
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Napi keret (HUF)</span>
+                    <input value={upBudget} onChange={(e) => setUpBudget(e.target.value)} inputMode="numeric" className="twx-input w-full" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Lejárati dátum</span>
+                    <input type="date" value={upEnd} onChange={(e) => setUpEnd(e.target.value)} className="twx-input w-full" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium">Célzott település (opcionális)</span>
+                    <input value={upLoc} onChange={(e) => setUpLoc(e.target.value)} placeholder="pl. Budapest" className="twx-input w-full" />
+                  </label>
+                  {!conn.customerId && (
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium">Google Ads ügyfél-ID</span>
+                      <input value={upCustomer} onChange={(e) => setUpCustomer(e.target.value)} placeholder="123-456-7890" className="twx-input w-full" />
+                    </label>
+                  )}
+                </div>
+                <button type="button" onClick={uploadToGoogle} disabled={uploading}
+                  className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: "var(--twx-coral)" }}>
+                  {uploading ? "Feltöltés folyamatban…" : "Feltöltés a Google Ads-ba (szüneteltetve)"}
+                </button>
+              </div>
+            )}
+          </div>
         </section>
       )}
 
