@@ -431,15 +431,21 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   } else if (g.story) {
     // ADAT-RÁCS: két SZOROS oszlop balra — nagy ikon és nagy szöveg, bő sorköz,
     // hogy kitöltse a sáv bal oldalát (ne maradjon üres folt alatta).
+    // A leghosszabb érték szerint adaptív rács-méret — így a hosszú opciók (pl.
+    // „Könnyűszerkezetes") sem tolják ki az értékesítő-oszlopot a képből.
+    const maxVLen = items.reduce((m, it) => Math.max(m, it.v.length), 0);
+    const gridFs = Math.round((maxVLen > 15 ? 26 : maxVLen > 12 ? 32 : 38) * u);
+    const gridIcon = Math.round((maxVLen > 15 ? 42 : 50) * u);
+    const gridColGap = Math.round((maxVLen > 15 ? 26 : 40) * u);
     const gridItem = (it: { k: string; v: string }, i: number) =>
-      box({ key: i, alignItems: "center", gap: Math.round(16 * u), height: Math.round(84 * u) } as Style, [
-        icon(it.k, Math.round(50 * u), t.bandInk),
-        box({ fontSize: Math.round(38 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
+      box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: Math.round(84 * u) } as Style, [
+        icon(it.k, gridIcon, t.bandInk),
+        box({ fontSize: gridFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.2, whiteSpace: "nowrap" }, it.v),
       ]);
     const gcol1 = items.slice(0, 3);
     const gcol2 = items.slice(3, 6);
     const factsGrid = items.length
-      ? box({ gap: Math.round(40 * u) }, [
+      ? box({ gap: gridColGap }, [
           box({ flexDirection: "column" }, gcol1.map(gridItem)),
           gcol2.length ? box({ flexDirection: "column" }, gcol2.map(gridItem)) : null,
         ].filter(Boolean))
@@ -490,10 +496,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
         gap: Math.round(24 * u),
       },
       [
-        // BAL: adat-rács (lejjebb kezdve, nagyobb sorközzel — kitölti a sáv bal felét)
-        box({ flexDirection: "column", justifyContent: "center", height: "100%" }, factsGrid ?? box({}, "")),
-        // JOBB: körök + alattuk azonnal az elérhetőségek (jelentősen feljebb tolva)
-        box({ flexDirection: "column", alignItems: "flex-end", gap: Math.round(16 * u) },
+        // BAL: adat-rács (zsugorodhat, hogy a jobb oldali kontakt-oszlopnak maradjon hely)
+        box({ flexDirection: "column", justifyContent: "center", height: "100%", flexShrink: 1, minWidth: 0 }, factsGrid ?? box({}, "")),
+        // JOBB: körök + elérhetőségek — FIX szélesség, nem zsugorodik, így sosem vágódik le
+        box({ flexDirection: "column", alignItems: "flex-end", gap: Math.round(16 * u), width: Math.round(W * 0.40), flexShrink: 0 },
           [circlesRow, agentStory].filter(Boolean)),
       ]
     );
