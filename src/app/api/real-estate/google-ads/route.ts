@@ -65,8 +65,10 @@ export async function POST(request: Request) {
     }
     const sourceText = text || fetchedText;
 
+    // A Final URL MINDIG a megadott link legyen (akkor is, ha a szövegből dolgozunk).
+    // A `text` jelenléte kapcsolja ki a keresést; a body a text-ből épül, a Final URL az url-ből.
     const prompt = await buildGoogleAdsPromptActive({
-      url: sourceText ? null : (url || null),
+      url: url || null,
       text: sourceText || null,
     });
     const raw = await runSonar(prompt, PERPLEXITY_MODEL, {
