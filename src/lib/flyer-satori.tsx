@@ -35,6 +35,33 @@ function shortLabel(s: string, max = 16): string {
   return truncate(base, max);
 }
 
+// Flyer-only tömörítés: a szabvány (és hosszú) opciónevek rövid, csinos formája —
+// CSAK a hirdetésen; a teljes név máshol (értékbecslés, AI) érintetlen marad.
+const COMPACT: Record<string, string> = {
+  "tégla építésű társasházi lakás": "Téglalakás",
+  "panel építésű társasházi lakás": "Panellakás",
+  "csúsztatott zsalus lakás": "Csúszt. zsalu",
+  "könnyűszerkezetes": "Könnyűszerk.",
+  "5 vagy több szoba": "5+ szoba",
+  "6 vagy több szoba": "6+ szoba",
+  "4 vagy több szoba": "4+ szoba",
+  "felújítandó, rossz állapotú": "Felújítandó",
+  "kitűnő, újszerű állapotú": "Újszerű",
+  "közepes, átlagos állapotú": "Közepes áll.",
+};
+/** Csinos, rövid megjelenítés levágás („…") nélkül: szótár → zárójel/„/" nélkül → szó-határon vágás. */
+function compact(s: string, max: number): string {
+  const raw = String(s ?? "").trim();
+  if (!raw) return "";
+  const hit = COMPACT[raw.toLowerCase()];
+  if (hit) return hit;
+  const base = raw.split("(")[0].split("/")[0].trim();
+  if (base.length <= max) return base;
+  const cut = base.slice(0, max);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trim();
+}
+
 // --- Vonalas ikonok (24×24 rács, stroke) ------------------------------------
 const ICON_PATHS: Record<string, string[]> = {
   area: ["M3 3h18v18H3z", "M8 3v18", "M3 8h18"],                                  // alaprajz / m²
@@ -83,7 +110,8 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const subFs = Math.round((subtitle.length > 64 ? 23 : subtitle.length > 42 ? 26 : 30) * u * ts);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
   // Felső sor: csak a lényeg (a részletek lent, ikonosan) — nincs duplázás.
-  const topLine = o.text.chips.filter(Boolean).slice(0, 2).map((c) => truncate(c, 26)).join("   ·   ").toUpperCase();
+  const topLine = o.text.chips.filter(Boolean).slice(0, 2).map((c) => compact(c, 28)).join("   ·   ").toUpperCase();
+  const topFs = Math.round((topLine.length > 42 ? 15 : topLine.length > 32 ? 17 : 20) * u * ts);
   const contact = [p.phone, p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
 
   // Ár: ha a partner CSAK számot adott meg, kitesszük a nagy „M Ft" utótagot.
@@ -151,7 +179,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
       subtitle ? box({ fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), lineHeight: 1.22, lineClamp: 2, textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle) : null,
-      topLine ? box({ fontSize: Math.round(20 * u * ts), fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, topLine) : null,
+      topLine ? box({ fontSize: topFs, fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), lineHeight: 1.25, lineClamp: 2, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, topLine) : null,
     ].filter(Boolean)
   );
 
@@ -258,12 +286,12 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   if (sizeTxt) items.push({ k: "area", v: truncate(sizeTxt, 14) });
   const roomsNum = numOf(d.rooms);
   if (roomsNum) items.push({ k: "bed", v: `${roomsNum} szoba` });
-  else if (d.rooms) items.push({ k: "bed", v: shortLabel(d.rooms, 14) });
+  else if (d.rooms) items.push({ k: "bed", v: compact(d.rooms, 14) });
   const bathNum = numOf(d.bathrooms);
   if (bathNum) items.push({ k: "bath", v: `${bathNum} fürdő` });
-  if (d.floor) items.push({ k: "stairs", v: shortLabel(d.floor, 16) });
-  if (d.structure) items.push({ k: "brick", v: shortLabel(d.structure, 16) });
-  if (d.condition) items.push({ k: "check", v: shortLabel(d.condition, 18) });
+  if (d.floor) items.push({ k: "stairs", v: compact(d.floor, 16) });
+  if (d.structure) items.push({ k: "brick", v: compact(d.structure, 16) });
+  if (d.condition) items.push({ k: "check", v: compact(d.condition, 16) });
 
   // BAL OSZLOP: az ingatlan adatai egymás alatt (4-nél több tételnél két oszlopban).
   const factFs = Math.round(25 * u);
