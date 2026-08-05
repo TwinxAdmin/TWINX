@@ -48,8 +48,8 @@ const COMPACT_STEMS: Array<[string, string]> = [
   ["felújítandó", "Felújítandó"],
   ["kitűnő", "Kitűnő áll."],
   ["újszerű", "Újszerű"],
-  ["közepes", "Közepes áll."],
-  ["átlagos", "Közepes áll."],
+  ["közepes", "Közepes állapotú"],
+  ["átlagos", "Közepes állapotú"],
 ];
 /** Csinos, rövid megjelenítés levágás („…") nélkül: stem-szótár → „N+ szoba" → zárójel/„/" nélkül → szó-határon vágás. */
 function compact(s: string, max: number): string {
