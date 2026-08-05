@@ -77,7 +77,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const ts = g.story ? 1.3 : g.wide ? 0.72 : g.land ? 0.85 : 1;
   const titleK = g.story ? 1.28 : g.wide ? 0.52 : g.land ? 0.7 : 1;
   const titleFs = Math.round((title.length > 26 ? 60 : title.length > 16 ? 74 : 88) * u * titleK);
-  const subtitle = truncate(o.text.subtitle, 48);
+  // A cím/lokáció akár 2 sorra tördelődhet (nem vágjuk le rövid limittel);
+  // hosszú címnél arányosan kisebb betű, hogy két sorban is elférjen.
+  const subtitle = truncate(o.text.subtitle, 110);
+  const subFs = Math.round((subtitle.length > 64 ? 23 : subtitle.length > 42 ? 26 : 30) * u * ts);
   const badge = truncate((o.text.badge || "ELADÓ").toUpperCase(), 12);
   // Felső sor: csak a lényeg (a részletek lent, ikonosan) — nincs duplázás.
   const topLine = o.text.chips.filter(Boolean).slice(0, 2).map((c) => truncate(c, 26)).join("   ·   ").toUpperCase();
@@ -147,7 +150,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     [
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
-      subtitle ? box({ fontSize: Math.round(30 * u * ts), fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle) : null,
+      subtitle ? box({ fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), lineHeight: 1.22, lineClamp: 2, textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle) : null,
       topLine ? box({ fontSize: Math.round(20 * u * ts), fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, topLine) : null,
     ].filter(Boolean)
   );
