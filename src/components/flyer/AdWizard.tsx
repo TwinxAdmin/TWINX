@@ -669,7 +669,7 @@ export default function AdWizard({
                   <HeroControls heroPos={heroPos} nudge={nudgeHero} reset={() => setHeroPos({ x: 50, y: 50 })} disabled={rendering} />
                   {images.length > 2 && (
                     <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                      A szaggatott keretű kis képek egérrel áthúzhatók a jobb szélső kép fölötti helyekre.
+                      A kis képek egérrel áthúzhatók — húzás közben megjelennek a lehetséges helyek a jobb szélső kép fölött.
                     </p>
                   )}
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -755,6 +755,7 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
   onMove: (i: number, slot: "row" | "up1" | "up2") => void;
 }) {
   const [hover, setHover] = useState<string | null>(null); // épp e fölé húzzák a képet
+  const [dragging, setDragging] = useState(false); // csak húzás közben mutatjuk a drop-helyeket
   // KÖZÖS geometria a szerver-renderrel (flyerGeom) — méretenként más kompozíció.
   const g = flyerGeom(w, h);
   const T = g.thumbD, gap = g.gapT, right0 = g.right0;
@@ -791,7 +792,8 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
         const moved = (slots[i] ?? "row") !== "row"; // áthelyezett kép: más szín
         return (
           <div key={`d${i}`} draggable
-            onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; }}
+            onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; setDragging(true); }}
+            onDragEnd={() => { setDragging(false); setHover(null); }}
             style={{
               ...boxStyle(pos[i]), cursor: "grab", borderRadius: 10,
               border: moved ? "3px solid #ff8a5c" : "2px dashed rgba(255,255,255,0.9)",
@@ -802,7 +804,7 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
           />
         );
       })}
-      {emptySlots.map((s) => {
+      {dragging && emptySlots.map((s) => {
         const hovered = hover === s.slot;
         return (
           <div key={s.slot}
