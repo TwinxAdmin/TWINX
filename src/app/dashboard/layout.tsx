@@ -31,8 +31,8 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
       <header
-        className="flex items-center gap-4 px-6 py-3"
-        style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
+        className="relative flex items-center gap-4 px-6 py-3"
+        style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)", zIndex: 50 }}
       >
         {/* Bal: logó + fiók/admin linkek */}
         <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>

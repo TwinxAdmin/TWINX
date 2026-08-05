@@ -32,7 +32,7 @@ export default function AccountMenu({
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} style={{ zIndex: 60 }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
