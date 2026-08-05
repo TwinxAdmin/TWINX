@@ -6,7 +6,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { FBADS_CREDITS, EMPTY_FBADS, type FbAdsResult } from "@/lib/fbads";
-import { type GoogleAdsResult } from "@/lib/googleads";
+import {
+  type GoogleAdsResult, type GoogleAdsAd, EMPTY_GOOGLE_ADS_AD,
+  parseGoogleAdsCsvClient, serializeGoogleAdsCsv,
+} from "@/lib/googleads";
+
+// A „egy kattintással feltöltés a Google Ads-ba" funkció parkolópályán — később
+// kapcsoljuk élesre. A backend (OAuth + upload route) készen áll.
+const GADS_DIRECT_UPLOAD_ENABLED = false;
 
 type Platform = "facebook" | "google";
 
@@ -35,6 +42,16 @@ export default function FbAdsGenerator() {
   const [fb, setFb] = useState<FbAdsResult | null>(null);
   const [fbDrafts, setFbDrafts] = useState<FbAdsResult>({ ...EMPTY_FBADS });
   const [g, setG] = useState<GoogleAdsResult | null>(null);
+  const [gAd, setGAd] = useState<GoogleAdsAd | null>(null);
+  const [showRawCsv, setShowRawCsv] = useState(false);
+
+  // A generált/előzményből betöltött CSV-ből szerkeszthető nézetet állítunk elő.
+  function applyGoogle(csv: string) {
+    setG({ csv });
+    setGAd(parseGoogleAdsCsvClient(csv) ?? { ...EMPTY_GOOGLE_ADS_AD });
+  }
+  // A letöltéshez/másoláshoz a szerkesztett mezőkből újraépítjük a CSV-t.
+  const currentCsv = () => (gAd ? serializeGoogleAdsCsv(gAd) : g?.csv ?? "");
 
   // --- Google Ads közvetlen feltöltés ---
   type Conn = { configured: boolean; connected: boolean; customerId: string | null };
@@ -76,7 +93,7 @@ export default function FbAdsGenerator() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          csv: g.csv,
+          csv: currentCsv(),
           dailyBudgetHuf: Number(upBudget),
           endDate: upEnd,
           location: upLoc.trim(),
@@ -111,12 +128,12 @@ export default function FbAdsGenerator() {
     if (it.feature_used === "google-ads") {
       setPlatform("google");
       setFb(null);
-      setG({ csv: it.output_text });
+      applyGoogle(it.output_text);
     } else {
       try {
         const r = JSON.parse(it.output_text) as FbAdsResult;
         setPlatform("facebook");
-        setG(null);
+        setG(null); setGAd(null);
         setFb(r);
         setFbDrafts(r);
       } catch {
@@ -158,7 +175,7 @@ export default function FbAdsGenerator() {
       return;
     }
     setBusy(true);
-    setFb(null); setG(null);
+    setFb(null); setG(null); setGAd(null); setShowRawCsv(false);
     const endpoint = platform === "google" ? "/api/real-estate/google-ads" : "/api/real-estate/fb-ads";
     try {
       const res = await fetch(endpoint, {
@@ -172,7 +189,7 @@ export default function FbAdsGenerator() {
         throw new Error(d.error || "A generálás nem sikerült.");
       }
       if (platform === "google") {
-        setG(d.result as GoogleAdsResult);
+        applyGoogle((d.result as GoogleAdsResult).csv);
       } else {
         setFb(d.result as FbAdsResult);
         setFbDrafts(d.result as FbAdsResult);
@@ -271,89 +288,166 @@ export default function FbAdsGenerator() {
         </section>
       )}
 
-      {/* --- GOOGLE ADS EREDMÉNY: importálható CSV --- */}
-      {g && (
-        <section className="twx-card p-4 sm:p-5">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold">Google Ads kampány (CSV)</h3>
-              <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                Pontosvesszős CSV — közvetlenül a Google Ads Editorba importálható (Search, „Konkrét Ingatlanok”, Paused).
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => downloadCsv(g.csv)}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
-                CSV letöltése
-              </button>
-              <button type="button" onClick={() => copy(g.csv, "CSV a vágólapon.")}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                Másolás
-              </button>
-            </div>
-          </div>
-          <textarea readOnly value={g.csv} rows={14}
-            className="twx-input w-full text-[11px] leading-relaxed"
-            style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "pre" }} />
-          <p className="mt-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-            Importálás: Google Ads Editor → Account → Import → From file. A kampány „Paused”, ellenőrzés után indítható.
-          </p>
-
-          {/* --- KÖZVETLEN FELTÖLTÉS A GOOGLE ADS-BA --- */}
-          <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-coral-soft)" }}>
-            <h4 className="text-sm font-semibold">Feltöltés egy kattintással a Google Ads-ba</h4>
-            <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-              Kézi importálás helyett a rendszer közvetlenül létrehozza a kampányt a saját Google Ads fiókodban —
-              mindig <b>szüneteltetve</b>, hogy ellenőrizd, mielőtt élesítenéd.
-            </p>
-
-            {conn && !conn.configured && (
-              <p className="mt-2 rounded-lg p-2 text-[11px]" style={{ background: "#fff7ed", color: "#9a3412" }}>
-                A közvetlen feltöltés még nincs bekapcsolva (fejlesztői token / OAuth kliens hiányzik). Addig a CSV-import működik.
-              </p>
-            )}
-
-            {conn?.configured && !conn.connected && (
-              <a href="/api/real-estate/google-ads/oauth/start"
-                className="mt-3 inline-block rounded-xl px-4 py-2 text-sm font-semibold text-white"
-                style={{ background: "var(--twx-coral)" }}>
-                Google Ads fiók összekötése
-              </a>
-            )}
-
-            {conn?.configured && conn.connected && (
-              <div className="mt-3 space-y-3">
+      {/* --- GOOGLE ADS EREDMÉNY: szerkeszthető szöveg + letölthető CSV --- */}
+      {gAd && (
+        <section className="space-y-4">
+          <div className="twx-card p-4 sm:p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">Google Ads keresési hirdetés</h3>
                 <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  Összekötött fiók: <b>{conn.customerId ? conn.customerId : "add meg az ügyfél-ID-t"}</b>
+                  Szerkeszthető szövegek — a címsorok max 30, a leírások max 90 karakter. A letöltött CSV a szerkesztett szöveget tartalmazza.
                 </p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium">Napi keret (HUF)</span>
-                    <input value={upBudget} onChange={(e) => setUpBudget(e.target.value)} inputMode="numeric" className="twx-input w-full" />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium">Lejárati dátum</span>
-                    <input type="date" value={upEnd} onChange={(e) => setUpEnd(e.target.value)} className="twx-input w-full" />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium">Célzott település (opcionális)</span>
-                    <input value={upLoc} onChange={(e) => setUpLoc(e.target.value)} placeholder="pl. Budapest" className="twx-input w-full" />
-                  </label>
-                  {!conn.customerId && (
-                    <label className="block">
-                      <span className="mb-1 block text-xs font-medium">Google Ads ügyfél-ID</span>
-                      <input value={upCustomer} onChange={(e) => setUpCustomer(e.target.value)} placeholder="123-456-7890" className="twx-input w-full" />
-                    </label>
-                  )}
-                </div>
-                <button type="button" onClick={uploadToGoogle} disabled={uploading}
-                  className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ background: "var(--twx-coral)" }}>
-                  {uploading ? "Feltöltés folyamatban…" : "Feltöltés a Google Ads-ba (szüneteltetve)"}
-                </button>
               </div>
+              <button type="button" onClick={() => downloadCsv(currentCsv())}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                CSV letöltése (Google Ads Editor)
+              </button>
+            </div>
+
+            {/* Címsorok */}
+            <p className="mb-1 text-xs font-semibold">Címsorok (Headlines)</p>
+            <div className="space-y-2">
+              {gAd.headlines.map((h, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input value={h} maxLength={30}
+                    onChange={(e) => setGAd((p) => p ? { ...p, headlines: p.headlines.map((x, idx) => idx === i ? e.target.value.slice(0, 30) : x) } : p)}
+                    className="twx-input w-full text-sm" />
+                  <span className="w-10 shrink-0 text-right text-[11px]" style={{ color: h.length > 30 ? "#c0392b" : "var(--twx-ink-muted)" }}>{h.length}/30</span>
+                  <button type="button" aria-label="Törlés"
+                    onClick={() => setGAd((p) => p ? { ...p, headlines: p.headlines.filter((_, idx) => idx !== i) } : p)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>✕</button>
+                </div>
+              ))}
+            </div>
+            {gAd.headlines.length < 15 && (
+              <button type="button" onClick={() => setGAd((p) => p ? { ...p, headlines: [...p.headlines, ""] } : p)}
+                className="mt-2 text-xs font-medium" style={{ color: "var(--twx-coral)" }}>+ Címsor</button>
             )}
+
+            {/* Leírások */}
+            <p className="mb-1 mt-4 text-xs font-semibold">Leírások (Descriptions)</p>
+            <div className="space-y-2">
+              {gAd.descriptions.map((d, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <textarea value={d} maxLength={90} rows={2}
+                    onChange={(e) => setGAd((p) => p ? { ...p, descriptions: p.descriptions.map((x, idx) => idx === i ? e.target.value.slice(0, 90) : x) } : p)}
+                    className="twx-input w-full text-sm" />
+                  <span className="w-10 shrink-0 pt-2 text-right text-[11px]" style={{ color: d.length > 90 ? "#c0392b" : "var(--twx-ink-muted)" }}>{d.length}/90</span>
+                  <button type="button" aria-label="Törlés"
+                    onClick={() => setGAd((p) => p ? { ...p, descriptions: p.descriptions.filter((_, idx) => idx !== i) } : p)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>✕</button>
+                </div>
+              ))}
+            </div>
+            {gAd.descriptions.length < 4 && (
+              <button type="button" onClick={() => setGAd((p) => p ? { ...p, descriptions: [...p.descriptions, ""] } : p)}
+                className="mt-2 text-xs font-medium" style={{ color: "var(--twx-coral)" }}>+ Leírás</button>
+            )}
+
+            {/* Végső URL */}
+            <label className="mt-4 block">
+              <span className="mb-1 block text-xs font-semibold">Végső URL (Final URL)</span>
+              <input value={gAd.finalUrl} placeholder="https://…"
+                onChange={(e) => setGAd((p) => p ? { ...p, finalUrl: e.target.value } : p)}
+                className="twx-input w-full text-sm" />
+            </label>
           </div>
+
+          {/* Kulcsszavak */}
+          <div className="twx-card p-4 sm:p-5">
+            <p className="mb-1 text-xs font-semibold">Kulcsszavak</p>
+            <p className="mb-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              Egyezési típus: Phrase (kifejezés), Exact (pontos) vagy Broad (általános).
+            </p>
+            <div className="space-y-2">
+              {gAd.keywords.map((k, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input value={k.text}
+                    onChange={(e) => setGAd((p) => p ? { ...p, keywords: p.keywords.map((x, idx) => idx === i ? { ...x, text: e.target.value } : x) } : p)}
+                    className="twx-input w-full text-sm" />
+                  <select value={/exact/i.test(k.criterionType) ? "Exact" : /broad/i.test(k.criterionType) ? "Broad" : "Phrase"}
+                    onChange={(e) => setGAd((p) => p ? { ...p, keywords: p.keywords.map((x, idx) => idx === i ? { ...x, criterionType: e.target.value } : x) } : p)}
+                    className="twx-input shrink-0 text-xs" style={{ width: 92 }}>
+                    <option>Phrase</option><option>Exact</option><option>Broad</option>
+                  </select>
+                  <button type="button" aria-label="Törlés"
+                    onClick={() => setGAd((p) => p ? { ...p, keywords: p.keywords.filter((_, idx) => idx !== i) } : p)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => setGAd((p) => p ? { ...p, keywords: [...p.keywords, { text: "", criterionType: "Phrase" }] } : p)}
+              className="mt-2 text-xs font-medium" style={{ color: "var(--twx-coral)" }}>+ Kulcsszó</button>
+          </div>
+
+          {/* Nyers CSV + import útmutató */}
+          <div className="twx-card p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button type="button" onClick={() => setShowRawCsv((v) => !v)}
+                className="text-xs font-semibold" style={{ color: "var(--twx-coral)" }}>
+                {showRawCsv ? "– Nyers CSV elrejtése" : "+ Nyers CSV megtekintése"}
+              </button>
+              <button type="button" onClick={() => copy(currentCsv(), "CSV a vágólapon.")}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                CSV másolása
+              </button>
+            </div>
+            {showRawCsv && (
+              <textarea readOnly value={currentCsv()} rows={12}
+                className="twx-input mt-3 w-full text-[11px] leading-relaxed"
+                style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "pre" }} />
+            )}
+            <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+              Importálás: Google Ads Editor → Account → Import → From file → a letöltött <b>.csv</b>. A kampány „Paused”, ellenőrzés után indítható.
+            </p>
+          </div>
+
+          {/* --- KÖZVETLEN FELTÖLTÉS (parkolópályán, később kapcsoljuk élesre) --- */}
+          {GADS_DIRECT_UPLOAD_ENABLED && g && (
+            <div className="twx-card p-4 sm:p-5" style={{ background: "var(--twx-coral-soft)" }}>
+              <h4 className="text-sm font-semibold">Feltöltés egy kattintással a Google Ads-ba</h4>
+              <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                A rendszer közvetlenül létrehozza a kampányt a saját Google Ads fiókodban — mindig <b>szüneteltetve</b>.
+              </p>
+              {conn?.configured && !conn.connected && (
+                <a href="/api/real-estate/google-ads/oauth/start"
+                  className="mt-3 inline-block rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                  style={{ background: "var(--twx-coral)" }}>
+                  Google Ads fiók összekötése
+                </a>
+              )}
+              {conn?.configured && conn.connected && (
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium">Napi keret (HUF)</span>
+                      <input value={upBudget} onChange={(e) => setUpBudget(e.target.value)} inputMode="numeric" className="twx-input w-full" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium">Lejárati dátum</span>
+                      <input type="date" value={upEnd} onChange={(e) => setUpEnd(e.target.value)} className="twx-input w-full" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium">Célzott település (opcionális)</span>
+                      <input value={upLoc} onChange={(e) => setUpLoc(e.target.value)} placeholder="pl. Budapest" className="twx-input w-full" />
+                    </label>
+                    {!conn.customerId && (
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium">Google Ads ügyfél-ID</span>
+                        <input value={upCustomer} onChange={(e) => setUpCustomer(e.target.value)} placeholder="123-456-7890" className="twx-input w-full" />
+                      </label>
+                    )}
+                  </div>
+                  <button type="button" onClick={uploadToGoogle} disabled={uploading}
+                    className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    style={{ background: "var(--twx-coral)" }}>
+                    {uploading ? "Feltöltés folyamatban…" : "Feltöltés a Google Ads-ba (szüneteltetve)"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
 
