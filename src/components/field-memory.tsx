@@ -5,45 +5,61 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type Opts = { min?: number; cap?: number };
+// Alapértelmezett élettartam: 12 óra — egy munkanapon belül emlékszik, utána elévül.
+const DEFAULT_TTL_MS = 12 * 60 * 60 * 1000;
 
-/** Egy mező korábbi értékeinek tárolása + felidézése (kulcs szerint). */
+type Opts = { min?: number; cap?: number; ttlMs?: number };
+type Entry = { v: string; t: number };
+
+// Vegyes (régi string[] / új Entry[]) tároló beolvasása, elévültek kiszűrése.
+function readEntries(storeKey: string, ttlMs: number): Entry[] {
+  try {
+    const raw = localStorage.getItem(storeKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const now = Date.now();
+    return parsed
+      .map((e): Entry | null =>
+        typeof e === "string" ? { v: e, t: now }
+        : (e && typeof (e as Entry).v === "string" && typeof (e as Entry).t === "number") ? (e as Entry)
+        : null
+      )
+      .filter((e): e is Entry => e !== null && now - e.t < ttlMs);
+  } catch {
+    return [];
+  }
+}
+
+/** Egy mező korábbi értékeinek tárolása + felidézése (kulcs szerint, 12 órás elévüléssel). */
 export function useFieldMemory(key: string, opts: Opts = {}) {
-  const { min = 3, cap = 8 } = opts;
+  const { min = 3, cap = 8, ttlMs = DEFAULT_TTL_MS } = opts;
   const storeKey = `twx:mem:${key}`;
   const [items, setItems] = useState<string[]>([]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storeKey);
-      if (raw) setItems(JSON.parse(raw) as string[]);
-    } catch { /* memória nélkül is működik */ }
+  const persist = useCallback((entries: Entry[]) => {
+    try { localStorage.setItem(storeKey, JSON.stringify(entries)); } catch { /* csendben */ }
+    setItems(entries.map((e) => e.v));
   }, [storeKey]);
 
-  const write = useCallback((next: string[]) => {
-    setItems(next);
-    try { localStorage.setItem(storeKey, JSON.stringify(next)); } catch { /* csendben */ }
-  }, [storeKey]);
+  useEffect(() => {
+    // Betöltéskor kiszűrjük és visszaírjuk az elévült elemeket.
+    persist(readEntries(storeKey, ttlMs));
+  }, [storeKey, ttlMs, persist]);
 
   const remember = useCallback((value: string) => {
     const val = (value ?? "").trim();
     if (val.length < min) return;
-    setItems((prev) => {
-      const next = [val, ...prev.filter((x) => x !== val)].slice(0, cap);
-      try { localStorage.setItem(storeKey, JSON.stringify(next)); } catch { /* csendben */ }
-      return next;
-    });
-  }, [storeKey, min, cap]);
+    const now = Date.now();
+    const prev = readEntries(storeKey, ttlMs).filter((e) => e.v !== val);
+    persist([{ v: val, t: now }, ...prev].slice(0, cap));
+  }, [storeKey, min, cap, ttlMs, persist]);
 
   const remove = useCallback((value: string) => {
-    setItems((prev) => {
-      const next = prev.filter((x) => x !== value);
-      try { localStorage.setItem(storeKey, JSON.stringify(next)); } catch { /* csendben */ }
-      return next;
-    });
-  }, [storeKey]);
+    persist(readEntries(storeKey, ttlMs).filter((e) => e.v !== value));
+  }, [storeKey, ttlMs, persist]);
 
-  return { items, remember, remove, write };
+  return { items, remember, remove };
 }
 
 /** A mező alá helyezett javaslat-doboz (csak fókusz alatt, illeszkedő elemekre). */
