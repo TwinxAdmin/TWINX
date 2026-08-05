@@ -4,6 +4,7 @@
 import ModuleIntro from "@/components/ModuleIntro";
 import ComboField from "@/components/ComboField";
 import SelectField from "@/components/SelectField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 
 import ValuationEditor from "@/components/valuation/ValuationEditor";
 import FolderLibrary, {
@@ -75,6 +76,26 @@ export default function ValuationPage() {
   const [editorDirty, setEditorDirty] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
+
+  // --- Mező-memória a szabadszöveges mezőkhöz (kliensoldali, localStorage). ---
+  const telepulesMem = useFieldMemory("valuation:telepules", { min: 4 });
+  const utcaMem = useFieldMemory("valuation:utca", { min: 4 });
+  const egyebMem = useFieldMemory("valuation:egyeb", { min: 8 });
+  const [telepulesFocus, setTelepulesFocus] = useState(false);
+  const [utcaFocus, setUtcaFocus] = useState(false);
+  const [egyebFocus, setEgyebFocus] = useState(false);
+  const fieldMem: Record<
+    string,
+    {
+      mem: ReturnType<typeof useFieldMemory>;
+      focus: boolean;
+      setFocus: (v: boolean) => void;
+    }
+  > = {
+    telepules: { mem: telepulesMem, focus: telepulesFocus, setFocus: setTelepulesFocus },
+    utca: { mem: utcaMem, focus: utcaFocus, setFocus: setUtcaFocus },
+    egyeb: { mem: egyebMem, focus: egyebFocus, setFocus: setEgyebFocus },
+  };
 
   // --- Ingatlan fotói (opcionális, a becslés állapot-korrekciójához) ---
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
@@ -248,6 +269,10 @@ export default function ValuationPage() {
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
         return;
       }
+      // Sikeres generálás: a szabadszöveges mezők értékének megjegyzése.
+      telepulesMem.remember(values.telepules.trim());
+      utcaMem.remember(values.utca.trim());
+      egyebMem.remember(values.egyeb.trim());
       if (data.report) {
         setResult({
           id: data.id ?? null,
@@ -278,7 +303,9 @@ export default function ValuationPage() {
 
       <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => (
+          {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
+            const fm = fieldMem[field.key];
+            return (
             <div
               key={field.key}
               className={field.fullWidth ? "sm:col-span-2" : ""}
@@ -296,6 +323,26 @@ export default function ValuationPage() {
                   options={field.options}
                   placeholder={field.placeholder}
                 />
+              ) : fm ? (
+                <div className="relative">
+                  <input
+                    id={field.key}
+                    type="text"
+                    value={values[field.key]}
+                    onChange={(e) => setField(field.key, e.target.value)}
+                    onFocus={() => fm.setFocus(true)}
+                    onBlur={() => fm.setFocus(false)}
+                    placeholder={field.placeholder}
+                    className="twx-input mt-1"
+                  />
+                  <FieldSuggestions
+                    open={fm.focus}
+                    value={values[field.key]}
+                    items={fm.mem.items}
+                    onPick={(v) => setField(field.key, v)}
+                    onRemove={fm.mem.remove}
+                  />
+                </div>
               ) : (
                 <input
                   id={field.key}
@@ -310,7 +357,8 @@ export default function ValuationPage() {
                 <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* --- Ingatlan fotói (opcionális): a látható állapotot beépíti a becslésbe. --- */}

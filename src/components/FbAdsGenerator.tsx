@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
-import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import { FBADS_CREDITS, EMPTY_FBADS, type FbAdsResult } from "@/lib/fbads";
 import {
   type GoogleAdsResult, type GoogleAdsAd, EMPTY_GOOGLE_ADS_AD,
@@ -37,12 +36,6 @@ export default function FbAdsGenerator() {
   const [url, setUrl] = useState("");
   const [manualText, setManualText] = useState("");
   const [showText, setShowText] = useState(false);
-
-  // Mező-memória: a korábban beírt link / szöveg felajánlása.
-  const urlMem = useFieldMemory("adtext:url", { min: 6 });
-  const textMem = useFieldMemory("adtext:manualText", { min: 12 });
-  const [urlFocus, setUrlFocus] = useState(false);
-  const [textFocus, setTextFocus] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -201,8 +194,6 @@ export default function FbAdsGenerator() {
         setFb(d.result as FbAdsResult);
         setFbDrafts(d.result as FbAdsResult);
       }
-      if (url.trim()) urlMem.remember(url.trim());
-      if (manualText.trim()) textMem.remember(manualText.trim());
       showToast("A hirdetésszövegek elkészültek.", "success");
       void loadHistory();
     } catch (e) {
@@ -242,12 +233,7 @@ export default function FbAdsGenerator() {
 
         <label className="block">
           <span className="mb-1 block text-xs font-medium">Landing page linkje</span>
-          <div className="relative">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="twx-input w-full"
-              onFocus={() => setUrlFocus(true)} onBlur={() => setUrlFocus(false)} />
-            <FieldSuggestions open={urlFocus} value={url} items={urlMem.items}
-              onPick={(v) => setUrl(v)} onRemove={urlMem.remove} />
-          </div>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="twx-input w-full" />
         </label>
 
         <button type="button" onClick={() => setShowText((v) => !v)}
@@ -258,13 +244,8 @@ export default function FbAdsGenerator() {
         {showText && (
           <label className="mt-2 block">
             <span className="mb-1 block text-xs font-medium">A hirdetés szövege</span>
-            <div className="relative">
-              <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
-                onFocus={() => setTextFocus(true)} onBlur={() => setTextFocus(false)}
-                rows={7} placeholder="Másold ide a hirdetés címét és teljes leírását…" className="twx-input w-full" />
-              <FieldSuggestions open={textFocus} value={manualText} items={textMem.items}
-                onPick={(v) => setManualText(v)} onRemove={textMem.remove} />
-            </div>
+            <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
+              rows={7} placeholder="Másold ide a hirdetés címét és teljes leírását…" className="twx-input w-full" />
             <span className="mt-1 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
               Ha ezt kitöltöd, a linket nem próbáljuk megnyitni — ebből dolgozunk.
             </span>

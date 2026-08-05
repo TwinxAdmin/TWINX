@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import ComboField from "@/components/ComboField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import { compressImage } from "@/lib/image-compress";
 import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
@@ -79,6 +80,13 @@ export default function VideoWizard({
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
+
+  // Mező-memória a szabadszöveges adatlap-mezőkhöz (kliensoldali, fiók-független).
+  const titleMem = useFieldMemory("video:title", { min: 3 });
+  const locationMem = useFieldMemory("video:location", { min: 3 });
+  const addressMem = useFieldMemory("video:address", { min: 3 });
+  const priceMem = useFieldMemory("video:price", { min: 2 });
+  const sizeMem = useFieldMemory("video:size", { min: 2 });
 
   // 4) Beállítás — a formátumot a dizájn+méret köti; a zene és a csomag választható.
   const format = aspect; // a választott méret
@@ -155,6 +163,12 @@ export default function VideoWizard({
       const res = await fetch("/api/real-estate/video", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      // Sikeres indításkor jegyezzük meg a beírt szabadszöveges értékeket.
+      titleMem.remember(title.trim());
+      locationMem.remember(facts.location.trim());
+      addressMem.remember(facts.address.trim());
+      priceMem.remember(facts.price.trim());
+      sizeMem.remember(facts.size.trim());
       setJobId(data.jobId as string);
       setJob({ status: data.status as string, output_url: null, error: null });
       setElapsed(0);
@@ -431,11 +445,11 @@ export default function VideoWizard({
               <div>
                 <p className="text-sm font-semibold">Nyitókártya</p>
                 <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Főcím" value={title} onChange={setTitle} placeholder={defaultTitle()} />
+                  <MemField label="Főcím" value={title} onChange={setTitle} placeholder={defaultTitle()} mem={titleMem} />
                   <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="a főcímhez (pl. Eladó panellakás)" />
-                  <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
-                  <Field label="Utca, házszám (2. képen)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." />
-                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 100 M Ft" />
+                  <MemField label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" mem={locationMem} />
+                  <MemField label="Utca, házszám (2. képen)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." mem={addressMem} />
+                  <MemField label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 100 M Ft" mem={priceMem} />
                 </div>
               </div>
               <div>
@@ -444,7 +458,7 @@ export default function VideoWizard({
                   1. kép: város + irányár · 2. kép: pontos cím + emelet · 3. kép: méret + szobaszám · 4. kép: fürdő/wc. Csak amit megadsz.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Méret (3. képen)" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 100 m²" />
+                  <MemField label="Méret (3. képen)" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 100 m²" mem={sizeMem} />
                   <Combo label="Szobaszám (3. képen)" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
                   <Combo label="Fürdő / wc (4. képen)" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
                   <Combo label="Emelet (2. képen)" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
@@ -576,6 +590,25 @@ function Field({ label, value, onChange, placeholder }: {
     <div>
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="twx-input mt-1 w-full text-sm" />
+    </div>
+  );
+}
+
+// Mint a Field, de a mező alatt felajánlja a korábban beírt értékeket (fókusz alatt).
+function MemField({ label, value, onChange, placeholder, mem }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+  mem: { items: string[]; remove: (v: string) => void };
+}) {
+  const [focus, setFocus] = useState(false);
+  return (
+    <div>
+      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
+      <div className="relative">
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
+          className="twx-input mt-1 w-full text-sm" />
+        <FieldSuggestions open={focus} value={value} items={mem.items} onPick={onChange} onRemove={mem.remove} />
+      </div>
     </div>
   );
 }

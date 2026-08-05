@@ -17,6 +17,7 @@ import {
 } from "@/lib/flyer";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
 import ComboField from "@/components/ComboField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import { FLYER_SIZES, getFlyerSize, flyerGeom } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -49,6 +50,15 @@ export default function AdWizard({
   const [tone, setTone] = useState(FLYER_TONES[1]?.value ?? "marketinges");
   const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
   const [genLoading, setGenLoading] = useState(false);
+
+  // Mező-memória — a korábbi szabadszöveges értékeket felajánljuk (kliensoldali).
+  const locMem = useFieldMemory("flyer:location", { min: 2 });
+  const streetMem = useFieldMemory("flyer:street", { min: 2 });
+  const sizeMem = useFieldMemory("flyer:size", { min: 2 });
+  const priceMem = useFieldMemory("flyer:price", { min: 2 });
+  const titleMem = useFieldMemory("flyer:title", { min: 3 });
+  const subtitleMem = useFieldMemory("flyer:subtitle", { min: 3 });
+  const dispPriceMem = useFieldMemory("flyer:display_price", { min: 2 });
 
   // 4) Méret — TÖBB is választható; minden kiválasztott méret külön előnézetet kap.
   const mood = FLYER_MOOD;
@@ -269,6 +279,14 @@ export default function AdWizard({
       if (!res.ok) throw new Error(data.error);
       // AZONNAL mentve: a kép a tárhelyre és az előzményekbe került — nem veszhet el.
       setFinals((prev) => ({ ...prev, [sizeVal]: data.url as string }));
+      // A sikeresen elfogadott hirdetés szabadszöveges értékeit megjegyezzük.
+      locMem.remember(facts.location.trim());
+      streetMem.remember(facts.street.trim());
+      sizeMem.remember(facts.size.trim());
+      priceMem.remember(facts.price.trim());
+      titleMem.remember((text.title ?? "").trim());
+      subtitleMem.remember((text.subtitle ?? "").trim());
+      dispPriceMem.remember((text.price ?? "").trim());
       onDone?.(); // a "Korábbi hirdetéseim" lista frissítése
       showToast(
         data.charged
@@ -496,16 +514,16 @@ export default function AdWizard({
                   Válassz a listából, vagy írj sajátot. Minél több adat, annál gazdagabb a hirdetés.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" />
-                  <Field label="Pontosabb helyszín / utca" value={facts.street} onChange={(v) => setF("street", v)} placeholder="pl. Belváros / Váci utca" />
+                  <Field label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" mem={locMem} />
+                  <Field label="Pontosabb helyszín / utca" value={facts.street} onChange={(v) => setF("street", v)} placeholder="pl. Belváros / Váci utca" mem={streetMem} />
                   <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="Válassz vagy írj sajátot" />
                   <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
                   <Combo label="Épület szintje" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
                   <Combo label="Fürdő / mellékhelyiség" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
                   <Combo label="Műszaki állapot" value={facts.condition} onChange={(v) => setF("condition", v)} options={CONDITION_OPTIONS} placeholder="Válassz a listából" />
                   <Combo label="Szerkezet" value={facts.structure} onChange={(v) => setF("structure", v)} options={STRUCTURE_OPTIONS} placeholder="Válassz a listából" />
-                  <Field label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 125 m²" />
-                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 145.000.000 Ft" />
+                  <Field label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 125 m²" mem={sizeMem} />
+                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 145.000.000 Ft" mem={priceMem} />
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-3">
@@ -522,9 +540,9 @@ export default function AdWizard({
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-semibold">A hirdetés szövege</p>
-                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={52} />
-                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={58} />
-                <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} />
+                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={52} mem={titleMem} />
+                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={58} mem={subtitleMem} />
+                <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} mem={dispPriceMem} />
               </div>
             </div>
           )}
@@ -794,13 +812,19 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: {
+function Field({ label, value, onChange, placeholder, mem }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+  mem?: { items: string[]; remove: (v: string) => void };
 }) {
+  const [focus, setFocus] = useState(false);
   return (
     <div>
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="twx-input mt-1 w-full text-sm" />
+      <div className="relative">
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} className="twx-input mt-1 w-full text-sm" />
+        {mem && <FieldSuggestions open={focus} value={value} items={mem.items} onPick={onChange} onRemove={mem.remove} />}
+      </div>
     </div>
   );
 }
@@ -816,17 +840,23 @@ function Combo({ label, value, onChange, options, placeholder }: {
   );
 }
 
-function Limit({ label, value, onChange, max }: {
+function Limit({ label, value, onChange, max, mem }: {
   label: string; value: string; onChange: (v: string) => void; max: number;
+  mem?: { items: string[]; remove: (v: string) => void };
 }) {
   const len = (value ?? "").length;
+  const [focus, setFocus] = useState(false);
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
         <span className="text-[11px]" style={{ color: len > max * 0.9 ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>{len}/{max}</span>
       </div>
-      <input type="text" value={value} maxLength={max} onChange={(e) => onChange(e.target.value)} className="twx-input mt-1 w-full text-sm" />
+      <div className="relative">
+        <input type="text" value={value} maxLength={max} onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} className="twx-input mt-1 w-full text-sm" />
+        {mem && <FieldSuggestions open={focus} value={value} items={mem.items} onPick={onChange} onRemove={mem.remove} />}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import DishEditDrawer from "@/components/hospitality/DishEditDrawer";
 import RecipeCalculator from "@/components/hospitality/RecipeCalculator";
 import MenuDishBlock from "@/components/hospitality/MenuDishBlock";
 import SelectField from "@/components/SelectField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import type { RecipeItem } from "@/lib/recipes";
@@ -42,6 +43,12 @@ export default function InventoryPage() {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [editDish, setEditDish] = useState<Dish | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  // Mező-memória a szabadszöveges mezőknek (böngészőben megjegyzi a korábbi értékeket).
+  const nameMem = useFieldMemory("inventory:etel-nev", { min: 2 });
+  const descMem = useFieldMemory("inventory:etel-leiras", { min: 6 });
+  const [nameFocus, setNameFocus] = useState(false);
+  const [descFocus, setDescFocus] = useState(false);
 
   // Étlapos és menüs ételek szétválasztva — a két blokk külön dolgozik velük.
   const etlapDishes = dishes.filter((d) => !d.is_menu);
@@ -109,6 +116,8 @@ export default function InventoryPage() {
           body: JSON.stringify({ dish_id: data.dish.id, items: recipeItems }),
         }).catch(() => null);
       }
+      nameMem.remember(form.name.trim());
+      descMem.remember(form.description.trim());
       setDishes((prev) => [data.dish, ...prev]);
       showToast("Étel hozzáadva.", "success");
       setRecipeItems([]);
@@ -186,12 +195,18 @@ export default function InventoryPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="block text-sm">Étel neve *</label>
-            <input value={form.name} onChange={(e) => set("name", e.target.value)} className="twx-input mt-1" placeholder="pl. Gulyásleves" />
+            <div className="relative">
+              <input value={form.name} onChange={(e) => set("name", e.target.value)} onFocus={() => setNameFocus(true)} onBlur={() => setNameFocus(false)} className="twx-input mt-1" placeholder="pl. Gulyásleves" />
+              <FieldSuggestions open={nameFocus} value={form.name} items={nameMem.items} onPick={(v) => set("name", v)} onRemove={nameMem.remove} />
+            </div>
             {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm">Leírás (rövid, étlap-szerű)</label>
-            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={2} className="twx-input mt-1" placeholder="pl. Tartalmas marhagulyás hagyományos recept szerint, friss csipetkével" />
+            <div className="relative">
+              <textarea value={form.description} onChange={(e) => set("description", e.target.value)} onFocus={() => setDescFocus(true)} onBlur={() => setDescFocus(false)} rows={2} className="twx-input mt-1" placeholder="pl. Tartalmas marhagulyás hagyományos recept szerint, friss csipetkével" />
+              <FieldSuggestions open={descFocus} value={form.description} items={descMem.items} onPick={(v) => set("description", v)} onRemove={descMem.remove} />
+            </div>
           </div>
           <div className="sm:col-span-2">
             <div className="flex gap-3 rounded-xl p-3" style={{ background: "rgba(239,122,90,0.07)", border: "1px solid rgba(239,122,90,0.22)" }}>

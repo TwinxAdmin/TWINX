@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   TIMEFRAMES,
   MENU_THEMES,
@@ -31,6 +32,8 @@ export default function MenuGeneratorPage() {
   const [targetProfit, setTargetProfit] = useState("");
   const [profitOpen, setProfitOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
+  const instructionMem = useFieldMemory("menu:instruction", { min: 4 });
+  const [instructionFocus, setInstructionFocus] = useState(false);
   const [dayPlan, setDayPlan] = useState<Record<string, string>>({});
   // day -> (course-kulcs -> étel neve)
   const [dishPlan, setDishPlan] = useState<Record<string, Record<string, string>>>({});
@@ -120,6 +123,7 @@ export default function MenuGeneratorPage() {
         return;
       }
       setMenu(data.menu as string);
+      instructionMem.remember(instruction.trim());
       showToast(
         data.charged ? `Menü elkészült — ${data.credits} kredit levonva.` : "Menü elkészült.",
         "success"
@@ -245,13 +249,24 @@ export default function MenuGeneratorPage() {
         {/* Szabad instrukció */}
         <div>
           <label className="block text-sm">Egyedi instrukció (opcionális)</label>
-          <textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            rows={2}
-            className="twx-input mt-1"
-            placeholder="pl. legyen minden nap egy vegán opció; a hétvége legyen prémium; kerüld a csípőset"
-          />
+          <div className="relative">
+            <textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              onFocus={() => setInstructionFocus(true)}
+              onBlur={() => setInstructionFocus(false)}
+              rows={2}
+              className="twx-input mt-1"
+              placeholder="pl. legyen minden nap egy vegán opció; a hétvége legyen prémium; kerüld a csípőset"
+            />
+            <FieldSuggestions
+              open={instructionFocus}
+              value={instruction}
+              items={instructionMem.items}
+              onPick={(v) => setInstruction(v)}
+              onRemove={instructionMem.remove}
+            />
+          </div>
         </div>
 
         {/* Napi beosztás — összecsukható legördülő (naponként konyha + fő alapanyag), 1 naptól */}

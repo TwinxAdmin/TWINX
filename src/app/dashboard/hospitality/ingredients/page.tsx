@@ -12,6 +12,7 @@ import ModuleIntro from "@/components/ModuleIntro";
 import Skeleton from "@/components/motion/Skeleton";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   INGREDIENT_CATEGORIES, ingredientCategoryLabel, ingredientCategoryExample,
   ingredientCategoryUnit, ingredientCategoryUnits, unitLabel,
@@ -150,6 +151,10 @@ function CategoryModal({
   );
   const [saving, setSaving] = useState(false);
 
+  // Mező-memória az alapanyag nevéhez (szabadszöveg) — közös kulcs, sor-index szerinti fókusz.
+  const nameMem = useFieldMemory("ingredients:name", { min: 2 });
+  const [nameFocus, setNameFocus] = useState<number | null>(null);
+
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((s) => s.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
@@ -202,6 +207,7 @@ function CategoryModal({
           const data = await res.json();
           if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); setRows([...newRows, ...rows.slice(k)]); return false; }
           all = all.map((x) => (x.id === r.id ? data.ingredient : x));
+          nameMem.remember(r.name.trim());
           newRows.push(ingredientToRow(data.ingredient));
         } else {
           const res = await fetch("/api/hospitality/ingredients", {
@@ -211,6 +217,7 @@ function CategoryModal({
           const data = await res.json();
           if (!res.ok) { showToast(data.error ?? "Mentés sikertelen.", "error"); setRows([...newRows, ...rows.slice(k)]); return false; }
           all = [...all, data.ingredient];
+          nameMem.remember(r.name.trim());
           newRows.push(ingredientToRow(data.ingredient));
         }
       }
@@ -268,12 +275,23 @@ function CategoryModal({
           {rows.map((r, i) => (
             <div key={r.id ?? `new-${i}`} className="flex flex-wrap items-end gap-2">
               <div className="min-w-[150px] flex-1">
-                <input
-                  value={r.name} onChange={(e) => setRow(i, { name: e.target.value })}
-                  placeholder={ingredientCategoryExample(category)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm"
-                  style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
-                />
+                <div className="relative">
+                  <input
+                    value={r.name} onChange={(e) => setRow(i, { name: e.target.value })}
+                    onFocus={() => setNameFocus(i)}
+                    onBlur={() => setNameFocus((f) => (f === i ? null : f))}
+                    placeholder={ingredientCategoryExample(category)}
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream-card)" }}
+                  />
+                  <FieldSuggestions
+                    open={nameFocus === i}
+                    value={r.name}
+                    items={nameMem.items}
+                    onPick={(v) => setRow(i, { name: v })}
+                    onRemove={nameMem.remove}
+                  />
+                </div>
               </div>
               {/* Beszerzés: mennyiség → egység → ár (tól) → ár (ig, opc.) → hull.% */}
               <div className="w-16">

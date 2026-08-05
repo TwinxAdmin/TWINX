@@ -13,6 +13,7 @@ import {
   type LandLevel,
 } from "@/lib/land";
 import { toDownloadUrl } from "@/lib/files";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 
 export default function LandPage() {
   const [values, setValues] = useState<LandInput>({ ...EMPTY_LAND });
@@ -25,6 +26,19 @@ export default function LandPage() {
   const [polling, setPolling] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Mező-memória a szabadszöveges mezőkhöz (kliensoldali, korábbi értékek felidézése).
+  const telepulesMem = useFieldMemory("land:telepules", { min: 4 });
+  const utcaMem = useFieldMemory("land:utca", { min: 4 });
+  const hrszMem = useFieldMemory("land:hrsz", { min: 4 });
+  const besorolasMem = useFieldMemory("land:besorolas", { min: 8 });
+  const fieldMem: Partial<Record<keyof LandInput, ReturnType<typeof useFieldMemory>>> = {
+    telepules: telepulesMem,
+    utca: utcaMem,
+    hrsz: hrszMem,
+    besorolas: besorolasMem,
+  };
+  const [focusKey, setFocusKey] = useState<keyof LandInput | null>(null);
 
   useEffect(() => {
     if (!viewerOpen) return;
@@ -99,6 +113,11 @@ export default function LandPage() {
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
         return;
       }
+      // Mező-memória: a sikeres beküldés szabadszöveges értékeit megjegyezzük.
+      telepulesMem.remember(values.telepules.trim());
+      utcaMem.remember(values.utca.trim());
+      hrszMem.remember(values.hrsz.trim());
+      besorolasMem.remember(values.besorolas.trim());
       if (data.async && data.jobId) {
         startPolling(data.jobId); // magas szint
       } else {
@@ -132,14 +151,27 @@ export default function LandPage() {
                 {field.label}
                 {field.required && <span style={{ color: "var(--twx-coral)" }}> *</span>}
               </label>
-              <input
-                id={field.key}
-                type="text"
-                value={values[field.key]}
-                onChange={(e) => setField(field.key, e.target.value)}
-                placeholder={field.placeholder}
-                className="twx-input mt-1"
-              />
+              <div className="relative">
+                <input
+                  id={field.key}
+                  type="text"
+                  value={values[field.key]}
+                  onChange={(e) => setField(field.key, e.target.value)}
+                  onFocus={() => setFocusKey(field.key)}
+                  onBlur={() => setFocusKey((k) => (k === field.key ? null : k))}
+                  placeholder={field.placeholder}
+                  className="twx-input mt-1"
+                />
+                {fieldMem[field.key] && (
+                  <FieldSuggestions
+                    open={focusKey === field.key}
+                    value={values[field.key]}
+                    items={fieldMem[field.key]!.items}
+                    onPick={(v) => setField(field.key, v)}
+                    onRemove={fieldMem[field.key]!.remove}
+                  />
+                )}
+              </div>
               {errors[field.key] && (
                 <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
               )}

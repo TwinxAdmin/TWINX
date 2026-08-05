@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import SelectField from "@/components/SelectField";
 import MultiSelectField from "@/components/MultiSelectField";
 import { INGREDIENT_CATEGORIES } from "@/lib/recipes";
@@ -76,6 +77,16 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
   const [pro, setPro] = useState(false);         // PRO (mély kutatás) mód
   const [proStatus, setProStatus] = useState(""); // állapotszöveg a PRO polling alatt
   const [running, setRunning] = useState(false);
+
+  // Mező-memória a szabadszöveges mezőkhöz (korábbi beírások felajánlása).
+  const whatMem = useFieldMemory("supplier:what", { min: 4 });
+  const [whatFocus, setWhatFocus] = useState(false);
+  const cityMem = useFieldMemory("supplier:domestic:city", { min: 3 });
+  const [cityFocus, setCityFocus] = useState(false);
+  const regionMem = useFieldMemory("supplier:eu:region", { min: 3 });
+  const [regionFocus, setRegionFocus] = useState(false);
+  const customMem = useFieldMemory("supplier:custom", { min: 4 });
+  const [customFocus, setCustomFocus] = useState(false);
 
   const [result, setResult] = useState<{ suppliers: Supplier[]; extras: SupplierExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -201,6 +212,10 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
 
   const search = async () => {
     if (!what.trim()) { showToast("Add meg, milyen alapanyagot keresel.", "error"); return; }
+    // A szabadszöveges mezők értékeit megjegyezzük a következő kereséshez.
+    whatMem.remember(what.trim());
+    cityMem.remember(city.trim());
+    regionMem.remember(region.trim());
     setRunning(true);
     setResult(null); setPdfUrl(null); setProStatus("");
     try {
@@ -296,12 +311,16 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Mit keresel?</label>
-            <input
-              value={what} onChange={(e) => setWhat(e.target.value)} list="supplier-what-options"
-              placeholder="pl. burgonya, vagy: Zöldség"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--twx-line)", background: "#fff" }}
-            />
+            <div className="relative">
+              <input
+                value={what} onChange={(e) => setWhat(e.target.value)} list="supplier-what-options"
+                onFocus={() => setWhatFocus(true)} onBlur={() => setWhatFocus(false)}
+                placeholder="pl. burgonya, vagy: Zöldség"
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                style={{ borderColor: "var(--twx-line)", background: "#fff" }}
+              />
+              <FieldSuggestions open={whatFocus} value={what} items={whatMem.items} onPick={(v) => setWhat(v)} onRemove={whatMem.remove} />
+            </div>
             <datalist id="supplier-what-options">
               {INGREDIENT_CATEGORIES.map((c) => <option key={c.value} value={c.label} />)}
               {ingredientNames.map((n) => <option key={n} value={n} />)}
@@ -338,9 +357,13 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             </div>
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Település</label>
-              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Kecskemét"
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+              <div className="relative">
+                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Kecskemét"
+                  onFocus={() => setCityFocus(true)} onBlur={() => setCityFocus(false)}
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                <FieldSuggestions open={cityFocus} value={city} items={cityMem.items} onPick={(v) => setCity(v)} onRemove={cityMem.remove} />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Körzet</label>
@@ -357,9 +380,13 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             </div>
             <div>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Régió / város (opcionális)</label>
-              <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="pl. Campania, Nápoly"
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+              <div className="relative">
+                <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="pl. Campania, Nápoly"
+                  onFocus={() => setRegionFocus(true)} onBlur={() => setRegionFocus(false)}
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                <FieldSuggestions open={regionFocus} value={region} items={regionMem.items} onPick={(v) => setRegion(v)} onRemove={regionMem.remove} />
+              </div>
             </div>
           </div>
         )}
@@ -438,12 +465,16 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
             <div className="border-t pt-3" style={{ borderColor: "var(--twx-line)" }}>
               <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Saját szempont hozzáadása</label>
               <div className="mt-1 flex gap-2">
-                <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } } }}
-                  placeholder="pl. rövid szállítási határidő, hűtött szállítás"
-                  className="flex-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                <div className="relative flex-1">
+                  <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
+                    onFocus={() => setCustomFocus(true)} onBlur={() => setCustomFocus(false)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); customMem.remember(v); setCustomInput(""); } } }}
+                    placeholder="pl. rövid szállítási határidő, hűtött szállítás"
+                    className="w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                  <FieldSuggestions open={customFocus} value={customInput} items={customMem.items} onPick={(v) => setCustomInput(v)} onRemove={customMem.remove} />
+                </div>
                 <button type="button"
-                  onClick={() => { const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } }}
+                  onClick={() => { const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); customMem.remember(v); setCustomInput(""); } }}
                   className="flex-none rounded-lg px-3 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
                   Hozzáad
                 </button>

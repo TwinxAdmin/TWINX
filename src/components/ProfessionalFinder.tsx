@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
+import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
   AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, RATE_PERIODS, ratePeriodLabel, PROFESSIONAL_PLANS,
@@ -60,6 +61,12 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [count, setCount] = useState(3);
   const [running, setRunning] = useState(false);
 
+  // Mező-memória a szabadszöveges mezőkhöz (iparágra bontott kulcs, mindkét iparágban fut).
+  const cityMem = useFieldMemory(`professional:${industry}:city`, { min: 3 });
+  const [cityFocus, setCityFocus] = useState(false);
+  const criteriaMem = useFieldMemory(`professional:${industry}:criteria`, { min: 6 });
+  const [criteriaFocus, setCriteriaFocus] = useState(false);
+
   const [result, setResult] = useState<{ professionals: Professional[]; extras: ProfessionalExtras } | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<SavedSearch[]>([]);
@@ -98,6 +105,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
 
   const search = async () => {
     if (isCustom && !professionCustom.trim()) { showToast("Add meg a keresett szakmát.", "error"); return; }
+    cityMem.remember(city.trim());
     setRunning(true);
     setResult(null); setPdfUrl(null);
     try {
@@ -261,8 +269,12 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Település</label>
-            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Debrecen"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+            <div className="relative">
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="pl. Debrecen"
+                onFocus={() => setCityFocus(true)} onBlur={() => setCityFocus(false)}
+                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+              <FieldSuggestions open={cityFocus} value={city} items={cityMem.items} onPick={(v) => setCity(v)} onRemove={cityMem.remove} />
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Körzet</label>
@@ -357,12 +369,16 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
                   <div className="border-t pt-3" style={{ borderColor: "var(--twx-line)" }}>
                     <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Saját szempont hozzáadása</label>
                     <div className="mt-1 flex gap-2">
-                      <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } } }}
-                        placeholder="pl. dolgozott már hasonló koncepciójú helyen"
-                        className="flex-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                      <div className="relative flex-1">
+                        <input value={customInput} onChange={(e) => setCustomInput(e.target.value)}
+                          onFocus={() => setCriteriaFocus(true)} onBlur={() => setCriteriaFocus(false)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = customInput.trim(); if (v) { criteriaMem.remember(v); setCustomCriteria((l) => [...l, v]); setCustomInput(""); } } }}
+                          placeholder="pl. dolgozott már hasonló koncepciójú helyen"
+                          className="w-full rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
+                        <FieldSuggestions open={criteriaFocus} value={customInput} items={criteriaMem.items} onPick={(v) => setCustomInput(v)} onRemove={criteriaMem.remove} />
+                      </div>
                       <button type="button"
-                        onClick={() => { const v = customInput.trim(); if (v) { setCustomCriteria((l) => [...l, v]); setCustomInput(""); } }}
+                        onClick={() => { const v = customInput.trim(); if (v) { criteriaMem.remember(v); setCustomCriteria((l) => [...l, v]); setCustomInput(""); } }}
                         className="flex-none rounded-lg px-3 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
                         Hozzáad
                       </button>
