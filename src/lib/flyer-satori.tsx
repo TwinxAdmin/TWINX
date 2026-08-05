@@ -40,7 +40,7 @@ function shortLabel(s: string, max = 16): string {
 // STEM alapú (részleges) egyezés — a farok (pl. „…es lakás") ne rontsa el a találatot.
 // A sorrend prioritás: az első illeszkedő nyer.
 const COMPACT_STEMS: Array<[string, string]> = [
-  ["könnyűszerkezet", "Könnyűszerk."],
+  ["könnyűszerkezet", "Könnyűszerkezetes"],
   ["csúsztatott zsalu", "Csúszt. zsalu"],
   ["tégla építésű társasházi", "Téglalakás"],
   ["panel építésű társasházi", "Panellakás"],
