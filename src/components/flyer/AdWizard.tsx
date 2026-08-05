@@ -540,8 +540,8 @@ export default function AdWizard({
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-semibold">A hirdetés szövege</p>
-                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={52} mem={titleMem} />
-                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={58} mem={subtitleMem} />
+                <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={38} mem={titleMem} />
+                <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={46} mem={subtitleMem} />
                 <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} mem={dispPriceMem} />
               </div>
             </div>

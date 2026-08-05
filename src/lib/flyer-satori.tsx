@@ -37,24 +37,27 @@ function shortLabel(s: string, max = 16): string {
 
 // Flyer-only tömörítés: a szabvány (és hosszú) opciónevek rövid, csinos formája —
 // CSAK a hirdetésen; a teljes név máshol (értékbecslés, AI) érintetlen marad.
-const COMPACT: Record<string, string> = {
-  "tégla építésű társasházi lakás": "Téglalakás",
-  "panel építésű társasházi lakás": "Panellakás",
-  "csúsztatott zsalus lakás": "Csúszt. zsalu",
-  "könnyűszerkezetes": "Könnyűszerk.",
-  "5 vagy több szoba": "5+ szoba",
-  "6 vagy több szoba": "6+ szoba",
-  "4 vagy több szoba": "4+ szoba",
-  "felújítandó, rossz állapotú": "Felújítandó",
-  "kitűnő, újszerű állapotú": "Újszerű",
-  "közepes, átlagos állapotú": "Közepes áll.",
-};
-/** Csinos, rövid megjelenítés levágás („…") nélkül: szótár → zárójel/„/" nélkül → szó-határon vágás. */
+// STEM alapú (részleges) egyezés — a farok (pl. „…es lakás") ne rontsa el a találatot.
+// A sorrend prioritás: az első illeszkedő nyer.
+const COMPACT_STEMS: Array<[string, string]> = [
+  ["könnyűszerkezet", "Könnyűszerk."],
+  ["csúsztatott zsalu", "Csúszt. zsalu"],
+  ["tégla építésű társasházi", "Téglalakás"],
+  ["panel építésű társasházi", "Panellakás"],
+  ["vegyes falazat", "Vegyes fal."],
+  ["felújítandó", "Felújítandó"],
+  ["kitűnő", "Kitűnő áll."],
+  ["újszerű", "Újszerű"],
+  ["közepes", "Közepes áll."],
+  ["átlagos", "Közepes áll."],
+];
+/** Csinos, rövid megjelenítés levágás („…") nélkül: stem-szótár → „N+ szoba" → zárójel/„/" nélkül → szó-határon vágás. */
 function compact(s: string, max: number): string {
-  const raw = String(s ?? "").trim();
+  let raw = String(s ?? "").trim();
   if (!raw) return "";
-  const hit = COMPACT[raw.toLowerCase()];
-  if (hit) return hit;
+  raw = raw.replace(/(\d+)\s*vagy\s*t[öo]bb\s*szoba/i, "$1+ szoba");
+  const low = raw.toLowerCase();
+  for (const [stem, short] of COMPACT_STEMS) if (low.includes(stem)) return short;
   const base = raw.split("(")[0].split("/")[0].trim();
   if (base.length <= max) return base;
   const cut = base.slice(0, max);
