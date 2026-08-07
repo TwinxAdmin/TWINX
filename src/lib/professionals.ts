@@ -875,11 +875,11 @@ export type ProfessionalResult = {
 };
 
 // --- Találatszám = kredit ---------------------------------------------------
+// BÉTA: amíg a modul fejlesztés alatt van, EGYETLEN verzió: 5 találat = 1 kredit.
 export const PROFESSIONAL_PLANS = [
-  { count: 3, credits: 1, label: "3 találat" },
-  { count: 6, credits: 2, label: "6 találat" },
-  { count: 9, credits: 3, label: "9 találat" },
+  { count: 5, credits: 1, label: "5 találat" },
 ] as const;
+export const PROFESSIONAL_DEFAULT_COUNT = 5;
 export function creditsForCount(count: number): number {
   return PROFESSIONAL_PLANS.find((p) => p.count === count)?.credits ?? 1;
 }

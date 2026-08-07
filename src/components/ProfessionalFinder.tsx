@@ -10,7 +10,7 @@ import SelectField from "@/components/SelectField";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
-  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, PROFESSIONAL_PLANS,
+  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS,
   detailFieldsFor,
   professionsForTrack, professionLabel, creditsForCount,
   type Industry, type Professional, type ProfessionalExtras,
@@ -56,7 +56,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [customCriteria, setCustomCriteria] = useState<string[]>([]); // a partner saját szempontjai
   const [customInput, setCustomInput] = useState("");
-  const [count, setCount] = useState(3);
+  const [count] = useState(5); // BÉTA: fix 5 találat = 1 kredit
   const [running, setRunning] = useState(false);
 
   // Mező-memória a szabadszöveges mezőkhöz (iparágra bontott kulcs, mindkét iparágban fut).
@@ -213,6 +213,14 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
 
   return (
     <section className="twx-card p-5 sm:p-6">
+      {/* BÉTA jelzés — a modul elérhető, de fejlesztés alatt */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
+        <span className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white" style={{ background: "var(--twx-coral)" }}>Béta</span>
+        <span className="text-xs" style={{ color: "#9a3412" }}>
+          A Szakember-kereső még <b>fejlesztés alatt</b> áll — használható, de az eredmények pontossága még csiszolás alatt van. A béta idején minden keresés <b>5 találat = 1 kredit</b>.
+        </span>
+      </div>
+
       {/* Fő módválasztó: Szakember-kereső vs. Toborzás (csak ahol van egyéni szakma) */}
       {hasRecruit && (
       <div className="mb-5 flex gap-2 rounded-xl p-1" style={{ background: "var(--twx-coral-soft)" }}>
@@ -390,18 +398,9 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
 
         {tab === "finder" ? (
           <>
-            {/* Találatszám = kredit */}
-            <div>
-              <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Hány szakembert keressünk?</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {PROFESSIONAL_PLANS.map((p) => (
-                  <button key={p.count} type="button" onClick={() => setCount(p.count)}
-                    className="rounded-xl px-4 py-2 text-sm font-medium transition"
-                    style={count === p.count ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)", background: "#fff" }}>
-                    {p.label} · {p.credits} kredit
-                  </button>
-                ))}
-              </div>
+            {/* Találatszám = kredit — BÉTA: egyetlen verzió (5 találat = 1 kredit) */}
+            <div className="rounded-xl p-3 text-xs" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-ink)" }}>
+              A béta verzióban minden keresés <b>5 szakember-találatot</b> ad, ára <b>1 kredit</b>.
             </div>
 
             <div>

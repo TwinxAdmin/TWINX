@@ -31,7 +31,7 @@ export const CATEGORIES: Category[] = [
       { label: "Hirdetéskészítő", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott ingatlanhirdetés" },
       { label: "Szöveg ellenőrzés", href: "/dashboard/real-estate/ad-check", icon: "history", desc: "Meglévő hirdetés elemzése link alapján" },
       { label: "Hirdetésszöveg generátor", href: "/dashboard/real-estate/fb-ads", icon: "flyer", desc: "Facebook + Google Ads szövegek link alapján" },
-      { label: "Szakember-kereső", href: "/dashboard/real-estate/professionals", icon: "pro", desc: "Közvetítő, ügyvéd, energetikus, kivitelező…" },
+      { label: "Szakember-kereső (béta)", href: "/dashboard/real-estate/professionals", icon: "pro", desc: "Közvetítő, ügyvéd, energetikus, kivitelező… — fejlesztés alatt" },
     ],
   },
   {
@@ -44,7 +44,7 @@ export const CATEGORIES: Category[] = [
       { label: "Alapanyagok", href: "/dashboard/hospitality/ingredients", icon: "recipe", desc: "Beszerzési árak alapanyagonként" },
       { label: "Kínálat kezelő", href: "/dashboard/hospitality/inventory", icon: "inventory", desc: "Ételek és receptjeik — a saját étlap-adatbázisod" },
       { label: "Beszállító-kereső", href: "/dashboard/hospitality/suppliers", icon: "supplier", desc: "Termelők és nagykerek belföldön vagy EU-import" },
-      { label: "Szakember-kereső", href: "/dashboard/hospitality/professionals", icon: "pro", desc: "Séf, felszolgáló, cukrász, HACCP, szerviz…" },
+      { label: "Szakember-kereső (béta)", href: "/dashboard/hospitality/professionals", icon: "pro", desc: "Séf, felszolgáló, cukrász, HACCP, szerviz… — fejlesztés alatt" },
       { label: "Önköltség & profit", href: "/dashboard/hospitality/costing", icon: "cost", desc: "Teljes önköltség, rezsi-allokáció, megtérülés" },
       { label: "Menü generátor", href: "/dashboard/hospitality/menu", icon: "menu", desc: "AI napi/heti menü a kínálatodból" },
       { label: "Árazás elemző", href: "/dashboard/hospitality/pricing", icon: "pricing", desc: "Haszonkulcs-elemzés és ár-javaslatok" },
