@@ -772,19 +772,21 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
   const anchorFix = (): P => landNarrow ? { left: left0 } as P : { right: right0 } as P;
 
   // Ugyanaz az elrendezési logika, mint a szerveren.
+  // 4:3-nál csak EGY felső hely (up1) — az up2 kitakarná a cím/alcím sávot.
+  const allowUp2 = !landNarrow;
   const pos: Record<number, P> = {};
   let k = 1;
   for (let i = count - 1; i >= 0; i--) {
     const s = slots[i] ?? "row";
     if (s === "up1") pos[i] = { ...anchorFix(), bottom: B0 + (T + gap) };
-    else if (s === "up2") pos[i] = { ...anchorFix(), bottom: B0 + 2 * (T + gap) };
+    else if (s === "up2" && allowUp2) pos[i] = { ...anchorFix(), bottom: B0 + 2 * (T + gap) };
     else { pos[i] = { ...anchorRow(k), bottom: B0 }; k++; }
   }
   const used = new Set(Object.values(slots));
   const emptySlots: Array<P & { slot: "up1" | "up2" | "row" }> = [];
   if (!used.has("up1")) emptySlots.push({ slot: "up1", ...anchorFix(), bottom: B0 + (T + gap) });
-  if (!used.has("up2") && used.has("up1")) emptySlots.push({ slot: "up2", ...anchorFix(), bottom: B0 + 2 * (T + gap) });
-  if (used.has("up1") || used.has("up2")) emptySlots.push({ slot: "row", ...anchorRow(k), bottom: B0 });
+  if (allowUp2 && !used.has("up2") && used.has("up1")) emptySlots.push({ slot: "up2", ...anchorFix(), bottom: B0 + 2 * (T + gap) });
+  if (used.has("up1") || (allowUp2 && used.has("up2"))) emptySlots.push({ slot: "row", ...anchorRow(k), bottom: B0 });
 
   const boxStyle = (p: P): React.CSSProperties => {
     const s: React.CSSProperties = {

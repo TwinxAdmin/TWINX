@@ -263,13 +263,14 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
       // 4:3: BAL-horgonyú slot rendszer — a fix kép balra lent, a többi mellette (jobbra)
       // VAGY fölé húzva (up1/up2), ugyanazzal a slot-logikával, mint a többi méret.
       const left0 = Math.round(60 * u);
+      // Csak EGY felső hely (up1) engedélyezett — a második fel (up2) kitakarná a
+      // cím/alcím sávot, ezért azt sorba (row) tesszük.
       const fixedIdx = thumbs.length - 1;
       placed.push({ i: fixedIdx, left: left0, bottom: B0 });
       let k = 1;
       for (let i = fixedIdx - 1; i >= 0; i--) {
         const slot = slots[i] ?? "row";
         if (slot === "up1") placed.push({ i, left: left0, bottom: B0 + (thumbD + gapT) });
-        else if (slot === "up2") placed.push({ i, left: left0, bottom: B0 + 2 * (thumbD + gapT) });
         else { placed.push({ i, left: left0 + k * (thumbD + gapT), bottom: B0 }); k++; }
       }
     } else {
