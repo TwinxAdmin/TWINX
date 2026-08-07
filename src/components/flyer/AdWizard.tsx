@@ -655,7 +655,7 @@ export default function AdWizard({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={preview} alt="Előnézet" draggable={false} className="mx-auto max-h-[54vh] select-none rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
                     {/* A kis képek áthelyezése: a mozgathatók felhúzhatók a jobb szélső (fix) fölé */}
-                    {images.length > 2 && !flyerGeom(sizeDef.w, sizeDef.h).land && (
+                    {images.length > 2 && !flyerGeom(sizeDef.w, sizeDef.h).wide && (
                       <ThumbSlotOverlay
                         w={sizeDef.w} h={sizeDef.h}
                         count={images.length - 2}
@@ -760,31 +760,43 @@ function ThumbSlotOverlay({ w, h, count, slots, onMove }: {
   const g = flyerGeom(w, h);
   const T = g.thumbD, gap = g.gapT, right0 = g.right0;
   const B0 = g.B0;
+  // 4:3 (fekvő, nem 16:9): a kis képek BAL-horgonyúak — a fix kép balra lent,
+  // a többi mellette jobbra VAGY fölé húzva. Máshol jobb-horgonyú (változatlan).
+  const landNarrow = g.land && !g.wide;
+  const left0 = Math.round(60 * g.u);
   const wPct = (px: number) => (px / w) * 100;
   const hPct = (px: number) => (px / h) * 100;
 
+  type P = { right?: number; left?: number; bottom: number };
+  const anchorRow = (kk: number): P => landNarrow ? { left: left0 + kk * (T + gap) } as P : { right: right0 + kk * (T + gap) } as P;
+  const anchorFix = (): P => landNarrow ? { left: left0 } as P : { right: right0 } as P;
+
   // Ugyanaz az elrendezési logika, mint a szerveren.
-  const pos: Record<number, { right: number; bottom: number }> = {};
+  const pos: Record<number, P> = {};
   let k = 1;
   for (let i = count - 1; i >= 0; i--) {
     const s = slots[i] ?? "row";
-    if (s === "up1") pos[i] = { right: right0, bottom: B0 + (T + gap) };
-    else if (s === "up2") pos[i] = { right: right0, bottom: B0 + 2 * (T + gap) };
-    else { pos[i] = { right: right0 + k * (T + gap), bottom: B0 }; k++; }
+    if (s === "up1") pos[i] = { ...anchorFix(), bottom: B0 + (T + gap) };
+    else if (s === "up2") pos[i] = { ...anchorFix(), bottom: B0 + 2 * (T + gap) };
+    else { pos[i] = { ...anchorRow(k), bottom: B0 }; k++; }
   }
   const used = new Set(Object.values(slots));
-  const emptySlots: Array<{ slot: "up1" | "up2" | "row"; right: number; bottom: number }> = [];
-  if (!used.has("up1")) emptySlots.push({ slot: "up1", right: right0, bottom: B0 + (T + gap) });
-  if (!used.has("up2") && used.has("up1")) emptySlots.push({ slot: "up2", right: right0, bottom: B0 + 2 * (T + gap) });
-  if (used.has("up1") || used.has("up2")) emptySlots.push({ slot: "row", right: right0 + k * (T + gap), bottom: B0 });
+  const emptySlots: Array<P & { slot: "up1" | "up2" | "row" }> = [];
+  if (!used.has("up1")) emptySlots.push({ slot: "up1", ...anchorFix(), bottom: B0 + (T + gap) });
+  if (!used.has("up2") && used.has("up1")) emptySlots.push({ slot: "up2", ...anchorFix(), bottom: B0 + 2 * (T + gap) });
+  if (used.has("up1") || used.has("up2")) emptySlots.push({ slot: "row", ...anchorRow(k), bottom: B0 });
 
-  const boxStyle = (p: { right: number; bottom: number }): React.CSSProperties => ({
-    position: "absolute",
-    right: `${wPct(p.right)}%`,
-    bottom: `${hPct(p.bottom)}%`,
-    width: `${wPct(T)}%`,
-    height: `${hPct(T)}%`,
-  });
+  const boxStyle = (p: P): React.CSSProperties => {
+    const s: React.CSSProperties = {
+      position: "absolute",
+      bottom: `${hPct(p.bottom)}%`,
+      width: `${wPct(T)}%`,
+      height: `${hPct(T)}%`,
+    };
+    if (p.left !== undefined) s.left = `${wPct(p.left)}%`;
+    if (p.right !== undefined) s.right = `${wPct(p.right)}%`;
+    return s;
+  };
 
   return (
     <>

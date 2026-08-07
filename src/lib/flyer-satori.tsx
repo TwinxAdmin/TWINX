@@ -253,12 +253,25 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
   const slots = o.thumbSlots ?? [];
   const placed: Array<{ i: number; right?: number; left?: number; bottom: number }> = [];
   if (thumbs.length) {
-    if (g.land) {
-      // Fekvő: BALRÓL jobbra, a fotó alján, vízszintes sorban (a bal blokk része).
+    if (g.land && g.wide) {
+      // 16:9: BALRÓL jobbra, a fotó alján, vízszintes sorban (változatlan).
       const left0 = Math.round(60 * u);
       thumbs.forEach((_, i) => {
         placed.push({ i, left: left0 + i * (thumbD + gapT), bottom: B0 });
       });
+    } else if (g.land) {
+      // 4:3: BAL-horgonyú slot rendszer — a fix kép balra lent, a többi mellette (jobbra)
+      // VAGY fölé húzva (up1/up2), ugyanazzal a slot-logikával, mint a többi méret.
+      const left0 = Math.round(60 * u);
+      const fixedIdx = thumbs.length - 1;
+      placed.push({ i: fixedIdx, left: left0, bottom: B0 });
+      let k = 1;
+      for (let i = fixedIdx - 1; i >= 0; i--) {
+        const slot = slots[i] ?? "row";
+        if (slot === "up1") placed.push({ i, left: left0, bottom: B0 + (thumbD + gapT) });
+        else if (slot === "up2") placed.push({ i, left: left0, bottom: B0 + 2 * (thumbD + gapT) });
+        else { placed.push({ i, left: left0 + k * (thumbD + gapT), bottom: B0 }); k++; }
+      }
     } else {
       const fixedIdx = thumbs.length - 1;
       placed.push({ i: fixedIdx, right: right0, bottom: B0 });
@@ -373,7 +386,7 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
     // sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
     // 16:9: szélesebb oszlop, az adatok 2×3-as RÁCSBAN (a rövidebb magasság miatt).
     const colW = Math.round((g.wide ? 380 : 300) * u);
-    const colRight = Math.round((g.wide ? 40 : 64) * u); // 16:9: teljesen a jobb szélen
+    const colRight = Math.round((g.wide ? 40 : 32) * u); // 4:3: közelebb a jobb szélhez
     if (g.wide) {
       const gcol1 = items.slice(0, 3);
       const gcol2 = items.slice(3, 6);
