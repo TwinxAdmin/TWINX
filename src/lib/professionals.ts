@@ -32,14 +32,14 @@ export const WORK_ARRANGEMENTS = [
   { value: "projekt", label: "Projekt / megbízás" },
 ] as const;
 
+// Tapasztalati szint — SZÖVEGESEN, nem konkrét évszámmal (a keresés így nem támaszkodik
+// egy adott számra, csak a szint jellegére).
 export const EXPERIENCE_LEVELS = [
   { value: "", label: "Mindegy" },
   { value: "palyakezdo", label: "Pályakezdő" },
-  { value: "1-3", label: "1–3 év" },
-  { value: "3-5", label: "3–5 év" },
-  { value: "5-10", label: "5–10 év" },
-  { value: "10+", label: "10+ év" },
-  { value: "vezeto", label: "Vezetői tapasztalat" },
+  { value: "tapasztalt", label: "Tapasztalt" },
+  { value: "rutinos", label: "Rutinos, nagy gyakorlatú" },
+  { value: "szakerto", label: "Kiemelkedő / szakértő" },
 ] as const;
 
 export const AVAILABILITY_OPTIONS = [
@@ -908,7 +908,7 @@ A "role" a pontos szakma/pozíció. A "why" egy mondatban indokolja, miért illi
 };
 
 export const PROFESSIONAL_DATA_BLOCK_PREVIEW = `Keresési feltételek:
-{szakma + szakma-specifikus instrukció + terület + körzet + munkaviszony + tapasztalat + elérhetőség + nyelv + iparág-specifikus szűrők + díjazás + egyedi igény + találatszám}`;
+{szakma + szakma-specifikus instrukció + terület + körzet + munkaviszony + tapasztalati szint + elérhetőség + nyelv + iparág-specifikus szűrők + egyedi igény + találatszám}`;
 
 // A zárolt adat-blokk összeállítása a tényleges szűrőkből + a SZAKMA saját hintjéből.
 export function composeProfessionalPrompt(
@@ -930,6 +930,8 @@ export function composeProfessionalPrompt(
 
   const lines = [
     `Keresett szakember: ${profName}.`,
+    // A LEGFONTOSABB szűrő: csak a keresett szakma, semmi rokon/helyettesítő.
+    `RELEVANCIA — a legfontosabb szabály: KIZÁRÓLAG "${profName}" szakmának megfelelő találatokat adj. Ne ajánlj más, rokon vagy helyettesítő szakmát (pl. ha takarítót keresnek, ne adj kertészt, karbantartót vagy más szolgáltatót). Ha ebből a szakmából nincs elég valódi találat, inkább adj kevesebbet — de a mennyiség kedvéért SOHA ne tölts fel más szakmával.`,
     // Szakma-specifikus, kódból jövő specializáció (később szakmánként bővíthető):
     profHint ? `Szakma-specifikus szempontok: ${profHint}` : "",
     `Terület: ${q.county}${q.city ? `, ${q.city}` : ""}`,
@@ -938,10 +940,9 @@ export function composeProfessionalPrompt(
       ? `Munkaviszony: ${label(EMPLOYMENT_TYPES, q.employment)}.`
       : "",
     q.arrangement.length ? `Foglalkoztatás: ${q.arrangement.map((a) => label(WORK_ARRANGEMENTS, a)).join(", ")}.` : "",
-    q.experience ? `Elvárt tapasztalat: ${label(EXPERIENCE_LEVELS, q.experience)}.` : "",
+    q.experience ? `Elvárt tapasztalati szint (jellegében, nem konkrét évszámra szűrve): ${label(EXPERIENCE_LEVELS, q.experience)}.` : "",
     q.availability ? `Elérhetőség: ${label(AVAILABILITY_OPTIONS, q.availability)}.` : "",
     q.languages.length ? `Nyelvtudás: ${q.languages.join(", ")}.` : "",
-    q.rate ? `Tervezett díjazás / bér keret: ${q.rate}.` : "",
   ];
 
   if (q.industry === "hospitality") {

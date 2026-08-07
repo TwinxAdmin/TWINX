@@ -10,7 +10,7 @@ import SelectField from "@/components/SelectField";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   COUNTIES, RADIUS_OPTIONS, EMPLOYMENT_TYPES, WORK_ARRANGEMENTS, EXPERIENCE_LEVELS,
-  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, RATE_PERIODS, ratePeriodLabel, PROFESSIONAL_PLANS,
+  AVAILABILITY_OPTIONS, LANGUAGE_OPTIONS, PROFESSIONAL_PLANS,
   detailFieldsFor,
   professionsForTrack, professionLabel, creditsForCount,
   type Industry, type Professional, type ProfessionalExtras,
@@ -51,8 +51,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   const [experience, setExperience] = useState("");
   const [availability, setAvailability] = useState("");
   const [language, setLanguage] = useState("");         // egy érték (legördülő)
-  const [rateAmount, setRateAmount] = useState("");     // szám
-  const [ratePeriod, setRatePeriod] = useState("ho");   // időszak (óra/nap/hét/hó)
   // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőben, szakma szerint változik).
   const [details, setDetails] = useState<Record<string, string | string[]>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -109,7 +107,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
     setRunning(true);
     setResult(null); setPdfUrl(null);
     try {
-      const rate = rateAmount.trim() ? `${rateAmount.trim()} ${ratePeriodLabel(ratePeriod)}` : "";
       const res = await fetch("/api/professionals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +115,6 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           arrangement: arrangement ? [arrangement] : [],
           experience, availability,
           languages: language ? [language] : [],
-          rate,
           details,
           customCriteria,
           count,
@@ -282,24 +278,15 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           </div>
         </div>
 
-        {/* Tapasztalat + elérhetőség + díjazás */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* Tapasztalat + elérhetőség */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tapasztalat</label>
+            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tapasztalati szint</label>
             <SelectField className="mt-1 w-full" value={experience} onChange={setExperience} options={EXPERIENCE_LEVELS.map((e) => ({ value: e.value, label: e.label }))} />
           </div>
           <div>
             <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Elérhetőség</label>
             <SelectField className="mt-1 w-full" value={availability} onChange={setAvailability} options={AVAILABILITY_OPTIONS.map((a) => ({ value: a.value, label: a.label }))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Tervezett díjazás (opc.)</label>
-            <div className="mt-1 flex gap-2">
-              <input inputMode="numeric" value={rateAmount} onChange={(e) => setRateAmount(e.target.value)} placeholder="pl. 450000"
-                className="w-28 rounded-lg border px-3 py-2 text-right text-sm" style={{ borderColor: "var(--twx-line)", background: "#fff" }} />
-              <SelectField className="flex-1" value={ratePeriod} onChange={setRatePeriod}
-                options={RATE_PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
-            </div>
           </div>
         </div>
 
@@ -572,9 +559,9 @@ function ProCard({ s, isFav, onToggleFav, sourceWhat }: {
       {[sourceWhat, s.role, s.location, s.distance].filter(Boolean).length > 0 && (
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{[sourceWhat, s.role, s.location, s.distance].filter(Boolean).join(" · ")}</p>
       )}
-      {[s.experience && `Tapasztalat: ${s.experience}`, s.availability && `Elérhető: ${s.availability}`, s.rate && `Díjazás: ${s.rate}`].filter(Boolean).length > 0 && (
+      {[s.experience && `Tapasztalat: ${s.experience}`, s.availability && `Elérhető: ${s.availability}`].filter(Boolean).length > 0 && (
         <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          {[s.experience && `Tapasztalat: ${s.experience}`, s.availability && `Elérhető: ${s.availability}`, s.rate && `Díjazás: ${s.rate}`].filter(Boolean).join("  ·  ")}
+          {[s.experience && `Tapasztalat: ${s.experience}`, s.availability && `Elérhető: ${s.availability}`].filter(Boolean).join("  ·  ")}
         </p>
       )}
       {s.why && <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{s.why}</p>}
