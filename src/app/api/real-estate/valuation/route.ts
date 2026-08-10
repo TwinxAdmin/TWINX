@@ -22,6 +22,10 @@ import {
   type VisionImage,
 } from "@/lib/property-vision";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
+import { computeValuation, type EngineResult } from "@/lib/valuation-engine";
+import {
+  loadActiveEngineConfig, buildCompsPrompt, buildSubject, parseCompsJson, composeEngineReport,
+} from "@/lib/valuation-engine-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
@@ -140,19 +144,45 @@ export async function POST(request: Request) {
     // strukturált állapot-blokk, amit a modell a lakás-korrekcióknál használ (±5% plafon).
     let conditionText: string | undefined;
     if (photoImages.length > 0) {
-      const report = await analyzePropertyPhotos(photoImages);
-      if (report) conditionText = renderConditionBlock(report);
+      const rep = await analyzePropertyPhotos(photoImages);
+      if (rep) conditionText = renderConditionBlock(rep);
     }
 
-    const prompt = await buildValuationPromptActive(input, conditionText);
-    const { content, sources } = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
-      // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság fontosabb,
-      // mint a fogalmazás változatossága (két futás ne adjon eltérő árat).
+    const sonarOpts = {
+      // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság a fontos.
       temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
       recency: VALUATION_RECENCY || undefined,
-    });
-    const report = content + sourcesSection(sources);
+    } as const;
+
+    // Az AI-becslő ág (régi mód / fallback): a válasz + források.
+    const runAiValuation = async (prefix = "") => {
+      const prompt = await buildValuationPromptActive(input, conditionText);
+      const r = await runSonarWithSources(prompt, PERPLEXITY_MODEL, sonarOpts);
+      return prefix + r.content + sourcesSection(r.sources);
+    };
+
+    // Comp-alapú MOTOR, ha az adminban be van kapcsolva; különben a régi AI-becslő.
+    const engineCfg = await loadActiveEngineConfig();
+    let report: string;
+    let engineAudit: EngineResult | null = null;
+
+    if (engineCfg.engine.mode === "on") {
+      const { content: compsRaw, sources } = await runSonarWithSources(
+        buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
+      );
+      const res = computeValuation(parseCompsJson(compsRaw), buildSubject(input), engineCfg);
+      if (res.ok) {
+        engineAudit = res;
+        report = composeEngineReport(res, input) + sourcesSection(sources);
+      } else {
+        report = await runAiValuation(
+          "> Kevés összehasonlító állt rendelkezésre, ezért tájékoztató jellegű, AI-alapú becslés készült.\n\n"
+        );
+      }
+    } else {
+      report = await runAiValuation();
+    }
 
     // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
     //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan
@@ -170,6 +200,13 @@ export async function POST(request: Request) {
       .select("id")
       .single();
     if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
+
+    // A motor levezetése (audit) az előzményhez — best-effort (ha a column létezik).
+    if (engineAudit && hist?.id) {
+      try {
+        await admin.from("usage_history").update({ valuation_audit: engineAudit }).eq("id", hist.id);
+      } catch { /* a valuation-engine.sql még nem futott — nem gond */ }
+    }
 
     // Nyers API-önköltség logolása (admin-only, best-effort).
     await logCost({

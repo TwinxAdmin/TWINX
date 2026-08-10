@@ -28,6 +28,7 @@ create policy vec_auth_select on public.valuation_engine_configs
 -- Alapértelmezett (v1) config beseedelése aktívként, ha még üres a tábla.
 insert into public.valuation_engine_configs (version, is_active, params, note)
 select 1, true, $json${
+  "engine": { "mode": "off" },
   "comp": { "size_tolerance_pct": 20, "max_age_months": 6, "same_district_only": true, "min_count": 5 },
   "outlier": { "method": "median_band", "band_pct": 25, "min_kept": 4 },
   "central": { "method": "median" },
@@ -41,3 +42,6 @@ select 1, true, $json${
   "fallback": { "enabled": true, "min_comps_for_engine": 3 }
 }$json$::jsonb, 'Alapértelmezett induló beállítás'
 where not exists (select 1 from public.valuation_engine_configs);
+
+-- A becslés levezetése (audit) az előzményhez, hogy visszanézhető legyen.
+alter table public.usage_history add column if not exists valuation_audit jsonb;
