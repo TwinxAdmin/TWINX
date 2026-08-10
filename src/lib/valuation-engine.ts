@@ -85,6 +85,25 @@ const median = (xs: number[]): number => {
 const roundTo = (v: number, step: number): number => (step > 0 ? Math.round(v / step) * step : Math.round(v));
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+const ROMAN: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100 };
+function romanToInt(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const v = ROMAN[s[i]] ?? 0; const nx = ROMAN[s[i + 1]] ?? 0;
+    n += v < nx ? -v : v;
+  }
+  return n;
+}
+/** Kerület-szám kinyerése bármilyen formából ("XIII" / "13" / "Budapest XIII. kerület" → 13). 0 = ismeretlen. */
+export function districtNum(s: string): number {
+  const t = String(s ?? "").toUpperCase();
+  const ar = t.match(/\b(\d{1,2})\b/);
+  if (ar) return Number(ar[1]);
+  const r = t.match(/\b([IVXLC]{1,6})\b/);
+  if (r) return romanToInt(r[1]);
+  return 0;
+}
+
 /** allapot / condition szöveg → config-kulcs. */
 export function conditionKey(text: string | undefined): ConditionKey {
   const t = (text ?? "").toLowerCase();
@@ -132,21 +151,40 @@ export function normalizeComps(raw: RawComp[]): Comp[] {
 export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: EngineConfig): EngineResult {
   const steps: AdjustStep[] = [];
   const all = normalizeComps(rawComps);
+  const subjDist = districtNum(subject.district);
 
-  // 1) Kemény szűrés: méret-tűrés, frissesség, kerület.
-  const tol = cfg.comp.size_tolerance_pct / 100;
-  const rows: CompRow[] = all.map((c) => {
-    let kept = true; let reason = "beszámít";
-    if (subject.sizeM2 > 0 && Math.abs(c.sizeM2 - subject.sizeM2) / subject.sizeM2 > tol) {
-      kept = false; reason = `méret eltér (>${cfg.comp.size_tolerance_pct}%)`;
-    } else if (c.ageMonths !== null && c.ageMonths > cfg.comp.max_age_months) {
-      kept = false; reason = `régi hirdetés (>${cfg.comp.max_age_months} hó)`;
-    } else if (cfg.comp.same_district_only && subject.district && c.district &&
-      c.district.toLowerCase() !== subject.district.toLowerCase()) {
-      kept = false; reason = "más kerület";
-    }
-    return { ...c, kept, reason, weight: 0 };
-  });
+  // 1) Szűrés LAZÍTÓ LÉTRÁVAL: ha kevés marad, fokozatosan enyhítünk (méret → kerület →
+  //    kor), hogy a determinisztikus motor akkor is fusson, ne essen a szórós AI-becslőre.
+  //    A kerület-egyezés FUZZY (XIII/13/Budapest XIII egyezik; ismeretlennél nem dobunk).
+  const levels = [
+    { tolMult: 1, district: cfg.comp.same_district_only, age: true, note: "" },
+    { tolMult: 1.5, district: cfg.comp.same_district_only, age: true, note: "tágabb méret-tűrés" },
+    { tolMult: 1.5, district: false, age: true, note: "kerület nélkül, tágabb méret" },
+    { tolMult: 2, district: false, age: false, note: "teljesen tágított kör" },
+  ];
+  const target = Math.max(cfg.comp.min_count, cfg.outlier.min_kept);
+  const filterAt = (lvl: (typeof levels)[number]): CompRow[] => {
+    const tol = (cfg.comp.size_tolerance_pct / 100) * lvl.tolMult;
+    return all.map((c) => {
+      const cd = districtNum(c.district);
+      let kept = true; let reason = "beszámít";
+      if (subject.sizeM2 > 0 && Math.abs(c.sizeM2 - subject.sizeM2) / subject.sizeM2 > tol) {
+        kept = false; reason = "méret eltér";
+      } else if (lvl.age && c.ageMonths !== null && c.ageMonths > cfg.comp.max_age_months) {
+        kept = false; reason = `régi hirdetés (>${cfg.comp.max_age_months} hó)`;
+      } else if (lvl.district && subjDist > 0 && cd > 0 && cd !== subjDist) {
+        kept = false; reason = "más kerület";
+      }
+      return { ...c, kept, reason, weight: 0 };
+    });
+  };
+  let rows: CompRow[] = filterAt(levels[0]);
+  let loosened = "";
+  for (const lvl of levels) {
+    rows = filterAt(lvl);
+    loosened = lvl.note;
+    if (rows.filter((r) => r.kept).length >= target) break;
+  }
 
   // 2) Outlier-trimmelés a megmaradtakon (medián-sáv).
   let pool = rows.filter((r) => r.kept);
@@ -215,6 +253,6 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
     ok: true, estimateHuf: estimate, lowHuf: low, highHuf: high,
     centralPricePerM2: Math.round(central), usedCount: pool.length,
     comps: rows, steps, fellBack: false,
-    note: `${pool.length} összehasonlító alapján, determinisztikus számítással.`,
+    note: `${pool.length} összehasonlító alapján, determinisztikus számítással.${loosened ? ` (Tágított kör: ${loosened}.)` : ""}`,
   };
 }

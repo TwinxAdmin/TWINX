@@ -109,17 +109,46 @@ export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Sub
 /** A Perplexitynek adott prompt: KIZÁRÓLAG comp-adatokat kérünk, JSON-ban. */
 export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): string {
   const size = parseSize(input.meret);
-  const tol = cfg.comp.size_tolerance_pct;
   const hely = [input.telepules, input.utca].filter(Boolean).join(", ");
+  const want = Math.max(cfg.comp.min_count + 8, 15);
   return [
-    "Te egy magyar ingatlanpiaci adatgyűjtő vagy. NE becsülj árat, NE írj elemzést.",
-    `Keress ${Math.max(cfg.comp.min_count + 5, 12)} db, a megadotthoz HASONLÓ eladó vagy nemrég eladott ingatlant a következő helyszín KÖRNYÉKÉN: ${hely}.`,
-    `Az ingatlan: ${input.tipus || "lakás"}, kb. ${size} m², ${input.szobak || "?"} szoba.`,
-    `Hasonlóság: azonos településrész/kerület, azonos típus, méret kb. ±${tol}%. Csak KONKRÉT hirdetéseket/eladásokat használj, ne általános cikkeket.`,
+    "Te egy magyar ingatlanpiaci adatgyűjtő vagy. NE becsülj árat, NE írj elemzést, NE kommentálj.",
+    `Gyűjts össze LEGALÁBB ${want} db, jelenleg ELADÓ vagy nemrég eladott, a megadotthoz HASONLÓ ingatlant erről a környékről: ${hely}.`,
+    `A vizsgált ingatlan: ${input.tipus || "lakás"}, kb. ${size} m², ${input.szobak || "?"} szoba.`,
+    "Hasonló = ugyanaz a kerület vagy közvetlen szomszédos utcák, hasonló méret (akár ±40% is jó, hogy legyen elég találat), azonos vagy hasonló típus.",
+    "MINDEN comphoz KÖTELEZŐ a valós alapterület (size_m2) ÉS a teljes ár (price_huf) — e nélkül ne vedd bele. A price_per_m2-t számold ki, ha nincs megadva.",
+    "A 'district' mezőbe a kerület SZÁMÁT írd (pl. \"13\" vagy \"XIII\"). A 'listing_date' formátuma YYYY-MM.",
+    "Legalább 8-10 KONKRÉT, valós hirdetést/eladást adj vissza forrás-URL-lel. Inkább több comp, mint kevesebb.",
     "A válaszod KIZÁRÓLAG egyetlen JSON objektum legyen, más szöveg nélkül:",
     `{"comps":[{"address":"","district":"","size_m2":0,"price_huf":0,"price_per_m2":0,"rooms":"","condition":"","floor":"","listing_date":"YYYY-MM","url":"","distance_note":""}],"notes":""}`,
-    "Fontos: minden comphoz adj forrás-URL-t; ha egy mezőt nem tudsz, hagyd üresen/0. Ne találj ki adatot.",
   ].join("\n");
+}
+
+/** Gyorsítótár-kulcs az ingatlanból (stabil, kisbetűs, ékezet/whitespace nélkül). */
+export function compsCacheKey(input: ValuationInput): string {
+  const raw = [input.telepules, input.utca, parseSize(input.meret), input.tipus].join("|").toLowerCase();
+  return raw.normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9|]/g, "");
+}
+
+/** Friss comp-halmaz a gyorsítótárból (a megadott napon belül), különben null. */
+export async function getCachedComps(key: string, days: number): Promise<RawComp[] | null> {
+  if (days <= 0) return null;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("valuation_comps_cache").select("comps, created_at").eq("cache_key", key).maybeSingle();
+    if (!data) return null;
+    const ageMs = Date.now() - new Date(data.created_at as string).getTime();
+    if (ageMs > days * 24 * 60 * 60 * 1000) return null;
+    return (data.comps as RawComp[]) ?? null;
+  } catch { return null; }
+}
+
+/** Comp-halmaz eltárolása a gyorsítótárba (best-effort). */
+export async function setCachedComps(key: string, comps: RawComp[]): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin.from("valuation_comps_cache").upsert({ cache_key: key, comps, created_at: new Date().toISOString() });
+  } catch { /* best-effort */ }
 }
 
 /** A Perplexity szövegéből kinyeri a comps tömböt (kódblokk / körítő szöveg tűrve). */

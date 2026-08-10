@@ -25,7 +25,9 @@ import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { computeValuation, type EngineResult } from "@/lib/valuation-engine";
 import {
   loadActiveEngineConfig, buildCompsPrompt, buildSubject, parseCompsJson, composeEngineReport,
+  compsCacheKey, getCachedComps, setCachedComps,
 } from "@/lib/valuation-engine-server";
+import { type RawComp } from "@/lib/valuation-engine";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
@@ -168,10 +170,20 @@ export async function POST(request: Request) {
     let engineAudit: EngineResult | null = null;
 
     if (engineCfg.engine.mode === "on") {
-      const { content: compsRaw, sources } = await runSonarWithSources(
-        buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
-      );
-      const res = computeValuation(parseCompsJson(compsRaw), buildSubject(input), engineCfg);
+      // Comp-halmaz: előbb a gyorsítótárból (→ konzisztens ismételt becslés, kevesebb hívás),
+      // különben friss Perplexity-lekérés + eltárolás.
+      const cacheKey = compsCacheKey(input);
+      let comps: RawComp[] | null = await getCachedComps(cacheKey, engineCfg.cache.comps_days);
+      let sources: SonarSource[] = [];
+      if (!comps) {
+        const { content: compsRaw, sources: s } = await runSonarWithSources(
+          buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
+        );
+        comps = parseCompsJson(compsRaw);
+        sources = s;
+        if (comps.length) await setCachedComps(cacheKey, comps);
+      }
+      const res = computeValuation(comps, buildSubject(input), engineCfg);
       if (res.ok) {
         engineAudit = res;
         report = composeEngineReport(res, input) + sourcesSection(sources);

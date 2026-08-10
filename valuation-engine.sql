@@ -45,3 +45,13 @@ where not exists (select 1 from public.valuation_engine_configs);
 
 -- A becslés levezetése (audit) az előzményhez, hogy visszanézhető legyen.
 alter table public.usage_history add column if not exists valuation_audit jsonb;
+
+-- Comp-gyorsítótár: ugyanarra az ingatlanra az ismételt lekérés ugyanabból a comp-
+-- halmazból dolgozzon (→ konzisztens becslés, kevesebb Perplexity-hívás).
+create table if not exists public.valuation_comps_cache (
+  cache_key   text primary key,
+  comps       jsonb not null,
+  created_at  timestamptz not null default now()
+);
+alter table public.valuation_comps_cache enable row level security;
+-- Írás/olvasás CSAK szerverről (service role) — nincs policy, a kliens nem éri el.
