@@ -28,7 +28,7 @@ create policy vec_auth_select on public.valuation_engine_configs
 -- Alapértelmezett (v1) config beseedelése aktívként, ha még üres a tábla.
 insert into public.valuation_engine_configs (version, is_active, params, note)
 select 1, true, $json${
-  "engine": { "mode": "off" },
+  "engine": { "mode": "on" },
   "comp": { "size_tolerance_pct": 20, "max_age_months": 6, "same_district_only": true, "min_count": 5 },
   "outlier": { "method": "median_band", "band_pct": 25, "min_kept": 4 },
   "central": { "method": "median" },

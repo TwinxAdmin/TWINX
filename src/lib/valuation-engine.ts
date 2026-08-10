@@ -20,7 +20,7 @@ export type EngineConfig = {
 };
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
-  engine: { mode: "off" },
+  engine: { mode: "on" },
   comp: { size_tolerance_pct: 20, max_age_months: 6, same_district_only: true, min_count: 5 },
   outlier: { method: "median_band", band_pct: 25, min_kept: 4 },
   central: { method: "median" },
