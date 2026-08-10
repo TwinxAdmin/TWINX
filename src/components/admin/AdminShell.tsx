@@ -25,6 +25,7 @@ const GROUPS: Group[] = [
     title: "Tartalom",
     items: [
       { href: "/admin/prompts", label: "AI promptok" },
+      { href: "/admin/valuation-engine", label: "Értékbecslő motor" },
       { href: "/admin/rejections", label: "Nem elfogadott képek" },
     ],
   },

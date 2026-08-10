@@ -11,6 +11,23 @@ import {
   type EngineConfig, type RawComp, type Subject, type EngineResult,
 } from "@/lib/valuation-engine";
 
+/** Beérkező (rész)config összefésülése a beépített alapértékkel — hiányzó kulcsok pótlása. */
+export function mergeConfig(p: Partial<EngineConfig> | undefined | null): EngineConfig {
+  const d = DEFAULT_ENGINE_CONFIG;
+  const q = (p ?? {}) as Partial<EngineConfig>;
+  return {
+    engine: { mode: q.engine?.mode === "on" ? "on" : "off" },
+    comp: { ...d.comp, ...q.comp },
+    outlier: { ...d.outlier, ...q.outlier },
+    central: { ...d.central, ...q.central },
+    adjust: { condition: { ...d.adjust.condition, ...q.adjust?.condition }, location_premium_pct: q.adjust?.location_premium_pct ?? d.adjust.location_premium_pct },
+    realism: { ...d.realism, ...q.realism },
+    rounding: { ...d.rounding, ...q.rounding },
+    cache: { ...d.cache, ...q.cache },
+    fallback: { ...d.fallback, ...q.fallback },
+  };
+}
+
 /** Aktív config a DB-ből; hiányzó csoportokat a beépített alapértékkel pótol. */
 export async function loadActiveEngineConfig(): Promise<EngineConfig> {
   try {
@@ -20,22 +37,47 @@ export async function loadActiveEngineConfig(): Promise<EngineConfig> {
       .select("params")
       .eq("is_active", true)
       .maybeSingle();
-    const p = (data?.params ?? {}) as Partial<EngineConfig>;
-    const d = DEFAULT_ENGINE_CONFIG;
-    return {
-      engine: { ...d.engine, ...p.engine },
-      comp: { ...d.comp, ...p.comp },
-      outlier: { ...d.outlier, ...p.outlier },
-      central: { ...d.central, ...p.central },
-      adjust: { condition: { ...d.adjust.condition, ...p.adjust?.condition }, location_premium_pct: p.adjust?.location_premium_pct ?? d.adjust.location_premium_pct },
-      realism: { ...d.realism, ...p.realism },
-      rounding: { ...d.rounding, ...p.rounding },
-      cache: { ...d.cache, ...p.cache },
-      fallback: { ...d.fallback, ...p.fallback },
-    };
+    return mergeConfig(data?.params as Partial<EngineConfig> | undefined);
   } catch {
     return DEFAULT_ENGINE_CONFIG;
   }
+}
+
+export type ConfigVersion = { id: string; version: number; is_active: boolean; note: string | null; created_at: string; params: EngineConfig };
+
+/** A verziók listája (legújabb elöl) + az aktív config. */
+export async function listConfigVersions(): Promise<{ active: EngineConfig; versions: ConfigVersion[] }> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("valuation_engine_configs")
+    .select("id, version, is_active, note, created_at, params")
+    .order("version", { ascending: false });
+  const versions = (data ?? []).map((r) => ({ ...r, params: mergeConfig(r.params as Partial<EngineConfig>) })) as ConfigVersion[];
+  const active = versions.find((v) => v.is_active)?.params ?? DEFAULT_ENGINE_CONFIG;
+  return { active, versions };
+}
+
+/** Új verzió mentése + aktiválása (a régi aktív kikapcsolása). */
+export async function saveNewConfigVersion(params: Partial<EngineConfig>, note?: string): Promise<{ version: number }> {
+  const admin = createAdminClient();
+  const merged = mergeConfig(params);
+  const { data: maxRow } = await admin.from("valuation_engine_configs").select("version").order("version", { ascending: false }).limit(1).maybeSingle();
+  const nextVersion = ((maxRow?.version as number) ?? 0) + 1;
+  await admin.from("valuation_engine_configs").update({ is_active: false }).eq("is_active", true);
+  await admin.from("valuation_engine_configs").insert({ version: nextVersion, is_active: true, params: merged, note: note ?? null });
+  return { version: nextVersion };
+}
+
+/** Egy korábbi verzió újraaktiválása. */
+export async function activateConfigVersion(id: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("valuation_engine_configs").update({ is_active: false }).eq("is_active", true);
+  await admin.from("valuation_engine_configs").update({ is_active: true }).eq("id", id);
+}
+
+/** Vissza a beépített alapértékre (új verzióként). */
+export async function resetConfigToDefault(): Promise<{ version: number }> {
+  return saveNewConfigVersion(DEFAULT_ENGINE_CONFIG, "Visszaállítás az alapértékre");
 }
 
 function parseSize(meret: string): number {
