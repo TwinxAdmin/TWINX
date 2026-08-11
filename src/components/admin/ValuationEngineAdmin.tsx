@@ -56,6 +56,17 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
     try { await api("activate", { id }); showToast(`A v${v} aktiválva.`, "success"); await reloadVersions(); }
     catch (e) { showToast((e as Error).message, "error"); }
   }
+  async function del(id: string, v: number) {
+    if (!confirm(`Biztosan törlöd a v${v} verziót? Ez nem vonható vissza.`)) return;
+    try { await api("delete", { id }); showToast(`A v${v} törölve.`, "success"); await reloadVersions(); }
+    catch (e) { showToast((e as Error).message, "error"); }
+  }
+  async function rename(id: string, v: number, noteVal: string) {
+    try { await api("rename", { id, note: noteVal }); showToast(`A v${v} átnevezve.`, "success"); await reloadVersions(); }
+    catch (e) { showToast((e as Error).message, "error"); }
+  }
+  // Per-sor átnevező mezők (id → szerkesztett érték).
+  const [renameDraft, setRenameDraft] = useState<Record<string, string>>({});
 
   const [note, setNote] = useState("");
 
@@ -192,13 +203,29 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
         <div className="mb-2 text-sm font-semibold">Verziók</div>
         <div className="space-y-1">
           {versions.map((v) => (
-            <div key={v.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ border: "1px solid var(--twx-line)", background: v.is_active ? "var(--twx-coral-soft)" : "#fff" }}>
-              <div className="min-w-0">
+            <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ border: "1px solid var(--twx-line)", background: v.is_active ? "var(--twx-coral-soft)" : "#fff" }}>
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="text-sm font-semibold">v{v.version}</span>
-                {v.is_active && <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ background: "var(--twx-coral)" }}>aktív</span>}
-                <span className="ml-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{v.note || "—"} · {new Date(v.created_at).toLocaleString("hu-HU")}</span>
+                {v.is_active && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-white" style={{ background: "var(--twx-coral)" }}>aktív</span>}
+                {v.is_active ? (
+                  <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{v.note || "—"}</span>
+                ) : (
+                  <input
+                    value={renameDraft[v.id] ?? v.note ?? ""}
+                    onChange={(e) => setRenameDraft((d) => ({ ...d, [v.id]: e.target.value }))}
+                    placeholder="megnevezés…"
+                    className="twx-input min-w-0 flex-1 text-xs" style={{ maxWidth: 260 }}
+                  />
+                )}
+                <span className="shrink-0 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{new Date(v.created_at).toLocaleDateString("hu-HU")}</span>
               </div>
-              {!v.is_active && <button onClick={() => activate(v.id, v.version)} disabled={busy} className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Aktiválás</button>}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {!v.is_active && (renameDraft[v.id] !== undefined && renameDraft[v.id] !== (v.note ?? "")) && (
+                  <button onClick={() => rename(v.id, v.version, renameDraft[v.id])} disabled={busy} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Átnevez</button>
+                )}
+                {!v.is_active && <button onClick={() => activate(v.id, v.version)} disabled={busy} className="rounded-lg px-3 py-1 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Aktiválás</button>}
+                {!v.is_active && <button onClick={() => del(v.id, v.version)} disabled={busy} aria-label="Törlés" className="rounded-lg px-2.5 py-1 text-xs font-semibold" style={{ border: "1px solid #f0b8ab", color: "#c0392b", background: "#fff" }}>Törlés</button>}
+              </div>
             </div>
           ))}
         </div>

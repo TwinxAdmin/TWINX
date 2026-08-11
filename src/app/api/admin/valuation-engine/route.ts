@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computeValuation, type EngineConfig, type Subject, conditionKey } from "@/lib/valuation-engine";
 import {
   listConfigVersions, saveNewConfigVersion, activateConfigVersion, resetConfigToDefault,
-  mergeConfig, parseCompsJson,
+  deleteConfigVersion, renameConfigVersion, mergeConfig, parseCompsJson,
 } from "@/lib/valuation-engine-server";
 
 export const runtime = "nodejs";
@@ -50,6 +50,16 @@ export async function POST(request: Request) {
     if (body.action === "reset") {
       const res = await resetConfigToDefault();
       return NextResponse.json({ ok: true, ...res });
+    }
+    if (body.action === "delete") {
+      if (!body.id) return NextResponse.json({ error: "Hiányzó verzió-azonosító." }, { status: 422 });
+      await deleteConfigVersion(body.id);
+      return NextResponse.json({ ok: true });
+    }
+    if (body.action === "rename") {
+      if (!body.id) return NextResponse.json({ error: "Hiányzó verzió-azonosító." }, { status: 422 });
+      await renameConfigVersion(body.id, body.note ?? "");
+      return NextResponse.json({ ok: true });
     }
     if (body.action === "dryrun") {
       const cfg = mergeConfig(body.params);

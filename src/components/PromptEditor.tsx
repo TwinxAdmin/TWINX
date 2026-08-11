@@ -108,6 +108,18 @@ export default function PromptEditor({
     }
   }
 
+  async function onDelete(id: string) {
+    if (!confirm("Biztosan törlöd ezt a verziót? Ez nem vonható vissza.")) return;
+    const ok = await post({ action: "delete", id });
+    if (ok) { setMsg("Verzió törölve."); router.refresh(); }
+  }
+
+  async function onRename(id: string, newName: string) {
+    const ok = await post({ action: "rename", id, name: newName });
+    if (ok) { setMsg("Verzió átnevezve."); router.refresh(); }
+  }
+  const [renameDraft, setRenameDraft] = useState<Record<string, string>>({});
+
   // Szegmensek + a zárolt blokk a megfelelő helyre beszúrva.
   const rendered: React.ReactNode[] = [];
   for (const s of segmentDefs) {
@@ -249,8 +261,40 @@ export default function PromptEditor({
                         Aktiválás
                       </button>
                     )}
+                    {!vrs.is_active && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(vrs.id)}
+                        disabled={busy}
+                        className="rounded-full px-3 py-1.5 text-xs font-medium"
+                        style={{ border: "1px solid #f0b8ab", color: "#c0392b", background: "var(--twx-cream-card)" }}
+                      >
+                        Törlés
+                      </button>
+                    )}
                   </div>
                 </div>
+                {!vrs.is_active && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      value={renameDraft[vrs.id] ?? vrs.name ?? ""}
+                      onChange={(e) => setRenameDraft((d) => ({ ...d, [vrs.id]: e.target.value }))}
+                      placeholder="verzió megnevezése…"
+                      className="twx-input min-w-0 flex-1 text-xs" style={{ maxWidth: 300 }}
+                    />
+                    {(renameDraft[vrs.id] !== undefined && renameDraft[vrs.id] !== (vrs.name ?? "")) && (
+                      <button
+                        type="button"
+                        onClick={() => onRename(vrs.id, renameDraft[vrs.id])}
+                        disabled={busy}
+                        className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
+                        style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                      >
+                        Átnevez
+                      </button>
+                    )}
+                  </div>
+                )}
                 {openVersion === vrs.id && (
                   <div className="mt-3 space-y-3">
                     {segmentDefs.map((s) => (

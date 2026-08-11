@@ -80,6 +80,21 @@ export async function resetConfigToDefault(): Promise<{ version: number }> {
   return saveNewConfigVersion(DEFAULT_ENGINE_CONFIG, "Visszaállítás az alapértékre");
 }
 
+/** Nem aktív verzió törlése (az aktívat nem lehet). */
+export async function deleteConfigVersion(id: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("valuation_engine_configs").select("is_active").eq("id", id).maybeSingle();
+  if (!data) throw new Error("A verzió nem található.");
+  if (data.is_active) throw new Error("Az aktív verzió nem törölhető — előbb aktíválj másikat.");
+  await admin.from("valuation_engine_configs").delete().eq("id", id);
+}
+
+/** Verzió átnevezése (a megjegyzés/címke módosítása). */
+export async function renameConfigVersion(id: string, note: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("valuation_engine_configs").update({ note: note.trim() || null }).eq("id", id);
+}
+
 function parseSize(meret: string): number {
   const m = String(meret ?? "").match(/\d+([.,]\d+)?/);
   return m ? Number(m[0].replace(",", ".")) : 0;

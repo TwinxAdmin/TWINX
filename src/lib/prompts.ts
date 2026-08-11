@@ -707,3 +707,22 @@ export async function resetToDefault(module: string): Promise<void> {
   const admin = createAdminClient();
   await admin.from("ai_prompts").update({ is_active: false }).eq("module", module);
 }
+
+// Nem aktív verzió törlése (az aktívat nem lehet).
+export async function deletePromptVersion(module: string, id: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("ai_prompts").select("is_active").eq("id", id).eq("module", module).maybeSingle();
+  if (!data) throw new Error("A verzió nem található.");
+  if (data.is_active) throw new Error("Az aktív verzió nem törölhető — előbb aktíválj másikat.");
+  const { error } = await admin.from("ai_prompts").delete().eq("id", id).eq("module", module);
+  if (error) throw new Error(error.message);
+}
+
+// Verzió átnevezése (a name mező módosítása).
+export async function renamePromptVersion(module: string, id: string, name: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("ai_prompts").update({ name: name.trim() || null }).eq("id", id).eq("module", module);
+  if (error) throw new Error(error.message);
+}

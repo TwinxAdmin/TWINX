@@ -9,6 +9,8 @@ import {
   saveNewVersion,
   activateVersion,
   resetToDefault,
+  deletePromptVersion,
+  renamePromptVersion,
   getModuleDef,
   type PromptSegments,
 } from "@/lib/prompts";
@@ -77,6 +79,18 @@ export async function POST(request: Request) {
 
     if (action === "reset") {
       await resetToDefault(module);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "delete") {
+      if (!body.id) return NextResponse.json({ error: "Hiányzó verzió-azonosító." }, { status: 422 });
+      await deletePromptVersion(module, body.id);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "rename") {
+      if (!body.id) return NextResponse.json({ error: "Hiányzó verzió-azonosító." }, { status: 422 });
+      await renamePromptVersion(module, body.id, body.name ?? "");
       return NextResponse.json({ ok: true });
     }
 
