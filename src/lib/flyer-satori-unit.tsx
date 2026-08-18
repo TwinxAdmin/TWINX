@@ -35,9 +35,11 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const labels = o.thumbLabels ?? [];
 
   // --- Sávok: a négy rész PONTOSAN kiadja a vászon magasságát ----------------
-  const heroH = Math.round(H * (g.land ? 0.28 : 0.30));
-  const bandH = Math.round(H * (g.land ? 0.20 : g.story ? 0.20 : 0.21));
-  const footH = Math.round(H * (g.story ? 0.11 : g.land ? 0.11 : 0.12));
+  // Állóban (9:16) a cím és az adattábla EGYMÁS ALATT van, ezért ott a sötét sáv
+  // magasabb — különben az utolsó adatsor beleér a világos blokkba.
+  const heroH = Math.round(H * (g.story ? 0.33 : g.land ? 0.26 : 0.28));
+  const bandH = Math.round(H * (g.story ? 0.23 : g.land ? 0.19 : 0.20));
+  const footH = Math.round(H * (g.story ? 0.10 : g.land ? 0.10 : 0.11));
   const midH = H - heroH - bandH - footH;
   const P = Math.round((g.land ? 56 : 60) * u);
   const hairOp = 0.3;
@@ -51,16 +53,33 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
     heroImg ?? undefined
   );
 
-  // Az ív a főkép aljába lóg bele, a sáv színével — így „elvágja" a fotót.
-  const curveH = Math.round(Math.min(heroH * 0.34, 150 * u));
+  // Az ív a főkép aljába lóg bele. FONTOS: nem tömör folt — alul teljesen fedő,
+  // fölfelé fokozatosan átlátszó, így a fotóból sokkal több marad látható.
+  const curveH = Math.round(Math.min(heroH * 0.46, 230 * u));
   const curvePath =
-    `M0,${curveH} L0,${Math.round(curveH * 0.58)} ` +
-    `C ${Math.round(W * 0.30)},${Math.round(curveH * 0.02)} ${Math.round(W * 0.64)},${curveH} ${W},${Math.round(curveH * 0.60)} ` +
+    `M0,${curveH} L0,${Math.round(curveH * 0.42)} ` +
+    `C ${Math.round(W * 0.30)},${Math.round(curveH * 0.02)} ${Math.round(W * 0.64)},${Math.round(curveH * 0.86)} ${W},${Math.round(curveH * 0.46)} ` +
     `L ${W},${curveH} Z`;
   const curve = React.createElement(
     "svg",
     { width: W, height: curveH, viewBox: `0 0 ${W} ${curveH}`, style: { position: "absolute", left: 0, top: heroH - curveH } },
-    React.createElement("path", { d: curvePath, fill: t.band })
+    [
+      React.createElement(
+        "defs",
+        { key: "d" },
+        React.createElement(
+          "linearGradient",
+          { id: "twxCurveFade", x1: "0", y1: "1", x2: "0", y2: "0" },
+          [
+            React.createElement("stop", { key: 0, offset: "0%", stopColor: t.band, stopOpacity: 1 }),
+            React.createElement("stop", { key: 1, offset: "42%", stopColor: t.band, stopOpacity: 0.88 }),
+            React.createElement("stop", { key: 2, offset: "78%", stopColor: t.band, stopOpacity: 0.42 }),
+            React.createElement("stop", { key: 3, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
+          ]
+        )
+      ),
+      React.createElement("path", { key: "p", d: curvePath, fill: "url(#twxCurveFade)" }),
+    ]
   );
 
   // ===========================================================================
@@ -73,8 +92,20 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
     { flexDirection: "column", width: g.story ? "100%" : Math.round((W - 2 * P) * 0.46), flexShrink: 0 },
     [
       box({ fontSize: titleFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.06, letterSpacing: Math.round(1 * u), lineClamp: 3 }, title),
+      // Állóban a pontos cím KIEMELT: jóval nagyobb és erősebb, mert telefonon
+      // ez a legfontosabb tájékozódási pont a cím alatt.
       o.text.subtitle
-        ? box({ fontSize: Math.round(22 * u), fontWeight: 400, color: t.bandInk, opacity: 0.82, marginTop: Math.round(10 * u), lineHeight: 1.3, lineClamp: 2 }, truncate(o.text.subtitle, 56))
+        ? box(
+            {
+              fontSize: g.story ? fitFs(o.text.subtitle, 40 * u, 30, 0.62) : Math.round(22 * u),
+              fontWeight: g.story ? 700 : 400,
+              color: t.bandInk,
+              opacity: g.story ? 0.96 : 0.82,
+              marginTop: Math.round((g.story ? 16 : 10) * u),
+              lineHeight: 1.28, lineClamp: 2,
+            },
+            truncate(o.text.subtitle, 56)
+          )
         : null,
     ].filter(Boolean)
   );
@@ -129,10 +160,12 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const darkBand = box(
     {
       position: "absolute", left: 0, top: heroH, width: W, height: bandH, background: t.band,
-      paddingLeft: P, paddingRight: P, paddingTop: Math.round(P * 0.5), paddingBottom: Math.round(P * 0.5),
+      overflow: "hidden",
+      paddingLeft: P, paddingRight: P,
+      paddingTop: Math.round(P * (g.story ? 0.34 : 0.5)), paddingBottom: Math.round(P * (g.story ? 0.34 : 0.5)),
       flexDirection: g.story ? "column" : "row",
       alignItems: g.story ? "stretch" : "center",
-      justifyContent: "space-between", gap: Math.round(30 * u),
+      justifyContent: g.story ? "center" : "space-between", gap: Math.round((g.story ? 18 : 30) * u),
     },
     [titleCol, priceCol]
   );
@@ -146,15 +179,59 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const gap = Math.round(20 * u);
   const capH = Math.round(34 * u); // a felirat sávja a kép alatt
 
-  const gridW = g.story ? innerW : Math.round(innerW * (g.land ? 0.64 : 0.60));
-  const overW = g.story ? innerW : innerW - gridW - Math.round(gap * 1.8);
+  // FEKVŐN (4:3) MOZAIK: balra egy NÉGYZETES nagy kép, mellette a másik kettő
+  // egymás alatt. A méreteket a rendelkezésre álló MAGASSÁGBÓL számoljuk, így a
+  // kis képek is normál arányúak maradnak (nem lapulnak csíkká).
+  const mosaic = g.land && thumbs.length >= 3;
+  const bigSide = Math.max(Math.round(120 * u), innerH - capH);
+  const smallH = Math.max(Math.round(60 * u), Math.floor((bigSide - capH - gap) / 2));
+  const smallW = Math.round(smallH * 1.45);
 
-  const cols = thumbs.length >= 3 ? 2 : thumbs.length === 2 ? 2 : 1;
+  const gridW = mosaic
+    ? bigSide + gap + smallW
+    : g.story ? innerW : Math.round(innerW * (g.land ? 0.64 : 0.60));
+  const overW = g.story
+    ? innerW
+    : Math.max(Math.round(220 * u), innerW - gridW - Math.round(gap * 1.8));
+
+  // --- Az áttekintés-blokk mérőszámai (a rács előtt kellenek: állóban a rács
+  //     csak azt a helyet kapja meg, ami az áttekintés TELJES tartalma után marad,
+  //     így ott egyetlen adat sem esik ki) ---
+  const allItems = factItems(d, sizeTxt).slice(0, 4);
+  const statIcon = Math.round((g.land ? 28 : 34) * u);
+  const statTop = Math.round((g.land ? 10 : 14) * u);
+  const statCellW = Math.floor((overW - gap) / 2);
+  const headH = Math.round(24 * u * 1.3) + Math.round(12 * u);
+  const blurbLineH = Math.round(21 * u * 1.45);
+  const statRowH = statTop + statIcon + Math.round(5 * u) + Math.round(21 * u * 1.3);
+  const hairH = Math.round(16 * u) + Math.round(4 * u) + 1;
+  const addrH = hairH + Math.round(10 * u) + Math.round(24 * u * 1.35);
+  const overBlurbRaw =
+    String(o.text.blurb ?? "").trim() ||
+      [o.text.subtitle, [sizeTxt, numOf(d.rooms) ? `${numOf(d.rooms)} szoba` : ""].filter(Boolean).join(", ")]
+        .filter(Boolean).join(" — ") ||
+      "Kérj részletes tájékoztatót és időpontot a megtekintéshez.";
+  // A leírás VALÓS sorszáma az alapméreten — ennyit foglalunk le neki.
+  const blurbLines0 = Math.min(3, Math.max(1,
+    Math.ceil(overBlurbRaw.length / Math.max(8, Math.floor(overW / (Math.round(21 * u) * 0.52))))
+  ));
+  const overWant =
+    headH + blurbLines0 * blurbLineH +
+    (allItems.length ? hairH + Math.ceil(allItems.length / 2) * statRowH : 0) +
+    addrH;
+
+  // Állóban EGY SORBAN áll a három kép — így természetes arányúak maradnak
+  // (két sorban a keskeny helyen csíkká laposodnának).
+  const cols = g.story
+    ? Math.max(1, Math.min(thumbs.length, 3))
+    : thumbs.length >= 3 ? 2 : thumbs.length === 2 ? 2 : 1;
   const rows = Math.ceil(Math.max(thumbs.length, 1) / cols);
   const cellW = Math.floor((gridW - (cols - 1) * gap) / cols);
   // A kép magassága a SZÉLESSÉGBŐL jön (természetes, 3:2 körüli arány), de a
   // rendelkezésre álló helyre korlátozva — így sem szét nem nyúlik, sem nem lóg ki.
-  const gridBudget = g.story ? Math.round(innerH * 0.62) : innerH;
+  const gridBudget = g.story
+    ? Math.max(Math.round(innerH * 0.34), innerH - overWant - Math.round(gap * 1.2))
+    : innerH;
   const picH = Math.max(
     Math.round(80 * u),
     Math.min(
@@ -163,14 +240,15 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
     )
   );
   const cellH = picH + capH;
-  const gridH = rows * cellH + (rows - 1) * gap;
+  const gridH = mosaic ? bigSide + capH : rows * cellH + (rows - 1) * gap;
 
   const FALLBACK_LABELS = ["NAPPALI", "KONYHA", "HÁLÓSZOBA", "FÜRDŐSZOBA"];
-  const gridCell = (src: string, i: number) =>
-    box({ key: `c${i}`, flexDirection: "column", width: cellW, flexShrink: 0 } as Style, [
+  /** Egy képcella: kép + alatta a helyiség felirata. */
+  const cellOf = (src: string, w: number, h: number, i: number) =>
+    box({ key: `c${i}`, flexDirection: "column", width: w, flexShrink: 0 } as Style, [
       box(
-        { key: "im", width: cellW, height: picH, overflow: "hidden", borderRadius: Math.round(6 * u), background: "#e9e5df" } as Style,
-        img(src, { width: cellW, height: picH, objectFit: "cover" })
+        { key: "im", width: w, height: h, overflow: "hidden", borderRadius: Math.round(6 * u), background: "#e9e5df" } as Style,
+        img(src, { width: w, height: h, objectFit: "cover" })
       ),
       box(
         { key: "cp", height: capH, alignItems: "center", fontSize: Math.round(18 * u), fontWeight: 700, color: "#4a4642", letterSpacing: Math.round(2 * u), whiteSpace: "nowrap" } as Style,
@@ -178,41 +256,41 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
       ),
     ]);
 
-  const gridRows: React.ReactElement[] = [];
-  for (let r = 0; r < rows; r++) {
-    const slice = thumbs.slice(r * cols, r * cols + cols);
-    if (!slice.length) break;
-    gridRows.push(
-      box({ key: `r${r}`, gap, width: gridW, marginTop: r ? gap : 0 } as Style, slice.map((s, j) => gridCell(s, r * cols + j)))
-    );
+  let grid: React.ReactElement | null = null;
+  if (mosaic) {
+    // Bal: négyzetes főkép a kisképek közül. Jobb: két kép egymás alatt,
+    // együtt pontosan a nagy kép magasságát adják ki.
+    grid = box({ gap, width: gridW, flexShrink: 0 }, [
+      cellOf(thumbs[0], bigSide, bigSide, 0),
+      box({ key: "col", flexDirection: "column", gap, width: smallW, flexShrink: 0 } as Style, [
+        cellOf(thumbs[1], smallW, smallH, 1),
+        cellOf(thumbs[2], smallW, smallH, 2),
+      ]),
+    ]);
+  } else if (thumbs.length) {
+    const gridRows: React.ReactElement[] = [];
+    for (let r = 0; r < rows; r++) {
+      const slice = thumbs.slice(r * cols, r * cols + cols);
+      if (!slice.length) break;
+      gridRows.push(
+        box({ key: `r${r}`, gap, width: gridW, marginTop: r ? gap : 0 } as Style,
+          slice.map((s, j) => cellOf(s, cellW, picH, r * cols + j)))
+      );
+    }
+    grid = box({ flexDirection: "column", width: gridW, flexShrink: 0 }, gridRows);
   }
-  const grid = thumbs.length
-    ? box({ flexDirection: "column", width: gridW, flexShrink: 0 }, gridRows)
-    : null;
 
   // --- Áttekintés-oszlop: MAGASSÁGRA illesztve -------------------------------
   // Sorrend szerint annyi fér bele, amennyi ténylegesen kifér: cím → leírás →
   // ikonos adatok → cím-sor. Ami nem fér, az kimarad (nem lóg az alsó sávba).
-  const allItems = factItems(d, sizeTxt).slice(0, 4);
-  const statIcon = Math.round(34 * u);
-  const statCellW = Math.floor((overW - gap) / 2);
   const overAvail = g.story ? innerH - gridH - Math.round(gap * 1.2) : innerH;
-  const headH = Math.round(24 * u * 1.3) + Math.round(12 * u);
-  const blurbLineH = Math.round(21 * u * 1.45);
-  const statRowH = Math.round(14 * u) + statIcon + Math.round(5 * u) + Math.round(21 * u * 1.3);
-  const hairH = Math.round(16 * u) + Math.round(4 * u) + 1;
-  const addrH = hairH + Math.round(10 * u) + Math.round(24 * u * 1.35);
 
+  // Helyfoglalás SORRENDBEN: a TÉNYADATOK élveznek elsőbbséget a leírással szemben
+  // (azok a fontos, tömör információk), de a leírás kap egy 2 soros minimumot.
+  //   1) fejléc → 2) a leírás minimuma → 3) ikonos adatok → 4) cím-sor → 5) a maradék a leírásé
   let rem = overAvail - headH;
-  const overBlurbRaw =
-    String(o.text.blurb ?? "").trim() ||
-      [o.text.subtitle, [sizeTxt, numOf(d.rooms) ? `${numOf(d.rooms)} szoba` : ""].filter(Boolean).join(", ")]
-        .filter(Boolean).join(" — ") ||
-      "Kérj részletes tájékoztatót és időpontot a megtekintéshez.";
-  // A leírásnak a maradék hely fele jut; a betűméret annyira csökken, hogy a
-  // TELJES szöveg kiférjen (nem vágjuk le a végét).
-  const par = fitParagraph(overBlurbRaw, overW, Math.round(rem * 0.5), Math.round(21 * u), Math.round(14 * u));
-  rem -= par.lines * par.lineH;
+  const minBlurbH = 2 * blurbLineH;
+  rem -= minBlurbH;
   let statRowCount = 0;
   if (rem >= hairH + statRowH) {
     statRowCount = Math.min(Math.ceil(allItems.length / 2), Math.floor((rem - hairH) / statRowH));
@@ -220,8 +298,14 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   }
   const items = allItems.slice(0, statRowCount * 2);
   const showAddr = rem >= addrH;
+  if (showAddr) rem -= addrH;
+  // A leírás a minimumon FELÜL megkapja a maradékot; a betűméret annyira csökken,
+  // hogy a teljes szöveg kiférjen (nem vágjuk le a végét).
+  const par = fitParagraph(
+    overBlurbRaw, overW, minBlurbH + Math.max(0, rem), Math.round(21 * u), Math.round(14 * u)
+  );
   const statCell = (it: { k: string; v: string }, i: number) =>
-    box({ key: `s${i}`, flexDirection: "column", width: statCellW, marginTop: Math.round(14 * u), flexShrink: 0 } as Style, [
+    box({ key: `s${i}`, flexDirection: "column", width: statCellW, marginTop: statTop, flexShrink: 0 } as Style, [
       icon(it.k, statIcon, "#4a4642", 1.6),
       box({ key: "v", fontSize: fitFs(it.v, 21 * u, 14, 0.72), fontWeight: 700, color: "#2c2926", marginTop: Math.round(5 * u), whiteSpace: "nowrap" } as Style, it.v),
     ]);
