@@ -144,7 +144,7 @@ export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): stri
 // módszertani szakaszok: korlátozások, szűrési/lazítási elvek, kizárt comp-ok.
 // (Az adatokat a folyamat továbbra is begyűjti és felhasználja — csak a kimenetből
 // hagyjuk ki.) A szakaszokat "## " címsor alapján bontjuk és a nem kívántakat kivesszük.
-const HIDE_SECTION = /korlátoz|szűrési elv|lazít|tágít|kizárt össze/i;
+const HIDE_SECTION = /korlátoz|szűrési elv|lazít|tágít|kizárt össze|súlyozás/i;
 export function stripHiddenReportSections(md: string): string {
   const parts = String(md ?? "").split(/(?=^##\s)/m);
   return parts
