@@ -17,13 +17,16 @@ import {
 } from "@/lib/flyer";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
 import ComboField from "@/components/ComboField";
+import TemplateMock from "@/components/flyer/TemplateMock";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
-  FLYER_SIZES, FLYER_TEMPLATES, getFlyerSize, flyerGeom, templateUsesThumbLabels,
+  FLYER_SIZES, FLYER_TEMPLATES, getFlyerSize, getFlyerTemplate, flyerGeom,
 } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-const STEPS = ["Arculat", "Képek", "Adatok", "Sablon", "Előnézet"] as const;
+// A SABLON tudatosan a 2. lépés: a partner előbb lássa, milyen elrendezésbe
+// kerülnek a fotók, és csak utána válasszon/töltsön fel képeket.
+const STEPS = ["Arculat", "Sablon", "Képek", "Adatok", "Méret", "Előnézet"] as const;
 const FLYER_MOOD = "luxus"; // egyetlen, prémium megjelenés (a fő szín az arculatból)
 const SIZES = FLYER_SIZES;
 
@@ -107,7 +110,6 @@ export default function AdWizard({
   // A rendernek átadott feliratok: a főkép után következő (max 3) kis kép.
   const thumbLabels = images.slice(1, 4).map((u) => roomByImage[u] ?? "");
   const thumbLabelsKey = thumbLabels.join("|"); // stabil kulcs az effect-függőséghez
-  const needsLabels = templateUsesThumbLabels(template);
 
   // 5) Előnézet — méretenként külön előnézet/elfogadás; a főkép-igazítás közös.
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -368,7 +370,7 @@ export default function AdWizard({
 
   // Az előnézet lépésre lépve / méretváltásnál az AKTUÁLIS méretet rendereli (ha még nincs).
   useEffect(() => {
-    if (step === 4 && !finals[curSize] && !previews[curSize] && !rendering) void makePreview(curSize);
+    if (step === 5 && !finals[curSize] && !previews[curSize] && !rendering) void makePreview(curSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, previewIdx, previews]);
   // Kép-változásnál minden előnézet érvénytelen; az elfogadottak (mentettek) maradnak.
@@ -390,7 +392,7 @@ export default function AdWizard({
     }));
   }
   useEffect(() => {
-    if (step === 4) { setPreviews({}); }
+    if (step === 5) { setPreviews({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroPos, slotsBySize]);
   // Sablon- vagy felirat-váltásnál minden korábbi előnézet érvénytelen.
@@ -409,9 +411,9 @@ export default function AdWizard({
         setError("Adj meg legalább egy elérhetőséget."); return;
       }
     }
-    if (step === 1 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
-    if (step === 3 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
-    if (step === 2) {
+    if (step === 2 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
+    if (step === 4 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
+    if (step === 3) {
       if (!text.title?.trim()) { setError("Adj címet a hirdetésnek."); return; }
       const tl = (text.title ?? "").trim().length;
       const sl = (text.subtitle ?? "").trim().length;
@@ -526,12 +528,28 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 2) KÉPEK */}
-          {step === 1 && (
+          {/* 3) KÉPEK */}
+          {step === 2 && (
             <div className="space-y-4">
-              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                1–{MAX_FLYER_IMAGES} kép. Az első a <strong>főkép</strong> — ez lesz a hirdetés nagy képe.
-              </p>
+              {/* Emlékeztető: melyik sablonba kerülnek a fotók */}
+              <div className="flex items-center gap-3 rounded-xl p-3"
+                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                <span className="w-16 shrink-0">
+                  <TemplateMock template={template} accent={profileData.accent_color} images={images} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>A képek ebbe kerülnek</span>
+                  <span className="block text-sm font-semibold">{getFlyerTemplate(template).label}</span>
+                  <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    1 főkép + {MAX_FLYER_IMAGES - 1} kisebb fotó
+                  </span>
+                </span>
+                <button type="button" onClick={() => setStep(1)}
+                  className="ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium"
+                  style={{ border: "1px solid var(--twx-line)" }}>
+                  Sablon csere
+                </button>
+              </div>
               <div
                 onClick={() => fileRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -681,8 +699,8 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 3) ADATOK */}
-          {step === 2 && (
+          {/* 4) ADATOK */}
+          {step === 3 && (
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-semibold">Az ingatlan adatai</p>
@@ -744,57 +762,25 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 4) SABLON + MÉRET */}
-          {step === 3 && (
+          {/* 5) MÉRET — több is választható */}
+          {step === 4 && (
             <div className="space-y-5">
-              <div>
-                <p className="text-sm font-semibold">Sablon — az elrendezés</p>
-                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  A szín és a betűtípus az arculatodból jön; a sablon csak az elrendezést
-                  határozza meg. Mindegyik minden méreten elkészül.
-                </p>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {FLYER_TEMPLATES.map((tpl) => {
-                    const on = template === tpl.value;
-                    return (
-                      <button key={tpl.value} type="button" onClick={() => setTemplate(tpl.value)}
-                        className="flex items-start gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
-                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
-                          style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
-                          {on ? "✓" : ""}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{tpl.label}</span>
-                          <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{tpl.hint}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Emlékeztető: melyik sablonba készül, kicsi előnézettel */}
+              <div className="flex items-center gap-3 rounded-xl p-3"
+                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                <span className="w-16 shrink-0">
+                  <TemplateMock template={template} accent={profileData.accent_color} images={images} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Választott sablon</span>
+                  <span className="block text-sm font-semibold">{getFlyerTemplate(template).label}</span>
+                </span>
+                <button type="button" onClick={() => setStep(1)}
+                  className="ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium"
+                  style={{ border: "1px solid var(--twx-line)" }}>
+                  Csere
+                </button>
               </div>
-
-              {/* Képfeliratok — csak a feliratos sablonnál, és csak ha van kis kép */}
-              {needsLabels && images.length > 1 && (
-                <div>
-                  <p className="text-sm font-semibold">Képfeliratok</p>
-                  <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Ezek kerülnek a kis képek alá. A Képek lépésben megadott értékek
-                    látszanak itt — bármikor módosíthatod.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {images.slice(1, 4).map((src, i) => (
-                      <div key={src + i}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt="" className="mb-1.5 aspect-[4/3] w-full rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
-                        <ComboField className="w-full" value={roomByImage[src] ?? ""}
-                          onChange={(v) => setRoom(src, v)} options={FLYER_ROOM_OPTIONS}
-                          placeholder="Melyik helyiség?" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div>
                 <p className="text-sm font-semibold">Méret — több is választható</p>
@@ -832,8 +818,46 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 5) ELŐNÉZET — lapozható a kiválasztott méretek között */}
-          {step === 4 && (
+          {/* 2) SABLON — a képfeltöltés ELŐTT, hogy a partner lássa, mibe kerülnek a fotók */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold">Válaszd ki az elrendezést</p>
+                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Előbb a sablon, utána a fotók — így már tudod, hány kép kell és hova
+                  kerülnek. A képeken <strong>minta-fotók</strong> és a te arculati színed
+                  látszik; mindhárom sablon minden méreten elkészül.
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {FLYER_TEMPLATES.map((tpl) => {
+                    const on = template === tpl.value;
+                    return (
+                      <button key={tpl.value} type="button" onClick={() => setTemplate(tpl.value)}
+                        className="rounded-xl p-2 text-left transition hover:shadow-sm"
+                        style={{ border: `2px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                        <TemplateMock template={tpl.value} accent={profileData.accent_color} images={images} />
+                        <span className="mt-2 flex items-center gap-1.5">
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                            style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
+                            {on ? "✓" : ""}
+                          </span>
+                          <span className="block text-[13px] font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{tpl.label}</span>
+                        </span>
+                        <span className="mt-1 block text-[11px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{tpl.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  Mindegyik sablon <strong>1 főképet és 3 kisebb fotót</strong> használ.
+                  A választás később is módosítható.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 6) ELŐNÉZET — lapozható a kiválasztott méretek között */}
+          {step === 5 && (
             <div className="space-y-3 text-center">
               {sizes.length > 1 && (
                 <div className="flex items-center justify-center gap-3">
