@@ -248,8 +248,8 @@ export const VALUATION_FIELDS: ValuationField[] = [
   {
     key: "szerkezet",
     label: "Szerkezet",
-    placeholder: "Válassz a listából",
-    required: true,
+    placeholder: "Válassz a listából (opcionális)",
+    required: false,
     options: STRUCTURE_OPTIONS,
   },
   {
