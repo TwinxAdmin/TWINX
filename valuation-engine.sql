@@ -34,7 +34,11 @@ select 1, true, $json${
   "central": { "method": "median" },
   "adjust": {
     "condition": { "felujitando": -12, "kozepes": 0, "jo": 4, "ujszeru": 10 },
-    "location_premium_pct": 0
+    "location_premium_pct": 0,
+    "floor_ground_pct": -3,
+    "floor_high_nolift_pct": -5,
+    "lift_pct": 2,
+    "balcony_pct": 3
   },
   "realism": { "bp_min_huf_per_m2": 1000000, "asking_to_tx_pct": -7, "correction_cap_pct": 5 },
   "rounding": { "step_huf": 100000 },

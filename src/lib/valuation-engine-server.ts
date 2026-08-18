@@ -20,7 +20,14 @@ export function mergeConfig(p: Partial<EngineConfig> | undefined | null): Engine
     comp: { ...d.comp, ...q.comp },
     outlier: { ...d.outlier, ...q.outlier },
     central: { ...d.central, ...q.central },
-    adjust: { condition: { ...d.adjust.condition, ...q.adjust?.condition }, location_premium_pct: q.adjust?.location_premium_pct ?? d.adjust.location_premium_pct },
+    adjust: {
+      condition: { ...d.adjust.condition, ...q.adjust?.condition },
+      location_premium_pct: q.adjust?.location_premium_pct ?? d.adjust.location_premium_pct,
+      floor_ground_pct: q.adjust?.floor_ground_pct ?? d.adjust.floor_ground_pct,
+      floor_high_nolift_pct: q.adjust?.floor_high_nolift_pct ?? d.adjust.floor_high_nolift_pct,
+      lift_pct: q.adjust?.lift_pct ?? d.adjust.lift_pct,
+      balcony_pct: q.adjust?.balcony_pct ?? d.adjust.balcony_pct,
+    },
     realism: { ...d.realism, ...q.realism },
     rounding: { ...d.rounding, ...q.rounding },
     cache: { ...d.cache, ...q.cache },
@@ -110,6 +117,18 @@ function districtOf(telepules: string): string {
   return "";
 }
 
+/** A lakás emelete stringből számot: Földszint/Magasföldszint/Szuterén→0, "N. emelet"→N, Tetőtér→magas (99), üres→null. */
+function parseFloorNum(emelet: string): number | null {
+  const s = String(emelet ?? "").trim().toLowerCase();
+  if (!s) return null;
+  if (/szuter[ée]n/.test(s)) return 0;
+  if (/magasf[öo]ldszint/.test(s)) return 0;
+  if (/f[öo]ldszint/.test(s)) return 0;
+  if (/tet[őo]t[ée]r/.test(s)) return 99;
+  const m = s.match(/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
 export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Subject {
   return {
     sizeM2: parseSize(input.meret),
@@ -118,6 +137,9 @@ export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Sub
     photoCorrectionPct,
     isBudapest: /budapest/i.test(input.telepules),
     district: districtOf(input.telepules),
+    floorNum: parseFloorNum(input.emelet),
+    hasLift: input.lift === "igen",
+    hasBalcony: input.erkely === "igen",
   };
 }
 
@@ -222,6 +244,8 @@ export function buildSwot(input: ValuationInput): { s: string[]; w: string[]; o:
   if (has(input.telek) && !/nincs/i.test(input.telek)) s.push(`${input.telek} telek`);
   if (/kiváló|jó/i.test(input.lokacioKategoria ?? "") || locPct > 0) s.push(`Kedvező mikrolokáció${has(input.utca) ? ` (${input.utca})` : ""}`);
   if (/tégla/i.test(input.szerkezet ?? "")) s.push("Tégla szerkezet");
+  if (input.lift === "igen") s.push("Lift az épületben");
+  if (input.erkely === "igen") s.push("Erkély / terasz");
   if (has(input.egyeb)) s.push(String(input.egyeb).slice(0, 60).trim());
   if (!s.length) s.push("Keresett településrész");
 
@@ -229,6 +253,7 @@ export function buildSwot(input: ValuationInput): { s: string[]; w: string[]; o:
   if (cond === "felujitando") w.push("Felújítandó, jelentős ráfordítás igénye");
   if (yearNum && yearNum < 1990) w.push(`${year}-es építés (idősebb ingatlan)`);
   if (size && size < 45) w.push("Kisebb alapterület");
+  { const fl = parseFloorNum(input.emelet); if (fl !== null && fl >= 3 && input.lift !== "igen") w.push("Magas emelet lift nélkül"); }
   if (!w.length) w.push("A szegmens árérzékeny lehet");
 
   if (cond === "kozepes" || cond === "felujitando") o.push("Felújítás utáni árnövekedés");

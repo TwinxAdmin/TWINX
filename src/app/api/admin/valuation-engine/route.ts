@@ -72,6 +72,9 @@ export async function POST(request: Request) {
         photoCorrectionPct: Number(s.photoCorrectionPct) || 0,
         isBudapest: s.isBudapest ?? true,
         district: String(s.district ?? ""),
+        floorNum: s.floorNum ?? null,
+        hasLift: s.hasLift ?? false,
+        hasBalcony: s.hasBalcony ?? false,
       };
       const result = computeValuation(comps, subject, cfg);
       return NextResponse.json({ ok: true, result, compsParsed: comps.length });

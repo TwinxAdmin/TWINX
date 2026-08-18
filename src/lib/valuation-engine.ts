@@ -12,6 +12,10 @@ export type EngineConfig = {
   adjust: {
     condition: { felujitando: number; kozepes: number; jo: number; ujszeru: number };
     location_premium_pct: number;
+    floor_ground_pct: number;      // földszint (jellemzően diszkont)
+    floor_high_nolift_pct: number; // magas emelet lift NÉLKÜL (diszkont)
+    lift_pct: number;              // van lift (felár)
+    balcony_pct: number;           // van erkély/terasz (felár)
   };
   realism: { bp_min_huf_per_m2: number; asking_to_tx_pct: number; correction_cap_pct: number };
   rounding: { step_huf: number };
@@ -24,7 +28,11 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   comp: { size_tolerance_pct: 20, max_age_months: 12, same_district_only: true, min_count: 5 },
   outlier: { method: "median_band", band_pct: 25, min_kept: 4 },
   central: { method: "median" },
-  adjust: { condition: { felujitando: -12, kozepes: 0, jo: 4, ujszeru: 10 }, location_premium_pct: 0 },
+  adjust: {
+    condition: { felujitando: -12, kozepes: 0, jo: 4, ujszeru: 10 },
+    location_premium_pct: 0,
+    floor_ground_pct: -3, floor_high_nolift_pct: -5, lift_pct: 2, balcony_pct: 3,
+  },
   realism: { bp_min_huf_per_m2: 1_000_000, asking_to_tx_pct: -7, correction_cap_pct: 5 },
   rounding: { step_huf: 100_000 },
   cache: { comps_days: 3 },
@@ -52,6 +60,9 @@ export type Subject = {
   photoCorrectionPct: number; // fotó-elemzésből (±), 0 ha nincs
   isBudapest: boolean;
   district: string;
+  floorNum: number | null;    // a lakás emelete (0 = földszint), null = ismeretlen
+  hasLift: boolean;
+  hasBalcony: boolean;
 };
 
 export type CompRow = Comp & { kept: boolean; reason: string; weight: number };
@@ -228,6 +239,14 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
   // 5) Állapot-korrekció (hard).
   const condPct = cfg.adjust.condition[subject.conditionKey] ?? 0;
   if (condPct) { const before = value; value *= 1 + condPct / 100; steps.push({ label: `Állapot (${subject.conditionKey})`, deltaPct: condPct, deltaHuf: Math.round(value - before) }); }
+
+  // 5b) Emelet / lift / erkély (hard) — fontos, forgalomképességet befolyásoló tényezők.
+  let flPct = 0;
+  if (subject.floorNum === 0) flPct += cfg.adjust.floor_ground_pct;
+  else if (subject.floorNum !== null && subject.floorNum >= 3 && !subject.hasLift) flPct += cfg.adjust.floor_high_nolift_pct;
+  if (subject.hasLift) flPct += cfg.adjust.lift_pct;
+  if (subject.hasBalcony) flPct += cfg.adjust.balcony_pct;
+  if (flPct) { const before = value; value *= 1 + flPct / 100; steps.push({ label: "Emelet / lift / erkély", deltaPct: flPct, deltaHuf: Math.round(value - before) }); }
 
   // 6) Soft korrekció: lokációs prémium (partner + globális) + fotó, ±plafonnal.
   const cap = cfg.realism.correction_cap_pct;

@@ -305,6 +305,18 @@ export default function ValuationPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
             const fm = fieldMem[field.key];
+            // Checkbox mező (lift, erkély): "igen" / "" érték.
+            if (field.type === "checkbox") {
+              const on = values[field.key] === "igen";
+              return (
+                <label key={field.key} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5"
+                  style={{ border: "1px solid var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                  <input type="checkbox" checked={on} onChange={(e) => setField(field.key, e.target.checked ? "igen" : "")}
+                    style={{ width: 18, height: 18, accentColor: "var(--twx-coral)" }} />
+                  <span className="text-sm font-medium">{field.label}</span>
+                </label>
+              );
+            }
             return (
             <div
               key={field.key}

@@ -8,7 +8,10 @@ export type ValuationInput = {
   tipus: string;
   meret: string;
   telek: string;
-  szint: string;
+  szint: string;   // az épület összes szintje
+  emelet: string;  // hányadik emeleten van a lakás
+  lift: string;    // "igen" = van lift, "" = nincs (checkbox)
+  erkely: string;  // "igen" = van erkély/terasz, "" = nincs (checkbox)
   szobak: string;
   furdok: string;
   epitesEve: string;
@@ -29,6 +32,9 @@ export const EMPTY_VALUATION: ValuationInput = {
   meret: "",
   telek: "",
   szint: "",
+  emelet: "",
+  lift: "",
+  erkely: "",
   szobak: "",
   furdok: "",
   epitesEve: "",
@@ -48,7 +54,37 @@ export type ValuationField = {
   required: boolean;
   fullWidth?: boolean;
   options?: string[]; // datalist javaslatok
+  type?: "checkbox"; // ha checkbox: "igen"/"" értékkel
 };
+
+// Az épület összes szintje (nem az emelet, ahol a lakás van).
+export const BUILDING_LEVEL_OPTIONS = [
+  "Földszintes",
+  "1 emeletes",
+  "2 emeletes",
+  "3 emeletes",
+  "4 emeletes",
+  "5-9 emeletes",
+  "10 vagy több emeletes",
+];
+
+// A lakás emelete (hányadik emeleten van).
+export const APARTMENT_FLOOR_OPTIONS = [
+  "Földszint",
+  "Magasföldszint",
+  "Szuterén / Alagsor",
+  "1. emelet",
+  "2. emelet",
+  "3. emelet",
+  "4. emelet",
+  "5. emelet",
+  "6. emelet",
+  "7. emelet",
+  "8. emelet",
+  "9. emelet",
+  "10. emelet vagy feljebb",
+  "Tetőtér",
+];
 
 // --- Választható opciók (a Hirdetéskészítő is ezekből dolgozik — ne duplázzuk!) ---
 export const PROPERTY_TYPE_OPTIONS = [
@@ -210,10 +246,31 @@ export const VALUATION_FIELDS: ValuationField[] = [
   },
   {
     key: "szint",
-    label: "Épület szintje / Szintek száma",
+    label: "Épület összes szintje",
+    placeholder: "Válassz a listából",
+    required: false,
+    options: BUILDING_LEVEL_OPTIONS,
+  },
+  {
+    key: "emelet",
+    label: "Hányadik emeleten van a lakás",
     placeholder: "Válassz a listából",
     required: true,
-    options: FLOOR_OPTIONS,
+    options: APARTMENT_FLOOR_OPTIONS,
+  },
+  {
+    key: "lift",
+    label: "Van lift az épületben",
+    placeholder: "",
+    required: false,
+    type: "checkbox",
+  },
+  {
+    key: "erkely",
+    label: "Van erkély / terasz",
+    placeholder: "",
+    required: false,
+    type: "checkbox",
   },
   {
     key: "szobak",
@@ -352,7 +409,10 @@ export function valuationDataBlock(input: ValuationInput): string {
 - Típus: ${vv(input.tipus)}
 - Méret (lakóterület): ${vv(input.meret)}
 - Telek terület: ${vv(input.telek)}
-- Szintek száma / Épület szintje: ${vv(input.szint)}
+- Épület összes szintje: ${vv(input.szint)}
+- A lakás emelete: ${vv(input.emelet)}
+- Lift: ${input.lift === "igen" ? "van" : "nincs"}
+- Erkély / terasz: ${input.erkely === "igen" ? "van" : "nincs"}
 - Szobák száma: ${vv(input.szobak)}
 - Fürdőszobák/mellékhelyiségek száma: ${vv(input.furdok)}
 - Építés éve: ${vv(input.epitesEve)}

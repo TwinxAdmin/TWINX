@@ -169,6 +169,10 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
         <NumRow label="Állapot: jó" help="szorzó · alap: +4%" value={cfg.adjust.condition.jo} onChange={(n) => updCond({ jo: n })} suffix="%" />
         <NumRow label="Állapot: újszerű" help="szorzó · alap: +10%" value={cfg.adjust.condition.ujszeru} onChange={(n) => updCond({ ujszeru: n })} suffix="%" />
         <NumRow label="Lokációs prémium (globális)" help="mikro-lokáció felár/diszkont · alap: 0%" value={cfg.adjust.location_premium_pct} onChange={(n) => upd("adjust", { location_premium_pct: n })} suffix="%" />
+        <NumRow label="Földszint" help="földszint/szuterén korrekció · alap: −3%" value={cfg.adjust.floor_ground_pct} onChange={(n) => upd("adjust", { floor_ground_pct: n })} suffix="%" />
+        <NumRow label="Magas emelet lift nélkül" help="3.+ emelet lift nélkül · alap: −5%" value={cfg.adjust.floor_high_nolift_pct} onChange={(n) => upd("adjust", { floor_high_nolift_pct: n })} suffix="%" />
+        <NumRow label="Lift az épületben" help="felár, ha van lift · alap: +2%" value={cfg.adjust.lift_pct} onChange={(n) => upd("adjust", { lift_pct: n })} suffix="%" />
+        <NumRow label="Erkély / terasz" help="felár, ha van erkély · alap: +3%" value={cfg.adjust.balcony_pct} onChange={(n) => upd("adjust", { balcony_pct: n })} suffix="%" />
         <NumRow label="Hirdetési → tranzakciós" help="alku-diszkont a hirdetési árhoz · alap: −7%" value={cfg.realism.asking_to_tx_pct} onChange={(n) => upd("realism", { asking_to_tx_pct: n })} suffix="%" />
         <NumRow label="Korrekciós plafon" help="a lokáció+fotó korrekció max hatása · alap: ±5%" value={cfg.realism.correction_cap_pct} onChange={(n) => upd("realism", { correction_cap_pct: n })} suffix="%" />
         <NumRow label="BP Ft/m² minimum" help="budapesti alsó realitás-küszöb · alap: 1 000 000" value={cfg.realism.bp_min_huf_per_m2} onChange={(n) => upd("realism", { bp_min_huf_per_m2: n })} />
