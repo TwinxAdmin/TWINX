@@ -1,0 +1,18 @@
+{
+  "//": "Csak a minta-hirdetések generálásához: a sablon-buildereket CommonJS-re fordítja.",
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "esnext"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "outDir": "../.samples-build",
+    "rootDir": "..",
+    "baseUrl": "..",
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["../src/lib/flyer-satori.tsx"]
+}

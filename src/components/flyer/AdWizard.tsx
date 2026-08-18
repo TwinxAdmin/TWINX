@@ -17,16 +17,19 @@ import {
 } from "@/lib/flyer";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
 import ComboField from "@/components/ComboField";
-import TemplateMock from "@/components/flyer/TemplateMock";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import {
   FLYER_SIZES, FLYER_TEMPLATES, getFlyerSize, getFlyerTemplate, flyerGeom,
 } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-// A SABLON tudatosan a 2. lépés: a partner előbb lássa, milyen elrendezésbe
-// kerülnek a fotók, és csak utána válasszon/töltsön fel képeket.
-const STEPS = ["Arculat", "Sablon", "Képek", "Adatok", "Méret", "Előnézet"] as const;
+// A MEGJELENÉS (sablon + méret) tudatosan az ELSŐ lépés: a partner előbb lássa
+// kész minta-hirdetéseken, mibe vág bele, és csak utána adjon meg bármit.
+const STEPS = ["Megjelenés", "Arculat", "Képek", "Adatok", "Előnézet"] as const;
+
+/** A legyártott minta-hirdetés útvonala (scripts/build-flyer-samples.mjs). */
+const sampleSrc = (template: string, size: string) =>
+  `/flyer-samples/${template}-${size.replace(":", "x")}.png`;
 const FLYER_MOOD = "luxus"; // egyetlen, prémium megjelenés (a fő szín az arculatból)
 const SIZES = FLYER_SIZES;
 
@@ -101,6 +104,14 @@ export default function AdWizard({
   const mood = FLYER_MOOD;
   const [template, setTemplate] = useState<string>(FLYER_TEMPLATES[0].value);
   const [sizes, setSizes] = useState<string[]>([SIZES[0].value]);
+  // Melyik méretet MUTATJUK a minta-előnézetben (független attól, mi készül el).
+  const [previewSize, setPreviewSize] = useState<string>(SIZES[0].value);
+  // Lapozás a BEJELÖLT méretek között (nyilakkal), ha több is készül.
+  const shownIdx = Math.max(0, sizes.indexOf(previewSize));
+  const stepPreview = (d: number) => {
+    if (sizes.length < 2) return;
+    setPreviewSize(sizes[(shownIdx + d + sizes.length) % sizes.length]);
+  };
   // A képek helyiség-feliratai. KÉP SZERINT tároljuk (nem sorszám szerint), így
   // átrendezésnél és törlésnél is a helyes képhez tapadnak. A partner a Képek
   // lépésben megadhatja, a gépi felismerés pedig kitölti az üreseket.
@@ -370,7 +381,7 @@ export default function AdWizard({
 
   // Az előnézet lépésre lépve / méretváltásnál az AKTUÁLIS méretet rendereli (ha még nincs).
   useEffect(() => {
-    if (step === 5 && !finals[curSize] && !previews[curSize] && !rendering) void makePreview(curSize);
+    if (step === 4 && !finals[curSize] && !previews[curSize] && !rendering) void makePreview(curSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, previewIdx, previews]);
   // Kép-változásnál minden előnézet érvénytelen; az elfogadottak (mentettek) maradnak.
@@ -392,7 +403,7 @@ export default function AdWizard({
     }));
   }
   useEffect(() => {
-    if (step === 5) { setPreviews({}); }
+    if (step === 4) { setPreviews({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroPos, slotsBySize]);
   // Sablon- vagy felirat-váltásnál minden korábbi előnézet érvénytelen.
@@ -402,7 +413,8 @@ export default function AdWizard({
   }, [template, thumbLabelsKey, blurb]);
 
   function next() {
-    if (step === 0) {
+    if (step === 0 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
+    if (step === 1) {
       if (brandMode === "saved" && !profileId) { setError("Válassz arculatot."); return; }
       if (brandMode === "quick" && !quick.display_name.trim() && !quick.company.trim()) {
         setError("Adj meg egy nevet vagy cégnevet."); return;
@@ -412,7 +424,6 @@ export default function AdWizard({
       }
     }
     if (step === 2 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
-    if (step === 4 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
     if (step === 3) {
       if (!text.title?.trim()) { setError("Adj címet a hirdetésnek."); return; }
       const tl = (text.title ?? "").trim().length;
@@ -462,8 +473,122 @@ export default function AdWizard({
 
         {/* Tartalom */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {/* 1) ARCULAT */}
+          {/* 1) MEGJELENÉS — sablon ÉS méret egy helyen, kész minta-hirdetéssel */}
           {step === 0 && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Milyen hirdetést szeretnél?</p>
+                <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Válaszd ki az elrendezést és a méretet — a jobb oldalon egy{" "}
+                  <strong>kész minta-hirdetés</strong> mutatja, pontosan mit fogsz kapni.
+                  A te fotóiddal, színeddel és adataiddal ugyanilyen készül.
+                </p>
+              </div>
+
+              {/* Méret-fülek: kiválasztás (mi készüljön el) + az előnézet váltása */}
+              <div className="flex flex-wrap items-center gap-2">
+                {SIZES.map((s) => {
+                  const on = sizes.includes(s.value);
+                  const shown = previewSize === s.value;
+                  return (
+                    <button key={s.value} type="button"
+                      onClick={() => {
+                        setPreviewSize(s.value);
+                        setSizes((prev) =>
+                          prev.includes(s.value)
+                            ? (prev.length > 1 ? prev.filter((v) => v !== s.value) : prev)
+                            : SIZES.map((x) => x.value).filter((v) => prev.includes(v) || v === s.value)
+                        );
+                      }}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-left transition"
+                      style={{
+                        border: `${shown ? 2 : 1}px solid ${shown ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                        background: on ? "var(--twx-coral-soft)" : "#fff",
+                      }}>
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px] font-bold"
+                        style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
+                        {on ? "✓" : ""}
+                      </span>
+                      <span>
+                        <span className="block text-[13px] font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{s.label}</span>
+                        <span className="block text-[10px]" style={{ color: "var(--twx-ink-muted)" }}>{s.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  A pipálva lévő méretek készülnek el ({FLYER_CREDITS} kredit / méret).
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1.15fr]">
+                {/* BAL: sablonok — ugyanabban a méretben, hogy összehasonlítható legyen */}
+                <div className="space-y-2">
+                  {FLYER_TEMPLATES.map((tpl) => {
+                    const on = template === tpl.value;
+                    return (
+                      <button key={tpl.value} type="button" onClick={() => setTemplate(tpl.value)}
+                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:shadow-sm"
+                        style={{ border: `2px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={sampleSrc(tpl.value, previewSize)} alt=""
+                          className="w-16 shrink-0 rounded-md object-cover"
+                          style={{ border: "1px solid rgba(0,0,0,0.10)" }} />
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                              style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
+                              {on ? "✓" : ""}
+                            </span>
+                            <span className="text-[13px] font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{tpl.label}</span>
+                          </span>
+                          <span className="mt-0.5 block text-[11px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{tpl.hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    Mindegyik sablon <strong>1 főképet és {MAX_FLYER_IMAGES - 1} kisebb fotót</strong> használ.
+                  </p>
+                </div>
+
+                {/* JOBB: nagy minta-hirdetés a választott sablon + méret szerint */}
+                <div className="rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold">{getFlyerTemplate(template).label}</span>
+                    {sizes.length > 1 ? (
+                      <span className="flex items-center gap-1">
+                        <button type="button" aria-label="Előző méret" onClick={() => stepPreview(-1)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                          style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>‹</button>
+                        <span className="min-w-[6.5rem] text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                          {getFlyerSize(previewSize).label} · {shownIdx + 1}/{sizes.length}
+                        </span>
+                        <button type="button" aria-label="Következő méret" onClick={() => stepPreview(1)}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-sm"
+                          style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>›</button>
+                      </span>
+                    ) : (
+                      <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{getFlyerSize(previewSize).label}</span>
+                    )}
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img key={`${template}-${previewSize}`} src={sampleSrc(template, previewSize)} alt="Minta-hirdetés"
+                    className="mx-auto mt-2 max-h-[46vh] w-auto rounded-lg"
+                    style={{ border: "1px solid rgba(0,0,0,0.12)", boxShadow: "0 6px 20px rgba(0,0,0,0.10)" }} />
+                  <p className="mt-2 text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {sizes.length > 1
+                      ? "A nyilakkal végignézheted a bejelölt méreteket. "
+                      : ""}
+                    Minta-hirdetés — a valódi a te fotóiddal, arculati színeddel és adataiddal készül.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2) ARCULAT */}
+          {step === 1 && (
             <div className="space-y-4">
               <div className="flex gap-2">
                 <button type="button" onClick={() => setBrandMode("saved")} disabled={!profiles.length}
@@ -534,9 +659,10 @@ export default function AdWizard({
               {/* Emlékeztető: melyik sablonba kerülnek a fotók */}
               <div className="flex items-center gap-3 rounded-xl p-3"
                 style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                <span className="w-16 shrink-0">
-                  <TemplateMock template={template} accent={profileData.accent_color} images={images} />
-                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={sampleSrc(template, previewSize)} alt=""
+                  className="w-14 shrink-0 rounded-md object-cover"
+                  style={{ border: "1px solid rgba(0,0,0,0.10)" }} />
                 <span className="min-w-0">
                   <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>A képek ebbe kerülnek</span>
                   <span className="block text-sm font-semibold">{getFlyerTemplate(template).label}</span>
@@ -544,7 +670,7 @@ export default function AdWizard({
                     1 főkép + {MAX_FLYER_IMAGES - 1} kisebb fotó
                   </span>
                 </span>
-                <button type="button" onClick={() => setStep(1)}
+                <button type="button" onClick={() => setStep(0)}
                   className="ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium"
                   style={{ border: "1px solid var(--twx-line)" }}>
                   Sablon csere
@@ -762,102 +888,8 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 5) MÉRET — több is választható */}
+          {/* 5) ELŐNÉZET — lapozható a kiválasztott méretek között */}
           {step === 4 && (
-            <div className="space-y-5">
-              {/* Emlékeztető: melyik sablonba készül, kicsi előnézettel */}
-              <div className="flex items-center gap-3 rounded-xl p-3"
-                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                <span className="w-16 shrink-0">
-                  <TemplateMock template={template} accent={profileData.accent_color} images={images} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Választott sablon</span>
-                  <span className="block text-sm font-semibold">{getFlyerTemplate(template).label}</span>
-                </span>
-                <button type="button" onClick={() => setStep(1)}
-                  className="ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium"
-                  style={{ border: "1px solid var(--twx-line)" }}>
-                  Csere
-                </button>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold">Méret — több is választható</p>
-                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Jelöld be, mely méretek készüljenek el. Mindegyik külön előnézetet kap, és
-                  méretenként {FLYER_CREDITS} kreditért fogadhatod el.
-                </p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {SIZES.map((s) => {
-                    const on = sizes.includes(s.value);
-                    return (
-                      <button key={s.value} type="button"
-                        onClick={() =>
-                          setSizes((prev) =>
-                            prev.includes(s.value)
-                              ? prev.filter((v) => v !== s.value)
-                              : SIZES.map((x) => x.value).filter((v) => prev.includes(v) || v === s.value)
-                          )
-                        }
-                        className="flex items-center gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
-                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[12px] font-bold"
-                          style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
-                          {on ? "✓" : ""}
-                        </span>
-                        <span>
-                          <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{s.label}</span>
-                          <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{s.hint}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 2) SABLON — a képfeltöltés ELŐTT, hogy a partner lássa, mibe kerülnek a fotók */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-sm font-semibold">Válaszd ki az elrendezést</p>
-                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Előbb a sablon, utána a fotók — így már tudod, hány kép kell és hova
-                  kerülnek. A képeken <strong>minta-fotók</strong> és a te arculati színed
-                  látszik; mindhárom sablon minden méreten elkészül.
-                </p>
-                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {FLYER_TEMPLATES.map((tpl) => {
-                    const on = template === tpl.value;
-                    return (
-                      <button key={tpl.value} type="button" onClick={() => setTemplate(tpl.value)}
-                        className="rounded-xl p-2 text-left transition hover:shadow-sm"
-                        style={{ border: `2px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <TemplateMock template={tpl.value} accent={profileData.accent_color} images={images} />
-                        <span className="mt-2 flex items-center gap-1.5">
-                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                            style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
-                            {on ? "✓" : ""}
-                          </span>
-                          <span className="block text-[13px] font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{tpl.label}</span>
-                        </span>
-                        <span className="mt-1 block text-[11px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{tpl.hint}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-3 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  Mindegyik sablon <strong>1 főképet és 3 kisebb fotót</strong> használ.
-                  A választás később is módosítható.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* 6) ELŐNÉZET — lapozható a kiválasztott méretek között */}
-          {step === 5 && (
             <div className="space-y-3 text-center">
               {sizes.length > 1 && (
                 <div className="flex items-center justify-center gap-3">

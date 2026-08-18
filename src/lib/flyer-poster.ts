@@ -28,12 +28,10 @@ export function getFlyerMood(v: string): FlyerMood {
 // méretenként rendeződik át (lásd a builderek `g.story` / `g.land` ágait).
 export type FlyerTemplate = { value: string; label: string; hint: string };
 
+// A sorrend a választóban is ez — az ELSŐ elem az alapértelmezett sablon.
+// A `value` mezőket NE írjuk át: ezek kerülnek a mentett hirdetésekbe és a
+// minta-képek fájlnevébe is (public/flyer-samples/<value>-<méret>.png).
 export const FLYER_TEMPLATES: FlyerTemplate[] = [
-  {
-    value: "premium",
-    label: "Prémium — teljes képes",
-    hint: "Nagy főkép a teljes felületen, ár-pecsét, ikonos adatsáv.",
-  },
   {
     value: "openhouse",
     label: "Magazin — kiemelt előnyök",
@@ -43,6 +41,11 @@ export const FLYER_TEMPLATES: FlyerTemplate[] = [
     value: "unit",
     label: "Adatlap — ívelt fejléc",
     hint: "Ívelt aljú főkép, ár + adattábla, feliratozott képrács és áttekintés.",
+  },
+  {
+    value: "premium",
+    label: "Fotó-fókusz — teljes képes",
+    hint: "A főkép tölti ki a teljes felületet, ár-pecséttel és ikonos adatsávval.",
   },
 ];
 

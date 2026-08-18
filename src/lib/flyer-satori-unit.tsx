@@ -94,26 +94,43 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // A cím oszlopa FIX szélességű — a betűméretet ehhez igazítjuk, hogy a hosszú
   // településnevek (pl. „SZÉKESFEHÉRVÁRON") se lógjanak át a jobb oldali adatokra.
   const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.46);
-  const titleFs = fitHeadline(title, titleColW, 72 * u * titleK, 24 * u, 3, 0.75);
+
+  // Állóban a pontos cím KIEMELT: jóval nagyobb és erősebb, mert telefonon
+  // ez a legfontosabb tájékozódási pont a cím alatt.
+  const subTxt = truncate(o.text.subtitle ?? "", 56);
+  const subFs = subTxt
+    ? (g.story
+        ? fitHeadline(subTxt, titleColW, 40 * u, 20 * u, 2, 0.62)
+        : fitHeadline(subTxt, titleColW, 22 * u, 14 * u, 2, 0.58))
+    : 0;
+  const subTop = Math.round((g.story ? 16 : 10) * u);
+  const subH = subTxt ? Math.round(subFs * 1.32) + subTop : 0;
+
+  // A cím MAGASSÁGRA is illesztve: a sávban rendelkezésre álló hely alapján
+  // választjuk a sorszámot (3 → 2 → 1), és ahhoz a betűméretet. Enélkül a
+  // hosszú, háromsoros cím felül/alul levágódna a sötét sávban.
+  const bandPadY = Math.round(P * (g.story ? 0.34 : 0.5));
+  const availTitleH = Math.max(Math.round(30 * u), bandH - 2 * bandPadY - subH);
+  let titleFs = Math.round(24 * u);
+  for (const maxLines of [3, 2, 1]) {
+    const fs = fitHeadline(title, titleColW, 72 * u * titleK, 24 * u, maxLines, 0.75);
+    const perLine = Math.max(1, Math.floor((titleColW * 0.97) / (fs * 0.75)));
+    const lines = Math.max(1, Math.ceil(title.length / perLine));
+    titleFs = fs;
+    if (lines * Math.round(fs * 1.1) <= availTitleH) break;
+  }
+
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
     [
-      box({ fontSize: titleFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.06, letterSpacing: Math.round(1 * u), lineClamp: 3 }, title),
-      // Állóban a pontos cím KIEMELT: jóval nagyobb és erősebb, mert telefonon
-      // ez a legfontosabb tájékozódási pont a cím alatt.
-      o.text.subtitle
+      box({ fontSize: titleFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.06, letterSpacing: Math.round(1 * u) }, title),
+      subTxt
         ? box(
             {
-              fontSize: g.story
-                ? fitHeadline(o.text.subtitle, titleColW, 40 * u, 20 * u, 2, 0.62)
-                : fitHeadline(o.text.subtitle, titleColW, 22 * u, 14 * u, 2, 0.58),
-              fontWeight: g.story ? 700 : 400,
-              color: t.bandInk,
-              opacity: g.story ? 0.96 : 0.82,
-              marginTop: Math.round((g.story ? 16 : 10) * u),
-              lineHeight: 1.28, lineClamp: 2,
+              fontSize: subFs, fontWeight: g.story ? 700 : 400, color: t.bandInk,
+              opacity: g.story ? 0.96 : 0.82, marginTop: subTop, lineHeight: 1.28,
             },
-            truncate(o.text.subtitle, 56)
+            subTxt
           )
         : null,
     ].filter(Boolean)
