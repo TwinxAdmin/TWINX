@@ -155,6 +155,9 @@ export async function POST(request: Request) {
       temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
       recency: VALUATION_RECENCY || undefined,
+      // Belső időkorlát a Vercel-futásidő (maxDuration=60) alatt: így időtúllépéskor
+      // is lefut a lenti catch → kredit-visszatérítés, tiszta hibaüzenettel.
+      timeoutMs: 50_000,
     } as const;
 
     // Az AI-becslő ág (régi mód / fallback): a válasz + források.

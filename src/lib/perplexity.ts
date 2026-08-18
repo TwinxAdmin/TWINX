@@ -142,7 +142,7 @@ export type SonarSource = { title: string; url: string; date?: string };
 export async function runSonarWithSources(
   prompt: string,
   model: string,
-  opts?: { temperature?: number; domains?: string[]; recency?: SonarRecency }
+  opts?: { temperature?: number; domains?: string[]; recency?: SonarRecency; timeoutMs?: number }
 ): Promise<{ content: string; sources: SonarSource[] }> {
   const apiKey = apiKeyOrThrow();
   const body: Record<string, unknown> = {
@@ -153,11 +153,27 @@ export async function runSonarWithSources(
   if (opts?.domains?.length) body.search_domain_filter = opts.domains.slice(0, 20);
   if (opts?.recency) body.search_recency_filter = opts.recency;
 
-  const res = await fetch(`${PPLX_BASE}/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // Belső időkorlát: a hívás előbb dobjon tiszta hibát, mint hogy a szerverless
+  // futásidő-limit megölje a folyamatot (így a hívó catch-ága lefut — pl. kredit-visszatérítés).
+  const ctrl = new AbortController();
+  const timeoutMs = opts?.timeoutMs ?? 0;
+  const timer = timeoutMs > 0 ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  let res: Response;
+  try {
+    res = await fetch(`${PPLX_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") {
+      throw new Error(`Az adatlekérés túllépte az időkorlátot (${Math.round(timeoutMs / 1000)} mp).`);
+    }
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
