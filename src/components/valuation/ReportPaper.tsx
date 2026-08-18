@@ -583,7 +583,11 @@ export default function ReportPaper({
   tools?: SectionTools;
   forPdf?: boolean;
 }) {
-  const visible = forPdf ? doc.sections.filter((s) => !s.hidden) : doc.sections;
+  // A kiemelt ár-/érték-szakaszok FELÜL, kártyaként jelennek meg (Highlights) —
+  // ezért a törzsből kihagyjuk őket, hogy ne duplázódjanak.
+  const HERO_HEADINGS = /^(becsült\s*piaci\s*érték|kínálati\s*ár|hirdetett\s*eladási\s*ár|gyors\s*eladási\s*ár|értéksáv|átlagos\s*nm-?ár|négyzetméterár|piaci\s*ár)\s*$/i;
+  const visible = (forPdf ? doc.sections.filter((s) => !s.hidden) : doc.sections)
+    .filter((s) => !HERO_HEADINGS.test(s.heading.trim()));
   const editingIntro = tools?.editingId === "__intro";
 
   return (

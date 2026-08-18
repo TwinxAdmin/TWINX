@@ -202,17 +202,69 @@ export function parseCompsJson(raw: string): RawComp[] {
 
 const ft = (n: number) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
 
+const has = (v: unknown): boolean => {
+  const s = String(v ?? "").trim();
+  return Boolean(s) && !/^nincs|n\/a|^-+$/i.test(s);
+};
+
+/** Determinisztikus SWOT az űrlap-adatokból (ugyanaz a bemenet → ugyanaz a SWOT). */
+export function buildSwot(input: ValuationInput): { s: string[]; w: string[]; o: string[]; t: string[] } {
+  const size = parseSize(input.meret);
+  const cond = conditionKey(input.allapot);
+  const year = (input.epitesEve ?? "").match(/\d{4}/)?.[0];
+  const yearNum = year ? Number(year) : 0;
+  const locPct = Number(String(input.lokacioSzazalek ?? "").replace(/[^\d.-]/g, "")) || 0;
+  const s: string[] = [], w: string[] = [], o: string[] = [], t: string[] = [];
+
+  if (size) s.push(`${size} m² alapterület`);
+  if (has(input.szobak)) s.push(String(input.szobak).trim());
+  if (cond === "jo" || cond === "ujszeru") s.push(`${input.allapot} állapot`.trim());
+  if (has(input.telek) && !/nincs/i.test(input.telek)) s.push(`${input.telek} telek`);
+  if (/kiváló|jó/i.test(input.lokacioKategoria ?? "") || locPct > 0) s.push(`Kedvező mikrolokáció${has(input.utca) ? ` (${input.utca})` : ""}`);
+  if (/tégla/i.test(input.szerkezet ?? "")) s.push("Tégla szerkezet");
+  if (has(input.egyeb)) s.push(String(input.egyeb).slice(0, 60).trim());
+  if (!s.length) s.push("Keresett településrész");
+
+  if (cond === "kozepes") w.push("Közepes állapot, korszerűsítési igény");
+  if (cond === "felujitando") w.push("Felújítandó, jelentős ráfordítás igénye");
+  if (yearNum && yearNum < 1990) w.push(`${year}-es építés (idősebb ingatlan)`);
+  if (size && size < 45) w.push("Kisebb alapterület");
+  if (!w.length) w.push("A szegmens árérzékeny lehet");
+
+  if (cond === "kozepes" || cond === "felujitando") o.push("Felújítás utáni árnövekedés");
+  if ((size && size >= 75) || /[3-9]|több/i.test(input.szobak ?? "")) o.push("Vonzó a családos vevők számára");
+  o.push("Bérbeadási / befektetési potenciál a lokáció alapján");
+
+  if (cond === "kozepes" || cond === "felujitando") t.push("Azonnal lakható, jobb állapotú alternatívák versenye");
+  if (/osztatlan|haszonélvez|\bper\b|teher/i.test(input.jogi ?? "")) t.push("A jogi helyzet szűkítheti a vevőkört");
+  t.push("Piaci árváltozás és a kamatkörnyezet hatása");
+
+  return { s, w, o, t };
+}
+const swotList = (xs: string[]) => xs.filter(Boolean).map((x) => `- ${x}`).join("\n");
+
 /** A motor eredményéből a riport-parserrel kompatibilis, szerkeszthető markdown. */
-export function composeEngineReport(res: EngineResult, input: ValuationInput): string {
+export function composeEngineReport(res: EngineResult, input: ValuationInput, cfg: EngineConfig): string {
   const used = res.comps.filter((c) => c.kept);
   const size = parseSize(input.meret);
+  const step = cfg.rounding.step_huf || 1000;
+  const round = (v: number) => Math.round(v / step) * step;
+  const estimate = res.estimateHuf;
+  // Három ártier: kínálati (magasabb, hirdethető) → hirdetett/reális → gyors eladási.
+  const asking = round(estimate / (1 + cfg.realism.asking_to_tx_pct / 100));
+  const quick = round(estimate * 0.92);
+
   const lines: string[] = [];
-  lines.push(`## Becsült piaci érték`, ft(res.estimateHuf), "");
+  // FELÜL: a kiemelt árak.
+  lines.push(`## Becsült piaci érték`, ft(estimate), "");
+  lines.push(`## Kínálati ár`, ft(asking), "");
+  lines.push(`## Hirdetett eladási ár`, ft(estimate), "");
+  lines.push(`## Gyors eladási ár`, ft(quick), "");
   lines.push(`## Értéksáv`, `${ft(res.lowHuf)} – ${ft(res.highHuf)}`, "");
   lines.push(`## Átlagos nm-ár`, `${res.centralPricePerM2.toLocaleString("hu-HU")} Ft/m²`, "");
   lines.push(
     `## Rövid összefoglaló`,
-    `A becslés ${used.length} hasonló, a környéken talált ingatlan négyzetméterárának mediánjából indul (${res.centralPricePerM2.toLocaleString("hu-HU")} Ft/m²), amelyet a lakás mérete (${size} m²), állapota és a piaci korrekciók módosítanak. A számítás determinisztikus és átlátható — a levezetés lentebb látható.`,
+    `A becslés ${used.length} hasonló, a környéken talált ingatlan négyzetméterárának mediánjából indul (${res.centralPricePerM2.toLocaleString("hu-HU")} Ft/m²), amelyet a lakás mérete (${size} m²), állapota és a piaci korrekciók módosítanak. A számítás determinisztikus és átlátható.`,
     "",
   );
   lines.push(`## Összehasonlító ingatlanok`);
@@ -231,5 +283,14 @@ export function composeEngineReport(res: EngineResult, input: ValuationInput): s
     lines.push("", `## Kizárt összehasonlítók`);
     for (const c of excluded) lines.push(`- ${c.address || "ismeretlen"} — ${c.reason}`);
   }
+  // LEGALUL: SWOT-analízis.
+  const sw = buildSwot(input);
+  lines.push(
+    "", `## SWOT-analízis`,
+    `**Erősség:**`, swotList(sw.s),
+    `**Gyengeség:**`, swotList(sw.w),
+    `**Lehetőség:**`, swotList(sw.o),
+    `**Kockázat:**`, swotList(sw.t),
+  );
   return lines.join("\n");
 }

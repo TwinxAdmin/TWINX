@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       const res = computeValuation(comps, buildSubject(input), engineCfg);
       if (res.ok) {
         engineAudit = res;
-        report = composeEngineReport(res, input) + sourcesSection(sources);
+        report = composeEngineReport(res, input, engineCfg) + sourcesSection(sources);
       } else {
         report = await runAiValuation(
           "> Kevés összehasonlító állt rendelkezésre, ezért tájékoztató jellegű, AI-alapú becslés készült.\n\n"

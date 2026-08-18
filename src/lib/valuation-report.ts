@@ -346,13 +346,15 @@ function tryParseStored(raw: string, facts: ValuationFacts): ReportDoc | null {
 }
 
 const HIGHLIGHT_RULES: { test: RegExp; label: string; accent?: boolean }[] = [
-  // Új struktúra (2026-08): Becsült piaci érték + Értéksáv
+  // Új struktúra (2026-08): Becsült piaci érték + a három ártier felül
   { test: /becsült\s*piaci\s*érték|piaci\s*érték/i, label: "Becsült piaci érték", accent: true },
+  { test: /kínálati\s*ár/i, label: "Kínálati ár" },
+  { test: /hirdetett\s*eladási/i, label: "Hirdetett eladási ár" },
+  { test: /gyors\s*eladási/i, label: "Gyors eladási ár" },
   { test: /értéksáv/i, label: "Értéksáv" },
+  { test: /négyzetméterár|nm-?ár/i, label: "Átlagos nm-ár" },
   // Visszamenőleges kompatibilitás a korábbi riportokkal
   { test: /piaci\s*ár/i, label: "Piaci ár", accent: true },
-  { test: /négyzetméterár|nm-?ár/i, label: "Átlagos nm-ár" },
-  { test: /gyors\s*eladási/i, label: "Gyors eladási ár" },
   { test: /eladási\s*idő/i, label: "Várható eladási idő" },
 ];
 
