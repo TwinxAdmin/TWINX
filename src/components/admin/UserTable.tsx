@@ -10,7 +10,7 @@ import CreditGrantDialog from "@/components/admin/CreditGrantDialog";
 import { showToast } from "@/components/Toast";
 import type { UserMetric } from "@/lib/metrics";
 
-type SortKey = "name" | "uses" | "cost" | "revenue";
+type SortKey = "name" | "balance" | "uses" | "cost" | "revenue";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 
@@ -90,6 +90,8 @@ export default function UserTable({
     const sorted = [...filtered];
     if (sort === "name") {
       sorted.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, "hu", { sensitivity: "base" }));
+    } else if (sort === "balance") {
+      sorted.sort((a, b) => b.balance - a.balance);
     } else if (sort === "uses") {
       sorted.sort((a, b) => b.uses - a.uses);
     } else if (sort === "cost") {
@@ -102,6 +104,7 @@ export default function UserTable({
 
   const totals = useMemo(
     () => ({
+      balance: rows.reduce((s, u) => s + u.balance, 0),
       uses: rows.reduce((s, u) => s + u.uses, 0),
       cost: rows.reduce((s, u) => s + u.costUsd, 0) * hufPerUsd,
       revenue: rows.reduce((s, u) => s + u.revenueHuf, 0),
@@ -145,6 +148,7 @@ export default function UserTable({
               <th className="pb-2 text-left text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                 Szerep
               </th>
+              <Th k="balance" label="Egyenleg" right />
               <Th k="uses" label="Generálás" right />
               <Th k="cost" label="Költség" right />
               <Th k="revenue" label="Bevétel" right />
@@ -173,6 +177,11 @@ export default function UserTable({
                   )}
                 </td>
                 <td className="py-2.5 pr-3"><RolePicker u={u} /></td>
+                {/* AKTUÁLIS kredit-egyenleg — a 0 kiemelve, mert az blokkolja a partnert. */}
+                <td className="py-2.5 text-right font-bold"
+                  style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>
+                  {u.balance}
+                </td>
                 <td className="py-2.5 text-right font-medium">{u.uses}</td>
                 <td className="py-2.5 text-right">{huf(u.costUsd * hufPerUsd)}</td>
                 <td className="py-2.5 text-right">{huf(u.revenueHuf)}</td>
@@ -186,7 +195,7 @@ export default function UserTable({
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={6} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              <tr><td colSpan={7} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Nincs találat.
               </td></tr>
             )}
@@ -195,6 +204,7 @@ export default function UserTable({
             <tfoot>
               <tr>
                 <td className="pt-3 text-xs font-semibold" colSpan={2}>Összesen</td>
+                <td className="pt-3 text-right text-xs font-semibold">{totals.balance}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{totals.uses}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.revenue)}</td>
@@ -214,6 +224,8 @@ export default function UserTable({
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
             <div className="mt-2"><RolePicker u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
+              <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
+              <span className="text-right font-bold" style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>{u.balance}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Generálás</span><span className="text-right font-medium">{u.uses}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Költség</span><span className="text-right">{huf(u.costUsd * hufPerUsd)}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Bevétel</span><span className="text-right">{huf(u.revenueHuf)}</span>

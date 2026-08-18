@@ -33,6 +33,7 @@ export type UserMetric = {
   email: string;
   role: string;
   createdAt: string | null; // regisztráció (rendezéshez)
+  balance: number; // AKTUÁLIS kredit-egyenleg (wallets.balance) — időszaktól független
   uses: number; // összes generálás (usage_history)
   costUsd: number; // becsült API-önköltség
   revenueHuf: number; // tőle származó bevétel
@@ -72,7 +73,13 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
     cq = cq.gte("created_at", sinceIso);
     pq = pq.gte("created_at", sinceIso);
   }
-  const [{ data: uh }, { data: costs }, { data: purch }] = await Promise.all([uhq, cq, pq]);
+  // Az EGYENLEG mindig az aktuális állapot — az időszak-szűrés rá nem vonatkozik.
+  const wq = admin.from("wallets").select("user_id, balance");
+  const [{ data: uh }, { data: costs }, { data: purch }, { data: wallets }] =
+    await Promise.all([uhq, cq, pq, wq]);
+  const balanceById = new Map<string, number>(
+    (wallets ?? []).map((w) => [w.user_id as string, Number(w.balance) || 0])
+  );
 
   const rows = new Map<string, UserMetric>();
   const featMap = new Map<string, Map<string, number>>();
@@ -86,6 +93,7 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
         email: emailById.get(id) ?? "—",
         role: roleById.get(id) ?? "user",
         createdAt: createdById.get(id) ?? null,
+        balance: balanceById.get(id) ?? 0,
         uses: 0,
         costUsd: 0,
         revenueHuf: 0,
