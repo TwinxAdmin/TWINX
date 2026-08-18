@@ -288,8 +288,8 @@ export const VALUATION_FIELDS: ValuationField[] = [
   {
     key: "jogi",
     label: "Jogi háttér / Tulajdoni viszonyok",
-    placeholder: "Válassz a listából",
-    required: true,
+    placeholder: "Válassz a listából (opcionális)",
+    required: false,
     options: [
       "1/1 tulajdon, tehermentes",
       "1/1 tulajdon, banki hitellel terhelt",
