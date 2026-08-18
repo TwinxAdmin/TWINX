@@ -10,7 +10,8 @@ import {
   buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts,
 } from "@/lib/flyer-poster";
 import {
-  box, img, onColor, compact, numOf, icon, factItems, heroFill, fitFs, fitParagraph, type Style,
+  box, img, onColor, compact, numOf, icon, factItems, heroFill, fitFs, fitHeadline, fitParagraph,
+  type Style,
 } from "@/lib/flyer-satori-kit";
 
 /** Helyiség-felirat szépítése: verzál, ékezethelyesen, rövidítve. */
@@ -71,10 +72,13 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
           "linearGradient",
           { id: "twxCurveFade", x1: "0", y1: "1", x2: "0", y2: "0" },
           [
+            // Alul tömör, de MÁR ALACSONYAN elkezd világosodni: az átmenet a sáv
+            // közelébe húzódik, a fotó felső része szinte érintetlen marad.
             React.createElement("stop", { key: 0, offset: "0%", stopColor: t.band, stopOpacity: 1 }),
-            React.createElement("stop", { key: 1, offset: "42%", stopColor: t.band, stopOpacity: 0.88 }),
-            React.createElement("stop", { key: 2, offset: "78%", stopColor: t.band, stopOpacity: 0.42 }),
-            React.createElement("stop", { key: 3, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
+            React.createElement("stop", { key: 1, offset: "16%", stopColor: t.band, stopOpacity: 0.9 }),
+            React.createElement("stop", { key: 2, offset: "42%", stopColor: t.band, stopOpacity: 0.4 }),
+            React.createElement("stop", { key: 3, offset: "70%", stopColor: t.band, stopOpacity: 0.1 }),
+            React.createElement("stop", { key: 4, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
           ]
         )
       ),
@@ -87,9 +91,12 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // ===========================================================================
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 46);
   const titleK = g.story ? 1.0 : g.land ? 0.84 : 0.94;
-  const titleFs = Math.round(fitFs(title, 72 * u * titleK, 22, 0.5));
+  // A cím oszlopa FIX szélességű — a betűméretet ehhez igazítjuk, hogy a hosszú
+  // településnevek (pl. „SZÉKESFEHÉRVÁRON") se lógjanak át a jobb oldali adatokra.
+  const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.46);
+  const titleFs = fitHeadline(title, titleColW, 72 * u * titleK, 26 * u, 3, 0.62);
   const titleCol = box(
-    { flexDirection: "column", width: g.story ? "100%" : Math.round((W - 2 * P) * 0.46), flexShrink: 0 },
+    { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
     [
       box({ fontSize: titleFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.06, letterSpacing: Math.round(1 * u), lineClamp: 3 }, title),
       // Állóban a pontos cím KIEMELT: jóval nagyobb és erősebb, mert telefonon
@@ -97,7 +104,9 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
       o.text.subtitle
         ? box(
             {
-              fontSize: g.story ? fitFs(o.text.subtitle, 40 * u, 30, 0.62) : Math.round(22 * u),
+              fontSize: g.story
+                ? fitHeadline(o.text.subtitle, titleColW, 40 * u, 22 * u, 2, 0.55)
+                : fitHeadline(o.text.subtitle, titleColW, 22 * u, 15 * u, 2, 0.52),
               fontWeight: g.story ? 700 : 400,
               color: t.bandInk,
               opacity: g.story ? 0.96 : 0.82,

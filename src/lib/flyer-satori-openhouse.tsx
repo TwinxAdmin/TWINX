@@ -10,7 +10,8 @@ import {
   buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts,
 } from "@/lib/flyer-poster";
 import {
-  box, img, onColor, compact, numOf, icon, checkBox, heroFill, fitFs, fitParagraph, type Style,
+  box, img, onColor, compact, numOf, icon, checkBox, heroFill, fitFs, fitHeadline, fitParagraph,
+  type Style,
 } from "@/lib/flyer-satori-kit";
 
 export function buildOpenHouseElement(o: RenderOpts, family: string): React.ReactElement {
@@ -45,10 +46,13 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 40);
   const subtitle = truncate(o.text.subtitle, 64);
   const titleK = g.story ? 1.06 : g.land ? 0.9 : 1;
-  const titleFs = Math.round(fitFs(title, 86 * u * titleK, 20, 0.52));
+  // A cím oszlopa fix szélességű — a betűméret ehhez igazodik, hogy a hosszú
+  // szavak (településnevek) ne lógjanak át a jobb oldali ár-blokkra.
+  const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.58);
+  const titleFs = fitHeadline(title, titleColW, 86 * u * titleK, 30 * u, 2, 0.62);
 
   const titleCol = box(
-    { flexDirection: "column", width: g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.58) },
+    { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
     [
       box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.02, letterSpacing: Math.round(1 * u), lineClamp: 2, textShadow: "0 2px 18px rgba(0,0,0,0.5)" }, title),
       subtitle

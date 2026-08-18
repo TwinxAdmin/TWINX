@@ -70,6 +70,9 @@ export default function AdWizard({
   const [dragOver, setDragOver] = useState(false);
   const [arranging, setArranging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Az üres kiegészítő-helyek tallózója + a húzás alatt kiemelt hely indexe.
+  const slotRef = useRef<HTMLInputElement>(null);
+  const [slotDragOver, setSlotDragOver] = useState<number | null>(null);
 
   // 3) Adatok + szöveg
   const [facts, setFacts] = useState<FlyerFacts>({ ...EMPTY_FACTS });
@@ -589,17 +592,53 @@ export default function AdWizard({
                 </div>
               )}
 
-              {/* KIEGÉSZÍTŐ KÉPEK — helyiség megadásával */}
-              {images.length > 1 && (
+              {/* KIEGÉSZÍTŐ KÉPEK — a főkép után AZONNAL látszik mind a 3 hely,
+                  üresen is, hogy egyértelmű legyen: ide még jöhet 3 fotó. */}
+              {images.length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold">Kiegészítő képek</p>
+                  <p className="text-sm font-semibold">
+                    Kiegészítő képek <span style={{ color: "var(--twx-ink-muted)" }}>({images.length - 1}/{MAX_FLYER_IMAGES - 1})</span>
+                  </p>
                   <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Add meg, melyik helyiség látszik a képen — így nem a véletlenre bízzuk.
-                    Bármikor módosíthatod, és az „AI elrendezés" is kitölti az üreseket.
+                    Húzz ide még {MAX_FLYER_IMAGES - 1} fotót, és add meg, melyik helyiség
+                    látszik rajtuk — így nem a véletlenre bízzuk. Bármikor módosíthatod.
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {images.slice(1).map((src, k) => {
+                    {Array.from({ length: MAX_FLYER_IMAGES - 1 }).map((_, k) => {
                       const i = k + 1; // az images tömbbeli valódi index
+                      const src = images[i];
+
+                      // ÜRES HELY: ide húzható vagy kattintással tallózható a fotó.
+                      if (!src) {
+                        const on = slotDragOver === i;
+                        return (
+                          <button
+                            key={`slot${i}`}
+                            type="button"
+                            onClick={() => slotRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setSlotDragOver(i); }}
+                            onDragLeave={() => setSlotDragOver(null)}
+                            onDrop={(e) => {
+                              e.preventDefault(); setSlotDragOver(null);
+                              const url = readTwxDragUrl(e.dataTransfer);
+                              if (url) { addUrl(url); return; }
+                              addFiles(e.dataTransfer.files);
+                            }}
+                            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-xs transition-colors"
+                            style={{
+                              borderColor: on ? "var(--twx-coral)" : "var(--twx-line)",
+                              background: on ? "rgba(239,122,90,0.08)" : "#fff",
+                              color: on ? "var(--twx-coral)" : "var(--twx-ink-muted)",
+                            }}
+                          >
+                            <span className="text-xl leading-none">+</span>
+                            <span className="font-medium">{k + 2}. kép</span>
+                            <span className="text-[10px]">húzd ide vagy tallózz</span>
+                          </button>
+                        );
+                      }
+
+                      // KITÖLTÖTT HELY: kép + helyiség + vezérlők.
                       return (
                         <div key={src + i} className="rounded-xl bg-white p-2"
                           style={{ border: "1px solid var(--twx-line)" }}>
@@ -630,6 +669,8 @@ export default function AdWizard({
                       );
                     })}
                   </div>
+                  <input ref={slotRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+                    onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
                   <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                     A feliratok az <strong>Adatlap</strong> sablonon jelennek meg a képek alatt.
                   </p>

@@ -197,6 +197,29 @@ export function fitParagraph(
 }
 
 /**
+ * Főcím betűmérete egy ADOTT SZÉLESSÉGŰ oszlophoz.
+ *
+ * Két korlátot néz:
+ *  1. a LEGHOSSZABB SZÓ férjen ki egy sorba (szó közben nincs törés — ez okozza
+ *     a hosszú településneveknél, pl. „SZÉKESFEHÉRVÁRON", a jobb oldali blokkba lógást),
+ *  2. a teljes szöveg férjen bele a megengedett sorszámba.
+ * `charW`: az átlagos karakterszélesség a betűméret arányában (verzál félkövér ≈ 0,62).
+ */
+export function fitHeadline(
+  text: string, boxW: number, baseFs: number, minFs: number, maxLines = 3, charW = 0.62
+): number {
+  const t = String(text ?? "").trim();
+  const base = Math.round(baseFs);
+  if (!t || boxW <= 0) return base;
+  const avail = boxW * 0.97; // apró biztonsági ráhagyás
+  const longestWord = t.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 1);
+  const byWord = Math.floor(avail / (longestWord * charW));
+  const perLine = Math.max(1, Math.ceil(t.length / Math.max(1, maxLines)));
+  const byLines = Math.floor(avail / (perLine * charW));
+  return Math.max(Math.round(minFs), Math.min(base, byWord, byLines));
+}
+
+/**
  * Betűméret hosszhoz igazítva: a `base` méret arányosan csökken, ha a szöveg
  * hosszabb a referenciánál — így a fix dobozokból sosem lóg ki.
  */
