@@ -25,7 +25,7 @@ import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { computeValuation, type EngineResult } from "@/lib/valuation-engine";
 import {
   loadActiveEngineConfig, buildCompsPrompt, buildSubject, parseCompsJson, composeEngineReport,
-  compsCacheKey, getCachedComps, setCachedComps,
+  compsCacheKey, getCachedComps, setCachedComps, stripHiddenReportSections,
 } from "@/lib/valuation-engine-server";
 import { type RawComp } from "@/lib/valuation-engine";
 
@@ -195,6 +195,10 @@ export async function POST(request: Request) {
     } else {
       report = await runAiValuation();
     }
+
+    // A partnernek szánt kimenetből kivesszük a belső, módszertani szakaszokat
+    // (korlátozások, szűrési/lazítási elvek, kizárt comp-ok) — a PDF-ben ne látszódjanak.
+    report = stripHiddenReportSections(report);
 
     // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
     //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan

@@ -140,6 +140,23 @@ export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): stri
   ].join("\n");
 }
 
+// A partnernek szánt riportból (és így a PDF-ből) NE jelenjenek meg a belső,
+// módszertani szakaszok: korlátozások, szűrési/lazítási elvek, kizárt comp-ok.
+// (Az adatokat a folyamat továbbra is begyűjti és felhasználja — csak a kimenetből
+// hagyjuk ki.) A szakaszokat "## " címsor alapján bontjuk és a nem kívántakat kivesszük.
+const HIDE_SECTION = /korlátoz|szűrési elv|lazít|tágít|kizárt össze/i;
+export function stripHiddenReportSections(md: string): string {
+  const parts = String(md ?? "").split(/(?=^##\s)/m);
+  return parts
+    .filter((p) => {
+      const m = p.match(/^##\s*(.+)/);
+      return !m || !HIDE_SECTION.test(m[1]);
+    })
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Gyorsítótár-kulcs az ingatlanból (stabil, kisbetűs, ékezet/whitespace nélkül). */
 export function compsCacheKey(input: ValuationInput): string {
   const raw = [input.telepules, input.utca, parseSize(input.meret), input.tipus].join("|").toLowerCase();
