@@ -29,9 +29,9 @@ const CATEGORIES: {
     modules: [
       "Ingatlan értékbecslés",
       "Telek ellenőrzés",
+      "Hirdetéskép készítő",
       "Látványtervező",
       "Videó",
-      "Hirdetéskészítő",
     ],
   },
   {

@@ -57,7 +57,7 @@ export default function FlyerHistoryPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro
-        eyebrow="Hirdetéskészítő · Archívum"
+        eyebrow="Hirdetéskép készítő · Archívum"
         title="Korábbi hirdetések"
         subtitle="A hirdetéseid hónap szerinti mappákba rendezve. Nyiss meg egy mappát, és ott megnézheted, letöltheted, másik mappába helyezheted vagy törölheted őket."
         icon="history"

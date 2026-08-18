@@ -31,10 +31,10 @@ export default function MobileNav({
       items: c.modules as Item[],
     })),
     {
-      title: "Hirdetéskészítő",
+      title: "Hirdetéskép készítő",
       items: [
-        { label: "Hirdetés készítése", href: "/dashboard/flyer", icon: "flyer" },
-        { label: "Korábbi hirdetések", href: "/dashboard/flyer/history", icon: "history" },
+        { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer" },
+        { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history" },
         { label: "Arculatok", href: "/dashboard/branding", icon: "branding" },
       ],
     },

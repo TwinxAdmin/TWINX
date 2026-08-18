@@ -1,4 +1,5 @@
-// dashboard/flyer — Hirdetéskészítő: rövid indítóoldal + varázsló ablak.
+// dashboard/flyer — Hirdetéskép készítő: rövid indítóoldal + varázsló ablak.
+// (Az útvonal és a belső azonosítók maradnak "flyer" — csak a megjelenő név változott.)
 // A hirdetés lépésről lépésre készül: Arculat → Képek → Adatok → Stílus → Előnézet.
 // A hirdetést kódból rajzoljuk (nincs AI): a fotókat sablonba rendezzük, a feliratokat élesen írjuk rá.
 "use client";
@@ -60,27 +61,27 @@ export default function FlyerPage() {
     <main className="mx-auto max-w-4xl space-y-6">
       <ModuleIntro
         eyebrow="Ingatlan · Marketing"
-        title="Hirdetéskészítő"
-        subtitle={`Profi, márkázott ingatlanhirdetés percek alatt: tölts fel 1–${MAX_FLYER_IMAGES} képet, add meg az adatokat, a többit a Twinx elvégzi. Az előnézet ingyenes, csak az elfogadott hirdetés kerül kreditbe.`}
+        title="Hirdetéskép készítő"
+        subtitle={`Kész, posztolható hirdetéskép percek alatt: válaszd ki a sablont és a méretet, tölts fel 1–${MAX_FLYER_IMAGES} fotót, add meg az adatokat — a képet a Twinx rajzolja meg. Az előnézet ingyenes, csak az elfogadott kép kerül kreditbe.`}
         icon="flyer"
-        chips={["Kész sablon", "Saját arculat", "Social méretek"]}
+        chips={["Posztolásra kész kép", "Saját arculat", "Instagram · Facebook · portál"]}
       />
 
       <section className="twx-card flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="font-display text-lg font-semibold">Új hirdetés</h2>
+          <h2 className="font-display text-lg font-semibold">Új hirdetéskép</h2>
           <p className="mt-0.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Öt lépés, néhány perc. Arculat nélkül is működik — a neved és elérhetőséged elég.
+            Öt lépés, néhány perc. Az elsőben kész mintákon látod, milyen képet fogsz kapni.
           </p>
         </div>
         <button type="button" onClick={() => setOpen(true)}
           className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
-          Hirdetés készítése
+          Hirdetéskép készítése
         </button>
       </section>
 
       <section className="twx-card p-5 sm:p-6">
-        <h3 className="mb-3 text-sm font-semibold">Korábbi hirdetéseim</h3>
+        <h3 className="mb-3 text-sm font-semibold">Korábbi hirdetésképeim</h3>
         {loading ? (
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
         ) : (

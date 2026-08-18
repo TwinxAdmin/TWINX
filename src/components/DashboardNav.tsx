@@ -160,8 +160,8 @@ export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   const flyerItems: Item[] = [
-    { label: "Hirdetés készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Új, márkázott ingatlanhirdetés" },
-    { label: "Korábbi hirdetések", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült hirdetéseid mappákba rendezve" },
+    { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott hirdetéskép — posztolásra kész" },
+    { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült hirdetésképeid mappákba rendezve" },
     { label: "Arculatok", href: "/dashboard/branding", icon: "branding", desc: "Logó, szín, ügynök-adatok" },
   ];
 
@@ -202,7 +202,7 @@ export default function DashboardNav() {
 
       <NavDropdown
         id="hirdetes"
-        label="Hirdetéskészítő"
+        label="Hirdetéskép készítő"
         items={flyerItems}
         isOpen={open === "hirdetes"}
         onToggle={() => setOpen(open === "hirdetes" ? null : "hirdetes")}
