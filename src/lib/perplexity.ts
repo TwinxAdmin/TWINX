@@ -45,10 +45,9 @@ export const HU_PROPERTY_DOMAINS: string[] = (
   .map((d) => d.trim())
   .filter(Boolean);
 
-// A források frissessége. Alapból nincs szűrő (undefined): az aktív hirdetésoldalak
-// dátuma bizonytalan, egy szűrő könnyen kinullázná a találatokat — az "aktív"
-// követelményt a prompt kéri. Env-ből bekapcsolható (pl. "month").
-export const VALUATION_RECENCY = (process.env.VALUATION_SEARCH_RECENCY || "") as
+// A források frissessége: alapból az ELMÚLT 1 ÉV ("year") — így nem jöhet vissza régi
+// (pl. 2014-es) forrás. Env-ből felülírható (pl. "month" szigorúbbra, vagy "" a szűrő ki).
+export const VALUATION_RECENCY = ((process.env.VALUATION_SEARCH_RECENCY ?? "year") || "") as
   | SonarRecency
   | "";
 

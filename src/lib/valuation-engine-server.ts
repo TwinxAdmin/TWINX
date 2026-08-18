@@ -130,6 +130,7 @@ export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): stri
     "Te egy magyar ingatlanpiaci adatgyűjtő vagy. NE becsülj árat, NE írj elemzést, NE kommentálj.",
     `Gyűjts össze LEGALÁBB ${want} db, jelenleg ELADÓ vagy nemrég eladott, a megadotthoz HASONLÓ ingatlant erről a környékről: ${hely}.`,
     `A vizsgált ingatlan: ${input.tipus || "lakás"}, kb. ${size} m², ${input.szobak || "?"} szoba.`,
+    "CSAK FRISS adatot használj: kizárólag az ELMÚLT 12 HÓNAP eladó/eladott hirdetéseit. Régebbi (pl. 1 évnél idősebb) forrást, cikket, archív adatot NE vegyél be.",
     "Hasonló = ugyanaz a kerület vagy közvetlen szomszédos utcák, hasonló méret (akár ±40% is jó, hogy legyen elég találat), azonos vagy hasonló típus.",
     "MINDEN comphoz KÖTELEZŐ a valós alapterület (size_m2) ÉS a teljes ár (price_huf) — e nélkül ne vedd bele. A price_per_m2-t számold ki, ha nincs megadva.",
     "A 'district' mezőbe a kerület SZÁMÁT írd (pl. \"13\" vagy \"XIII\"). A 'listing_date' formátuma YYYY-MM.",
