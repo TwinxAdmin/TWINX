@@ -11,19 +11,42 @@ import { toDownloadUrl } from "@/lib/files";
 import type { BrandingProfile } from "@/lib/branding";
 import { BRANDING_FONTS } from "@/lib/branding";
 import {
-  FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS,
-  ROOMS_OPTIONS, BATHROOM_OPTIONS,
+  FLYER_TONES, EMPTY_FACTS, EMPTY_TEXT, MAX_FLYER_IMAGES, FLYER_CREDITS, FLYER_BLURB_MAX,
+  ROOMS_OPTIONS, BATHROOM_OPTIONS, FLYER_ROOM_OPTIONS,
   type FlyerFacts, type FlyerText,
 } from "@/lib/flyer";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS, CONDITION_OPTIONS, STRUCTURE_OPTIONS } from "@/lib/valuation";
 import ComboField from "@/components/ComboField";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
-import { FLYER_SIZES, getFlyerSize, flyerGeom } from "@/lib/flyer-poster";
+import {
+  FLYER_SIZES, FLYER_TEMPLATES, getFlyerSize, flyerGeom, templateUsesThumbLabels,
+} from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-const STEPS = ["Arculat", "Képek", "Adatok", "Méret", "Előnézet"] as const;
+const STEPS = ["Arculat", "Képek", "Adatok", "Sablon", "Előnézet"] as const;
 const FLYER_MOOD = "luxus"; // egyetlen, prémium megjelenés (a fő szín az arculatból)
 const SIZES = FLYER_SIZES;
+
+// A gépi helyiség-felismerés kimenete → a hirdetésen megjelenő, szép felirat.
+const ROOM_LABELS: Record<string, string> = {
+  nappali: "Nappali",
+  konyha: "Konyha",
+  "étkező": "Étkező",
+  "háló": "Hálószoba",
+  "fürdő": "Fürdőszoba",
+  wc: "Mosdó",
+  "előszoba": "Előszoba",
+  "erkély/terasz": "Erkély",
+  "kert/kültér": "Kert",
+  homlokzat: "Homlokzat",
+  "egyéb": "",
+};
+function roomLabel(raw: string): string {
+  const k = String(raw ?? "").trim().toLowerCase();
+  if (!k) return "";
+  if (k in ROOM_LABELS) return ROOM_LABELS[k];
+  return k.charAt(0).toUpperCase() + k.slice(1);
+}
 // A saját cím/alcím max hossza — e fölött a hirdetésen levágódna, ezért blokkoljuk a továbblépést.
 const FLYER_TITLE_MAX = 38;
 const FLYER_SUBTITLE_MAX = 46;
@@ -52,6 +75,10 @@ export default function AdWizard({
   const [facts, setFacts] = useState<FlyerFacts>({ ...EMPTY_FACTS });
   const [tone, setTone] = useState(FLYER_TONES[1]?.value ?? "marketinges");
   const [text, setText] = useState<FlyerText>({ ...EMPTY_TEXT });
+  // Rövid leírás — a magazin- és az adatlap-sablon szöveges blokkja.
+  // A szöveggenerálás tölti ki, de kézzel is átírható; üresen hagyva a sablon
+  // az adatokból állít össze egy rövid mondatot.
+  const [blurb, setBlurb] = useState("");
   const [genLoading, setGenLoading] = useState(false);
 
   // Mező-memória — a korábbi szabadszöveges értékeket felajánljuk (kliensoldali).
@@ -63,9 +90,21 @@ export default function AdWizard({
   const subtitleMem = useFieldMemory("flyer:subtitle", { min: 3 });
   const dispPriceMem = useFieldMemory("flyer:display_price", { min: 2 });
 
-  // 4) Méret — TÖBB is választható; minden kiválasztott méret külön előnézetet kap.
+  // 4) Sablon (elrendezés) + méret. A méretből TÖBB is választható; minden
+  //    kiválasztott méret külön előnézetet kap, a sablon mindegyikre érvényes.
   const mood = FLYER_MOOD;
+  const [template, setTemplate] = useState<string>(FLYER_TEMPLATES[0].value);
   const [sizes, setSizes] = useState<string[]>([SIZES[0].value]);
+  // A képek helyiség-feliratai. KÉP SZERINT tároljuk (nem sorszám szerint), így
+  // átrendezésnél és törlésnél is a helyes képhez tapadnak. A partner a Képek
+  // lépésben megadhatja, a gépi felismerés pedig kitölti az üreseket.
+  const [roomByImage, setRoomByImage] = useState<Record<string, string>>({});
+  const setRoom = (url: string, v: string) =>
+    setRoomByImage((prev) => ({ ...prev, [url]: v.slice(0, 18) }));
+  // A rendernek átadott feliratok: a főkép után következő (max 3) kis kép.
+  const thumbLabels = images.slice(1, 4).map((u) => roomByImage[u] ?? "");
+  const thumbLabelsKey = thumbLabels.join("|"); // stabil kulcs az effect-függőséghez
+  const needsLabels = templateUsesThumbLabels(template);
 
   // 5) Előnézet — méretenként külön előnézet/elfogadás; a főkép-igazítás közös.
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -146,7 +185,20 @@ export default function AdWizard({
         order.every((n) => Number.isInteger(n) && n >= 0 && n < images.length) &&
         new Set(order).size === images.length;
       if (data.applied && validOrder) {
-        setImages((prev) => order.map((i) => prev[i]));
+        const ordered = order.map((i) => images[i]);
+        setImages(ordered);
+        // A felismert helyiségek (már az új sorrendben) → a képek feliratai.
+        // A KÉZZEL megadott feliratokat nem írjuk felül, csak az üreseket töltjük ki.
+        const rooms: string[] = Array.isArray(data.rooms) ? data.rooms : [];
+        if (rooms.length) {
+          setRoomByImage((prev) => {
+            const next = { ...prev };
+            ordered.forEach((u, k) => {
+              if (!next[u]?.trim()) next[u] = roomLabel(String(rooms[k] ?? ""));
+            });
+            return next;
+          });
+        }
         showToast("Elrendezve: a legjobb fotó a főkép, a kisképekben eltérő helyiségek.", "success");
       } else if (data.applied) {
         showToast("Az AI-elrendezés nem hozott változást.", "info");
@@ -170,7 +222,11 @@ export default function AdWizard({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setText(data.text as FlyerText);
+      const t = data.text as FlyerText;
+      setText(t);
+      // Rövid leírás a sablonokhoz: az infrastruktúra-mondat, különben a jellemzők.
+      const derived = String(t.infra ?? "").trim() || (t.characteristics ?? []).slice(0, 2).join(" ");
+      if (derived) setBlurb(derived.slice(0, FLYER_BLURB_MAX));
     } catch {
       setError("A szöveg generálása nem sikerült — kézzel is kitöltheted.");
     } finally { setGenLoading(false); }
@@ -195,12 +251,17 @@ export default function AdWizard({
     fd.append("profile", JSON.stringify(profileData));
     fd.append("mood", mood);
     fd.append("size", sizeVal);
+    fd.append("template", template);
     fd.append("watermark", watermark ? "1" : "0");
     fd.append("title", text.title ?? "");
     fd.append("subtitle", text.subtitle ?? "");
     fd.append("price", text.price ?? "");
     fd.append("chips", JSON.stringify(chips));
     fd.append("details", JSON.stringify(details));
+    // A magazin- és adatlap-sablon szöveges blokkjai (a prémium sablon nem használja).
+    fd.append("highlights", JSON.stringify((text.highlights ?? []).slice(0, 4)));
+    fd.append("blurb", blurb.trim());
+    fd.append("thumbLabels", JSON.stringify(thumbLabels.slice(0, 3)));
     fd.append("heroX", String(heroPos.x));
     fd.append("heroY", String(heroPos.y));
     fd.append("thumbSlots", JSON.stringify([slots[0] ?? "row", slots[1] ?? "row"]));
@@ -308,10 +369,12 @@ export default function AdWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, previewIdx, previews]);
   // Kép-változásnál minden előnézet érvénytelen; az elfogadottak (mentettek) maradnak.
+  // A SORREND is számít (főkép-csere, átrendezés), ezért a teljes listát figyeljük.
+  const imagesKey = images.join("|");
   useEffect(() => {
     setPreviews({}); setSlotsBySize({}); setPreviewIdx(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [images.length]);
+  }, [imagesKey]);
   // Méret-választás változásakor a lapozó az elejére áll.
   useEffect(() => { setPreviewIdx(0); }, [sizes.length]);
 
@@ -327,6 +390,11 @@ export default function AdWizard({
     if (step === 4) { setPreviews({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroPos, slotsBySize]);
+  // Sablon- vagy felirat-váltásnál minden korábbi előnézet érvénytelen.
+  useEffect(() => {
+    setPreviews({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template, thumbLabelsKey, blurb]);
 
   function next() {
     if (step === 0) {
@@ -494,25 +562,77 @@ export default function AdWizard({
                   </span>
                 </div>
               )}
+              {/* FŐKÉP — kiemelt, külön blokkban, hogy egyértelmű legyen */}
               {images.length > 0 && (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {images.map((src, i) => (
-                    <figure key={src + i} className="group relative overflow-hidden rounded-xl bg-white"
-                      style={{ border: `1px solid ${i === 0 ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="aspect-[4/3] w-full object-cover" />
-                      <figcaption className="flex items-center justify-between px-2 py-1.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                        <span style={{ color: i === 0 ? "var(--twx-coral)" : undefined, fontWeight: i === 0 ? 700 : 500 }}>{i === 0 ? "Főkép" : `${i + 1}.`}</span>
-                        <span className="flex gap-1">
-                          <button type="button" aria-label="Balra" onClick={() => moveImage(i, i - 1)} className="px-1">‹</button>
-                          <button type="button" aria-label="Jobbra" onClick={() => moveImage(i, i + 1)} className="px-1">›</button>
-                        </span>
-                      </figcaption>
-                      <button type="button" onClick={() => removeImage(i)} aria-label="Törlés"
-                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm opacity-0 shadow transition group-hover:opacity-100"
-                        style={{ background: "rgba(255,255,255,0.95)" }}>×</button>
-                    </figure>
-                  ))}
+                <div className="rounded-2xl p-3"
+                  style={{ border: "2px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide"
+                        style={{ background: "var(--twx-coral)", color: "#fff" }}>FŐKÉP</span>
+                      <span className="text-xs font-semibold" style={{ color: "#7a2e17" }}>
+                        Ez lesz a hirdetés nagy képe
+                      </span>
+                    </span>
+                    <button type="button" onClick={() => removeImage(0)}
+                      className="rounded-lg px-2 py-1 text-xs font-medium"
+                      style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
+                      Eltávolítás
+                    </button>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={images[0]} alt="Főkép" className="w-full rounded-xl object-cover"
+                    style={{ aspectRatio: "16 / 9", border: "1px solid rgba(0,0,0,0.08)" }} />
+                  <p className="mt-2 text-[11px]" style={{ color: "#7a2e17" }}>
+                    Másik fotót szeretnél főképnek? A lenti kis képeknél kattints a <strong>Főkép</strong> gombra.
+                  </p>
+                </div>
+              )}
+
+              {/* KIEGÉSZÍTŐ KÉPEK — helyiség megadásával */}
+              {images.length > 1 && (
+                <div>
+                  <p className="text-sm font-semibold">Kiegészítő képek</p>
+                  <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Add meg, melyik helyiség látszik a képen — így nem a véletlenre bízzuk.
+                    Bármikor módosíthatod, és az „AI elrendezés" is kitölti az üreseket.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {images.slice(1).map((src, k) => {
+                      const i = k + 1; // az images tömbbeli valódi index
+                      return (
+                        <div key={src + i} className="rounded-xl bg-white p-2"
+                          style={{ border: "1px solid var(--twx-line)" }}>
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" />
+                            <span className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold"
+                              style={{ background: "rgba(255,255,255,0.92)", color: "var(--twx-ink-muted)" }}>{i + 1}.</span>
+                            <button type="button" onClick={() => removeImage(i)} aria-label="Törlés"
+                              className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-sm shadow"
+                              style={{ background: "rgba(255,255,255,0.95)" }}>×</button>
+                          </div>
+                          <ComboField className="mt-2 w-full" value={roomByImage[src] ?? ""}
+                            onChange={(v) => setRoom(src, v)} options={FLYER_ROOM_OPTIONS}
+                            placeholder="Melyik helyiség?" />
+                          <div className="mt-1.5 flex items-center justify-between">
+                            <button type="button" onClick={() => moveImage(i, 0)}
+                              className="rounded-lg px-2 py-1 text-[11px] font-semibold"
+                              style={{ border: "1px solid var(--twx-coral)", color: "#7a2e17", background: "var(--twx-coral-soft)" }}>
+                              Főkép
+                            </button>
+                            <span className="flex gap-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                              <button type="button" aria-label="Előrébb" onClick={() => moveImage(i, i - 1)} className="px-1.5">‹</button>
+                              <button type="button" aria-label="Hátrébb" onClick={() => moveImage(i, i + 1)} className="px-1.5">›</button>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    A feliratok az <strong>Adatlap</strong> sablonon jelennek meg a képek alatt.
+                  </p>
                 </div>
               )}
               <AssetTray onPick={(u) => addUrl(u)} selectedUrls={images}
@@ -558,13 +678,83 @@ export default function AdWizard({
                 <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={FLYER_TITLE_MAX} mem={titleMem} />
                 <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={FLYER_SUBTITLE_MAX} mem={subtitleMem} />
                 <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} mem={dispPriceMem} />
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                      Rövid leírás <span className="opacity-70">(opcionális)</span>
+                    </label>
+                    <span className="text-[11px]" style={{ color: blurb.length >= FLYER_BLURB_MAX ? "#c0392b" : "var(--twx-ink-muted)" }}>
+                      {blurb.length}/{FLYER_BLURB_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    value={blurb}
+                    onChange={(e) => setBlurb(e.target.value.slice(0, FLYER_BLURB_MAX))}
+                    maxLength={FLYER_BLURB_MAX}
+                    rows={3}
+                    placeholder="1-2 mondat az ingatlanról — a magazin és az adatlap sablonon jelenik meg. Üresen hagyva az adatokból állítjuk össze."
+                    className="twx-input mt-1 w-full text-sm"
+                  />
+                  <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    Eddig a hosszig minden sablonon és minden méreten hiánytalanul kifér.
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
-          {/* 4) MÉRET — több is választható */}
+          {/* 4) SABLON + MÉRET */}
           {step === 3 && (
             <div className="space-y-5">
+              <div>
+                <p className="text-sm font-semibold">Sablon — az elrendezés</p>
+                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  A szín és a betűtípus az arculatodból jön; a sablon csak az elrendezést
+                  határozza meg. Mindegyik minden méreten elkészül.
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {FLYER_TEMPLATES.map((tpl) => {
+                    const on = template === tpl.value;
+                    return (
+                      <button key={tpl.value} type="button" onClick={() => setTemplate(tpl.value)}
+                        className="flex items-start gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
+                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
+                          style={on ? { background: "var(--twx-coral)", color: "#fff" } : { border: "1.5px solid var(--twx-line)" }}>
+                          {on ? "✓" : ""}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{tpl.label}</span>
+                          <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{tpl.hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Képfeliratok — csak a feliratos sablonnál, és csak ha van kis kép */}
+              {needsLabels && images.length > 1 && (
+                <div>
+                  <p className="text-sm font-semibold">Képfeliratok</p>
+                  <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Ezek kerülnek a kis képek alá. A Képek lépésben megadott értékek
+                    látszanak itt — bármikor módosíthatod.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {images.slice(1, 4).map((src, i) => (
+                      <div key={src + i}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt="" className="mb-1.5 aspect-[4/3] w-full rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                        <ComboField className="w-full" value={roomByImage[src] ?? ""}
+                          onChange={(v) => setRoom(src, v)} options={FLYER_ROOM_OPTIONS}
+                          placeholder="Melyik helyiség?" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="text-sm font-semibold">Méret — több is választható</p>
                 <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -654,8 +844,9 @@ export default function AdWizard({
                   <div className="relative mx-auto inline-flex">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={preview} alt="Előnézet" draggable={false} className="mx-auto max-h-[54vh] select-none rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-                    {/* A kis képek áthelyezése: a mozgathatók felhúzhatók a jobb szélső (fix) fölé */}
-                    {images.length > 2 && !flyerGeom(sizeDef.w, sizeDef.h).wide && (
+                    {/* A kis képek áthelyezése: a mozgathatók felhúzhatók a jobb szélső (fix) fölé.
+                        CSAK a prémium sablonnál — a másik kettőnél a képek fix rácsban ülnek. */}
+                    {template === "premium" && images.length > 2 && !flyerGeom(sizeDef.w, sizeDef.h).wide && (
                       <ThumbSlotOverlay
                         w={sizeDef.w} h={sizeDef.h}
                         count={images.length - 2}
@@ -667,7 +858,7 @@ export default function AdWizard({
                     )}
                   </div>
                   <HeroControls heroPos={heroPos} nudge={nudgeHero} reset={() => setHeroPos({ x: 50, y: 50 })} disabled={rendering} />
-                  {images.length > 2 && (
+                  {template === "premium" && images.length > 2 && (
                     <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                       A kis képek egérrel áthúzhatók — húzás közben megjelennek a lehetséges helyek a jobb szélső kép fölött.
                     </p>

@@ -10,6 +10,12 @@ export const FLYER_CREDITS = Number(process.env.FLYER_CREDITS ?? 1);
 // Később, többoldalas hirdetésnél ez emelhető.
 export const MAX_FLYER_IMAGES = 4;
 
+// A rövid leírás (magazin / adatlap sablon szövegblokkja) felső határa.
+// Eddig a hosszig GARANTÁLTAN kifér mindegyik sablonon és mindegyik méreten —
+// a render szükség esetén kisebb betűvel szedi, de nem vágja le a végét.
+// Ha ezt emeljük, a legszűkebb esetet (fekvő 4:3, 3 kiemeléssel) újra kell mérni.
+export const FLYER_BLURB_MAX = 150;
+
 // Kimeneti formátumok. Az A4 PDF; a social arányok PNG kép (a megadott px méretben).
 export type FlyerFormat = {
   value: string;
@@ -86,6 +92,28 @@ export const ROOMS_OPTIONS = [
   "4 + 1 fél szoba",
   "5 szoba",
   "5 vagy több szoba",
+];
+
+// A kiegészítő (kis) képek helyiség-feliratai. A partner a képfeltöltésnél
+// megadhatja, a gépi felismerés pedig előre kitölti — mindkettő felülírható.
+export const FLYER_ROOM_OPTIONS = [
+  "Nappali",
+  "Konyha",
+  "Étkező",
+  "Hálószoba",
+  "Gyerekszoba",
+  "Dolgozószoba",
+  "Fürdőszoba",
+  "Mosdó",
+  "Előszoba",
+  "Gardrób",
+  "Erkély",
+  "Terasz",
+  "Kert",
+  "Garázs",
+  "Tároló",
+  "Homlokzat",
+  "Panoráma",
 ];
 
 export const BATHROOM_OPTIONS = [

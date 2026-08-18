@@ -1,95 +1,33 @@
-// A hirdetés Satori-kompatibilis fája (next/og ImageResponse) — PRÉMIUM, teljes-képes stílus.
+// A hirdetés Satori-kompatibilis fája (next/og ImageResponse).
 // Pixelpontos, valódi TTF-fel → nincs levágott ékezet, minden gépen egyforma.
 // Korlátok: csak flexbox, pixelek, egyszerű CSS + egyszerű SVG (hullám, ikonok).
+//
+// Ez a fájl a DISZPÉCSER (buildFlyerElement) + a PRÉMIUM, teljes-képes sablon.
+// A többi elrendezés külön fájlban: flyer-satori-openhouse / flyer-satori-unit.
+// A közös építőelemek (box, img, ikonok, rövidítés) a flyer-satori-kit-ben laknak.
 import React from "react";
 import { buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
+import { box, img, hexA, onColor, numOf, compact, icon, type Style } from "@/lib/flyer-satori-kit";
+import { buildOpenHouseElement } from "@/lib/flyer-satori-openhouse";
+import { buildUnitElement } from "@/lib/flyer-satori-unit";
 
-type Style = React.CSSProperties;
-function box(style: Style, children?: React.ReactNode): React.ReactElement {
-  return React.createElement("div", { style: { display: "flex", ...style } }, children);
-}
-function img(src: string, style: Style): React.ReactElement {
-  // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-  return React.createElement("img", { src, style });
-}
-/** hex szín adott átlátszósággal (rgba) — a színátmenetekhez. */
-function hexA(hex: string, a: number): string {
-  const h = (hex || "#000000").replace("#", "");
-  const r = parseInt(h.slice(0, 2), 16) || 0, g2 = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
-  return `rgba(${r}, ${g2}, ${b}, ${a})`;
-}
-function onColor(hex: string): string {
-  const h = (hex || "#000000").replace("#", "");
-  const r = parseInt(h.slice(0, 2), 16) || 0, g = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#171310" : "#ffffff";
-}
-
-/** Az első szám a szövegből (pl. "1 fürdőszoba + külön WC" → "1"). */
-function numOf(s?: string): string {
-  const m = String(s ?? "").match(/\d+([.,]\d+)?/);
-  return m ? m[0] : "";
-}
-/** Rövid címke: a zárójeles rész és a felesleges farok nélkül. */
-function shortLabel(s: string, max = 16): string {
-  const base = String(s ?? "").split("(")[0].split("/")[0].trim();
-  return truncate(base, max);
-}
-
-// Flyer-only tömörítés: a szabvány (és hosszú) opciónevek rövid, csinos formája —
-// CSAK a hirdetésen; a teljes név máshol (értékbecslés, AI) érintetlen marad.
-// STEM alapú (részleges) egyezés — a farok (pl. „…es lakás") ne rontsa el a találatot.
-// A sorrend prioritás: az első illeszkedő nyer.
-const COMPACT_STEMS: Array<[string, string]> = [
-  ["könnyűszerkezet", "Könnyűszerkezetes"],
-  ["csúsztatott zsalu", "Csúszt. zsalu"],
-  ["tégla építésű társasházi", "Téglalakás"],
-  ["panel építésű társasházi", "Panellakás"],
-  ["vegyes falazat", "Vegyes fal."],
-  ["felújítandó", "Felújítandó"],
-  ["kitűnő", "Kitűnő áll."],
-  ["újszerű", "Újszerű"],
-  ["közepes", "Közepes állapotú"],
-  ["átlagos", "Közepes állapotú"],
-];
-/** Csinos, rövid megjelenítés levágás („…") nélkül: stem-szótár → „N+ szoba" → zárójel/„/" nélkül → szó-határon vágás. */
-function compact(s: string, max: number): string {
-  let raw = String(s ?? "").trim();
-  if (!raw) return "";
-  raw = raw.replace(/(\d+)\s*vagy\s*t[öo]bb\s*szoba/i, "$1+ szoba");
-  const low = raw.toLowerCase();
-  for (const [stem, short] of COMPACT_STEMS) if (low.includes(stem)) return short;
-  const base = raw.split("(")[0].split("/")[0].trim();
-  if (base.length <= max) return base;
-  const cut = base.slice(0, max);
-  const sp = cut.lastIndexOf(" ");
-  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trim();
-}
-
-// --- Vonalas ikonok (24×24 rács, stroke) ------------------------------------
-const ICON_PATHS: Record<string, string[]> = {
-  area: ["M3 3h18v18H3z", "M8 3v18", "M3 8h18"],                                  // alaprajz / m²
-  bed: ["M3 18v-7a2 2 0 012-2h14a2 2 0 012 2v7", "M3 14h18", "M3 18h18", "M7 9V6h5v3"], // szoba
-  bath: ["M4 12h16v3a4 4 0 01-4 4H8a4 4 0 01-4-4z", "M7 12V6a2 2 0 114 0", "M6 19l-1 2", "M18 19l1 2"], // fürdő
-  stairs: ["M3 20h4v-4h4v-4h4V8h4V4"],                                            // szint
-  brick: ["M3 6h18v5H3z", "M3 13h18v5H3z", "M9 6v5", "M15 6v5", "M6 13v5", "M12 13v5", "M18 13v5"], // szerkezet
-  check: ["M20 6L9 17l-5-5"],                                                     // állapot
-};
-
-function icon(kind: keyof typeof ICON_PATHS | string, size: number, color: string): React.ReactElement {
-  const paths = ICON_PATHS[kind] ?? ICON_PATHS.check;
-  return React.createElement(
-    "svg",
-    { width: size, height: size, viewBox: "0 0 24 24", fill: "none", style: { display: "flex" } },
-    paths.map((d, i) =>
-      React.createElement("path", {
-        key: i, d, stroke: color, strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round",
-      })
-    )
-  );
-}
-
-/** family: a Satorinak átadott betűcsalád-név (ugyanaz, mint a fonts tömbben). */
+/**
+ * A hirdetés fája a választott sablon szerint.
+ * family: a Satorinak átadott betűcsalád-név (ugyanaz, mint a fonts tömbben).
+ */
 export function buildFlyerElement(o: RenderOpts, family: string): React.ReactElement {
+  switch (o.template) {
+    case "openhouse":
+      return buildOpenHouseElement(o, family);
+    case "unit":
+      return buildUnitElement(o, family);
+    default:
+      return buildPremiumElement(o, family);
+  }
+}
+
+/** PRÉMIUM sablon: teljes felületű főkép, ár-pecsét, ikonos adatsáv. */
+export function buildPremiumElement(o: RenderOpts, family: string): React.ReactElement {
   const { width: W, height: H } = o;
   const u = W / 1080;
   const t = buildTheme(o.mood, o.profile.accent_color);

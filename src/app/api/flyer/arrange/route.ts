@@ -66,5 +66,9 @@ export async function POST(request: Request) {
     lastRoom = info[chosen].room;
   }
 
-  return NextResponse.json({ order, heroIndex, applied: true });
+  // A felismert helyiségek AZ ÚJ SORRENDBEN — ebből tölti ki a varázsló a
+  // kis képek feliratait (a partner utólag átírhatja).
+  const rooms = order.map((i) => String(info[i].room ?? ""));
+
+  return NextResponse.json({ order, heroIndex, rooms, applied: true });
 }

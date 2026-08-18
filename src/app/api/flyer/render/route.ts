@@ -5,7 +5,7 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { getBrandingFont } from "@/lib/branding";
-import { getFlyerSize, type RenderOpts } from "@/lib/flyer-poster";
+import { getFlyerSize, getFlyerTemplate, type RenderOpts } from "@/lib/flyer-poster";
 import { buildFlyerElement } from "@/lib/flyer-satori";
 import { loadGoogleFont, googleFamilyOf } from "@/lib/google-font";
 import type { FlyerProfileData } from "@/lib/flyer-template";
@@ -38,10 +38,19 @@ export async function POST(request: Request) {
   catch { return new Response("Hibás arculat.", { status: 400 }); }
 
   const size = getFlyerSize(String(form.get("size") ?? "1:1"));
+  // A sablon csak az ismert értékek egyike lehet (ismeretlen → prémium).
+  const template = getFlyerTemplate(String(form.get("template") ?? "premium")).value;
   const mood = String(form.get("mood") ?? "luxus");
   const watermark = String(form.get("watermark") ?? "") === "1";
-  let chips: string[] = [];
-  try { chips = JSON.parse(String(form.get("chips") ?? "[]")) as string[]; } catch { chips = []; }
+  const strList = (key: string, max: number): string[] => {
+    try {
+      const raw = JSON.parse(String(form.get(key) ?? "[]"));
+      return Array.isArray(raw) ? raw.map((x) => String(x ?? "")).slice(0, max) : [];
+    } catch { return []; }
+  };
+  const chips = strList("chips", 4);
+  const highlights = strList("highlights", 4).map((s) => s.trim()).filter(Boolean);
+  const thumbLabels = strList("thumbLabels", 3);
 
   let details: Record<string, string> = {};
   try { details = JSON.parse(String(form.get("details") ?? "{}")) as Record<string, string>; } catch { details = {}; }
@@ -53,6 +62,8 @@ export async function POST(request: Request) {
     chips,
     badge: String(form.get("badge") ?? "ELADÓ"),
     details,
+    highlights,
+    blurb: String(form.get("blurb") ?? ""),
   };
 
   try {
@@ -61,8 +72,10 @@ export async function POST(request: Request) {
     // A hirdetésen előforduló karakterek (a betű glyph-lefedettségéhez) + alapkészlet.
     const used = [
       text.title, text.subtitle, text.price, text.badge, ...text.chips,
+      ...text.highlights, text.blurb, ...thumbLabels,
       profile.display_name, profile.company, profile.title, profile.phone, profile.email, profile.website,
-      "ELADÓ IRÁNYÁR ELŐNÉZET TWINX",
+      "ELADÓ IRÁNYÁR ELŐNÉZET TWINX KAPCSOLAT ÁTTEKINTÉS TÍPUS MÉRET ÁLLAPOT",
+      "NAPPALI KONYHA HÁLÓSZOBA FÜRDŐSZOBA ÉTKEZŐ ERKÉLY TERASZ KERT ELŐSZOBA FOTÓ",
       "AÁBCDEÉFGHIÍJKLMNOÓÖŐPQRSTUÚÜŰVWXYZ",
       "aábcdeéfghiíjklmnoóöőpqrstuúüűvwxyz",
       "0123456789.,:;·-–—/()%²+&@ ",
@@ -101,7 +114,7 @@ export async function POST(request: Request) {
     const W = Math.round(size.w * SCALE);
     const H = Math.round(size.h * SCALE);
     const opts: RenderOpts = {
-      images, width: W, height: H, profile, text, mood, watermark,
+      images, width: W, height: H, profile, text, mood, watermark, template, thumbLabels,
       heroPos, thumbSlots, heroDim: heroDim.w && heroDim.h ? heroDim : undefined,
     };
     const element = buildFlyerElement(opts, family);

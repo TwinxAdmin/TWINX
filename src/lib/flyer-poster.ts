@@ -22,6 +22,39 @@ export function getFlyerMood(v: string): FlyerMood {
   return FLYER_MOODS.find((m) => m.value === v) ?? FLYER_MOODS[0];
 }
 
+// --- Sablonok (elrendezés) ---------------------------------------------------
+// A sablon az ELRENDEZÉST adja; a szín/betű továbbra is az arculatból jön.
+// Mindegyik sablon MINDEN méreten (1:1, 9:16, 4:3) működik — a kompozíció
+// méretenként rendeződik át (lásd a builderek `g.story` / `g.land` ágait).
+export type FlyerTemplate = { value: string; label: string; hint: string };
+
+export const FLYER_TEMPLATES: FlyerTemplate[] = [
+  {
+    value: "premium",
+    label: "Prémium — teljes képes",
+    hint: "Nagy főkép a teljes felületen, ár-pecsét, ikonos adatsáv.",
+  },
+  {
+    value: "openhouse",
+    label: "Magazin — kiemelt előnyök",
+    hint: "Fotó felül, alatta rövid leírás pipás előnyökkel és képkollázzsal.",
+  },
+  {
+    value: "unit",
+    label: "Adatlap — ívelt fejléc",
+    hint: "Ívelt aljú főkép, ár + adattábla, feliratozott képrács és áttekintés.",
+  },
+];
+
+export function getFlyerTemplate(v: string): FlyerTemplate {
+  return FLYER_TEMPLATES.find((x) => x.value === v) ?? FLYER_TEMPLATES[0];
+}
+
+/** Ez a sablon használ-e helyiség-feliratokat a kis képek alatt? */
+export function templateUsesThumbLabels(v: string): boolean {
+  return v === "unit";
+}
+
 export const FLYER_SIZES = [
   { value: "1:1", label: "Négyzet 1:1", hint: "Instagram, Facebook", w: 1080, h: 1080 },
   { value: "9:16", label: "Álló 9:16", hint: "Story, Reels", w: 1080, h: 1920 },
@@ -180,11 +213,19 @@ export type RenderDetails = {
 export type RenderText = {
   title: string; subtitle: string; price: string; chips: string[]; badge?: string;
   details?: RenderDetails;
+  /** Rövid, pipás előnyök (a magazin-sablon listája) — max 3-4 elem. */
+  highlights?: string[];
+  /** 1 bekezdésnyi leírás (magazin-sablon szövege, adatlap „áttekintés" blokkja). */
+  blurb?: string;
 };
 
 export type RenderOpts = {
   images: string[]; width: number; height: number;
   profile: FlyerProfileData; text: RenderText; mood: string; watermark?: boolean;
+  /** Az elrendezés azonosítója (FLYER_TEMPLATES) — alapértelmezés: "premium". */
+  template?: string;
+  /** A kis képek feliratai (helyiségnevek) — csak a feliratos sablonoknál. */
+  thumbLabels?: string[];
   /** A főkép kivágásának igazítása százalékban (50/50 = középre). */
   heroPos?: { x: number; y: number };
   /** A főkép eredeti mérete (px) — ebből számoljuk a VALÓDI mozgásteret. */
