@@ -23,7 +23,7 @@ export const CATEGORIES: Category[] = [
     blurb:
       "Percek alatt kész értékbecslés, belsőépítészeti látványtervek üres vagy elavult szobákból, és profi bemutató videó a feltöltött fotókból — hogy az ingatlan gyorsabban, jobb áron keljen el.",
     modules: [
-      { label: "Ingatlan értékbecslés", href: "/dashboard/real-estate/valuation", icon: "valuation", desc: "Adatalapú piaci ár percek alatt" },
+      { label: "Ingatlan értékbecslés", href: "/dashboard/real-estate/valuation", icon: "valuation", desc: "Összehasonlító-alapú piaci ár — friss (1 éves) adatokból" },
       { label: "Telek ellenőrzés", href: "/dashboard/real-estate/land", icon: "land", desc: "Beépíthetőség és övezet ellenőrzése" },
       { label: "Képjavító", href: "/dashboard/real-estate/image-enhance", icon: "visualization", desc: "Ingatlanfotók feljavítása" },
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization", icon: "visualization", desc: "Fotórealisztikus belsőépítészet" },

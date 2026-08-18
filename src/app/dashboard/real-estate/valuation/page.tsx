@@ -296,9 +296,9 @@ export default function ValuationPage() {
       <ModuleIntro
         eyebrow="Ingatlan · Elemzés"
         title="Ingatlan értékbecslés"
-        subtitle="Adatalapú, védhető piaci ár percek alatt — a legfontosabb paraméterekből profi, ügyfélnek is átadható becslés. A csillagos (*) mezők kötelezők, egy becslés 1 kredit."
+        subtitle="Új, összehasonlító-alapú számítás: a becslés a környék HASONLÓ ingatlanjainak az elmúlt 1 évből származó piaci adataiból, egységes módszertannal készül — így konzisztens és védhető, ügyfélnek is átadható. A csillagos (*) mezők kötelezők, egy becslés 1 kredit."
         icon="valuation"
-        chips={["Adatalapú", "Percek alatt", "PDF-riport"]}
+        chips={["Összehasonlító-alapú", "Friss (1 éves) adatok", "Konzisztens", "PDF-riport"]}
       />
 
       <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6">
