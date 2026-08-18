@@ -759,16 +759,19 @@ export default function ImageEnhancePage() {
                 </div>
               )}
 
-              {/* Újragenerálás indoklása */}
+              {/* Újragenerálás indoklása — kiemelt, de OPCIONÁLIS mező */}
               {regenFor !== null && (
-                <div className="mt-4 rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                  <label className="block text-xs font-semibold">Mit vegyünk ki még? Sorold fel, mi maradt bent</label>
-                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                    A javítás a most látható képen történik — csak a felsorolt tárgyakat tünteti el, minden más marad.
+                <div className="mt-4 rounded-xl p-4" style={{ background: "var(--twx-coral-soft)", border: "2px solid var(--twx-coral)", borderLeftWidth: 6 }}>
+                  <label className="block text-sm font-bold" style={{ color: "#7a2e17" }}>
+                    ✏️ Mit szeretnél még javíttatni? <span className="font-medium" style={{ color: "var(--twx-ink-muted)" }}>(opcionális)</span>
+                  </label>
+                  <p className="mt-1 text-xs" style={{ color: "#7a2e17" }}>
+                    Írd le, mi maradt bent vagy mit rakjunk még rendbe — így pontosabb lesz a javítás. A most látható képen dolgozunk, csak a felsorolt dolgokat tünteti el, minden más marad. Ha üresen hagyod, általános utórendezést végzünk.
                   </p>
-                  <textarea value={regenReason} onChange={(e) => setRegenReason(e.target.value)} rows={2}
-                    className="twx-input mt-1 w-full text-sm" placeholder="pl. cipők a jobb alsó sarokban, virág az asztalon, macskaszállító a székek mellett" />
-                  <div className="mt-2 flex gap-2">
+                  <textarea value={regenReason} onChange={(e) => setRegenReason(e.target.value)} rows={3}
+                    className="twx-input mt-2 w-full text-sm" style={{ borderColor: "var(--twx-coral)", background: "#fff" }}
+                    placeholder="pl. cipők a jobb alsó sarokban, virág az asztalon, macskaszállító a székek mellett" />
+                  <div className="mt-3 flex gap-2">
                     <button type="button" onClick={regenerate} disabled={busy}
                       className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
                       {busy ? "Újragenerálás…" : "Újragenerálás indítása (ingyenes)"}
