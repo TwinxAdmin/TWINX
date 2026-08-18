@@ -94,7 +94,7 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // A cím oszlopa FIX szélességű — a betűméretet ehhez igazítjuk, hogy a hosszú
   // településnevek (pl. „SZÉKESFEHÉRVÁRON") se lógjanak át a jobb oldali adatokra.
   const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.46);
-  const titleFs = fitHeadline(title, titleColW, 72 * u * titleK, 26 * u, 3, 0.62);
+  const titleFs = fitHeadline(title, titleColW, 72 * u * titleK, 24 * u, 3, 0.75);
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
     [
@@ -105,8 +105,8 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
         ? box(
             {
               fontSize: g.story
-                ? fitHeadline(o.text.subtitle, titleColW, 40 * u, 22 * u, 2, 0.55)
-                : fitHeadline(o.text.subtitle, titleColW, 22 * u, 15 * u, 2, 0.52),
+                ? fitHeadline(o.text.subtitle, titleColW, 40 * u, 20 * u, 2, 0.62)
+                : fitHeadline(o.text.subtitle, titleColW, 22 * u, 14 * u, 2, 0.58),
               fontWeight: g.story ? 700 : 400,
               color: t.bandInk,
               opacity: g.story ? 0.96 : 0.82,

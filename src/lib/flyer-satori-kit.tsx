@@ -203,10 +203,12 @@ export function fitParagraph(
  *  1. a LEGHOSSZABB SZÓ férjen ki egy sorba (szó közben nincs törés — ez okozza
  *     a hosszú településneveknél, pl. „SZÉKESFEHÉRVÁRON", a jobb oldali blokkba lógást),
  *  2. a teljes szöveg férjen bele a megengedett sorszámba.
- * `charW`: az átlagos karakterszélesség a betűméret arányában (verzál félkövér ≈ 0,62).
+ * `charW`: az átlagos karakterszélesség a betűméret arányában. MÉRT érték: a
+ * VERZÁL FÉLKÖVÉR szélesebb, mint amire elsőre tippelnénk (~0,70), ezért itt
+ * 0,75-tel számolunk — a különböző arculati betűtípusok is beleférjenek.
  */
 export function fitHeadline(
-  text: string, boxW: number, baseFs: number, minFs: number, maxLines = 3, charW = 0.62
+  text: string, boxW: number, baseFs: number, minFs: number, maxLines = 3, charW = 0.75
 ): number {
   const t = String(text ?? "").trim();
   const base = Math.round(baseFs);

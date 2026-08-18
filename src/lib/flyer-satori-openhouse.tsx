@@ -49,7 +49,8 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   // A cím oszlopa fix szélességű — a betűméret ehhez igazodik, hogy a hosszú
   // szavak (településnevek) ne lógjanak át a jobb oldali ár-blokkra.
   const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.58);
-  const titleFs = fitHeadline(title, titleColW, 86 * u * titleK, 30 * u, 2, 0.62);
+  // Max 2 sor — a hero-blokk így nem nő túl nagyra a fotón.
+  const titleFs = fitHeadline(title, titleColW, 86 * u * titleK, 26 * u, 2, 0.75);
 
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
