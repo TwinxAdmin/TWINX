@@ -160,8 +160,8 @@ export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   // A hirdetéskép készítőnek NINCS külön felső menüpontja: a modul az Ingatlan
-  // kategóriában él (a korábbi képekkel együtt), az Arculat pedig a jobb felső
-  // „Arculatom" linkről érhető el. Így nem szerepel háromszor ugyanaz.
+  // kategóriában él, az Arculat a jobb felső „Arculatom" linkről érhető el.
+  // A helyére a „Korábbi munkák" került, ami MINDEN modul kimenetét gyűjti.
   const customItems: Item[] = [
     { label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom", desc: "A neked fejlesztett eszközök" },
     {
@@ -196,6 +196,16 @@ export default function DashboardNav() {
           onClose={() => setOpen(null)}
         />
       ))}
+
+      {/* Korábbi munkák — egyszerű link, nem legördülő: egy oldal gyűjti
+          az összes modul kimenetét. */}
+      <a
+        href="/dashboard/munkaim"
+        className="whitespace-nowrap rounded-full px-3 py-2 transition-colors hover:bg-white/5"
+        style={{ color: "var(--twx-on-dark)" }}
+      >
+        Korábbi munkák
+      </a>
 
       <NavDropdown
         id="egyedi"
