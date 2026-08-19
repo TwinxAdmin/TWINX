@@ -26,6 +26,7 @@ type Pending = {
 type State = {
   signedIn: boolean;
   role?: string;
+  preview?: boolean; // admin előnézet: minden látszik, de nem küldünk be semmit
   needsBilling?: boolean;
   billing?: BillingInfo | null;
   billingComplete?: boolean;
@@ -154,6 +155,11 @@ export default function PricingModal() {
   async function sendRequest() {
     const pkg = CREDIT_PACKAGES.find((p) => p.id === pickedId);
     if (!pkg) { setError("Válassz csomagot."); return; }
+    // Admin előnézetben csak a megjelenést nézzük — nem hozunk létre valódi kérést.
+    if (state?.preview) {
+      setError("Ez csak előnézet — nem küldünk el valódi igénylést.");
+      return;
+    }
     setError(null);
     setSending(true);
     try {
@@ -210,7 +216,7 @@ export default function PricingModal() {
       >
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold">
-            {mode === "packages" ? "Csomagok" : "Kredit igénylés"}
+            {mode === "packages" ? "Csomagok" : isSales ? "Keret igénylése" : "Kredit igénylés"}
           </h2>
           <button
             type="button"
@@ -370,6 +376,7 @@ export default function PricingModal() {
                     <BillingForm
                       initial={state?.billing ?? null}
                       embedded
+                      preview={state?.preview}
                       onSaved={() => void loadState()}
                     />
                   </div>

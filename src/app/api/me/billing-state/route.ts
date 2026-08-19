@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isBillingComplete, type BillingInfo } from "@/lib/billing";
+import { resolveViewContext } from "@/lib/view-as";
 
 export const runtime = "nodejs";
 
@@ -23,7 +24,13 @@ export async function GET() {
 
   const { data: me } = await supabase
     .from("profiles").select("role").eq("id", user.id).single();
-  const role = (me?.role as string) ?? "user";
+
+  // Az admin „így látja a partner" előnézetét itt is követnünk kell, különben a
+  // csomag-ablak a valódi (admin) szerepkör szerint viselkedne, és pl. sales
+  // nézetben árakat mutatna. Jogot ez nem ad: a beküldést a `preview` blokkolja,
+  // és a szerveroldali ellenőrzések továbbra is a valódi szerepkört nézik.
+  const view = await resolveViewContext(me?.role as string | undefined);
+  const role = view.role;
 
   // Külön lekérdezés: ha a credit-billing.sql még nem futott le, ez hibázik,
   // de a válasz többi része attól még használható.
@@ -42,6 +49,7 @@ export async function GET() {
   return NextResponse.json({
     signedIn: true,
     role,
+    preview: view.previewing,
     // sales = belső keret, neki nincs számlázás
     needsBilling: role === "user",
     billing,
