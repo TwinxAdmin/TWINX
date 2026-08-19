@@ -247,16 +247,38 @@ export default function VideoWizard({
   const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
   const lengthSec = Math.round(videoLengthSeconds(images.length || imageRange(design, aspect).min, false));
 
+  // --- Bezárás-védelem: egy véletlen kattintás ne törölje a megkezdett munkát ---
+  const [confirmClose, setConfirmClose] = useState(false);
+  const hasWork = images.length > 0 || Object.values(facts).some((v) => String(v ?? "").trim());
+
+  function requestClose() {
+    if (busy) return;
+    if (hasWork && !jobId) { setConfirmClose(true); return; }
+    onClose();
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (confirmClose) { setConfirmClose(false); return; }
+      requestClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmClose, hasWork, busy, jobId]);
+
   return (
-    <div onClick={() => !busy && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
+    // A háttérre kattintás NEM zár be — véletlen mellékattintással elveszne a munka.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
 
         {/* Fejléc + lépésjelző */}
         <div className="border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-lg font-semibold">Új videó</h2>
-            <button onClick={onClose} disabled={busy} className="rounded-lg px-2 text-xl disabled:opacity-40" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            <button onClick={requestClose} disabled={busy} className="rounded-lg px-2 text-xl disabled:opacity-40" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
           </div>
           <div className="mt-3 flex items-center gap-1.5">
             {STEPS.map((s, i) => (
@@ -579,6 +601,33 @@ export default function VideoWizard({
           )}
         </div>
       </div>
+
+      {/* Megerősítés bezárás előtt — csak ha van elveszíthető munka */}
+      {confirmClose && (
+        <div className="absolute inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: "rgba(20,12,8,0.55)" }}>
+          <div className="w-full max-w-sm rounded-2xl p-5"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
+            <h3 className="font-display text-base font-semibold">Bezárod a szerkesztőt?</h3>
+            <p className="mt-1.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              A megkezdett videó — a feltöltött fotók és a megadott adatok — elvész,
+              és elölről kell kezdened.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmClose(false)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                style={{ background: "var(--twx-coral)" }}>
+                Folytatom a szerkesztést
+              </button>
+              <button type="button" onClick={() => { setConfirmClose(false); onClose(); }}
+                className="rounded-xl px-4 py-2 text-sm font-medium"
+                style={{ border: "1px solid var(--twx-line)" }}>
+                Bezárás, munka elvetése
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

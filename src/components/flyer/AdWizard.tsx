@@ -445,16 +445,47 @@ export default function AdWizard({
   const setF = <K extends keyof FlyerFacts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const setT = <K extends keyof FlyerText>(k: K, v: FlyerText[K]) => setText({ ...text, [k]: v });
 
+  // --- Bezárás-védelem -------------------------------------------------------
+  // Egy véletlen kattintás miatt ne vesszen el több lépésnyi munka.
+  const [confirmClose, setConfirmClose] = useState(false);
+  /** Van-e olyan adat, ami elveszne? (A kész, elfogadott képek már mentve vannak.) */
+  const hasWork =
+    images.length > 0 ||
+    Boolean(text.title?.trim() || text.subtitle?.trim() || text.price?.trim() || blurb.trim()) ||
+    Object.values(facts).some((v) => String(v ?? "").trim());
+  const busy = rendering || accepting || sharing;
+
+  function requestClose() {
+    if (busy) return;                       // futó renderelés közben nem zárunk
+    if (hasWork && !Object.keys(finals).length) { setConfirmClose(true); return; }
+    onClose();
+  }
+
+  // Esc: ugyanaz a védett út, mint az × gomb.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (confirmClose) { setConfirmClose(false); return; }
+      requestClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmClose, hasWork, busy, finals]);
+
   return (
-    <div onClick={() => !accepting && !rendering && onClose()} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
+    // FONTOS: a háttérre kattintás NEM zár be — több lépésnyi munka veszne el egy
+    // véletlen mellékattintás miatt. Bezárni csak az × / Esc tud, és ha már van
+    // elveszíthető adat, akkor is csak megerősítés után.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
 
         {/* Fejléc + lépésjelző */}
         <div className="border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">Új hirdetés</h2>
-            <button onClick={onClose} className="rounded-lg px-2 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+            <h2 className="font-display text-lg font-semibold">Új hirdetéskép</h2>
+            <button onClick={requestClose} className="rounded-lg px-2 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
           </div>
           <div className="mt-3 flex items-center gap-1.5">
             {STEPS.map((s, i) => (
@@ -1000,6 +1031,33 @@ export default function AdWizard({
           )}
         </div>
       </div>
+
+      {/* Megerősítés bezárás előtt — csak ha tényleg van elveszíthető munka */}
+      {confirmClose && (
+        <div className="absolute inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: "rgba(20,12,8,0.55)" }}>
+          <div className="w-full max-w-sm rounded-2xl p-5"
+            style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
+            <h3 className="font-display text-base font-semibold">Bezárod a szerkesztőt?</h3>
+            <p className="mt-1.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              A megkezdett hirdetéskép — a feltöltött fotók és a megadott adatok — elvész,
+              és elölről kell kezdened.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmClose(false)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
+                style={{ background: "var(--twx-coral)" }}>
+                Folytatom a szerkesztést
+              </button>
+              <button type="button" onClick={() => { setConfirmClose(false); onClose(); }}
+                className="rounded-xl px-4 py-2 text-sm font-medium"
+                style={{ border: "1px solid var(--twx-line)" }}>
+                Bezárás, munka elvetése
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
