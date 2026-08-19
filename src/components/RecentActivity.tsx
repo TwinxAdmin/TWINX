@@ -1,4 +1,10 @@
-// Legutóbbi tevékenység — alapból összecsukva, gombra nyílik.
+// „Folytasd, ahol abbahagytad" — a legutóbbi munkák bélyegképes sávja.
+//
+// Miért nem egy sima lista: a TWINX kimenete képi (hirdetéskép, feljavított
+// fotó, videó, riport). Semmi nem hat meggyőzőbben, mint amikor a partner
+// SAJÁT kész munkája néz vissza rá. Az első néhány elem nagy kártyán látszik,
+// a többi egy gombbal nyitható ki teljes listaként.
+//
 // A fájlra kattintva NEM új URL nyílik, hanem egy beágyazott nézegető (lightbox):
 // a kép animálva megnagyobbodik, mellé kattintva bezárul, nyílgombokkal /
 // gombokkal az előző/következő tevékenységre lehet lépni.
@@ -15,6 +21,24 @@ export type ActivityItem = {
   created_at: string;
 };
 
+// Hány munka látszik bélyegképes kártyán, mielőtt „Összes munkám" kell.
+const PREVIEW_COUNT = 4;
+
+// Rövid, emberi időjelölés a kártyák aljára („ma", „2 napja").
+function relativeDay(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const days = Math.floor(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86_400_000
+  );
+  if (days <= 0) return "ma";
+  if (days === 1) return "tegnap";
+  if (days < 7) return `${days} napja`;
+  if (days < 30) return `${Math.floor(days / 7)} hete`;
+  return d.toLocaleDateString("hu-HU");
+}
+
 type Kind = "image" | "pdf" | "video" | "other";
 
 function kind(url: string | null): Kind {
@@ -26,7 +50,13 @@ function kind(url: string | null): Kind {
   return "other";
 }
 
-export default function RecentActivity({ items }: { items: ActivityItem[] }) {
+export default function RecentActivity({
+  items,
+  topFeature,
+}: {
+  items: ActivityItem[];
+  topFeature?: string | null; // a legtöbbet használt modul neve
+}) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const [visible, setVisible] = useState(false);
@@ -69,27 +99,82 @@ export default function RecentActivity({ items }: { items: ActivityItem[] }) {
   const current = active !== null ? items[active] : null;
   const curKind = current ? kind(current.output_file_url) : "other";
 
+  // Aki még nem dolgozott, annak ez a szekció csak üres helyet foglalna.
+  if (items.length === 0) return null;
+
+  const preview = items.slice(0, PREVIEW_COUNT);
+
   return (
-    <section className="max-w-md">
-      <h2 className="font-display text-xl font-medium">Legutóbbi tevékenység</h2>
+    <section>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl font-medium">Folytasd, ahol abbahagytad</h2>
+        {topFeature && (
+          <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Legtöbbet használt: <strong style={{ color: "var(--twx-ink)" }}>{topFeature}</strong>
+          </span>
+        )}
+      </div>
+
+      {/* Bélyegképes kártyák — a legutóbbi munkák */}
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {preview.map((h, idx) => {
+          const k = kind(h.output_file_url);
+          return (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => h.output_file_url && setActive(idx)}
+              className="group overflow-hidden rounded-2xl text-left transition-shadow hover:shadow-lg"
+              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden" style={{ background: "var(--twx-cream)" }}>
+                {k === "image" && h.output_file_url ? (
+                  <img
+                    src={h.output_file_url}
+                    alt=""
+                    className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  // Videóhoz és PDF-hez nincs bélyegképünk — beszédes jelzést adunk helyette.
+                  <span
+                    className="flex h-full w-full items-center justify-center"
+                    style={k === "video"
+                      ? { background: "var(--twx-dark)", color: "var(--twx-coral)" }
+                      : { background: "var(--twx-coral-soft)", color: "#7a2e17" }}
+                  >
+                    {k === "video" ? (
+                      <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M8 5.5v13l11-6.5-11-6.5Z" />
+                      </svg>
+                    ) : (
+                      <span className="text-sm font-bold">{k === "pdf" ? "PDF" : "FÁJL"}</span>
+                    )}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-3">
+                <p className="truncate text-sm font-medium">{h.title}</p>
+                <p className="truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {h.typeLabel} · {relativeDay(h.created_at)}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        disabled={items.length === 0}
-        className="mt-3 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        className="mt-4 rounded-full px-4 py-2 text-sm font-medium transition-colors"
         style={{
           border: "1px solid var(--twx-line)",
           background: open ? "var(--twx-coral)" : "var(--twx-cream-card)",
           color: open ? "#1c1005" : "var(--twx-ink)",
-          opacity: items.length === 0 ? 0.5 : 1,
         }}
       >
-        {items.length === 0
-          ? "Nincs tevékenység"
-          : open
-            ? "Elrejtés"
-            : `Megjelenítés (${items.length})`}
+        {open ? "Elrejtés" : `Összes munkám (${items.length})`}
       </button>
 
       {open && (

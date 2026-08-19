@@ -72,6 +72,14 @@ export default async function DashboardHome() {
   // Ha még semmit nem használt, és az egyenlege pont az induló keret, akkor
   // érintetlen próbakredit van nála — ezt érdemes kiemelni.
   const hasWelcomeCredits = historyList.length === 0 && balance > 0 && balance <= WELCOME_CREDITS;
+
+  // A legtöbbet használt modul — a „Folytasd" sáv fejlécében jelenik meg.
+  const featureCounts = new Map<string, number>();
+  for (const h of historyList) {
+    featureCounts.set(h.feature_used, (featureCounts.get(h.feature_used) ?? 0) + 1);
+  }
+  const topFeatureKey = [...featureCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const topFeature = topFeatureKey ? featureLabel(topFeatureKey) : null;
   const firstName = String(me?.full_name ?? "").trim().split(/\s+/).filter(Boolean).slice(-1)[0] ?? "";
 
   return (
@@ -156,7 +164,21 @@ export default async function DashboardHome() {
         hasWelcomeCredits={hasWelcomeCredits}
       />
 
-      {/* Kategóriák (App Store-szerű áttekintés) */}
+      {/* „Folytasd, ahol abbahagytad" — a saját munkák bélyegképes sávja.
+          Előrébb került a kategóriáknál: a visszatérő partnert a SAJÁT anyaga
+          érdekli, nem a kínálat leírása. */}
+      <RecentActivity
+        topFeature={topFeature}
+        items={historyList.map((h) => ({
+          id: h.id,
+          title: activityTitle(h.feature_used, h.input_data),
+          typeLabel: featureLabel(h.feature_used),
+          output_file_url: h.output_file_url,
+          created_at: h.created_at,
+        }))}
+      />
+
+      {/* Kategóriák — a lap aljára, áttekintésnek */}
       <section>
         <h2 className="font-display text-xl font-medium">Kategóriák</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -184,16 +206,6 @@ export default async function DashboardHome() {
         </div>
       </section>
 
-      {/* Legutóbbi tevékenység — összecsukva, gombra nyílik */}
-      <RecentActivity
-        items={historyList.map((h) => ({
-          id: h.id,
-          title: activityTitle(h.feature_used, h.input_data),
-          typeLabel: featureLabel(h.feature_used),
-          output_file_url: h.output_file_url,
-          created_at: h.created_at,
-        }))}
-      />
     </main>
   );
 }
