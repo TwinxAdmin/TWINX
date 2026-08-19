@@ -38,8 +38,11 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // --- Sávok: a négy rész PONTOSAN kiadja a vászon magasságát ----------------
   // Állóban (9:16) a cím és az adattábla EGYMÁS ALATT van, ezért ott a sötét sáv
   // magasabb — különben az utolsó adatsor beleér a világos blokkba.
-  const heroH = Math.round(H * (g.story ? 0.33 : g.land ? 0.26 : 0.28));
-  const bandH = Math.round(H * (g.story ? 0.23 : g.land ? 0.19 : 0.20));
+  // FEKVŐN (4:3) magasabb a sötét sáv: a rövid vászonmagasság miatt korábban
+  // beleért az utolsó adatsor a világos blokkba. Ezzel az áttekintés és a képrács
+  // is lejjebb csúszik — csak a 4:3-at érinti.
+  const heroH = Math.round(H * (g.story ? 0.33 : g.land ? 0.24 : 0.28));
+  const bandH = Math.round(H * (g.story ? 0.23 : g.land ? 0.23 : 0.20));
   const footH = Math.round(H * (g.story ? 0.10 : g.land ? 0.10 : 0.11));
   const midH = H - heroH - bandH - footH;
   const P = Math.round((g.land ? 56 : 60) * u);
@@ -149,25 +152,35 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
 
   const typeTxt = compact(o.text.chips.filter(Boolean)[1] || "", 24);
   const sizeTxt = formatSize(d.size ?? "");
-  const condTxt = compact(d.condition || d.structure || "", 20);
 
+  // Az ÁLLAPOT sor kikerült: az ismétlődő „Újszerű / Új építésű" nem ad hozzá a
+  // hirdetéshez, viszont sávmagasságot evett. Marad a TÍPUS és a MÉRET.
+  // FEKVŐN a kettő EGY sorba kerül (mint a nyomtatott adatlapokon), így a sötét
+  // sávban nem csúszik ki az utolsó sor.
   const specRows: React.ReactElement[] = [];
-  if (typeTxt) {
+  const pair = (label: string, value: string, key: string) =>
+    box({ key, alignItems: "center", gap: Math.round(12 * u) } as Style, [
+      specLabel(label, `${key}l`), specValue(value, `${key}v`),
+    ]);
+
+  if (g.land && typeTxt && sizeTxt) {
     specRows.push(hair("h1"));
     specRows.push(box({ key: "r1", width: "100%", alignItems: "center", justifyContent: "space-between", gap: Math.round(18 * u) } as Style, [
-      specLabel("TÍPUS", "l1"), specValue(typeTxt, "v1"),
+      pair("TÍPUS", typeTxt, "p1"), pair("MÉRET", sizeTxt, "p2"),
     ]));
-  }
-  if (sizeTxt || condTxt) {
-    specRows.push(hair("h2"));
-    specRows.push(box({ key: "r2", width: "100%", alignItems: "center", justifyContent: "space-between", gap: Math.round(18 * u) } as Style, [
-      sizeTxt
-        ? box({ key: "p1", alignItems: "center", gap: Math.round(12 * u) } as Style, [specLabel("MÉRET", "l2"), specValue(sizeTxt, "v2")])
-        : null,
-      condTxt
-        ? box({ key: "p2", alignItems: "center", gap: Math.round(12 * u) } as Style, [specLabel("ÁLLAPOT", "l3"), specValue(condTxt, "v3")])
-        : null,
-    ].filter(Boolean)));
+  } else {
+    if (typeTxt) {
+      specRows.push(hair("h1"));
+      specRows.push(box({ key: "r1", width: "100%", alignItems: "center", justifyContent: "space-between", gap: Math.round(18 * u) } as Style, [
+        specLabel("TÍPUS", "l1"), specValue(typeTxt, "v1"),
+      ]));
+    }
+    if (sizeTxt) {
+      specRows.push(hair("h2"));
+      specRows.push(box({ key: "r2", width: "100%", alignItems: "center", justifyContent: "space-between", gap: Math.round(18 * u) } as Style, [
+        specLabel("MÉRET", "l2"), specValue(sizeTxt, "v2"),
+      ]));
+    }
   }
 
   const priceCol = box(
