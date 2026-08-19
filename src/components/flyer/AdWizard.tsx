@@ -709,30 +709,29 @@ export default function AdWizard({
                   </span>
                 </div>
               )}
-              {/* FŐKÉP — kiemelt, külön blokkban, hogy egyértelmű legyen */}
+              {/* FŐKÉP — kiemelt, de VÍZSZINTES kártya: a kép mellé kerül a magyarázat,
+                  így nem tolja le a képernyőről az alatta lévő három üres helyet. */}
               {images.length > 0 && (
-                <div className="rounded-2xl p-3"
+                <div className="flex items-center gap-3 rounded-2xl p-3"
                   style={{ border: "2px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide"
-                        style={{ background: "var(--twx-coral)", color: "#fff" }}>FŐKÉP</span>
-                      <span className="text-xs font-semibold" style={{ color: "#7a2e17" }}>
-                        Ez lesz a hirdetés nagy képe
-                      </span>
-                    </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={images[0]} alt="Főkép" className="shrink-0 rounded-xl object-cover"
+                    style={{ width: "42%", maxWidth: 260, aspectRatio: "4 / 3", border: "1px solid rgba(0,0,0,0.08)" }} />
+                  <div className="min-w-0">
+                    <span className="inline-block rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide"
+                      style={{ background: "var(--twx-coral)", color: "#fff" }}>FŐKÉP</span>
+                    <p className="mt-1.5 text-sm font-semibold" style={{ color: "#7a2e17" }}>
+                      Ez lesz a hirdetés nagy képe
+                    </p>
+                    <p className="mt-1 text-[11px]" style={{ color: "#7a2e17" }}>
+                      Másik fotót szeretnél főképnek? A lenti kis képeknél kattints a <strong>Főkép</strong> gombra.
+                    </p>
                     <button type="button" onClick={() => removeImage(0)}
-                      className="rounded-lg px-2 py-1 text-xs font-medium"
+                      className="mt-2 rounded-lg px-2 py-1 text-xs font-medium"
                       style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
                       Eltávolítás
                     </button>
                   </div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={images[0]} alt="Főkép" className="w-full rounded-xl object-cover"
-                    style={{ aspectRatio: "16 / 9", border: "1px solid rgba(0,0,0,0.08)" }} />
-                  <p className="mt-2 text-[11px]" style={{ color: "#7a2e17" }}>
-                    Másik fotót szeretnél főképnek? A lenti kis képeknél kattints a <strong>Főkép</strong> gombra.
-                  </p>
                 </div>
               )}
 

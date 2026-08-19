@@ -38,29 +38,64 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   // 1) FŐKÉP-SÁV
   // ===========================================================================
   const heroImg = heroFill(hero, W, heroH, o.heroPos?.x ?? 50, o.heroPos?.y ?? 50, o.heroDim?.w ?? 0, o.heroDim?.h ?? 0);
+  // A nagy főcím a fotó világosabb részére is átnyúlhat, ezért a sötétítés a
+  // TELJES fotósávra kiterjed — alul erős, fölfelé fokozatosan elfogy.
   const heroScrim = box({
-    position: "absolute", left: 0, bottom: 0, width: W, height: Math.round(heroH * 0.8),
-    backgroundImage: "linear-gradient(0deg, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.42) 46%, rgba(0,0,0,0) 100%)",
+    position: "absolute", left: 0, bottom: 0, width: W, height: heroH,
+    backgroundImage:
+      "linear-gradient(0deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.58) 34%, rgba(0,0,0,0.22) 64%, rgba(0,0,0,0) 100%)",
   });
 
-  const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 40);
+  // Hosszabb cím is TELJESEN kifér: a méret igazodik hozzá, nem vágjuk le.
+  const title = truncate((o.text.title || "Eladó ingatlan").toUpperCase(), 54);
   const subtitle = truncate(o.text.subtitle, 64);
-  const titleK = g.story ? 1.06 : g.land ? 0.9 : 1;
-  // A cím oszlopa fix szélességű — a betűméret ehhez igazodik, hogy a hosszú
-  // szavak (településnevek) ne lógjanak át a jobb oldali ár-blokkra.
-  const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.58);
-  // Max 2 sor — a hero-blokk így nem nő túl nagyra a fotón.
-  const titleFs = fitHeadline(title, titleColW, 86 * u * titleK, 26 * u, 2, 0.75);
+  const titleK = g.story ? 1.06 : g.land ? 0.95 : 1.05;
+  // A cím a magazin-sablon FŐSZEREPLŐJE: széles oszlopot és nagy alapméretet kap.
+  // A betűméret két korlát közül a szigorúbbat veszi (leghosszabb szó szélessége,
+  // illetve a sorszám), a sorszámot pedig a hero magassága szabja meg — így a cím
+  // a lehető legnagyobb, de sem oldalra, sem fölfelé nem lóg ki.
+  const titleColW = g.story ? W - 2 * P : Math.round((W - 2 * P) * 0.62);
+  // A LAKÁS CÍME kiemelt: telefonon ez a legfontosabb. SAJÁT, TELJES SZÉLESSÉGŰ
+  // sorba kerül, és MINDIG EGY SORBAN marad (nowrap) — a betűméret úgy áll be,
+  // hogy a teljes cím kiférjen a vászon szélességébe.
+  const innerW = W - 2 * P;
+  const subFs = subtitle
+    ? Math.max(
+        Math.round(20 * u),
+        Math.min(
+          Math.round((g.story ? 52 : 46) * u),
+          Math.floor((innerW * 0.97) / (subtitle.length * 0.58))
+        )
+      )
+    : 0;
+  const subH = subtitle ? Math.round(subFs * 1.3) + Math.round(14 * u) : 0;
+  const titleBudget = Math.round(heroH * (g.story ? 0.46 : 0.62)) - subH;
+  let titleFs = Math.round(26 * u);
+  for (const maxLines of [3, 2]) {
+    const fs = fitHeadline(title, titleColW, 100 * u * titleK, 26 * u, maxLines, 0.75);
+    const perLine = Math.max(1, Math.floor((titleColW * 0.97) / (fs * 0.75)));
+    const lines = Math.max(1, Math.ceil(title.length / perLine));
+    titleFs = fs;
+    if (lines * Math.round(fs * 1.08) <= titleBudget) break;
+  }
 
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
-    [
-      box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.02, letterSpacing: Math.round(1 * u), lineClamp: 2, textShadow: "0 2px 18px rgba(0,0,0,0.5)" }, title),
-      subtitle
-        ? box({ fontSize: Math.round(26 * u), fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(12 * u), lineHeight: 1.25, lineClamp: 2, textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle)
-        : null,
-    ].filter(Boolean)
+    box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.55)" }, title)
   );
+
+  // A cím külön, teljes szélességű sor — sosem tördelődik.
+  const subRow = subtitle
+    ? box(
+        {
+          width: innerW, flexShrink: 0, marginTop: Math.round(14 * u),
+          fontSize: subFs, fontWeight: 700, color: "#ffffff",
+          lineHeight: 1.28, whiteSpace: "nowrap",
+          textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+        },
+        subtitle
+      )
+    : null;
 
   // Kiemelt infó-blokk (a minta dátum-blokkjának helyén): ÁR + kulcsadat.
   const rawPrice = formatPrice(String(o.text.price ?? ""));
@@ -85,14 +120,27 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
       )
     : null;
 
+  // Elrendezés: állóban egymás alatt (cím → lakás címe → ár), fekvőn/négyzeten
+  // a cím és az ár egy sorban, ALATTA a teljes szélességű lakás-cím.
+  const heroTop = g.story
+    ? box({ flexDirection: "column", width: innerW }, [titleCol, subRow, infoCol].filter(Boolean))
+    : box(
+        { flexDirection: "column", width: innerW },
+        [
+          box(
+            { width: innerW, alignItems: "flex-end", justifyContent: "space-between", gap: Math.round(24 * u) },
+            [titleCol, infoCol].filter(Boolean)
+          ),
+          subRow,
+        ].filter(Boolean)
+      );
+
   const heroBottom = box(
     {
-      position: "absolute", left: P, bottom: Math.round(P * (g.story ? 1.0 : 0.72)), width: W - 2 * P,
-      flexDirection: g.story ? "column" : "row",
-      alignItems: g.story ? "flex-start" : "flex-end",
-      justifyContent: "space-between", gap: Math.round(24 * u),
+      position: "absolute", left: P, bottom: Math.round(P * (g.story ? 1.0 : 0.72)), width: innerW,
+      flexDirection: "column",
     },
-    [titleCol, infoCol].filter(Boolean)
+    heroTop
   );
 
   const heroBand = box(
@@ -105,7 +153,6 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   // ===========================================================================
   const midPadY = Math.round(P * 0.78);
   const innerH = midH - 2 * midPadY;
-  const innerW = W - 2 * P;
   const gap = Math.round(22 * u);
 
   // Előnyök: az AI kiemelései, ha vannak; különben a megadott adatokból.
@@ -122,7 +169,11 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
       [o.text.subtitle, keyBits].filter(Boolean).join(" — ") ||
       "Vedd fel velünk a kapcsolatot a részletekért és az időpont-egyeztetésért.";
 
-  const textColW = g.story ? innerW : Math.round(innerW * (g.land ? 0.34 : 0.38));
+  // ÁLLÓBAN (9:16) a szövegsáv KÉT EGYENLŐ oszlop: balra a pipás előnyök,
+  // jobbra a leírás — így szimmetrikus, és nem marad üres folt a sáv alatt.
+  const colGap = Math.round(gap * 1.6);
+  const halfW = Math.floor((innerW - colGap) / 2);
+  const textColW = g.story ? halfW : Math.round(innerW * (g.land ? 0.34 : 0.38));
   const hiFs = Math.round((g.land ? 26 : 29) * u);
   const hiBox = Math.round((g.land ? 34 : 38) * u);
   const hiRow = (s: string, i: number) =>
@@ -141,25 +192,43 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   let hiCount = hiList.length;
   while (hiCount > 1 && innerH - hiTop - hiCount * hiRowH < minBlurbH) hiCount--;
   const hiShown = hiList.slice(0, hiCount);
-  const blurbBudget = Math.max(
-    minBlurbH,
-    innerH - (hiShown.length ? hiTop + hiShown.length * hiRowH : 0)
-  );
+  const hiBlockH = hiShown.length ? hiShown.length * hiRowH : 0;
+  // Állóban a két oszlop EGYMÁS MELLETT van, ezért a leírás a saját fél
+  // szélességén és a pipás blokk magasságában kap helyet.
+  const blurbBudget = g.story
+    ? Math.max(minBlurbH, hiBlockH)
+    : Math.max(minBlurbH, innerH - (hiShown.length ? hiTop + hiBlockH : 0));
   const par = fitParagraph(blurbRaw, textColW, blurbBudget, blurbFs, Math.round(16 * u));
-  const textH = par.lines * par.lineH + (hiShown.length ? hiTop + hiShown.length * hiRowH : 0);
 
-  const textCol = box(
-    { flexDirection: "column", width: textColW, flexShrink: 0 },
-    [
-      box(
-        { fontSize: par.fs, fontWeight: 400, color: "#3a3733", lineHeight: 1.45, flexShrink: 0 },
-        par.text
-      ),
-      hiShown.length
-        ? box({ flexDirection: "column", marginTop: hiTop, flexShrink: 0 }, hiShown.map(hiRow))
-        : null,
-    ].filter(Boolean)
+  const blurbBox = box(
+    {
+      width: textColW, flexShrink: 0, fontSize: par.fs, fontWeight: 400,
+      color: "#3a3733", lineHeight: 1.45,
+      // Állóban a két oszlop első sora egy vonalban induljon.
+      marginTop: g.story ? Math.round(14 * u) : 0,
+    },
+    par.text
   );
+  const hiBlock = hiShown.length
+    ? box({ flexDirection: "column", width: textColW, flexShrink: 0 }, hiShown.map(hiRow))
+    : null;
+
+  const textH = g.story
+    ? Math.max(hiBlockH, par.lines * par.lineH)
+    : par.lines * par.lineH + (hiShown.length ? hiTop + hiBlockH : 0);
+
+  const textCol = g.story
+    ? box(
+        { width: innerW, gap: colGap, alignItems: "flex-start", flexShrink: 0 },
+        [hiBlock, blurbBox].filter(Boolean)
+      )
+    : box(
+        { flexDirection: "column", width: textColW, flexShrink: 0 },
+        [
+          blurbBox,
+          hiBlock ? box({ flexDirection: "column", marginTop: hiTop, flexShrink: 0 }, hiShown.map(hiRow)) : null,
+        ].filter(Boolean)
+      );
 
   // Kollázs: a mintához hasonlóan nagy bal kép + két álló kép jobbra.
   const galW = g.story ? innerW : innerW - textColW - Math.round(gap * 1.6);
@@ -170,7 +239,7 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
         Math.round(160 * u),
         Math.min(
           innerH - textH - Math.round(gap * 1.2),
-          Math.round((thumbs.length ? (innerW - (thumbs.length - 1) * gap) / thumbs.length : innerW) * 1.28)
+          Math.round((thumbs.length ? (innerW - (thumbs.length - 1) * gap) / thumbs.length : innerW) * 1.75)
         )
       )
     : innerH;
