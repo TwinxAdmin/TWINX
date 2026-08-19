@@ -5,7 +5,6 @@
 // járnia a modulokat, ha meg akart találni valamit. Ez az oldal a
 // `usage_history`-ból gyűjti össze az összeset, modul szerint szűrhetően.
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import WorksBrowser, { type WorkItem } from "@/components/dashboard/WorksBrowser";
 import { activityTitle, featureLabel } from "@/lib/activity";
@@ -45,22 +44,12 @@ export default async function MyWorksPage() {
 
   return (
     <main className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-4xl font-semibold">Korábbi munkák</h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Minden elkészült anyagod típus szerinti mappákban. Nyiss meg egy mappát,
-            ott megnézheted és letöltheted a munkáidat.
-          </p>
-        </div>
-        {/* A hirdetésképeknek van saját, MAPPÁS archívuma is — ott lehet rendezni. */}
-        <Link
-          href="/dashboard/flyer/history"
-          className="rounded-xl px-4 py-2 text-sm font-medium"
-          style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}
-        >
-          Hirdetésképek mappákban →
-        </Link>
+      <div>
+        <h1 className="font-display text-4xl font-semibold">Korábbi munkák</h1>
+        <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          Minden elkészült anyagod típus szerinti mappákban. Nyiss meg egy mappát,
+          ott megnézheted és letöltheted a munkáidat.
+        </p>
       </div>
 
       <WorksBrowser items={items} />

@@ -37,7 +37,6 @@ export default function MobileNav({
       title: "Korábbi munkák",
       items: [
         { label: "Minden elkészült anyagom", href: "/dashboard/munkaim", icon: "history" },
-        { label: "Hirdetésképek mappákban", href: "/dashboard/flyer/history", icon: "flyer" },
       ],
     },
     {
