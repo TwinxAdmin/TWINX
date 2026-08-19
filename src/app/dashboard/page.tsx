@@ -113,12 +113,22 @@ export default async function DashboardHome() {
               </p>
             </div>
             {isSales ? (
-              <span
-                className="rounded-full px-3 py-1 text-xs font-medium"
-                style={{ background: "var(--twx-line)", color: "var(--twx-on-dark-muted)" }}
-              >
-                Sales · a keretet az admin tölti fel
-              </span>
+              // A magyarázó felirat mellé gomb, hogy a keret-igénylés egy kattintás
+              // legyen — ne kelljen a Beállításokban keresgélni.
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className="rounded-full px-3 py-1 text-xs font-medium"
+                  style={{ background: "var(--twx-line)", color: "var(--twx-on-dark-muted)" }}
+                >
+                  Sales · a keretet az admin tölti fel
+                </span>
+                <PricingTrigger
+                  className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                >
+                  Keret igénylése
+                </PricingTrigger>
+              </div>
             ) : (
               <PricingTrigger
                 className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"

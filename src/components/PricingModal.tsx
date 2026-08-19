@@ -97,6 +97,20 @@ export default function PricingModal() {
     }
   }, []);
 
+  // Nyitáskor megnézzük, ki a partner. A sales kollégának nincs értelme
+  // csomagárakat mutatni (ingyenes belső keretet kap) — neki rögtön az
+  // igénylő nézet nyílik.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      const d = await loadState();
+      if (cancelled || !d) return;
+      if (d.signedIn && d.role === "sales") setMode("request");
+    })();
+    return () => { cancelled = true; };
+  }, [open, loadState]);
+
   function openAuth() {
     close();
     window.setTimeout(
@@ -385,10 +399,13 @@ export default function PricingModal() {
 
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
-                <button type="button" onClick={() => { setMode("packages"); setError(null); }}
-                  className="mt-3 w-full text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  ← Vissza a csomagokhoz
-                </button>
+                {/* A sales-nek nincs mit visszalépnie: neki nincs árlistás nézet. */}
+                {!isSales && (
+                  <button type="button" onClick={() => { setMode("packages"); setError(null); }}
+                    className="mt-3 w-full text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    ← Vissza a csomagokhoz
+                  </button>
+                )}
               </>
             )}
           </>
