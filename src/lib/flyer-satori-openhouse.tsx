@@ -61,10 +61,10 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const innerW = W - 2 * P;
   const subFs = subtitle
     ? Math.max(
-        Math.round(20 * u),
+        Math.round(18 * u),
         Math.min(
-          Math.round((g.story ? 52 : 46) * u),
-          Math.floor((innerW * 0.97) / (subtitle.length * 0.58))
+          Math.round((g.story ? 36 : 32) * u),
+          Math.floor((innerW * 0.97) / (subtitle.length * 0.55))
         )
       )
     : 0;
@@ -101,10 +101,11 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const subRow = subtitle
     ? box(
         {
-          width: innerW, flexShrink: 0, marginTop: Math.round(14 * u),
-          fontSize: subFs, fontWeight: 700, color: "#ffffff",
+          width: innerW, flexShrink: 0, marginTop: Math.round(12 * u),
+          // Visszafogott: normál vastagság, enyhén halványítva — a főcím marad a hangsúlyos.
+          fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.94,
           lineHeight: 1.28, whiteSpace: "nowrap",
-          textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+          textShadow: "0 2px 10px rgba(0,0,0,0.55)",
         },
         subtitle
       )
