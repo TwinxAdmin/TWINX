@@ -8,6 +8,8 @@ import PricingTrigger from "@/components/PricingTrigger";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { resolveViewContext } from "@/lib/view-as";
+import WelcomeHero from "@/components/dashboard/WelcomeHero";
+import { WELCOME_CREDITS } from "@/lib/onboarding";
 
 type HistoryRow = {
   id: string;
@@ -25,7 +27,7 @@ export default async function DashboardHome() {
   } = await supabase.auth.getUser();
 
   const { data: me } = user
-    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    ? await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
     : { data: null };
   // Adminként előnézetbe lehet váltani (lásd lib/view-as.ts) — a megjelenítés
   // ilyenkor a választott szerepkört követi, a jogosultságok nem változnak.
@@ -66,6 +68,11 @@ export default async function DashboardHome() {
   const weekCount = (weekRes as { count: number | null }).count ?? 0;
   const monthCount = (monthRes as { count: number | null }).count ?? 0;
   const historyList = (history ?? []) as unknown as HistoryRow[];
+
+  // Ha még semmit nem használt, és az egyenlege pont az induló keret, akkor
+  // érintetlen próbakredit van nála — ezt érdemes kiemelni.
+  const hasWelcomeCredits = historyList.length === 0 && balance > 0 && balance <= WELCOME_CREDITS;
+  const firstName = String(me?.full_name ?? "").trim().split(/\s+/).filter(Boolean).slice(-1)[0] ?? "";
 
   return (
     <main className="space-y-10">
@@ -140,6 +147,14 @@ export default async function DashboardHome() {
           </>
         )}
       </section>
+
+      {/* Vizuális nyitány: üdvözlés + első lépések + modul-vitrin.
+          A user kérése szerint a fekete sáv ALATT, a tevékenység-lista FÖLÖTT. */}
+      <WelcomeHero
+        firstName={firstName}
+        balance={balance}
+        hasWelcomeCredits={hasWelcomeCredits}
+      />
 
       {/* Kategóriák (App Store-szerű áttekintés) */}
       <section>
