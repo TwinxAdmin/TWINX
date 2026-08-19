@@ -159,12 +159,9 @@ function NavDropdown({
 export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
-  const flyerItems: Item[] = [
-    { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Posztolásra kész hirdetéskép" },
-    { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült képeid mappákban" },
-    { label: "Arculatok", href: "/dashboard/branding", icon: "branding", desc: "Logó, szín, ügynök-adatok" },
-  ];
-
+  // A hirdetéskép készítőnek NINCS külön felső menüpontja: a modul az Ingatlan
+  // kategóriában él (a korábbi képekkel együtt), az Arculat pedig a jobb felső
+  // „Arculatom" linkről érhető el. Így nem szerepel háromszor ugyanaz.
   const customItems: Item[] = [
     { label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom", desc: "A neked fejlesztett eszközök" },
     {
@@ -199,15 +196,6 @@ export default function DashboardNav() {
           onClose={() => setOpen(null)}
         />
       ))}
-
-      <NavDropdown
-        id="hirdetes"
-        label="Hirdetéskép készítő"
-        items={flyerItems}
-        isOpen={open === "hirdetes"}
-        onToggle={() => setOpen(open === "hirdetes" ? null : "hirdetes")}
-        onClose={() => setOpen(null)}
-      />
 
       <NavDropdown
         id="egyedi"

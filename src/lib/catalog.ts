@@ -27,6 +27,7 @@ export const CATEGORIES: Category[] = [
       { label: "Telek ellenőrzés", href: "/dashboard/real-estate/land", icon: "land", desc: "Beépíthetőség és övezet" },
       { label: "Képjavító", href: "/dashboard/real-estate/image-enhance", icon: "visualization", desc: "Ingatlanfotók feljavítása" },
       { label: "Hirdetéskép készítő", href: "/dashboard/flyer", icon: "flyer", desc: "Posztolásra kész hirdetéskép" },
+      { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült képeid mappákban" },
       { label: "Látványtervező", href: "/dashboard/real-estate/visualization", icon: "visualization", desc: "Belsőépítészeti látványterv" },
       { label: "Videó generálás", href: "/dashboard/real-estate/video", icon: "video", desc: "Bemutató videó a fotókból" },
       { label: "Szöveg ellenőrzés", href: "/dashboard/real-estate/ad-check", icon: "history", desc: "Meglévő hirdetés elemzése" },

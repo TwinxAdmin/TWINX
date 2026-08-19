@@ -30,14 +30,9 @@ export default function MobileNav({
       title: c.label,
       items: c.modules as Item[],
     })),
-    {
-      title: "Hirdetéskép készítő",
-      items: [
-        { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer" },
-        { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history" },
-        { label: "Arculatok", href: "/dashboard/branding", icon: "branding" },
-      ],
-    },
+    // A hirdetéskép készítőnek nincs külön szekciója: a modul (és a korábbi
+    // képek) az Ingatlan kategóriában vannak, az Arculat pedig lentebb, az
+    // „Arculatom" sorban.
     {
       title: "Egyedi modulok",
       items: [{ label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom" }],
