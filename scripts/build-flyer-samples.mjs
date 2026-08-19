@@ -82,6 +82,39 @@ try {
   fonts = candidates.map(([p, w]) => ({ name: FAMILY, data: fs.readFileSync(p), style: "normal", weight: w }));
 }
 
+// 3b) A MAGAZIN sablon fix címbetűje (Playfair Display). Hálózat nélkül helyi
+//     seriffel helyettesítjük, hogy az elrendezés akkor is ellenőrizhető legyen —
+//     ilyenkor a minta nem a végleges betűt mutatja, ezért figyelmeztetünk.
+const DISPLAY_FAMILY = "Playfair Display";
+let displayFamily = null;
+try {
+  const gf = require(path.join(BUILD, "src", "lib", "google-font.js"));
+  const disp = await gf.loadGoogleFont(DISPLAY_FAMILY, charset);
+  if (gf.supportsHungarian(disp)) {
+    displayFamily = DISPLAY_FAMILY;
+    fonts.push(...disp.map((f) => ({
+      name: DISPLAY_FAMILY, data: f.data, style: "normal",
+      weight: f.weight >= 700 ? 700 : 400,
+    })));
+    console.log(`• Címbetű: ${DISPLAY_FAMILY} (magyar ékezetek rendben)`);
+  } else {
+    console.warn(`• FIGYELEM: a(z) ${DISPLAY_FAMILY} hiányos magyar ékezetkészletű — kihagyva.`);
+  }
+} catch {
+  const localSerif = [
+    ["/usr/share/fonts/truetype/crosextra/Caladea-Regular.ttf", 400],
+    ["/usr/share/fonts/truetype/crosextra/Caladea-Bold.ttf", 700],
+  ].filter(([p]) => fs.existsSync(p));
+  if (localSerif.length) {
+    displayFamily = "SampleSerif";
+    fonts.push(...localSerif.map(([p, w]) => ({
+      name: "SampleSerif", data: fs.readFileSync(p), style: "normal", weight: w,
+    })));
+    console.warn("• FIGYELEM: nincs hálózat — a címbetű HELYI seriffel készül (nem a végleges).");
+    console.warn("  Futtasd újra hálózattal, hogy a minta a Playfair Display-jel készüljön!");
+  }
+}
+
 // 4) Minta-tartalom: valósághű magyar hirdetés-adatok.
 const b64 = (f) => `data:image/jpeg;base64,${fs.readFileSync(path.join(PHOTOS, f)).toString("base64")}`;
 const images = ["1-nappali.jpg", "2-konyha.jpg", "3-haloszoba.jpg", "4-etkezo.jpg"].map(b64);
@@ -118,6 +151,8 @@ for (const tpl of FLYER_TEMPLATES) {
       {
         images, width: W, height: H, profile, text, mood: "luxus", watermark: false,
         template: tpl.value, thumbLabels: ["Nappali", "Konyha", "Hálószoba"],
+        // A fix magazin-címbetű CSAK a magazin sablonnál.
+        ...(tpl.value === "openhouse" && displayFamily ? { displayFamily } : {}),
         heroPos: { x: 50, y: 50 }, heroDim: { w: 1200, h: 900 }, thumbSlots: [],
       },
       FAMILY

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBrandingFont } from "@/lib/branding";
 import { getFlyerSize, getFlyerTemplate, type RenderOpts } from "@/lib/flyer-poster";
 import { buildFlyerElement } from "@/lib/flyer-satori";
-import { loadGoogleFont, googleFamilyOf } from "@/lib/google-font";
+import { loadGoogleFont, googleFamilyOf, supportsHungarian } from "@/lib/google-font";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
 export const runtime = "nodejs";
@@ -15,6 +15,8 @@ export const maxDuration = 60;
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const FALLBACK_FAMILY = "Montserrat";
+// A magazin sablon FIX címbetűje (nem az arculatból jön) — klasszikus magazin-serif.
+const DISPLAY_FAMILY = "Playfair Display";
 
 async function toDataUri(f: File): Promise<string> {
   const b64 = Buffer.from(await f.arrayBuffer()).toString("base64");
@@ -92,6 +94,25 @@ export async function POST(request: Request) {
       weight: (f.weight >= 700 ? 700 : 400) as 400 | 700,
     }));
 
+    // A MAGAZIN sablon főcíme fix, elegáns magazin-serifet kap (a többi szöveg
+    // marad az arculati betűn). Csak akkor kapcsoljuk be, ha a betű TÉNYLEG
+    // tartalmazza a magyar ékezeteket (ő ű Ő Ű) — különben üres négyzet lenne.
+    let displayFamily: string | undefined;
+    if (template === "openhouse") {
+      const disp = await loadGoogleFont(DISPLAY_FAMILY, charset).catch(() => null);
+      if (disp && supportsHungarian(disp)) {
+        displayFamily = DISPLAY_FAMILY;
+        fonts.push(
+          ...disp.map((f) => ({
+            name: DISPLAY_FAMILY, data: f.data, style: "normal" as const,
+            weight: (f.weight >= 700 ? 700 : 400) as 400 | 700,
+          }))
+        );
+      } else if (disp) {
+        console.warn(`[flyer] ${DISPLAY_FAMILY}: hiányos magyar ékezetkészlet — arculati betű marad.`);
+      }
+    }
+
     const heroPos = {
       x: Math.max(0, Math.min(100, Number(form.get("heroX") ?? 50) || 50)),
       y: Math.max(0, Math.min(100, Number(form.get("heroY") ?? 50) || 50)),
@@ -115,6 +136,7 @@ export async function POST(request: Request) {
     const H = Math.round(size.h * SCALE);
     const opts: RenderOpts = {
       images, width: W, height: H, profile, text, mood, watermark, template, thumbLabels,
+      displayFamily,
       heroPos, thumbSlots, heroDim: heroDim.w && heroDim.h ? heroDim : undefined,
     };
     const element = buildFlyerElement(opts, family);

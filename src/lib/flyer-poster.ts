@@ -229,6 +229,12 @@ export type RenderOpts = {
   template?: string;
   /** A kis képek feliratai (helyiségnevek) — csak a feliratos sablonoknál. */
   thumbLabels?: string[];
+  /**
+   * A FŐCÍM fix, magazinos betűcsaládja (a Satorinak átadott név). Csak akkor van
+   * kitöltve, ha a betű betöltődött ÉS tartalmazza a magyar ékezeteket; különben
+   * a cím is az arculati betűvel készül.
+   */
+  displayFamily?: string;
   /** A főkép kivágásának igazítása százalékban (50/50 = középre). */
   heroPos?: { x: number; y: number };
   /** A főkép eredeti mérete (px) — ebből számoljuk a VALÓDI mozgásteret. */

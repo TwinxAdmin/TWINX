@@ -69,19 +69,32 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
       )
     : 0;
   const subH = subtitle ? Math.round(subFs * 1.3) + Math.round(14 * u) : 0;
+  // A magazinos serif verzáljai keskenyebbek a sans félkövérnél, ezért kisebb
+  // karakterszélességgel számolunk — így nagyobb, de még kiférő címet kapunk.
+  const titleCharW = o.displayFamily ? 0.66 : 0.75;
   const titleBudget = Math.round(heroH * (g.story ? 0.46 : 0.62)) - subH;
   let titleFs = Math.round(26 * u);
   for (const maxLines of [3, 2]) {
-    const fs = fitHeadline(title, titleColW, 100 * u * titleK, 26 * u, maxLines, 0.75);
-    const perLine = Math.max(1, Math.floor((titleColW * 0.97) / (fs * 0.75)));
+    const fs = fitHeadline(title, titleColW, 100 * u * titleK, 26 * u, maxLines, titleCharW);
+    const perLine = Math.max(1, Math.floor((titleColW * 0.97) / (fs * titleCharW)));
     const lines = Math.max(1, Math.ceil(title.length / perLine));
     titleFs = fs;
     if (lines * Math.round(fs * 1.08) <= titleBudget) break;
   }
 
+  // FONTOS: a Satori elhasal az `undefined` stílusértéken — a betűcsaládot csak
+  // akkor tesszük rá, ha tényleg betöltött (magyar ékezetekkel együtt).
+  const titleStyle: Style = {
+    fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04,
+    // A serif magától is elegáns, nem kell szétfeszíteni; a sansnál marad a ritkítás.
+    letterSpacing: o.displayFamily ? 0 : Math.round(1 * u),
+    textShadow: "0 2px 18px rgba(0,0,0,0.55)",
+  };
+  if (o.displayFamily) titleStyle.fontFamily = o.displayFamily;
+
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
-    box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.55)" }, title)
+    box(titleStyle, title)
   );
 
   // A cím külön, teljes szélességű sor — sosem tördelődik.
