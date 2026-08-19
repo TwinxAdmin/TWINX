@@ -1,6 +1,6 @@
 // E-mail küldés Resend API-val (natív fetch, külön csomag nélkül).
 import type { LeadInput } from "@/lib/leads";
-import type { BillingInfo } from "@/lib/billing";
+import { billingCopyBlock, type BillingInfo } from "@/lib/billing";
 
 export async function sendLeadNotification(lead: LeadInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -106,18 +106,14 @@ export async function sendCreditRequestNotification(req: {
   // A sales kolléga ingyen kap keretet; a sima felhasználónak SZÁMLÁT állítunk ki,
   // ezért az ő levelében ott a teljes számlázási adat, másolható formában.
   const isFree = req.role === "sales";
+  // A blokk formázása a lib/billing.ts-ből jön — így a levélben PONTOSAN az
+  // szerepel, amit az admin felületen is másolni lehet (cég = vevő, személy =
+  // kapcsolattartó).
   const billBlock = req.billing
     ? `
     <h3 style="margin-bottom:4px">Számlázási adatok</h3>
     <pre style="background:#f6f3ef;padding:10px;border-radius:8px;font-family:monospace;font-size:13px;white-space:pre-wrap">${escapeHtml(
-      [
-        req.billing.billing_name,
-        req.billing.billing_tax_number ? `Adószám: ${req.billing.billing_tax_number}` : null,
-        [req.billing.billing_zip, req.billing.billing_city].filter(Boolean).join(" ") || null,
-        req.billing.billing_address,
-        req.billing.billing_country,
-        req.billing.billing_email ? `E-mail: ${req.billing.billing_email}` : null,
-      ].filter(Boolean).join("\n")
+      billingCopyBlock(req.billing)
     )}</pre>`
     : "";
 

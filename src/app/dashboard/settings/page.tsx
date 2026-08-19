@@ -5,11 +5,8 @@ import AccountSettingsForm from "@/components/AccountSettingsForm";
 import ProfileForm from "@/components/ProfileForm";
 import CreditRequestPanel from "@/components/CreditRequestPanel";
 import BillingForm from "@/components/BillingForm";
-import type { BillingInfo } from "@/lib/billing";
+import { BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
 import { resolveViewContext } from "@/lib/view-as";
-
-const BILLING_COLS =
-  "billing_type, billing_name, billing_tax_number, billing_country, billing_zip, billing_city, billing_address, billing_email";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -42,7 +39,7 @@ export default async function SettingsPage() {
   // Számlázási adatok KÜLÖN lekérdezéssel: ha a credit-billing.sql még nem futott
   // le, ez a lekérdezés hibázik — az oldal többi része attól még működjön.
   const { data: billingRow } = await supabase
-    .from("profiles").select(BILLING_COLS).eq("id", user.id).maybeSingle();
+    .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
   const billing = (billingRow as BillingInfo | null) ?? null;
 
   // A sales kolléga belső keretet kap (ingyen), neki nincs számlázás.

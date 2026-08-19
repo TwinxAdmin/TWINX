@@ -6,13 +6,10 @@
 // szerver-oldali betöltött adat), és nem akarunk minden oldalra átadni ilyet.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isBillingComplete, type BillingInfo } from "@/lib/billing";
+import { isBillingComplete, BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
 import { resolveViewContext } from "@/lib/view-as";
 
 export const runtime = "nodejs";
-
-const BILLING_COLS =
-  "billing_type, billing_name, billing_tax_number, billing_country, billing_zip, billing_city, billing_address, billing_email";
 
 export async function GET() {
   const supabase = await createClient();
@@ -35,7 +32,7 @@ export async function GET() {
   // Külön lekérdezés: ha a credit-billing.sql még nem futott le, ez hibázik,
   // de a válasz többi része attól még használható.
   const { data: billingRow } = await supabase
-    .from("profiles").select(BILLING_COLS).eq("id", user.id).maybeSingle();
+    .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
   const billing = (billingRow as BillingInfo | null) ?? null;
 
   // Egyszerre egy függő kérés lehet — ha van, azt mutatjuk új űrlap helyett.

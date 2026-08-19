@@ -2,34 +2,47 @@
 //   1) a Beállítások oldalon önálló kártyaként,
 //   2) a kredit-igénylés felugró ablakában (embedded), ha még hiányzik az adat.
 // Így nem csúszhat szét a két űrlap.
+//
+// Szerkezet (könyvelői előírás): a partner MINDIG megadja a saját adatait, és
+// ha cég / egyéni vállalkozás nevében vásárol, egy pipa után előjön a cég
+// neve, adószáma és székhelye. A számla ilyenkor a cégre készül.
 "use client";
 
 import { useState, type FormEvent } from "react";
 import { showToast } from "@/components/Toast";
-import SelectField from "@/components/SelectField";
-import { BILLING_TYPE_LABEL, type BillingInfo, type BillingType } from "@/lib/billing";
+import type { BillingInfo } from "@/lib/billing";
 
 type Draft = {
   billing_type: string;
   billing_name: string;
-  billing_tax_number: string;
   billing_country: string;
   billing_zip: string;
   billing_city: string;
   billing_address: string;
   billing_email: string;
+  billing_company_name: string;
+  billing_tax_number: string;
+  billing_company_country: string;
+  billing_company_zip: string;
+  billing_company_city: string;
+  billing_company_address: string;
 };
 
 function toDraft(b: Partial<BillingInfo> | null): Draft {
   return {
-    billing_type: (b?.billing_type as string) ?? "",
+    billing_type: (b?.billing_type as string) ?? "individual",
     billing_name: b?.billing_name ?? "",
-    billing_tax_number: b?.billing_tax_number ?? "",
     billing_country: b?.billing_country ?? "Magyarország",
     billing_zip: b?.billing_zip ?? "",
     billing_city: b?.billing_city ?? "",
     billing_address: b?.billing_address ?? "",
     billing_email: b?.billing_email ?? "",
+    billing_company_name: b?.billing_company_name ?? "",
+    billing_tax_number: b?.billing_tax_number ?? "",
+    billing_company_country: b?.billing_company_country ?? "Magyarország",
+    billing_company_zip: b?.billing_company_zip ?? "",
+    billing_company_city: b?.billing_company_city ?? "",
+    billing_company_address: b?.billing_company_address ?? "",
   };
 }
 
@@ -107,34 +120,56 @@ export default function BillingForm({
         </div>
       )}
 
+      {/* ------------------------- A VÁSÁRLÓ SAJÁT ADATAI ------------------------- */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
-            Kinek állítsuk ki a számlát?
-          </label>
-          <div className="mt-1">
-            <SelectField
-              value={d.billing_type}
-              onChange={(v) => set("billing_type", v)}
-              ariaLabel="Számlázás típusa"
-              options={(Object.keys(BILLING_TYPE_LABEL) as BillingType[]).map((k) => ({
-                value: k,
-                label: BILLING_TYPE_LABEL[k],
-              }))}
-            />
-          </div>
-        </div>
-
-        {field("billing_name", isCompany ? "Cégnév" : "Név", isCompany ? "pl. Prémium Ingatlanok Kft." : "pl. Nagy Anna", { wide: true })}
-
-        {isCompany && field("billing_tax_number", "Adószám", "pl. 12345678-2-42", { wide: true })}
-
+        {field("billing_name", "Teljes neved", "pl. Nagy Anna", { wide: true })}
         {field("billing_zip", "Irányítószám", "1051")}
         {field("billing_city", "Város", "Budapest")}
         {field("billing_address", "Utca, házszám", "Példa utca 12.", { wide: true })}
         {field("billing_country", "Ország", "Magyarország")}
         {field("billing_email", "Számlázási e-mail (nem kötelező)", "szamla@pelda.hu", { type: "email" })}
       </div>
+
+      {/* ------------------------- CÉGES VÁSÁRLÁS KAPCSOLÓ ------------------------- */}
+      <label
+        className="flex cursor-pointer items-start gap-3 rounded-xl p-3"
+        style={{
+          background: isCompany ? "var(--twx-coral-soft)" : "var(--twx-cream)",
+          border: `1px solid ${isCompany ? "var(--twx-coral)" : "var(--twx-line)"}`,
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={isCompany}
+          onChange={(e) => set("billing_type", e.target.checked ? "company" : "individual")}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--twx-coral)]"
+        />
+        <span>
+          <span className="block text-sm font-medium">
+            Cég vagy egyéni vállalkozás nevében vásárolok
+          </span>
+          <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Ilyenkor a számla a cégre készül, te pedig kapcsolattartóként szerepelsz.
+          </span>
+        </span>
+      </label>
+
+      {/* ------------------------------ A CÉG ADATAI ------------------------------ */}
+      {isCompany && (
+        <div className="rounded-xl p-4" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+            A cég adatai (a számla vevője)
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {field("billing_company_name", "Cég neve", "pl. Prémium Ingatlanok Kft.", { wide: true })}
+            {field("billing_tax_number", "Adószám", "12345678-2-42", { wide: true })}
+            {field("billing_company_zip", "Irányítószám", "1051")}
+            {field("billing_company_city", "Város", "Budapest")}
+            {field("billing_company_address", "Utca, házszám (székhely)", "Példa utca 12.", { wide: true })}
+            {field("billing_company_country", "Ország", "Magyarország")}
+          </div>
+        </div>
+      )}
 
       <button
         type="submit"

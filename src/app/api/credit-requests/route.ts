@@ -13,14 +13,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCreditRequestNotification } from "@/lib/email";
 import { getPackage } from "@/lib/packages";
-import { validateBilling, type BillingInfo } from "@/lib/billing";
+import { validateBilling, BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
 
 export const runtime = "nodejs";
 
 const MAX_AMOUNT = 1000;
-
-const BILLING_COLS =
-  "billing_type, billing_name, billing_tax_number, billing_country, billing_zip, billing_city, billing_address, billing_email";
 
 export async function GET() {
   const supabase = await createClient();
@@ -87,7 +84,7 @@ export async function POST(request: Request) {
   let snapshot: BillingInfo | null = null;
   if (!isFree) {
     const { data: billing, error: billErr } = await admin
-      .from("profiles").select(BILLING_COLS).eq("id", user.id).maybeSingle();
+      .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
     if (billErr) {
       return NextResponse.json(
         { error: "A számlázási adatok nem olvashatók. Futtasd le a credit-billing.sql migrációt." },

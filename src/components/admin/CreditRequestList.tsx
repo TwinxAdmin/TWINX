@@ -13,7 +13,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/components/Toast";
-import { billingCopyBlock, formatHuf, type BillingInfo } from "@/lib/billing";
+import { billingCopyBlock, billingPayerName, formatHuf, type BillingInfo } from "@/lib/billing";
 
 export type CreditRequestRow = {
   id: string;
@@ -119,20 +119,29 @@ export default function CreditRequestList({ items }: { items: CreditRequestRow[]
   function exportCsv() {
     const rows = [...groups.invoice, ...groups.awaiting];
     if (!rows.length) { showToast("Nincs exportálható tétel.", "info"); return; }
-    const head = ["Beadva", "E-mail", "Kredit", "Nettó Ft", "Név", "Adószám", "Irsz", "Város", "Cím", "Számlaszám", "Állapot"];
-    const body = rows.map((r) => [
-      new Date(r.created_at).toLocaleDateString("hu-HU"),
-      r.user_email ?? "",
-      String(r.amount),
-      String(r.net_huf ?? ""),
-      r.billing_snapshot?.billing_name ?? "",
-      r.billing_snapshot?.billing_tax_number ?? "",
-      r.billing_snapshot?.billing_zip ?? "",
-      r.billing_snapshot?.billing_city ?? "",
-      r.billing_snapshot?.billing_address ?? "",
-      r.invoice_number ?? "",
-      r.invoice_status === "issued" ? "Fizetésre vár" : "Számlázandó",
-    ]);
+    const head = [
+      "Beadva", "E-mail", "Kredit", "Nettó Ft",
+      "Vevő", "Adószám", "Irsz", "Város", "Cím",
+      "Kapcsolattartó", "Számlaszám", "Állapot",
+    ];
+    const body = rows.map((r) => {
+      const b = r.billing_snapshot;
+      const company = b?.billing_type === "company";
+      return [
+        new Date(r.created_at).toLocaleDateString("hu-HU"),
+        r.user_email ?? "",
+        String(r.amount),
+        String(r.net_huf ?? ""),
+        billingPayerName(b),
+        b?.billing_tax_number ?? "",
+        (company ? b?.billing_company_zip : b?.billing_zip) ?? "",
+        (company ? b?.billing_company_city : b?.billing_city) ?? "",
+        (company ? b?.billing_company_address : b?.billing_address) ?? "",
+        company ? (b?.billing_name ?? "") : "",
+        r.invoice_number ?? "",
+        r.invoice_status === "issued" ? "Fizetésre vár" : "Számlázandó",
+      ];
+    });
     // BOM, hogy az Excel felismerje az ékezeteket.
     const csv = "﻿" + [head, ...body].map((r) => r.map(csvEscape).join(";")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -199,6 +208,15 @@ export default function CreditRequestList({ items }: { items: CreditRequestRow[]
                         {isInvoice ? "Számlázandó" : "Sales — ingyenes"}
                       </span>
                     </p>
+                    {/* Kire szól a számla — cégnél a cég, magánszemélynél a személy. */}
+                    {isInvoice && b && (
+                      <p className="text-xs font-medium">
+                        Számla vevője: {billingPayerName(b)}
+                        {b.billing_type === "company" && b.billing_tax_number
+                          ? ` (${b.billing_tax_number})`
+                          : ""}
+                      </p>
+                    )}
                     <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                       {new Date(r.created_at).toLocaleString("hu-HU")}
                       {r.invoice_issued_at ? ` · számla: ${new Date(r.invoice_issued_at).toLocaleDateString("hu-HU")}` : ""}
