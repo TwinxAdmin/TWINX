@@ -6,6 +6,7 @@ import ProfileForm from "@/components/ProfileForm";
 import CreditRequestPanel from "@/components/CreditRequestPanel";
 import BillingForm from "@/components/BillingForm";
 import type { BillingInfo } from "@/lib/billing";
+import { resolveViewContext } from "@/lib/view-as";
 
 const BILLING_COLS =
   "billing_type, billing_name, billing_tax_number, billing_country, billing_zip, billing_city, billing_address, billing_email";
@@ -28,7 +29,9 @@ export default async function SettingsPage() {
     .select("role, full_name, company")
     .eq("id", user.id)
     .single();
-  const role = me?.role ?? "user";
+  // Előnézet: adminként megnézhető, hogy a partner mit lát ezen az oldalon.
+  const view = await resolveViewContext(me?.role as string | undefined);
+  const role = view.role;
   const created = user.created_at ? new Date(user.created_at).toLocaleDateString("hu-HU") : "—";
 
   // Az admin korlátlan, neki nincs értelme kreditet kérnie.
@@ -50,7 +53,12 @@ export default async function SettingsPage() {
       <h1 className="font-display text-3xl font-semibold">Beállítások</h1>
 
       {role !== "admin" && (
-        <CreditRequestPanel balance={balance} billing={billing} needsBilling={needsBilling} />
+        <CreditRequestPanel
+          balance={balance}
+          billing={billing}
+          needsBilling={needsBilling}
+          preview={view.previewing}
+        />
       )}
 
       <ProfileForm
@@ -58,7 +66,7 @@ export default async function SettingsPage() {
         initialCompany={(me?.company as string) ?? ""}
       />
 
-      {needsBilling && <BillingForm initial={billing} />}
+      {needsBilling && <BillingForm initial={billing} preview={view.previewing} />}
 
       {/* Profiladatok */}
       <div className="twx-card space-y-2 p-5 text-sm">

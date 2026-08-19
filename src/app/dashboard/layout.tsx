@@ -8,6 +8,8 @@ import MobileNav from "@/components/MobileNav";
 import B2BModal from "@/components/B2BModal";
 import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
+import ViewAsBar from "@/components/ViewAsBar";
+import { resolveViewContext } from "@/lib/view-as";
 
 export default async function DashboardLayout({
   children,
@@ -25,7 +27,10 @@ export default async function DashboardLayout({
         supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
-  const isAdmin = me?.role === "admin";
+  // Előnézet: adminként átkapcsolható, hogy a felület a partner szemével látszódjon.
+  // A jogosultságokat ez NEM érinti (lásd lib/view-as.ts).
+  const view = await resolveViewContext(me?.role as string | undefined);
+  const isAdmin = view.role === "admin";
   const balance = (wallet?.balance as number | undefined) ?? 0;
 
   return (
@@ -72,7 +77,7 @@ export default async function DashboardLayout({
             </svg>
             Arculatom
           </a>
-          <AccountMenu email={user?.email ?? ""} role={me?.role ?? "user"} balance={balance} />
+          <AccountMenu email={user?.email ?? ""} role={view.role} balance={balance} />
           <LogoutButton />
         </div>
 
@@ -80,7 +85,7 @@ export default async function DashboardLayout({
         <div className="ml-auto md:hidden">
           <MobileNav
             email={user?.email ?? ""}
-            role={me?.role ?? "user"}
+            role={view.role}
             balance={balance}
             isAdmin={isAdmin}
           />
@@ -91,6 +96,9 @@ export default async function DashboardLayout({
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
       <PricingModal />
+
+      {/* Nézet-váltó — csak adminnak látszik */}
+      {view.canPreview && <ViewAsBar current={view.role as "admin" | "user" | "sales"} />}
     </div>
   );
 }

@@ -53,10 +53,12 @@ export default function CreditRequestPanel({
   balance,
   billing,
   needsBilling,
+  preview = false,
 }: {
   balance: number;
   billing: Partial<BillingInfo> | null;
   needsBilling: boolean; // true = sima felhasználó (számlázunk), false = sales
+  preview?: boolean;     // admin előnézet: minden látszik, de nem küldünk be semmit
 }) {
   const [packageId, setPackageId] = useState<string>("");
   const [amount, setAmount] = useState("");
@@ -69,13 +71,16 @@ export default function CreditRequestPanel({
   const billingOk = !needsBilling || isBillingComplete(bill);
 
   const load = useCallback(async () => {
+    // Előnézetben nem töltjük a listát: adminként az RLS MINDENKI kérését visszaadná,
+    // ami ebben a nézetben félrevezető lenne.
+    if (preview) return;
     try {
       const res = await fetch("/api/credit-requests");
       if (!res.ok) return;
       const d = await res.json();
       setItems((d.items ?? []) as RequestRow[]);
     } catch { /* lista nélkül is használható */ }
-  }, []);
+  }, [preview]);
   useEffect(() => { void load(); }, [load]);
 
   const pending = items.find((i) => i.status === "pending");
@@ -94,6 +99,11 @@ export default function CreditRequestPanel({
     const amt = needsBilling ? (selected as { credits: number }).credits : parseInt(amount, 10);
     if (!Number.isInteger(amt) || amt <= 0) {
       showToast("Add meg, hány kreditre van szükséged.", "error");
+      return;
+    }
+    // Admin előnézetben csak a megjelenést nézzük — nem hozunk létre valódi kérést.
+    if (preview) {
+      showToast("Ez csak előnézet — nem küldünk el valódi megrendelést.", "info");
       return;
     }
 

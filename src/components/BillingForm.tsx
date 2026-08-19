@@ -36,10 +36,12 @@ function toDraft(b: Partial<BillingInfo> | null): Draft {
 export default function BillingForm({
   initial,
   embedded = false,
+  preview = false,
   onSaved,
 }: {
   initial: Partial<BillingInfo> | null;
   embedded?: boolean;         // felugró ablakban: nincs saját kártya-keret
+  preview?: boolean;          // admin előnézet: mentés nélkül, csak megjelenés
   onSaved?: (b: BillingInfo) => void;
 }) {
   const [d, setD] = useState<Draft>(() => toDraft(initial));
@@ -50,6 +52,11 @@ export default function BillingForm({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    // Admin előnézetben nem írunk az adatbázisba — ez csak a megjelenés próbája.
+    if (preview) {
+      showToast("Ez csak előnézet — a mentés ilyenkor nem fut le.", "info");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/profile/billing", {

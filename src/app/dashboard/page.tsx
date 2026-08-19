@@ -7,6 +7,7 @@ import RecentActivity from "@/components/RecentActivity";
 import PricingTrigger from "@/components/PricingTrigger";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
+import { resolveViewContext } from "@/lib/view-as";
 
 type HistoryRow = {
   id: string;
@@ -26,7 +27,10 @@ export default async function DashboardHome() {
   const { data: me } = user
     ? await supabase.from("profiles").select("role").eq("id", user.id).single()
     : { data: null };
-  const role = (me?.role as string | undefined) ?? "user";
+  // Adminként előnézetbe lehet váltani (lásd lib/view-as.ts) — a megjelenítés
+  // ilyenkor a választott szerepkört követi, a jogosultságok nem változnak.
+  const view = await resolveViewContext(me?.role as string | undefined);
+  const role = view.role;
   const isAdmin = role === "admin"; // korlátlan, prezentációs mód (nincs kreditlevonás)
   const isSales = role === "sales"; // az admin által biztosított keretet fogyasztja
 
