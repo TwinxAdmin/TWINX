@@ -110,8 +110,8 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
     };
   }, [active, close, go]);
 
-  // Szűrőváltásnál a nyitott nézegető indexe elcsúszna — bezárjuk.
-  useEffect(() => { setActive(null); }, [filter]);
+  // Mappaváltásnál a nyitott nézegető indexe elcsúszna — bezárjuk.
+  useEffect(() => { setActive(null); }, [folder]);
 
   const current = active !== null ? shown[active] : null;
   const curKind = current ? kind(current.output_file_url) : "other";
@@ -126,27 +126,61 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
 
   return (
     <>
-      {/* Modul-szűrő */}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setFilter("all")}
-          className="rounded-full px-3.5 py-1.5 text-sm font-medium transition"
-          style={filter === "all"
-            ? { background: "var(--twx-coral)", color: "#1c1005" }
-            : { border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}>
-          Mind ({items.length})
-        </button>
-        {filters.map((f) => (
-          <button key={f.value} type="button" onClick={() => setFilter(f.value)}
-            className="rounded-full px-3.5 py-1.5 text-sm font-medium transition"
-            style={filter === f.value
-              ? { background: "var(--twx-coral)", color: "#1c1005" }
-              : { border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}>
-            {f.label} ({f.count})
-          </button>
-        ))}
-      </div>
+      {/* ------------------------------ MAPPÁK ------------------------------ */}
+      {!openFolder && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {folders.map((f) => (
+            <button
+              key={f.feature}
+              type="button"
+              onClick={() => setFolder(f.feature)}
+              className="group overflow-hidden rounded-2xl text-left transition-shadow hover:shadow-lg"
+              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}
+            >
+              <div className="relative aspect-[4/3] overflow-hidden" style={{ background: "var(--twx-cream)" }}>
+                {f.cover ? (
+                  <img src={f.cover} alt=""
+                    className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center"
+                    style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                    <ModuleIcon name={FEATURE_ICON[f.feature] ?? "history"} className="h-10 w-10" />
+                  </span>
+                )}
+                {/* Darabszám-jelvény, hogy egy pillantással látszódjon a mennyiség */}
+                <span className="absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  style={{ background: "rgba(20,12,8,0.72)", color: "#fff" }}>
+                  {f.items.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 p-3" style={{ color: "var(--twx-coral)" }}>
+                <ModuleIcon name={FEATURE_ICON[f.feature] ?? "history"} className="h-4 w-4 shrink-0" />
+                <span className="truncate text-sm font-medium" style={{ color: "var(--twx-ink)" }}>
+                  {f.label}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Rács */}
+      {/* --------------------------- MAPPA TARTALMA --------------------------- */}
+      {openFolder && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => setFolder(null)}
+            className="rounded-full px-4 py-2 text-sm font-medium"
+            style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)" }}>
+            ← Vissza a mappákhoz
+          </button>
+          <p className="font-display text-lg font-medium">
+            {openFolder.label}
+            <span className="ml-2 text-sm font-normal" style={{ color: "var(--twx-ink-muted)" }}>
+              {openFolder.items.length} db
+            </span>
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {shown.map((h, idx) => {
           const k = kind(h.output_file_url);

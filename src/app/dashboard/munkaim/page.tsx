@@ -49,7 +49,8 @@ export default async function MyWorksPage() {
         <div>
           <h1 className="font-display text-4xl font-semibold">Korábbi munkák</h1>
           <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Minden elkészült anyagod egy helyen. Kattints rá a megnyitáshoz vagy letöltéshez.
+            Minden elkészült anyagod típus szerinti mappákban. Nyiss meg egy mappát,
+            ott megnézheted és letöltheted a munkáidat.
           </p>
         </div>
         {/* A hirdetésképeknek van saját, MAPPÁS archívuma is — ott lehet rendezni. */}
