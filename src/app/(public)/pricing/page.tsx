@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { CREDIT_PACKAGES } from "@/lib/packages";
+import { CREDIT_PACKAGES, CHECKOUT_ENABLED } from "@/lib/packages";
 import Wordmark from "@/components/Wordmark";
 
 export default function PricingPage() {
@@ -54,20 +54,47 @@ export default function PricingPage() {
                   {pkg.priceHuf.toLocaleString("hu-HU")} Ft
                 </p>
               </div>
-              <button
-                onClick={() => buy(pkg.id)}
-                disabled={loadingId !== null}
-                className="twx-btn"
-              >
-                {loadingId === pkg.id ? "Átirányítás…" : "Vásárlás"}
-              </button>
+              {CHECKOUT_ENABLED ? (
+                <button
+                  onClick={() => buy(pkg.id)}
+                  disabled={loadingId !== null}
+                  className="twx-btn"
+                >
+                  {loadingId === pkg.id ? "Átirányítás…" : "Vásárlás"}
+                </button>
+              ) : (
+                <span
+                  className="cursor-not-allowed rounded-xl px-4 py-2 text-sm font-semibold"
+                  style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)", opacity: 0.75 }}
+                >
+                  Hamarosan
+                </span>
+              )}
             </li>
           ))}
         </ul>
 
+        {/* Amíg a bankkártyás fizetés nem él, mutassuk a MŰKÖDŐ utat. */}
+        {!CHECKOUT_ENABLED && (
+          <div className="twx-card p-5" style={{ borderColor: "var(--twx-coral)" }}>
+            <p className="text-sm font-semibold" style={{ color: "#7a2e17" }}>
+              Most így tudsz kreditet szerezni
+            </p>
+            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              A bankkártyás fizetés hamarosan indul. Addig regisztrálsz, leadod az igényed,
+              mi kiállítjuk a számlát, és a befizetés beérkezése után jóváírjuk a kreditet.
+            </p>
+            <a href="/dashboard/settings"
+              className="mt-3 inline-block rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
+              style={{ background: "var(--twx-coral)" }}>
+              Kredit igénylés
+            </a>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          Bejelentkezés szükséges a vásárláshoz.
+          Bejelentkezés szükséges.
         </p>
       </div>
     </main>

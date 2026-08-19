@@ -4,9 +4,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
-import { getPackage } from "@/lib/packages";
+import { getPackage, CHECKOUT_ENABLED } from "@/lib/packages";
 
 export async function POST(request: Request) {
+  // Amíg a bankkártyás vásárlás nincs élesítve, a végpont is zárva van — nem elég
+  // a gombot kikapcsolni a felületen (közvetlen hívással megkerülhető lenne).
+  if (!CHECKOUT_ENABLED) {
+    return NextResponse.json(
+      { error: "A bankkártyás vásárlás még nem elérhető. Addig a Kredit igénylés használható." },
+      { status: 503 }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

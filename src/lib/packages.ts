@@ -1,5 +1,19 @@
 // Fix áras kredit csomagok. Az ár itt, kódban módosítható.
 // Megjegyzés: a kreditek havonta NEM járnak le (lásd CLAUDE.md).
+
+// ---------------------------------------------------------------------------
+// EGYETLEN KAPCSOLÓ a bankkártyás vásárlás élesítéséhez.
+//
+// Amíg `false`: a „Vásárlás" gomb kikapcsolva, „Hamarosan" felirattal látszik,
+// és a hangsúly a működő KREDIT IGÉNYLÉS folyamaton van (számla → befizetés →
+// jóváírás). Ha majd élesedik a Stripe, elég ezt átbillenteni — a felülethez
+// nem kell hozzányúlni.
+//
+// Élesítés: NEXT_PUBLIC_CHECKOUT_ENABLED=true a Vercel környezeti változói közt
+// (NEXT_PUBLIC_, mert a böngészőben futó modálnak is látnia kell).
+// ---------------------------------------------------------------------------
+export const CHECKOUT_ENABLED =
+  process.env.NEXT_PUBLIC_CHECKOUT_ENABLED === "true";
 export type CreditPackage = {
   id: string; // belső azonosító (Checkout-ban erre hivatkozunk)
   serviceSlug: string; // melyik modulhoz szól
