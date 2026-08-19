@@ -75,14 +75,11 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
           "linearGradient",
           { id: "twxCurveFade", x1: "0", y1: "1", x2: "0", y2: "0" },
           [
-            // MEREDEK átmenet: közvetlenül a sáv fölött már erősen világosodik,
-            // az alsó negyedben ~35%-ra esik, feljebb szinte teljesen eltűnik —
-            // így a főképből alig takar ki valamit.
+            // EGYENLETES (lineáris) átmenet: alul tömör, fölfelé egyenletes ütemben
+            // fogy el. Közbülső pontok NINCSENEK — azok korábban egy szűk sávba
+            // sűrítették a világosodást, fölötte pedig alig változott a szín.
             React.createElement("stop", { key: 0, offset: "0%", stopColor: t.band, stopOpacity: 1 }),
-            React.createElement("stop", { key: 1, offset: "8%", stopColor: t.band, stopOpacity: 0.6 }),
-            React.createElement("stop", { key: 2, offset: "22%", stopColor: t.band, stopOpacity: 0.35 }),
-            React.createElement("stop", { key: 3, offset: "50%", stopColor: t.band, stopOpacity: 0.1 }),
-            React.createElement("stop", { key: 4, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
+            React.createElement("stop", { key: 1, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
           ]
         )
       ),
