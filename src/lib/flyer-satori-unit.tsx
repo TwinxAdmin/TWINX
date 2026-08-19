@@ -137,9 +137,9 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
     ].filter(Boolean)
   );
 
+  // A mértékegységet (Ft / M Ft) a formatPrice teszi ki — itt már NEM toldunk hozzá.
   const rawPrice = formatPrice(String(o.text.price ?? ""));
-  const priceIsBare = /^\d+([.,]\d+)?$/.test(rawPrice);
-  const priceTxt = priceIsBare ? `${rawPrice} M Ft` : truncate(rawPrice, 18);
+  const priceTxt = truncate(rawPrice, 20);
 
   const hair = (key: string) =>
     box({ key, width: "100%", height: Math.max(1, Math.round(1.5 * u)), background: t.bandInk, opacity: hairOp, marginTop: Math.round(12 * u), marginBottom: Math.round(12 * u) } as Style, "");

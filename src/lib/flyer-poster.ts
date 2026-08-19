@@ -126,16 +126,98 @@ export function truncate(s: string, max: number): string {
 }
 
 /**
- * Ár formázása: ha a partner CSAK számot ír (pl. "100" vagy "46,5"), kitesszük a
- * hiányzó mértékegységet → "100 M Ft". Ha már írt bármilyen egységet (M, Ft, mFt…),
- * változatlanul hagyjuk.
+ * Ár értelmezése és egységes formázása.
+ *
+ * A partner sokféleképp írja be az árat, és eddig ebből két hiba jött:
+ *   • "63900000"    → a régi kód csak azt nézte, „szám-e", és rátette az „M Ft"-ot
+ *                     (63900000 M Ft — nyilvánvalóan rossz),
+ *   • "63 900 000"  → a szóközök miatt egyik mintára sem illett, ezért VÁLTOZATLAN
+ *                     maradt, vagyis a „Ft" is lemaradt a hirdetésképről.
+ * Ezért a kollégának kézzel kellett szóközölnie és Ft-et írnia.
+ *
+ * Most: kiszedjük a számot (bármilyen elválasztóval írták), eldöntjük, hogy
+ * MILLIÓ vagy teljes forintösszeg, és MINDIG kiírjuk a mértékegységet.
+ *
+ * Példák
+ *   "63900000"      → 63 900 000 Ft
+ *   "63 900 000"    → 63 900 000 Ft
+ *   "63.900.000 Ft" → 63 900 000 Ft
+ *   "63,9M"         → 63,9 M Ft
+ *   "63"            → 63 M Ft
+ *   "46,5"          → 46,5 M Ft
+ *   "megegyezés szerint" → változatlan (nincs benne szám)
  */
-export function formatPrice(raw: string): string {
+export type PriceParts = {
+  /** A szám, ezres tagolással: "63 900 000" vagy "63,9". */
+  value: string;
+  /** A mértékegység: "Ft" vagy "M Ft". */
+  unit: string;
+};
+
+/** Ezres tagolás szóközzel: "63900000" → "63 900 000". */
+function groupThousands(intPart: string): string {
+  return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+export function parsePrice(raw: string): PriceParts | null {
   const t = String(raw ?? "").trim();
-  if (!t) return "";
-  if (/^\d+([.,]\d+)?$/.test(t)) return `${t} M Ft`;          // csak szám
-  if (/^\d+([.,]\d+)?\s*m$/i.test(t)) return `${t.replace(/\s*m$/i, "")} M Ft`; // "100 M"
-  return t;
+  if (!t) return null;
+
+  const lower = t.toLowerCase().replace(/ /g, " ");
+
+  // Írt-e a partner mértékegységet?
+  const saysFt = /(ft|huf|forint)/.test(lower);
+  const saysMillion = /milli|\bm\b|\dm\b|mft/.test(lower);
+
+  // A szám kinyerése: minden más karaktert elhagyunk.
+  const digitsAndSeps = lower.replace(/[^\d.,]/g, "");
+  if (!/\d/.test(digitsAndSeps)) return null; // pl. „megegyezés szerint" — hagyjuk békén
+
+  // Elválasztók értelmezése. Több elválasztó → mind ezres tagolás ("63.900.000").
+  // Egy elválasztó → ha UTÁNA pontosan 3 számjegy áll, az is ezres tagolás
+  // ("63.900"), különben tizedesjel ("46,5").
+  const seps = digitsAndSeps.match(/[.,]/g) ?? [];
+  let intStr: string;
+  let fracStr = "";
+
+  if (seps.length === 0) {
+    intStr = digitsAndSeps;
+  } else if (seps.length >= 2) {
+    intStr = digitsAndSeps.replace(/[.,]/g, "");
+  } else {
+    const [a, b] = digitsAndSeps.split(/[.,]/);
+    if (b.length === 3) {
+      intStr = a + b;
+    } else {
+      intStr = a;
+      fracStr = b.replace(/0+$/, ""); // "46,50" → "46,5"
+    }
+  }
+
+  intStr = intStr.replace(/^0+(?=\d)/, "") || "0";
+  const n = Number(`${intStr}.${fracStr || "0"}`);
+  if (!Number.isFinite(n)) return null;
+
+  // Millió vagy teljes összeg?
+  //   • ha a partner kiírta ("63,9 M") → millió,
+  //   • ha kiírta a Ft-ot és nagy a szám → teljes összeg,
+  //   • egyébként a nagyságrend dönt: 1000 alatt millióban gondolkodik
+  //     (63 → 63 M Ft), fölötte teljes forintösszeg (63900000).
+  const isMillion = saysMillion || (!saysFt && n < 1000);
+
+  if (isMillion) {
+    const value = fracStr ? `${groupThousands(intStr)},${fracStr}` : groupThousands(intStr);
+    return { value, unit: "M Ft" };
+  }
+  // Teljes összegnél a tizedesnek nincs értelme — kerekítünk.
+  return { value: groupThousands(String(Math.round(n))), unit: "Ft" };
+}
+
+/** A megjelenítendő ár egy sorban: "63 900 000 Ft" / "63,9 M Ft". */
+export function formatPrice(raw: string): string {
+  const p = parsePrice(raw);
+  if (!p) return String(raw ?? "").trim();
+  return `${p.value} ${p.unit}`;
 }
 
 /**
@@ -287,7 +369,7 @@ export function buildPosterHtml(o: RenderOpts): string {
   const priceEl = o.text.price
     ? `<div style="flex:0 0 auto;background:${t.priceBg};color:${t.priceInk};border-radius:${r}px;padding:${12 * u}px ${24 * u}px;text-align:right">
         <div style="${type(600, Math.round(15 * u), 1.4, `color:${t.priceInk};opacity:.8;letter-spacing:${2 * u}px;`)}">IRÁNYÁR</div>
-        <div style="${type(800, Math.round(34 * u), 1.3, `color:${t.priceInk};padding-bottom:${3 * u}px;`)}white-space:nowrap">${esc(truncate(o.text.price, 18))}</div>
+        <div style="${type(800, Math.round(34 * u), 1.3, `color:${t.priceInk};padding-bottom:${3 * u}px;`)}white-space:nowrap">${esc(truncate(formatPrice(o.text.price), 20))}</div>
       </div>`
     : "";
 

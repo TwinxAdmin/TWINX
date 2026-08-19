@@ -873,7 +873,7 @@ export default function AdWizard({
                   <Combo label="Műszaki állapot" value={facts.condition} onChange={(v) => setF("condition", v)} options={CONDITION_OPTIONS} placeholder="Válassz a listából" />
                   <Combo label="Szerkezet" value={facts.structure} onChange={(v) => setF("structure", v)} options={STRUCTURE_OPTIONS} placeholder="Válassz a listából" />
                   <Field label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 125 m²" mem={sizeMem} />
-                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 145.000.000 Ft" mem={priceMem} />
+                  <Field label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 63900000 vagy 63,9" mem={priceMem} />
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-3">
@@ -892,7 +892,14 @@ export default function AdWizard({
                 <p className="text-sm font-semibold">A hirdetés szövege</p>
                 <Limit label="Főcím" value={text.title} onChange={(v) => setT("title", v)} max={FLYER_TITLE_MAX} mem={titleMem} />
                 <Limit label="Alcím" value={text.subtitle} onChange={(v) => setT("subtitle", v)} max={FLYER_SUBTITLE_MAX} mem={subtitleMem} />
-                <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={18} mem={dispPriceMem} />
+                <Limit label="Megjelenő ár" value={text.price} onChange={(v) => setT("price", v)} max={20} mem={dispPriceMem} />
+                {/* A tagolást és a „Ft"-ot a render teszi ki (lib/flyer-poster.ts →
+                    formatPrice), ezért itt elég a puszta szám. */}
+                <p className="-mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Elég a számot beírni — a hirdetésképre magától kerül ki az ezres tagolás
+                  és a mértékegység. Például: <strong>63900000</strong> → 63 900 000 Ft,
+                  <strong> 63,9</strong> → 63,9 M Ft.
+                </p>
                 <div>
                   <div className="flex items-baseline justify-between">
                     <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>

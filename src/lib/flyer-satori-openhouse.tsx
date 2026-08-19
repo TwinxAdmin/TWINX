@@ -112,9 +112,10 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
     : null;
 
   // Kiemelt infó-blokk (a minta dátum-blokkjának helyén): ÁR + kulcsadat.
+  // A mértékegységet (Ft / M Ft) a formatPrice teszi ki — itt már NEM toldunk hozzá,
+  // különben "63 900 000 Ft M Ft" lenne belőle.
   const rawPrice = formatPrice(String(o.text.price ?? ""));
-  const priceIsBare = /^\d+([.,]\d+)?$/.test(rawPrice);
-  const priceTxt = priceIsBare ? `${rawPrice} M Ft` : truncate(rawPrice, 18);
+  const priceTxt = truncate(rawPrice, 20);
   const keyBits = [formatSize(d.size ?? ""), numOf(d.rooms) ? `${numOf(d.rooms)} szoba` : compact(d.rooms ?? "", 14)]
     .filter(Boolean).join("  ·  ");
   const infoCol = rawPrice || keyBits

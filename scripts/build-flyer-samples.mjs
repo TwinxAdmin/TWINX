@@ -129,7 +129,7 @@ const profile = {
 const text = {
   title: "Eladó tégla lakás Budapesten",
   subtitle: "Budapest, XIII. kerület, Váci út 12.",
-  price: "89,9",
+  price: "63900000",
   chips: ["3 szoba", "Tégla építésű társasházi lakás"],
   badge: "MINTA",
   details: {

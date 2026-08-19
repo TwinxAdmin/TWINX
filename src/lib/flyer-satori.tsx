@@ -6,7 +6,7 @@
 // A többi elrendezés külön fájlban: flyer-satori-openhouse / flyer-satori-unit.
 // A közös építőelemek (box, img, ikonok, rövidítés) a flyer-satori-kit-ben laknak.
 import React from "react";
-import { buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
+import { buildTheme, truncate, flyerGeom, parsePrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
 import { box, img, hexA, onColor, numOf, compact, icon, type Style } from "@/lib/flyer-satori-kit";
 import { buildOpenHouseElement } from "@/lib/flyer-satori-openhouse";
 import { buildUnitElement } from "@/lib/flyer-satori-unit";
@@ -55,11 +55,12 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   const topFs = Math.round((topLine.length > 42 ? 15 : topLine.length > 32 ? 17 : 20) * u * ts);
   const contact = [p.phone, p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
 
-  // Ár: ha a partner CSAK számot adott meg, kitesszük a nagy „M Ft" utótagot.
-  const rawPrice = formatPrice(String(o.text.price ?? ""));
-  const priceIsBare = /^\d+([.,]\d+)?$/.test(rawPrice);
-  const priceNum = priceIsBare ? rawPrice : truncate(rawPrice, 16);
-  const priceSuffix = priceIsBare ? "M Ft" : "";
+  // Ár: a pecséten a SZÁM nagyban, a mértékegység kisebben áll alatta/mellette.
+  // A tagolást és az egységet a parsePrice adja (lásd flyer-poster.ts).
+  const parsed = parsePrice(String(o.text.price ?? ""));
+  const rawPrice = parsed ? `${parsed.value} ${parsed.unit}` : String(o.text.price ?? "").trim();
+  const priceNum = parsed ? parsed.value : truncate(rawPrice, 16);
+  const priceSuffix = parsed ? parsed.unit : "";
 
   // --- Geometria: KÖZÖS forrásból (flyerGeom) — méretenként más kompozíció ---
   const waveH = g.waveH;
