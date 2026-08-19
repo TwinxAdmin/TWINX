@@ -20,6 +20,35 @@ export function featureLabel(feature: string): string {
   return FEATURE_LABEL[feature] ?? feature;
 }
 
+/**
+ * A „Korábbi munkák" mappáinak felirata: beszédes cím + egy soros magyarázat,
+ * hogy a partner ránézésre tudja, mit talál a mappában.
+ *
+ * A `featureLabel` rövid (listákba, chipekbe való), ez viszont a mappa-csempére
+ * készült — ezért külön, és ezért bővebb.
+ */
+const FEATURE_FOLDER: Record<string, { title: string; hint: string }> = {
+  flyer: { title: "Hirdetésképek", hint: "Posztolásra kész, márkázott képek" },
+  valuation: { title: "Értékbecslések", hint: "Ingatlan piaci ár riportok" },
+  "land-valuation": { title: "Telek ellenőrzések", hint: "Beépíthetőség és övezet" },
+  visualization: { title: "Látványtervek", hint: "Berendezett szobák a fotóidból" },
+  image_enhance: { title: "Javított fotók", hint: "Világosabb, egyenesebb képek" },
+  image_enhance_regenerate: { title: "Javított fotók (újra)", hint: "Ismételt feljavítások" },
+  video: { title: "Videók", hint: "Bemutató videók a fotókból" },
+  "ad-check": { title: "Hirdetés-ellenőrzések", hint: "Meglévő hirdetések elemzése" },
+  "fb-ads": { title: "Hirdetésszövegek", hint: "Facebook és Google Ads szövegek" },
+  "google-ads": { title: "Google Ads feltöltések", hint: "Kampányba küldött hirdetések" },
+  menu_generator: { title: "Menük", hint: "Napi és heti menü javaslatok" },
+  cost_analysis: { title: "Önköltség elemzések", hint: "Étterem-szintű költségriportok" },
+  profit_plan: { title: "Profit-tervek", hint: "Megtérülési szimulációk" },
+  supplier_search: { title: "Beszállító-keresések", hint: "Termelők és nagykerek listái" },
+  professional_search: { title: "Szakember-keresések", hint: "Ügyvéd, kivitelező, séf…" },
+};
+
+export function featureFolder(feature: string): { title: string; hint: string } {
+  return FEATURE_FOLDER[feature] ?? { title: featureLabel(feature), hint: "Korábbi munkáid" };
+}
+
 function s(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }

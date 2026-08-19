@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toDownloadUrl } from "@/lib/files";
 import ModuleIcon from "@/components/ModuleIcon";
+import { featureFolder } from "@/lib/activity";
 
 // Melyik modulhoz melyik ikon tartozik (lásd ModuleIcon).
 const FEATURE_ICON: Record<string, string> = {
@@ -64,15 +65,15 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
   // Az elemek már idő szerint csökkenő sorrendben jönnek, így az első kép
   // egyben a legfrissebb — jó borítónak.
   const folders = useMemo(() => {
-    const map = new Map<string, { label: string; items: WorkItem[]; cover: string | null }>();
+    const map = new Map<string, { items: WorkItem[]; cover: string | null }>();
     for (const it of items) {
-      const f = map.get(it.feature) ?? { label: it.typeLabel, items: [], cover: null };
+      const f = map.get(it.feature) ?? { items: [], cover: null };
       f.items.push(it);
       if (!f.cover && kind(it.output_file_url) === "image") f.cover = it.output_file_url;
       map.set(it.feature, f);
     }
     return [...map.entries()]
-      .map(([feature, v]) => ({ feature, ...v }))
+      .map(([feature, v]) => ({ feature, ...v, ...featureFolder(feature) }))
       .sort((a, b) => b.items.length - a.items.length);
   }, [items]);
 
@@ -153,11 +154,17 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
                   {f.items.length}
                 </span>
               </div>
-              <div className="flex items-center gap-2 p-3" style={{ color: "var(--twx-coral)" }}>
-                <ModuleIcon name={FEATURE_ICON[f.feature] ?? "history"} className="h-4 w-4 shrink-0" />
-                <span className="truncate text-sm font-medium" style={{ color: "var(--twx-ink)" }}>
-                  {f.label}
-                </span>
+              <div className="p-3">
+                <div className="flex items-center gap-2" style={{ color: "var(--twx-coral)" }}>
+                  <ModuleIcon name={FEATURE_ICON[f.feature] ?? "history"} className="h-4 w-4 shrink-0" />
+                  <span className="truncate font-display text-base font-medium" style={{ color: "var(--twx-ink)" }}>
+                    {f.title}
+                  </span>
+                </div>
+                {/* Egy soros magyarázat: ránézésre derüljön ki, mi van a mappában. */}
+                <p className="mt-0.5 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {f.hint}
+                </p>
               </div>
             </button>
           ))}
@@ -173,9 +180,9 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
             ← Vissza a mappákhoz
           </button>
           <p className="font-display text-lg font-medium">
-            {openFolder.label}
+            {openFolder.title}
             <span className="ml-2 text-sm font-normal" style={{ color: "var(--twx-ink-muted)" }}>
-              {openFolder.items.length} db
+              {openFolder.hint} · {openFolder.items.length} db
             </span>
           </p>
         </div>
