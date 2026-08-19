@@ -4,6 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import AccountSettingsForm from "@/components/AccountSettingsForm";
 import ProfileForm from "@/components/ProfileForm";
 import CreditRequestPanel from "@/components/CreditRequestPanel";
+import BillingForm from "@/components/BillingForm";
+import type { BillingInfo } from "@/lib/billing";
+
+const BILLING_COLS =
+  "billing_type, billing_name, billing_tax_number, billing_country, billing_zip, billing_city, billing_address, billing_email";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -31,16 +36,29 @@ export default async function SettingsPage() {
     .from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
   const balance = (wallet?.balance as number) ?? 0;
 
+  // Számlázási adatok KÜLÖN lekérdezéssel: ha a credit-billing.sql még nem futott
+  // le, ez a lekérdezés hibázik — az oldal többi része attól még működjön.
+  const { data: billingRow } = await supabase
+    .from("profiles").select(BILLING_COLS).eq("id", user.id).maybeSingle();
+  const billing = (billingRow as BillingInfo | null) ?? null;
+
+  // A sales kolléga belső keretet kap (ingyen), neki nincs számlázás.
+  const needsBilling = role === "user";
+
   return (
     <main className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl font-semibold">Beállítások</h1>
 
-      {role !== "admin" && <CreditRequestPanel balance={balance} />}
+      {role !== "admin" && (
+        <CreditRequestPanel balance={balance} billing={billing} needsBilling={needsBilling} />
+      )}
 
       <ProfileForm
         initialName={(me?.full_name as string) ?? ""}
         initialCompany={(me?.company as string) ?? ""}
       />
+
+      {needsBilling && <BillingForm initial={billing} />}
 
       {/* Profiladatok */}
       <div className="twx-card space-y-2 p-5 text-sm">

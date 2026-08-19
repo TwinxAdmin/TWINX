@@ -1,9 +1,13 @@
-// PATCH /api/admin/credit-requests — kredit-kérés elbírálása (CSAK admin).
-// body: { id, action: "approve" | "reject", amount?, note? }
+// PATCH /api/admin/credit-requests — kredit-kérés ügyintézése (CSAK admin).
+// body: { id, action: "approve" | "reject" | "issue", amount?, note?, invoiceNumber? }
 //
 // Jóváhagyáskor a jóváírás és a kérés lezárása EGY logikai lépés: előbb a kérést
 // zárjuk le feltételesen (csak ha még 'pending'), és csak azután írunk jóvá — így
 // két admin egyszerre kattintva sem adhat kétszer kreditet.
+//
+// Számlás ág (sima felhasználó): "issue" = a számla kiállítva (kredit MÉG NEM jár),
+// majd "approve" = a befizetés megérkezett → EKKOR jön a kredit.
+// Ingyenes ág (sales): rögtön "approve".
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -22,17 +26,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Csak admin végezheti." }, { status: 403 });
   }
 
-  let body: { id?: string; action?: string; amount?: number; note?: string };
+  let body: { id?: string; action?: string; amount?: number; note?: string; invoiceNumber?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
   const id = String(body.id ?? "");
-  const action = body.action === "approve" ? "approve" : body.action === "reject" ? "reject" : null;
+  const ACTIONS = ["approve", "reject", "issue"] as const;
+  const action = ACTIONS.find((a) => a === body.action) ?? null;
   if (!id || !action) return NextResponse.json({ error: "Hiányzó azonosító vagy művelet." }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: req } = await admin
     .from("credit_requests")
-    .select("id, user_id, user_email, amount, status")
+    .select("id, user_id, user_email, amount, status, billing_kind, invoice_status")
     .eq("id", id)
     .single();
   if (!req) return NextResponse.json({ error: "Nem található." }, { status: 404 });
@@ -41,6 +46,27 @@ export async function PATCH(request: Request) {
   }
 
   const note = String(body.note ?? "").trim().slice(0, 300) || null;
+
+  // --- SZÁMLA KIÁLLÍTVA --- (kredit még NEM jár, csak a státusz lép)
+  if (action === "issue") {
+    if (req.billing_kind !== "invoice") {
+      return NextResponse.json({ error: "Ehhez a kéréshez nem tartozik számla." }, { status: 400 });
+    }
+    const invoiceNumber = String(body.invoiceNumber ?? "").trim().slice(0, 60) || null;
+    const { data: ok, error: issueErr } = await admin.rpc("credit_request_mark_issued", {
+      p_id: id,
+      p_invoice_number: invoiceNumber,
+    });
+    if (issueErr) {
+      console.error("[admin-credit-requests] Számla-jelölés sikertelen:", id, issueErr.message);
+      return NextResponse.json(
+        { error: "A művelet nem sikerült. Futtasd le a credit-billing.sql migrációt." },
+        { status: 500 }
+      );
+    }
+    if (!ok) return NextResponse.json({ error: "Ezt a számlát már kiállítottad." }, { status: 409 });
+    return NextResponse.json({ ok: true, invoiceStatus: "issued" });
+  }
 
   // --- ELUTASÍTÁS ---
   if (action === "reject") {

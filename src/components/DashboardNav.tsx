@@ -160,8 +160,8 @@ export default function DashboardNav() {
   const [open, setOpen] = useState<string | null>(null);
 
   const flyerItems: Item[] = [
-    { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Kész, márkázott hirdetéskép — posztolásra kész" },
-    { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült hirdetésképeid mappákba rendezve" },
+    { label: "Hirdetéskép készítése", href: "/dashboard/flyer", icon: "flyer", desc: "Posztolásra kész hirdetéskép" },
+    { label: "Korábbi hirdetésképek", href: "/dashboard/flyer/history", icon: "history", desc: "Elkészült képeid mappákban" },
     { label: "Arculatok", href: "/dashboard/branding", icon: "branding", desc: "Logó, szín, ügynök-adatok" },
   ];
 
@@ -170,7 +170,7 @@ export default function DashboardNav() {
     {
       label: "Egyedi modul igénylése",
       icon: "request",
-      desc: "Kérj saját üzleti automatizációt",
+      desc: "Saját üzleti automatizáció",
       onClick: () => window.dispatchEvent(new CustomEvent("open-b2b")),
     },
   ];

@@ -19,14 +19,17 @@ export default async function AdminCreditRequestsPage() {
 
   const { data: items, error } = await createAdminClient()
     .from("credit_requests")
-    .select("id, user_email, amount, reason, status, decided_by_email, decided_at, decision_note, granted_amount, created_at")
+    .select(
+      "id, user_email, amount, reason, status, decided_by_email, decided_at, decision_note, granted_amount, created_at, " +
+      "package_id, net_huf, billing_kind, invoice_status, invoice_number, invoice_issued_at, paid_at, billing_snapshot"
+    )
     .order("created_at", { ascending: false })
     .limit(100);
 
   return (
     <AdminShell
       title="Admin — Kredit-kérések"
-      subtitle="A kollégák keret-igényei. Jóváhagyáskor a kredit azonnal jóváíródik, és bekerül a kredit-naplóba."
+      subtitle="Sales keret-igények és számlázandó kredit-megrendelések. A számlás ágon a kredit a befizetés rögzítésekor íródik jóvá."
     >
       {error ? (
         // Ne úgy nézzen ki, mintha üres lenne a lista — derüljön ki a valódi ok.
@@ -38,7 +41,7 @@ export default async function AdminCreditRequestsPage() {
           </span>
         </p>
       ) : (
-        <CreditRequestList items={(items ?? []) as CreditRequestRow[]} />
+        <CreditRequestList items={(items ?? []) as unknown as CreditRequestRow[]} />
       )}
     </AdminShell>
   );
