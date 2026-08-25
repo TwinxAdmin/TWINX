@@ -30,7 +30,10 @@ import {
 import { type RawComp } from "@/lib/valuation-engine";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // a Perplexity-hívás hosszabb lehet
+// A Perplexity-hívás hosszú lehet. 60 a Vercel HOBBY csomag PLAFONJA — ez most a max.
+// Vercel Pro-ra váltás után ez felvihető (akár 180), és a lenti belső `deadline`/
+// `sonarTimeout` értékeket is arányosan emelni kell (route törzsében).
+export const maxDuration = 60;
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";
@@ -162,9 +165,15 @@ export async function POST(request: Request) {
     // ~55 mp-es keretből gazdálkodik: minden hívás annyit kaphat, amennyi a keretből
     // MARADT. Így a belső időkorlát mindig HAMARABB elsül, mint a platform kése →
     // lefut a `catch`, tiszta hibaüzenet, és (mivel még nem vontunk le) nincs kredit-veszés.
-    const deadline = Date.now() + 55_000;
+    // A Vercel Hobby csomag PLAFONJA 60 mp (maxDuration). A belső időkeretet
+    // eddig húzzuk fel — 57 mp —, hogy a Perplexity a lehető legtovább futhasson,
+    // de maradjon ~3 mp a válasz összeállítására + az előzmény mentésére, MIELŐTT
+    // a platform 60-nál megölné a függvényt. Egy hívás így akár 56 mp-et kaphat
+    // (korábban csak 50-et). Vercel Pro-ra váltás után ez és a maxDuration is
+    // feljebb vihető (akár 180 mp).
+    const deadline = Date.now() + 57_000;
     const sonarTimeout = () =>
-      Math.max(6_000, Math.min(50_000, deadline - Date.now())); // legalább 6 mp, legfeljebb 50
+      Math.max(8_000, Math.min(56_000, deadline - Date.now())); // legalább 8 mp, legfeljebb 56
 
     const sonarBase = {
       // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság a fontos.
