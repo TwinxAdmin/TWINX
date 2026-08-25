@@ -134,6 +134,56 @@ export async function renderClosingCard(ctx: VideoFrameCtx): Promise<Buffer> {
   return renderPng(el, ctx);
 }
 
+/** ZÁRÓ KÉP: háttérfotó + erős sötétítő + NAGY, jól olvasható összegző az ingatlanról
+ *  (social-ready 9:16 és 1:1 esetén is), alatta a kontakt egy sorban. */
+export async function renderClosingPhoto(
+  ctx: VideoFrameCtx,
+  opts: { photoUrl: string; summary: string }
+): Promise<Buffer> {
+  const { width: W, height: H, profile: p } = ctx;
+  const u = W / 1080;
+  const accent = /^#[0-9a-fA-F]{6}$/.test(p.accent_color) ? p.accent_color : "#1e3a5f";
+  const summary = truncate((opts.summary || "").trim(), 120);
+  // Font a hosszhoz igazítva: rövid → nagy, hosszú → kisebb, de végig jól olvasható.
+  const fs = Math.round((summary.length > 80 ? 46 : summary.length > 50 ? 58 : 72) * u);
+  const contact = truncate([p.display_name || p.company, p.phone].filter(Boolean).join("  ·  "), 46);
+
+  const el = box(
+    { position: "relative", width: W, height: H, background: "#0d0d0d", fontFamily: ctx.family },
+    [
+      box(
+        { position: "absolute", top: 0, left: 0, width: W, height: H, overflow: "hidden" },
+        img(opts.photoUrl, { width: W, height: H, objectFit: "cover" })
+      ),
+      box({
+        position: "absolute", top: 0, left: 0, width: W, height: H,
+        backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.28) 40%, rgba(0,0,0,0.80) 100%)",
+      }),
+      box(
+        {
+          position: "absolute", left: 0, bottom: Math.round(120 * u), width: W,
+          flexDirection: "column", alignItems: "center",
+          paddingLeft: Math.round(70 * u), paddingRight: Math.round(70 * u),
+        },
+        [
+          box({ width: Math.round(90 * u), height: Math.round(5 * u), background: accent, marginBottom: Math.round(30 * u) }, ""),
+          box({
+            fontSize: fs, fontWeight: 700, color: "#ffffff", lineHeight: 1.15,
+            textAlign: "center", textShadow: "0 3px 20px rgba(0,0,0,0.95)",
+          }, summary),
+          contact
+            ? box({
+                fontSize: Math.round(30 * u), fontWeight: 700, color: "#ffffff", opacity: 0.92,
+                marginTop: Math.round(26 * u), textAlign: "center", textShadow: "0 2px 12px rgba(0,0,0,0.9)",
+              }, contact)
+            : null,
+        ].filter(Boolean)
+      ),
+    ]
+  );
+  return renderPng(el, ctx);
+}
+
 /** FOTÓ-KERET: CSAK a fotó, cover-kitöltéssel (a felirat külön rétegen megy rá). */
 export async function renderPhotoFrame(
   ctx: VideoFrameCtx,

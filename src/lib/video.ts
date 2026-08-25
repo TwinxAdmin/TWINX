@@ -78,6 +78,27 @@ export const EMPTY_VIDEO_FACTS: VideoCaptionFacts = {
 // Egy felirat legfeljebb két sorból áll: fő sor + kiegészítő sor.
 export type VideoCaption = { line1: string; line2: string };
 
+// --- SZABAD, KÉPENKÉNTI FELIRATOK ---
+// A partner minden fotóhoz saját feliratot írhat (pl. „Szépen felújított 15 m² fürdő").
+// A záró képhez egy hosszabb, összegző felirat tartozik az ingatlanról.
+export const MAX_PHOTO_CAPTION = 70;   // egy fotó-felirat max hossza
+export const MAX_CLOSING_CAPTION = 120; // a záró összegző felirat max hossza
+
+/** Szabad felirat → legfeljebb két, kiegyensúlyozott sor (a rendernek).
+ *  Rövid szöveg egy sorban marad; hosszabbat a középhez legközelebbi szóköznél tör. */
+export function splitCaption(text: string): VideoCaption {
+  const t = (text ?? "").trim().replace(/\s+/g, " ");
+  if (!t) return { line1: "", line2: "" };
+  if (t.length <= 26 || !t.includes(" ")) return { line1: t, line2: "" };
+  const mid = Math.floor(t.length / 2);
+  let best = -1;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === " " && (best === -1 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+  }
+  if (best <= 0) return { line1: t, line2: "" };
+  return { line1: t.slice(0, best).trim(), line2: t.slice(best + 1).trim() };
+}
+
 /** A fotó indexéhez tartozó felirat (fő + al sor).
  *  1. kép: város + irányár · 2. kép: pontos cím (fent) + emelet (lent) ·
  *  3. kép: méret + szobaszám · 4. kép: fürdő/wc · 5. kép: város + irányár (ismétlés).

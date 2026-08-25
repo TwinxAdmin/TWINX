@@ -36,6 +36,29 @@ export function countImagePlaceholders(tpl: TemplateJson): number {
   return nums.size;
 }
 
+/** A TARTALMI fotók idő-ablakai (IMAGE_n első előfordulása), sorrendben.
+ *  Ehhez igazítjuk a képenkénti felirat-sávot (a záró háttér ismétlést kihagyja). */
+export function contentImageWindows(tpl: TemplateJson): Array<{ start: number; length: number }> {
+  const n = countImagePlaceholders(tpl);
+  const firstByIdx: Record<number, { start: number; length: number }> = {};
+  for (const track of tpl.timeline.tracks) {
+    for (const clip of track.clips) {
+      const src = clip?.asset?.src;
+      if (typeof src !== "string") continue;
+      const m = src.match(/^\{\{\s*IMAGE_(\d+)\s*\}\}$/);
+      if (!m) continue;
+      const idx = Number(m[1]);
+      const start = Number(clip.start) || 0;
+      if (!firstByIdx[idx] || start < firstByIdx[idx].start) {
+        firstByIdx[idx] = { start, length: Number(clip.length) || 0 };
+      }
+    }
+  }
+  const out: Array<{ start: number; length: number }> = [];
+  for (let i = 1; i <= n; i++) if (firstByIdx[i]) out.push(firstByIdx[i]);
+  return out;
+}
+
 /** A sablon kimeneti mérete → arány + méret. */
 export function outputSize(tpl: TemplateJson): { width: number; height: number; aspect: string } {
   const w = tpl.output?.size?.width ?? 1024;
@@ -106,6 +129,11 @@ export type MergeInput = {
   musicUrl: string | null;       // saját zene
   values: Record<string, string>; // egyéb helyőrzők: ADDRESS, SUBURB, AGENT_NAME, ...
   callbackUrl: string;
+  // Képenkénti felirat-sáv (kész, átlátszó PNG-k) az adott idő-ablakokra ráültetve.
+  captionOverlays?: Array<{ src: string; start: number; length: number }>;
+  // A ZÁRÓKÉP háttere: a sablon a záró szegmensben az 1. fotót ismétli — ezt
+  // cseréljük a partner által feltöltött, dedikált záró képre (ha van).
+  closingBgUrl?: string | null;
 };
 
 /** A beküldhető Shotstack render-test összeállítása a sablonból. */
@@ -119,10 +147,35 @@ export function buildMergeRenderBody(tpl: TemplateJson, input: MergeInput): Reco
   for (const [k, v] of Object.entries(input.values)) values[k] = v ?? "";
   input.images.forEach((url, i) => { values[`IMAGE_${i + 1}`] = url; });
 
+  // 1/B) ZÁRÓKÉP háttér: a legkésőbb induló IMAGE_n klip (a záró szegmens
+  //      ismételt 1. fotója) helyére a dedikált záró kép kerül (literál URL).
+  if (input.closingBgUrl) {
+    let best: any = null;
+    for (const track of t.timeline.tracks) {
+      for (const clip of track.clips) {
+        const src = clip?.asset?.src;
+        if (typeof src === "string" && /^\{\{\s*IMAGE_\d+\s*\}\}$/.test(src)) {
+          if (!best || (Number(clip.start) || 0) > (Number(best.start) || 0)) best = clip;
+        }
+      }
+    }
+    if (best) best.asset.src = input.closingBgUrl;
+  }
+
   // 2) Zene, üres képek, és a NEM-ADAT (fix) feliratok kiürítése.
   swapAudio(t, input.musicUrl);
   pruneEmptyImageClips(t, values);
   blankLiteralText(t); // pl. a fixen bedrótozott „HOUSE" — nem a partner adata
+
+  // 2/B) Képenkénti felirat-sáv a legfelső rétegre (átlátszó PNG-k).
+  if (input.captionOverlays?.length) {
+    t.timeline.tracks.unshift({
+      clips: input.captionOverlays.map((o) => ({
+        asset: { type: "image", src: o.src },
+        start: o.start, length: o.length, fit: "cover",
+      })),
+    });
+  }
 
   // 3) A merge-tömb a végső értékekből (csak amikre van helyőrző a sablonban).
   const used = new Set(collectPlaceholders(t));

@@ -42,27 +42,30 @@ export type VideoDesign = {
 };
 
 export const VIDEO_DESIGNS: VideoDesign[] = [
-  {
-    id: "twinx-premium",
-    name: "TWINX Klasszikus",
-    tagline: "Arculati bronz · feliratsávok · nyitó/záró kártya",
-    kind: "satori",
-    aspects: ["9:16", "1:1"],
-    minImages: 4,
-    maxImages: 5,
-    accent: "#1e3a5f",
-    useProfileAccent: true,
-    font: "",
-    motions: ["zoomIn", "slideLeft", "zoomOut", "slideRight", "zoomIn"],
-    introPanel: false,
-    agentCard: true,
-    preview: { from: "#1c1815", to: "#3a2c20", ink: "#f4efe7" },
-    defaultMusic: "elegans",
-  },
+  // TWINX Klasszikus (satori) — IDEIGLENESEN elrejtve, csak a Modern Sárga aktív.
+  // A render-kód (video-frames.tsx: renderClosingPhoto stb.) és a képenkénti szabad
+  // felirat + záró kép logika megmarad; visszahozáshoz vedd ki a kommentből ezt a blokkot.
+  // {
+  //   id: "twinx-premium",
+  //   name: "TWINX Klasszikus",
+  //   tagline: "Nyitókártya → feliratos fotók → összegző záró kép",
+  //   kind: "satori",
+  //   aspects: ["9:16", "1:1"],
+  //   minImages: 4,
+  //   maxImages: 5,
+  //   accent: "#1e3a5f",
+  //   useProfileAccent: true,
+  //   font: "",
+  //   motions: ["zoomIn", "slideLeft", "zoomOut", "slideRight", "zoomIn"],
+  //   introPanel: false,
+  //   agentCard: true,
+  //   preview: { from: "#1c1815", to: "#3a2c20", ink: "#f4efe7" },
+  //   defaultMusic: "elegans",
+  // },
   {
     id: "modern-sarga",
     name: "Modern Sárga",
-    tagline: "Sárga kiemelés · intro-panel ikonokkal · ügynökkártya",
+    tagline: "Sárga kiemelés · intro-panel · feliratos fotók · záró kép",
     kind: "json",
     // Két méret elérhető, méretenként külön Shotstack-JSON-nal.
     aspects: ["9:16", "1:1"],

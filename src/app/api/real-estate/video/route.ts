@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import {
   CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
-  creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto,
+  creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto, splitCaption,
   type VideoPackage, type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import {
@@ -19,10 +19,10 @@ import {
 } from "@/lib/video-templates";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, submitTemplateRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
-import { buildMergeRenderBody } from "@/lib/video-merge";
+import { buildMergeRenderBody, contentImageWindows } from "@/lib/video-merge";
 import { submitImageToVideoFal, videoClipPrompt } from "@/lib/fal";
 import { failJobOnce, initClips, type AiClipState } from "@/lib/video-pipeline";
-import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
+import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderClosingPhoto, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
 import { logCost, shotstackRenderCostUsd, falVideoCostUsd } from "@/lib/costs";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 import { formatPrice, formatSize } from "@/lib/flyer-poster";
@@ -79,6 +79,22 @@ export async function POST(request: Request) {
   const title = String(form.get("title") ?? "").trim() || "Eladó ingatlan";
   // A könyvtárban ez lesz a videó neve (az ingatlan címe); ha nincs, a főcím.
   const propertyAddress = String(form.get("propertyAddress") ?? "").trim() || title;
+
+  // Fotónkénti szabad feliratok (a képek sorrendjéhez igazítva).
+  let freeCaptions: string[] = [];
+  try {
+    const c = JSON.parse(String(form.get("captions") ?? "[]"));
+    if (Array.isArray(c)) freeCaptions = c.map((x) => String(x ?? ""));
+  } catch { /* felirat nélkül is megy */ }
+  const anyFreeCaption = freeCaptions.some((c) => c.trim());
+
+  // Záró kép (csak satori dizájnnál): háttérfotó + jól olvasható összegző felirat.
+  const closingRaw = form.get("closingImage");
+  const closingFile = closingRaw instanceof File && closingRaw.size > 0 ? closingRaw : null;
+  const closingCaption = String(form.get("closingCaption") ?? "").trim();
+  if (closingFile && !ALLOWED.includes(closingFile.type)) {
+    return NextResponse.json({ error: "A záró kép csak JPG, PNG vagy WEBP lehet." }, { status: 422 });
+  }
 
   // ELŐELLENŐRZÉS: ha a szolgáltatás nincs beállítva, ne is vonjunk kreditet, és
   // a partner ne nyers technikai üzenetet lásson.
@@ -180,10 +196,40 @@ export async function POST(request: Request) {
         AGENT_PICTURE: profile.agent_photo_url || "",
         AGENCY_LOGO: profile.logo_url || "",
       };
+      // Képenkénti felirat-sáv (átlátszó PNG-k) a fotók idő-ablakaira ültetve.
+      const capOverlays: Array<{ src: string; start: number; length: number }> = [];
+      if (anyFreeCaption) {
+        const windows = contentImageWindows(designJson);
+        const capUnits = photoUrls.map((_, i) => splitCaption(freeCaptions[i] ?? ""));
+        const fontPack = await loadVideoFonts(profile, capUnits.flatMap((c) => [c.line1, c.line2]));
+        const ctx = { width: format.width, height: format.height, profile, ...fontPack };
+        for (let i = 0; i < photoUrls.length; i++) {
+          const c = capUnits[i];
+          const w = windows[i];
+          if (!w || !(c.line1 || c.line2)) continue;
+          const buf = await renderCaptionOverlay(ctx, c);
+          const path = `video-frames/${user.id}/${jobId}/cap-${i}.png`;
+          const { error } = await admin.storage.from(BUCKET).upload(path, buf, { contentType: "image/png", upsert: true });
+          if (error) throw new Error(`Felirat mentés hiba: ${error.message}`);
+          capOverlays.push({ src: admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, start: w.start, length: w.length });
+        }
+      }
+
+      // Záró kép: a partner feltöltött háttere a záró szegmens hátterét cseréli (ha van).
+      let closingBgUrl: string | null = null;
+      if (closingFile) {
+        const cbytes = new Uint8Array(await closingFile.arrayBuffer());
+        const cpath = `video-src/${user.id}/${jobId}/closing.jpg`;
+        const { error: cerr } = await admin.storage.from(BUCKET).upload(cpath, cbytes, { contentType: closingFile.type, upsert: true });
+        if (cerr) throw new Error(`Záró kép mentés hiba: ${cerr.message}`);
+        closingBgUrl = admin.storage.from(BUCKET).getPublicUrl(cpath).data.publicUrl;
+      }
+
       const secret = process.env.VIDEO_WEBHOOK_SECRET || "";
       const callback = `${baseUrl(request)}/api/webhooks/shotstack?job=${jobId}&token=${encodeURIComponent(secret)}`;
       const body = buildMergeRenderBody(designJson, {
         images: photoUrls, musicUrl, values, callbackUrl: callback,
+        captionOverlays: capOverlays, closingBgUrl,
       });
       const renderId = await submitTemplateRender(body);
 
@@ -191,7 +237,10 @@ export async function POST(request: Request) {
         source_images: photoUrls,
         music_url: musicUrl,
         poster_url: photoUrls[0], // előkép: az első fotó
-        meta: { title, template: design.id, aspect, render_id: renderId },
+        meta: {
+          title, template: design.id, aspect, render_id: renderId,
+          captions: freeCaptions, closing: closingBgUrl ? { caption: closingCaption } : null,
+        },
       }).eq("id", jobId);
 
       if (service) {
@@ -203,10 +252,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, jobId, status: "rendering" });
     }
 
-    // 4) Satori képkockák: nyitó/záró kártya + fotó-keretek (alsó felirat-sáv).
-    const captions = photoUrls.map((_, i) => captionForPhoto(i, facts));
+    // 4) Satori képkockák: nyitó kártya + fotó-keretek (SZABAD, képenkénti felirat) + záró kép.
+    // A régi, fix-pozíciós captionForPhoto csak akkor él, ha egyáltalán nincs szabad felirat
+    // (visszafelé kompatibilitás); egyébként a partner feliratai számítanak.
+    const captions = photoUrls.map((_, i) =>
+      anyFreeCaption ? splitCaption(freeCaptions[i] ?? "") : captionForPhoto(i, facts)
+    );
     const fontPack = await loadVideoFonts(profile, [
-      title, facts.location, facts.address, facts.price,
+      title, facts.location, facts.address, facts.price, closingCaption,
       profile.display_name, profile.company, profile.title, profile.phone, profile.email, profile.website,
       ...captions.flatMap((c) => [c.line1, c.line2]),
     ]);
@@ -221,7 +274,18 @@ export async function POST(request: Request) {
         frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, captions[i]) });
       }
     }
-    frames.push({ name: "close.png", buf: await renderClosingCard(ctx) });
+    // Záró képkocka: ha van feltöltött záró fotó + összegző, arra kerül a NAGY,
+    // jól olvasható összegzés; különben a klasszikus arculati zárókártya.
+    if (closingFile && closingCaption) {
+      const cbytes = new Uint8Array(await closingFile.arrayBuffer());
+      const cpath = `video-src/${user.id}/${jobId}/closing.jpg`;
+      const { error: cerr } = await admin.storage.from(BUCKET).upload(cpath, cbytes, { contentType: closingFile.type, upsert: true });
+      if (cerr) throw new Error(`Záró kép mentés hiba: ${cerr.message}`);
+      const closingUrl = admin.storage.from(BUCKET).getPublicUrl(cpath).data.publicUrl;
+      frames.push({ name: "close.png", buf: await renderClosingPhoto(ctx, { photoUrl: closingUrl, summary: closingCaption }) });
+    } else {
+      frames.push({ name: "close.png", buf: await renderClosingCard(ctx) });
+    }
 
     const frameUrls: Record<string, string> = {};
     for (const f of frames) {
