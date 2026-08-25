@@ -8,7 +8,6 @@ import Wordmark from "@/components/Wordmark";
 import ModuleIcon from "@/components/ModuleIcon";
 import IngatlanLeadForm from "@/components/IngatlanLeadForm";
 import IngatlanCta from "@/components/IngatlanCta";
-import IngatlanStats from "@/components/IngatlanStats";
 import Reveal from "@/components/motion/Reveal";
 
 export const metadata: Metadata = {
@@ -109,11 +108,6 @@ export default function IngatlanLanding() {
             </span>
           </div>
         </div>
-      </section>
-
-      {/* ===================== 1b) HOOK: SZÁMOK (felpörgő) ===================== */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-14">
-        <IngatlanStats />
       </section>
 
       {/* ========================= 2) FŐ ELŐNYÖK ========================= */}
