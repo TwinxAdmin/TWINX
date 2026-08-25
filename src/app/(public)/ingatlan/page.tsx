@@ -42,11 +42,15 @@ export default function IngatlanLanding() {
         <div className="pointer-events-none absolute right-0 top-40 h-96 w-96 rounded-full"
           style={{ background: "radial-gradient(circle, rgba(249,201,182,0.20), transparent 70%)", filter: "blur(44px)" }} aria-hidden />
 
-        <nav className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <Wordmark className="font-display text-3xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
-          <span className="hidden text-sm sm:inline" style={{ color: "var(--twx-coral)", letterSpacing: "0.04em" }}>
-            Ingatlanközvetítőknek
-          </span>
+        <nav className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-6">
+          {/* A logó a TWINX főoldalra visz. */}
+          <a href="/" aria-label="TWINX főoldal">
+            <Wordmark className="font-display text-3xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
+          </a>
+          <a href="/" className="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>
+            TWINX főoldal →
+          </a>
         </nav>
 
         <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-14 lg:grid-cols-[1.15fr_0.85fr]">
@@ -151,6 +155,12 @@ export default function IngatlanLanding() {
               Az appokat mi magunk is napi szinten használjuk az irodában, így minden funkció a valódi,
               magyar ingatlanpiaci igényekre és kihívásokra ad azonnali választ.
             </p>
+            <div className="mt-8">
+              <a href="/" className="inline-block rounded-xl px-6 py-3 text-sm font-semibold transition-colors hover:bg-white/5"
+                style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                Nézd meg a teljes TWINX platformot →
+              </a>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -194,8 +204,14 @@ export default function IngatlanLanding() {
       </section>
 
       <footer className="px-6 py-8 text-center text-sm" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark-muted)", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-        <Wordmark className="font-display text-xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
+        <a href="/" aria-label="TWINX főoldal">
+          <Wordmark className="font-display text-xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
+        </a>
         <p className="mt-2">TWINX AI Portál · twinx.hu</p>
+        <a href="/" className="mt-3 inline-block rounded-full px-4 py-2 text-xs font-medium transition-colors hover:bg-white/5"
+          style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>
+          Vissza a főoldalra →
+        </a>
       </footer>
     </main>
   );
