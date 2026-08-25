@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, checkCreditAvailable } from "@/lib/credits";
 import {
   runSonarWithSources,
   PERPLEXITY_MODEL,
@@ -120,23 +120,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
   }
 
-  // 1) Kredit levonás (admin/sales megkerüli). Sikertelen generálásnál visszatérítjük.
-  let charge: Awaited<ReturnType<typeof chargeCredit>>;
+  // 1) Kredit-ELLENŐRZÉS levonás nélkül (admin megkerüli). A tényleges levonás
+  //    csak a SIKERES generálás után történik (lentebb) — így egy időtúllépés
+  //    vagy hiba SOHA nem visz el kreditet, még akkor sem, ha a hosting platform
+  //    (Vercel) a függvényt menet közben leállítaná.
+  let avail: Awaited<ReturnType<typeof checkCreditAvailable>>;
   try {
-    charge = await chargeCredit({ userId: user.id, amount: 1 });
+    avail = await checkCreditAvailable({ userId: user.id, amount: 1 });
   } catch {
-    // A levonás technikai hibája ne nyers 500-as hibaként érje a partnert.
     return NextResponse.json(
-      { error: "A kredit levonása most nem sikerült. Próbáld újra." },
+      { error: "A kredit ellenőrzése most nem sikerült. Próbáld újra." },
       { status: 503 }
     );
   }
-  if (!charge.ok) {
+  if (!avail.ok) {
     return NextResponse.json(
       { error: "Nincs elég kredit ehhez a modulhoz." },
       { status: 402 }
     );
   }
+  const bypassed = avail.bypassed;
+  // Levontuk-e ténylegesen a kreditet? (A generálás UTÁN állítjuk true-ra.)
+  let didCharge = false;
 
   try {
     // 2) Perplexity (Sonar) hívás a validált adatokból (az aktív prompttal).
@@ -150,20 +155,31 @@ export async function POST(request: Request) {
       if (rep) conditionText = renderConditionBlock(rep);
     }
 
-    const sonarOpts = {
+    // KÖZÖS IDŐKERET. A motoros ág legrosszabb esetben KÉT Perplexity-hívást tesz
+    // egymás után (comp-lekérés, majd AI-tartalék), és ezek együtt kicsúszhatnak a
+    // Vercel 60 mp-es futásidejéből → a platform megöli a függvényt, a `catch`
+    // NEM fut le, a partner „Hálózati hibát" lát. Ezért a két hívás EGY közös,
+    // ~55 mp-es keretből gazdálkodik: minden hívás annyit kaphat, amennyi a keretből
+    // MARADT. Így a belső időkorlát mindig HAMARABB elsül, mint a platform kése →
+    // lefut a `catch`, tiszta hibaüzenet, és (mivel még nem vontunk le) nincs kredit-veszés.
+    const deadline = Date.now() + 55_000;
+    const sonarTimeout = () =>
+      Math.max(6_000, Math.min(50_000, deadline - Date.now())); // legalább 6 mp, legfeljebb 50
+
+    const sonarBase = {
       // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság a fontos.
       temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
       recency: VALUATION_RECENCY || undefined,
-      // Belső időkorlát a Vercel-futásidő (maxDuration=60) alatt: így időtúllépéskor
-      // is lefut a lenti catch → kredit-visszatérítés, tiszta hibaüzenettel.
-      timeoutMs: 50_000,
     } as const;
 
     // Az AI-becslő ág (régi mód / fallback): a válasz + források.
     const runAiValuation = async (prefix = "") => {
       const prompt = await buildValuationPromptActive(input, conditionText);
-      const r = await runSonarWithSources(prompt, PERPLEXITY_MODEL, sonarOpts);
+      const r = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
+        ...sonarBase,
+        timeoutMs: sonarTimeout(),
+      });
       return prefix + r.content + sourcesSection(r.sources);
     };
 
@@ -180,7 +196,8 @@ export async function POST(request: Request) {
       let sources: SonarSource[] = [];
       if (!comps) {
         const { content: compsRaw, sources: s } = await runSonarWithSources(
-          buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
+          buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL,
+          { ...sonarBase, timeoutMs: sonarTimeout() }
         );
         comps = parseCompsJson(compsRaw);
         sources = s;
@@ -203,6 +220,19 @@ export async function POST(request: Request) {
     // (korlátozások, szűrési/lazítási elvek, kizárt comp-ok) — a PDF-ben ne látszódjanak.
     report = stripHiddenReportSections(report);
 
+    // 2) A generálás SIKERES → MOST vonjuk le a kreditet (admin megkerüli).
+    //    Ha közben (a ritka verseny miatt) elfogyott az egyenleg, a riport akkor is
+    //    kész — nem dobjuk el, csak nem számlázunk érte.
+    if (!bypassed) {
+      try {
+        const c = await chargeCredit({ userId: user.id, amount: 1 });
+        didCharge = c.ok && !c.bypassed;
+      } catch {
+        // A levonás technikai hibája ne buktassa el a kész riportot.
+        didCharge = false;
+      }
+    }
+
     // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
     //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan
     //    az kerül a dokumentumba, amit a partner az előnézetben jóváhagyott.
@@ -214,7 +244,7 @@ export async function POST(request: Request) {
         feature_used: FEATURE,
         input_data: input,
         output_text: report,
-        credits_charged: charge.bypassed ? 0 : 1,
+        credits_charged: didCharge ? 1 : 0,
       })
       .select("id")
       .single();
@@ -253,14 +283,15 @@ export async function POST(request: Request) {
       ok: true,
       id: hist?.id ?? null,
       report,
-      charged: !charge.bypassed,
+      charged: didCharge,
     });
   } catch (err) {
-    if (!charge.bypassed) {
-      await admin.rpc("wallet_add", {
-        p_user_id: user.id,
-        p_amount: 1,
-      });
+    // Csak akkor térítünk vissza, ha TÉNYLEGESEN levontunk (pl. a levonás után a
+    // history-mentés bukott el). Az esetek zömében a hiba a generálás közben jön,
+    // amikor még nem vontunk le — ilyenkor nincs mit visszaadni. Így soha nem
+    // vész el és nem is duplázódik a kredit.
+    if (didCharge) {
+      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: 1 });
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
