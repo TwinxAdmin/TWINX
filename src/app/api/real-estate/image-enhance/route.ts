@@ -11,7 +11,7 @@ import { logCost, googleImageCostUsd } from "@/lib/costs";
 import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
 import { enhanceImageFal } from "@/lib/fal";
 import {
-  isEnhanceMode, validateImageFiles, enhanceModeLabel,
+  isEnhanceMode, validateImageFiles, enhanceModeLabel, EXTREME_DECLUTTER_SUFFIX,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -85,7 +85,12 @@ export async function POST(request: Request) {
     const useFal = mode === "feljavitas";
     const useNano = mode === "rendrakas";
     const falCfg = useFal ? await buildEnhanceFalActive() : null;
-    const nanoPrompt = useNano ? await buildEnhancePromptActive("rendrakas") : "";
+    // Extrém rendetlenség (a böngészőoldali zsúfoltság-heurisztika jelzi):
+    // ilyenkor a rendrakás promptot megerősítjük az agresszívabb toldalékkal.
+    const extreme = String(form.get("extreme") ?? "") === "1";
+    const nanoPrompt = useNano
+      ? (await buildEnhancePromptActive("rendrakas")) + (extreme ? EXTREME_DECLUTTER_SUFFIX : "")
+      : "";
 
     // Feljavítás = felbontásnövelés: nagyobb upscale_factor, a szerkezet hű marad.
     const upscaleFactor = Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4);

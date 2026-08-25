@@ -57,6 +57,8 @@ Output exactly one photorealistic image that looks like the SAME room profession
   // személyes holmi ELTŰNIK, a rögzített elemek és a bútor VÁLTOZATLAN.
   rendrakas: `You are a professional real-estate photo editor performing VIRTUAL DECLUTTERING (tidy-up) and quality enhancement. Make this exact room look clean, tidy and listing-ready — as if the owner had put away ALL personal belongings before a professional photoshoot. Be THOROUGH, not shy: empty shelves and surfaces should end up genuinely clean.
 
+You MUST produce a VISIBLY decluttered image. Returning a near-identical copy with the clutter still present is a FAILURE. Even if the room is EXTREMELY cluttered, remove as much of the movable clutter as you can and clearly reduce the mess — always deliver a noticeably tidier result than the input.
+
 DO (be thorough and complete):
 - Remove ALL movable, everyday and personal items from open shelves, countertops, the sink/basin area, hooks, radiators, window sills and the floor: toiletries, cosmetics, bottles, tubes, jars, soap, sponges, toothbrushes and holders, hairdryer and cables, chargers, cleaning supplies, towels in use, laundry, papers, magazines, bins and rubbish, small clutter. Leave those shelves and surfaces CLEAN and essentially EMPTY, like a staged listing photo. Reconstruct the real, already-visible surface/material behind the removed items.
 - Improve technical quality: exposure/brightness, white balance and natural true-to-life colors, contrast, sharpness/clarity, noise reduction, and gently straighten slightly tilted vertical/horizontal lines.
@@ -69,3 +71,17 @@ DO NOT (keep it truthful — this is a REAL property):
 
 The result must be the SAME room, clearly recognizable, just thoroughly tidied and professionally photographed. Output exactly one photorealistic image and nothing else.`,
 };
+
+/**
+ * Extrém rendetlenség esetén a rendrakás prompthoz fűzött, agresszívabb utasítás.
+ * A böngészőoldali „zsúfoltság" heurisztika kapcsolja be (lásd image-diff.ts).
+ * Nem cseréli le a promptot, csak megerősíti: extrém esetben a legnagyobb
+ * nyerőkre koncentráljon, és semmiképp ne adjon vissza változatlan képet.
+ */
+export const EXTREME_DECLUTTER_SUFFIX = `
+
+IMPORTANT — THIS ROOM IS EXTREMELY CLUTTERED. This is a hard case, so be MAXIMALLY aggressive with the tidy-up and prioritise the biggest visual wins:
+- Clear the FLOOR completely: remove all bags, boxes, laundry, shoes, toys, cables, appliances (vacuum, etc.), and any items lying or piled on the ground.
+- Empty every open shelf, table top, cabinet top, TV stand and window sill of the small movable clutter; reconstruct the clean surface/material behind them.
+- Remove wall/ceiling decorations that are clearly clutter (stickers, hanging ornaments, novelty items) but KEEP the walls, ceiling, built-in furniture and large fixed pieces.
+- It is acceptable if not every single tiny object can be removed in one pass — but the result MUST be dramatically tidier and clearly less cluttered than the input. Returning a barely-changed image is a FAILURE.`;

@@ -11,6 +11,7 @@ import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
+import { imageMeanDiff, NOOP_DIFF_THRESHOLD, imageBusyness, EXTREME_BUSYNESS_THRESHOLD } from "@/lib/image-diff";
 import {
   ENHANCE_MODES, MAX_IMAGES, ALLOWED_IMAGE_TYPES,
   type EnhanceMode,
@@ -67,6 +68,10 @@ export default function ImageEnhancePage() {
   const [regenFor, setRegenFor] = useState<string | null>(null); // original url
   const [regenReason, setRegenReason] = useState("");
   const [regenUsed, setRegenUsed] = useState<string[]>([]);      // ahol már volt ingyenes újragenerálás
+  // „Alig változott" jelzés a rendrakásnál (original url -> true, ha no-op).
+  const [noop, setNoop] = useState<Record<string, boolean>>({});
+  // A kiválasztott képek közt van-e EXTRÉM zsúfolt (böngészős heurisztika).
+  const [extremeClutter, setExtremeClutter] = useState(false);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -121,8 +126,21 @@ export default function ImageEnhancePage() {
   }
   const removePick = (i: number) => setPicks((prev) => prev.filter((_, j) => j !== i));
 
+  // A kiválasztott képek zsúfoltságának becslése — ha bármelyik extrém, jelezzük
+  // a partnernek, és a rendrakás az agresszívabb módban fut. Ingyenes, kliensoldali.
+  useEffect(() => {
+    const urls = [...picks.map((p) => p.url), ...libPicks];
+    if (!urls.length) { setExtremeClutter(false); return; }
+    let cancelled = false;
+    Promise.all(urls.map((u) => imageBusyness(u))).then((scores) => {
+      if (cancelled) return;
+      setExtremeClutter(scores.some((s) => s !== null && s >= EXTREME_BUSYNESS_THRESHOLD));
+    });
+    return () => { cancelled = true; };
+  }, [picks, libPicks]);
+
   // Egy feldolgozás lefuttatása a megadott móddal, a megadott fájlokon.
-  async function process(m: EnhanceMode, files: File[]): Promise<boolean> {
+  async function process(m: EnhanceMode, files: File[], extreme = false): Promise<boolean> {
     setLoading(true);
     try {
       // Rendrakásnál előbb a partner hagyja jóvá — csak utána mentjük az előzményekbe.
@@ -130,6 +148,8 @@ export default function ImageEnhancePage() {
       const fd = new FormData();
       fd.append("mode", m);
       if (needsReview) fd.append("defer", "1");
+      // Extrém zsúfoltságnál a szerver az agresszívabb rendrakás-promptot használja.
+      if (m === "rendrakas" && extreme) fd.append("extreme", "1");
       for (const f of files) fd.append("images", await compressImage(f, 1600, 0.85));
       const res = await fetch(API, { method: "POST", body: fd });
       const data = await res.json();
@@ -185,7 +205,7 @@ export default function ImageEnhancePage() {
       showToast("Nem sikerült betölteni a kiválasztott képeket.", "error");
       return;
     }
-    const ok = await process(session, files);
+    const ok = await process(session, files, extremeClutter);
     setSourcePreview(null);
     if (ok) { setPicks([]); setLibPicks([]); }
   }
@@ -286,6 +306,22 @@ export default function ImageEnhancePage() {
     } finally { setBusy(false); }
   }
 
+  // A rendrakás „alig változott" (no-op) felismerése: az épp áttekintett képnél
+  // összemérjük az eredetit és a készet; ha alig térnek el, felajánljuk az
+  // ingyenes újragenerálást. Csak rendrakásnál fut.
+  useEffect(() => {
+    if (!pending || producedMode !== "rendrakas") return;
+    const it = pending[reviewIdx];
+    if (!it || noop[it.original] !== undefined) return; // már kiszámoltuk
+    let cancelled = false;
+    imageMeanDiff(it.original, it.enhanced).then((d) => {
+      if (cancelled) return;
+      // d === null → nem mérhető (CORS): ilyenkor NEM jelzünk (false).
+      setNoop((prev) => ({ ...prev, [it.original]: d !== null && d < NOOP_DIFF_THRESHOLD }));
+    });
+    return () => { cancelled = true; };
+  }, [pending, reviewIdx, producedMode, noop]);
+
   // Ingyenes újragenerálás (indoklással) — kreditet nem von.
   async function regenerate() {
     if (!pending || !producedMode || regenFor === null) return;
@@ -301,6 +337,8 @@ export default function ImageEnhancePage() {
       if (!res.ok) throw new Error(data.error);
       setPending((prev) => prev ? prev.map((p, i) => (i === idx ? data.item : p)) : prev);
       setRegenUsed((u) => [...u, pending[idx].original]);
+      // Az új változatot újra megvizsgáljuk (töröljük a korábbi no-op jelet).
+      setNoop((n) => { const c = { ...n }; delete c[pending[idx].original]; return c; });
       setRegenFor(null); setRegenReason("");
       showToast("Új változat elkészült (ingyenes).", "success");
     } catch {
@@ -627,6 +665,15 @@ export default function ImageEnhancePage() {
                     </div>
                   )}
 
+                  {/* Extrém zsúfoltság figyelmeztetés — csak rendrakásnál. */}
+                  {session === "rendrakas" && extremeClutter && (picks.length > 0 || libPicks.length > 0) && (
+                    <div className="mt-3 rounded-xl p-3 text-sm" style={{ background: "#fff8ec", border: "1px solid #f0c96b", color: "#7a5a12" }}>
+                      Ez a kép nagyon zsúfolt — a rendrakás alaposabb módban fut, de a
+                      legextrémebb rendetlenséget nem lehet teljesen eltüntetni, és 1-2
+                      próba is kellhet. Ha nem elég alapos, a jóváhagyásnál ingyen újragenerálhatod.
+                    </div>
+                  )}
+
                   <div className="sticky bottom-0 -mx-4 -mb-4 border-t px-4 pb-4 pt-3 sm:-mx-5 sm:-mb-5 sm:px-5"
                     style={{ background: "var(--twx-cream-card)", borderColor: "var(--twx-line)" }}>
                     <button onClick={runInitial} disabled={loading || (!picks.length && !libPicks.length)}
@@ -756,6 +803,27 @@ export default function ImageEnhancePage() {
                       <img src={p.enhanced} alt="" className="h-12 w-16 object-cover" />
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* „Alig változott" figyelmeztetés — csak rendrakásnál, ha még nem
+                  volt ingyenes újragenerálás ezen a képen, és épp nincs nyitva a
+                  regen-mező. Az ingyenes újragenerálásra kötve. */}
+              {producedMode === "rendrakas"
+                && noop[pending[reviewIdx].original] === true
+                && !regenUsed.includes(pending[reviewIdx].original)
+                && regenFor === null && (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl p-3"
+                  style={{ background: "#fff8ec", border: "1px solid #f0c96b" }}>
+                  <span className="text-sm" style={{ color: "#7a5a12" }}>
+                    Úgy tűnik, a rendrakás alig változtatott ezen a képen. Nagyon zsúfolt
+                    szobánál 1-2 próba is kellhet — generáld újra ingyen.
+                  </span>
+                  <button type="button" onClick={() => setRegenFor(pending[reviewIdx].original)}
+                    className="ml-auto rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                    style={{ background: "var(--twx-coral)" }}>
+                    Újragenerálás (ingyenes)
+                  </button>
                 </div>
               )}
 
