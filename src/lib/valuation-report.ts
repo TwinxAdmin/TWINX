@@ -173,13 +173,21 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
   // régi riportoknál a "Piaci ár"-ból) vezetjük le a fejléc-árat.
   if (!headlinePrice) {
     const est = sections.find((s) =>
-      /becsült\s*piaci\s*érték|piaci\s*érték|piaci\s*ár/i.test(s.heading)
+      /becsült\s*(piaci|forgalmi)\s*érték|piaci\s*érték|piaci\s*ár/i.test(s.heading)
     );
     if (est) headlinePrice = toSinglePrice(firstValue(est.body));
   }
 
   // A fejléc-ár a teljes forgalmi érték legyen (ne a nm-ár) — ha kell, korrigáljuk.
   headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+
+  // REKONCILIÁCIÓ: a fejléc-ár MINDIG a riport SAJÁT levezetésével egyezzen.
+  // Az AI-tartalék ágon a modell néha a korrekciók ELŐTTI (comp-alapú, hirdetési)
+  // árat teszi a fejlécbe, miközben a törzsben a korrigált, alacsonyabb értéket
+  // vezeti le. Ilyenkor a fejléc-ár kilóg az értéksávból. Ezt itt determinisztikusan
+  // felülírjuk a törzs „Becsült piaci/forgalmi érték"-ével (vagy a sáv középértékével),
+  // hogy a partner mindig a reális, levezetéssel egyező árat lássa.
+  headlinePrice = reconcileHeadline(headlinePrice, sections);
 
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
     .filter(Boolean)
@@ -221,7 +229,7 @@ function firstLine(body: string): string {
 function toSinglePrice(raw: string): string {
   if (!raw) return "";
   // Zárójeles rész és kósza zárójelek el.
-  let s = raw.replace(/\([^)]*\)?/g, " ").replace(/[()]/g, " ").trim();
+  const s = raw.replace(/\([^)]*\)?/g, " ").replace(/[()]/g, " ").trim();
 
   // Számok kигyűjtése (ezres-tagolás lehet szóköz, pont vagy nbsp).
   const nums = (s.match(/\d[\d.\s ]*\d|\d/g) ?? [])
@@ -295,6 +303,86 @@ function ensureTotalPrice(
   // Ha nincs szám, vagy a szám a várható teljes ár felénél kisebb (tehát
   // valószínűleg a nm-ár csúszott ide), a számított teljes árra cseréljük.
   if (!current || current < expectedTotal * 0.5) return formatFt(expectedTotal);
+  return headline;
+}
+
+/** A minimális, ingatlan-ár nagyságrendű szám (a nm-árat kiszűri). */
+const PRICE_MIN = 1_000_000;
+
+/** Egy szakasz törzséből az első ingatlan-ár nagyságrendű szám. */
+function bodyBigNumber(sections: ReportSection[], test: RegExp): number | null {
+  for (const s of sections) {
+    if (test.test(s.heading)) {
+      const n = firstBigNumber(s.body, PRICE_MIN);
+      if (n) return n;
+    }
+  }
+  // Ha nincs önálló szakasz (pl. „Végső összegzés" alá írta a modell), a
+  // törzs-sorok között keressük a megnevezett értéket.
+  for (const s of sections) {
+    for (const line of s.body.split("\n")) {
+      if (test.test(line)) {
+        const n = firstBigNumber(line, PRICE_MIN);
+        if (n) return n;
+      }
+    }
+  }
+  return null;
+}
+
+/** Az értéksáv [alsó, felső] a riportból, ha értelmezhető. */
+function parseValueRange(sections: ReportSection[]): [number, number] | null {
+  const collect = (text: string): number[] =>
+    (text.match(/\d[\d.\s ]*\d|\d/g) ?? [])
+      .map((m) => Number(m.replace(/[.\s ]/g, "")))
+      .filter((n) => Number.isFinite(n) && n >= PRICE_MIN);
+
+  // 1) Önálló „Értéksáv" szakasz.
+  const rangeSection = sections.find((s) => /értéksáv/i.test(s.heading));
+  if (rangeSection) {
+    const nums = collect(rangeSection.body);
+    if (nums.length >= 2) return [Math.min(nums[0], nums[1]), Math.max(nums[0], nums[1])];
+  }
+  // 2) „Értéksáv:" sor bárhol a törzsben.
+  for (const s of sections) {
+    for (const line of s.body.split("\n")) {
+      if (/értéksáv/i.test(line)) {
+        const nums = collect(line);
+        if (nums.length >= 2) return [Math.min(nums[0], nums[1]), Math.max(nums[0], nums[1])];
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * A fejléc-árat a riport SAJÁT levezetésével egyeztetjük. Az AI-tartalék ágon a
+ * modell néha a korrekciók ELŐTTI (magasabb, comp-alapú) árat teszi a fejlécbe,
+ * miközben a törzsben a korrigált, alacsonyabb értéket vezeti le — így a fejléc
+ * kilóg az értéksávból. Ilyenkor felülírjuk:
+ *   • ha van „Becsült piaci/forgalmi érték", azt tesszük a fejlécbe (ez a levezetés vége),
+ *   • egyébként ha van értéksáv és a fejléc kívül esik rajta, a sáv középértékét.
+ * Kis (≤2%) eltérésnél nem nyúlunk hozzá, hogy a kerekítési zaj ne írja felül.
+ */
+function reconcileHeadline(headline: string, sections: ReportSection[]): string {
+  const estimate = bodyBigNumber(sections, /becsült\s*(piaci|forgalmi)\s*érték/i);
+  const range = parseValueRange(sections);
+  const current = firstBigNumber(headline, PRICE_MIN);
+
+  // Az irányadó érték: elsősorban a becsült érték, különben a sáv középértéke.
+  const authoritative =
+    estimate ?? (range ? Math.round((range[0] + range[1]) / 2 / 1000) * 1000 : null);
+  if (!authoritative) return headline; // nincs mihez igazítani
+
+  // Nincs fejléc-szám → az irányadót írjuk be.
+  if (!current) return formatFt(authoritative);
+
+  // A fejléc kilóg a sávból? (2% tűrés a kerekítés miatt.)
+  const outOfRange = range ? current < range[0] * 0.98 || current > range[1] * 1.02 : false;
+  // Vagy érdemben eltér a becsült értéktől? (2% fölött.)
+  const offEstimate = estimate ? Math.abs(current - estimate) / estimate > 0.02 : false;
+
+  if (outOfRange || offEstimate) return formatFt(authoritative);
   return headline;
 }
 
