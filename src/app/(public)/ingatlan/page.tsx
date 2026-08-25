@@ -11,7 +11,7 @@ import IngatlanCta from "@/components/IngatlanCta";
 import Reveal from "@/components/motion/Reveal";
 
 export const metadata: Metadata = {
-  title: "TWINX AI ingatlanközvetítőknek — turbózd fel a munkád AI-jal",
+  title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
   description:
     "Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Értékbecslés, hirdetéskép, videó, látványterv és hirdetésszöveg — havidíj nélkül, használat alapon. Az első 50 jelentkező 10 ajándék kreditet kap.",
 };
@@ -56,14 +56,15 @@ export default function IngatlanLanding() {
         <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-14 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <p className="font-display text-sm font-semibold uppercase" style={{ color: "var(--twx-coral)", letterSpacing: "0.2em" }}>
-              TWINX AI App Store
+              TWINX ingatlanos eszköztár
             </p>
             <h1 className="mt-4 font-display font-semibold leading-[1.02]" style={{ fontSize: "clamp(2.4rem, 6vw, 4.2rem)", color: "var(--twx-on-dark)" }}>
-              Turbózd fel az ingatlanközvetítést mesterséges intelligenciával!
+              Turbózd fel az ingatlanközvetítést a TWINX profi eszközeivel!
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
-              Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Nincs havi díj —
-              csak a tényleges használatért fizetsz.
+              Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Percek alatt kész,
+              igényes anyagok a mindennapi munkádhoz — nincs havi díj, csak a tényleges
+              használatért fizetsz.
             </p>
 
             <div className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
@@ -98,7 +99,7 @@ export default function IngatlanLanding() {
       {/* ========================= 2) FŐ ELŐNYÖK ========================= */}
       <section className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
         <Reveal>
-          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Miért a TWINX AI?</h2>
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Miért a TWINX?</h2>
         </Reveal>
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
           {BENEFITS.map((b, i) => (
@@ -150,7 +151,7 @@ export default function IngatlanLanding() {
               Élesben tesztelve, a mindennapi piacra szabva
             </h2>
             <p className="mt-5 text-lg leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
-              A TWINX AI alkalmazásokat a TWINX fejlesztői csapata és a{" "}
+              A TWINX alkalmazásokat a TWINX fejlesztői csapata és a{" "}
               <strong style={{ color: "var(--twx-on-dark)" }}>GDN Mandala iroda</strong> közösen hozta létre.
               Az appokat mi magunk is napi szinten használjuk az irodában, így minden funkció a valódi,
               magyar ingatlanpiaci igényekre és kihívásokra ad azonnali választ.
@@ -194,7 +195,7 @@ export default function IngatlanLanding() {
             </h2>
             <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
               Légy az első 50 jelentkező között, töltsd ki az űrlapot, és kezdd el ingyen
-              használni a TWINX AI-t!
+              használni a TWINX-et!
             </p>
           </div>
           <div className="mt-8">
@@ -207,7 +208,7 @@ export default function IngatlanLanding() {
         <a href="/" aria-label="TWINX főoldal">
           <Wordmark className="font-display text-xl font-semibold" style={{ color: "var(--twx-on-dark)" }} />
         </a>
-        <p className="mt-2">TWINX AI Portál · twinx.hu</p>
+        <p className="mt-2">TWINX Portál · twinx.hu</p>
         <a href="/" className="mt-3 inline-block rounded-full px-4 py-2 text-xs font-medium transition-colors hover:bg-white/5"
           style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>
           Vissza a főoldalra →
