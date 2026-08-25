@@ -15,7 +15,7 @@ import { BRANDING_FONTS } from "@/lib/branding";
 import {
   MUSIC_STYLES,
   VIDEO_CREDITS_ALAP, videoLengthSeconds,
-  MAX_PHOTO_CAPTION, MAX_CLOSING_CAPTION,
+  MAX_PHOTO_CAPTION,
   type VideoCaptionFacts, EMPTY_VIDEO_FACTS,
 } from "@/lib/video";
 import {
@@ -41,7 +41,7 @@ type VideoDebug = {
 import { ROOMS_OPTIONS, BATHROOM_OPTIONS } from "@/lib/flyer";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
-const STEPS = ["Sablon", "Arculat", "Képek", "Adatok", "Beállítás", "Generálás"] as const;
+const STEPS = ["Sablon", "Képek", "Beállítás", "Generálás"] as const;
 
 type JobState = { status: string; output_url: string | null; error: string | null };
 
@@ -63,30 +63,21 @@ export default function VideoWizard({
     setAspect(d.aspects.includes(aspect) ? aspect : d.aspects[0]);
   }
 
-  // 1) Arculat
-  const [brandMode, setBrandMode] = useState<"saved" | "quick">(profiles.length ? "saved" : "quick");
-  const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
-  const [quick, setQuick] = useState({
-    display_name: "", title: "", phone: "", email: "", company: "", website: "",
-    accent_color: "#1e3a5f", font: BRANDING_FONTS[0].value,
-  });
+  const isJson = design.kind === "json";
 
-  // 2) Képek (4-5, az első a nyitófotó — PRO-nál ez kap AI-mozgást).
-  // Minden fotóhoz saját, szabad felirat tartozik (a képpel együtt utazik).
+  // 1) Képek (5, az első a NYITÓKÉP). Minden fotóhoz saját, szabad felirat tartozik.
   type Shot = { url: string; caption: string };
   const [shots, setShots] = useState<Shot[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Záró kép: mindkét dizájn támogatja. A satori nagy összegző felirattal rakja rá;
-  // a Modern Sárga (JSON) a záró szegmens hátterét cseréli erre, a ráírt infók
-  // (cím, ár, adatok, elérhetőség) a sablon záró kártyájáról jönnek.
-  const isJson = design.kind === "json";
-  const supportsClosing = true;
-  const [closing, setClosing] = useState<Shot>({ url: "", caption: "" });
-  const closingRef = useRef<HTMLInputElement>(null);
+  // Zárókép: NINCS feltöltött fotó — a sablon egyszínű hátterén szöveges összegzés
+  // (az ingatlan fő adatai + az ingatlanos elérhetősége).
+  // Az elérhetőség kézzel megadható, vagy egy korábbi arculati profilból betölthető.
+  const [contact, setContact] = useState({ name: "", phone: "", email: "" });
+  const [profileId, setProfileId] = useState<string>("");
 
-  // 3) Adatok (nyitókártya + felirat-sávok)
+  // Az ingatlan adatai — EGYSZER megadva, a nyitó- és a záróképen is megjelennek.
   const [debug, setDebug] = useState<VideoDebug | null>(null);
   const [title, setTitle] = useState("");
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
@@ -117,23 +108,31 @@ export default function VideoWizard({
   const [submitting, setSubmitting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
-  const profileData: FlyerProfileData = (() => {
-    const p = brandMode === "saved" ? profiles.find((x) => x.id === profileId) : null;
-    if (p) {
-      return {
-        display_name: p.display_name, title: p.title, phone: p.phone, email: p.email,
-        company: p.company, website: p.website, slogan: p.slogan,
-        logo_url: p.logo_url, agent_photo_url: p.agent_photo_url,
-        accent_color: p.accent_color, font: p.font, theme: p.theme === "dark" ? "dark" : "light",
-      };
-    }
-    return {
-      display_name: quick.display_name, title: quick.title, phone: quick.phone, email: quick.email,
-      company: quick.company, website: quick.website, slogan: "",
-      logo_url: null, agent_photo_url: null,
-      accent_color: quick.accent_color, font: quick.font, theme: "light",
-    };
-  })();
+  // Az elérhetőség a záróképre kerül. A kézzel megadott érték az elsődleges;
+  // a kiválasztott korábbi arculatból a logó/fotó/szín/betű egészíti ki.
+  const selectedProfile = profiles.find((x) => x.id === profileId) ?? null;
+  const profileData: FlyerProfileData = {
+    display_name: contact.name || selectedProfile?.display_name || "",
+    title: selectedProfile?.title || "",
+    phone: contact.phone || selectedProfile?.phone || "",
+    email: contact.email || selectedProfile?.email || "",
+    company: selectedProfile?.company || "",
+    website: selectedProfile?.website || "",
+    slogan: "",
+    logo_url: selectedProfile?.logo_url ?? null,
+    agent_photo_url: selectedProfile?.agent_photo_url ?? null,
+    accent_color: selectedProfile?.accent_color || "#1e3a5f",
+    font: selectedProfile?.font || BRANDING_FONTS[0].value,
+    theme: "light",
+  };
+
+  // „Betöltés korábbi arculatból": a kiválasztott profil elérhetőségét bemásolja.
+  function loadContactFromProfile(id: string) {
+    const p = profiles.find((x) => x.id === id);
+    if (!p) return;
+    setProfileId(id);
+    setContact({ name: p.display_name || "", phone: p.phone || "", email: p.email || "" });
+  }
 
   // --- Képek (fotónkénti felirattal) ---
   function addFiles(list: FileList | null) {
@@ -154,14 +153,6 @@ export default function VideoWizard({
   const setCaption = (i: number, text: string) =>
     setShots((prev) => prev.map((s, j) => (j === i ? { ...s, caption: text } : s)));
 
-  // --- Záró kép ---
-  function setClosingFiles(list: FileList | null) {
-    const f = list?.[0]; if (!f) return;
-    setClosing((c) => ({ url: URL.createObjectURL(f), caption: c.caption }));
-  }
-  const setClosingUrl = (u: string) => setClosing((c) => ({ url: u, caption: c.caption }));
-  const setClosingCaption = (t: string) => setClosing((c) => ({ ...c, caption: t }));
-
   // --- Generálás indítása ---
   async function generate() {
     setSubmitting(true); setError(null);
@@ -173,14 +164,8 @@ export default function VideoWizard({
         fd.append("images", await compressImage(f, 2000, 0.9));
       }
       // Fotónkénti szabad feliratok — a képek sorrendjéhez igazítva.
+      // (Az 1. kép a nyitókép; ahhoz nem felirat, hanem az összefoglaló adatok tartoznak.)
       fd.append("captions", JSON.stringify(shots.map((s) => s.caption.trim())));
-      // Záró kép (satori dizájnnál): háttérfotó + összegző felirat.
-      if (supportsClosing && closing.url) {
-        const b = await (await fetch(closing.url)).blob();
-        const f = new File([b], "zaro.jpg", { type: b.type || "image/jpeg" });
-        fd.append("closingImage", await compressImage(f, 2000, 0.9));
-        fd.append("closingCaption", closing.caption.trim());
-      }
       fd.append("profile", JSON.stringify(profileData));
       fd.append("facts", JSON.stringify(facts));
       fd.append("title", title.trim() || defaultTitle());
@@ -254,43 +239,24 @@ export default function VideoWizard({
   }, [jobId, job?.status]);
 
   function next() {
-    // 1) Arculat
+    // 1) Képek — a dizájn+méret KÖTÖTTSÉGE szerint (nyitókép + további képek).
     if (step === 1) {
-      if (brandMode === "saved" && !profileId) { setError("Válassz arculatot."); return; }
-      if (brandMode === "quick" && !quick.display_name.trim() && !quick.company.trim()) {
-        setError("Adj meg egy nevet vagy cégnevet."); return;
-      }
-      if (brandMode === "quick" && !quick.phone.trim() && !quick.email.trim()) {
-        setError("Adj meg legalább egy elérhetőséget."); return;
-      }
-    }
-    // 2) Képek — a dizájn+méret KÖTÖTTSÉGE szerint + a záró kép (satori).
-    if (step === 2) {
       if (!imageCountOk(design, aspect, shots.length)) {
         setError(`Ehhez a mérethez ${imageCountLabel(design, aspect).toLowerCase()} szükséges (most ${shots.length}).`);
         return;
-      }
-      // Satori: a záró kép + összegző kötelező. Modern Sárga (JSON): a záró kép
-      // opcionális (ha nincs, a sablon az 1. fotót ismétli a végén, mint eddig).
-      if (!isJson && !closing.url) {
-        setError("Tölts fel egy záró képet is (szép háttérfotó a végére)."); return;
-      }
-      if (!isJson && !closing.caption.trim()) {
-        setError("Írj a záró képhez egy rövid, jól látható összegzőt az ingatlanról."); return;
       }
     }
     setError(null);
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
   }
 
-  const setQ = <K extends keyof typeof quick>(k: K, v: string) => setQuick({ ...quick, [k]: v });
   const setF = <K extends keyof typeof facts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
   const lengthSec = Math.round(videoLengthSeconds(shots.length || imageRange(design, aspect).min, false));
 
   // --- Bezárás-védelem: egy véletlen kattintás ne törölje a megkezdett munkát ---
   const [confirmClose, setConfirmClose] = useState(false);
-  const hasWork = shots.length > 0 || !!closing.url || Object.values(facts).some((v) => String(v ?? "").trim());
+  const hasWork = shots.length > 0 || !!contact.name || Object.values(facts).some((v) => String(v ?? "").trim());
 
   function requestClose() {
     if (busy) return;
@@ -407,64 +373,14 @@ export default function VideoWizard({
             </div>
           )}
 
-          {/* 1) ARCULAT */}
+          {/* 1) KÉPEK — nyitókép (nagy) + további képek + zárókép infó */}
           {step === 1 && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setBrandMode("saved")} disabled={!profiles.length}
-                  className="flex-1 rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-40"
-                  style={brandMode === "saved" ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                  Mentett arculatom
-                </button>
-                <button type="button" onClick={() => setBrandMode("quick")}
-                  className="flex-1 rounded-xl px-4 py-2 text-sm font-medium"
-                  style={brandMode === "quick" ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                  Most adom meg
-                </button>
-              </div>
-              {brandMode === "saved" ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {profiles.map((p) => {
-                    const on = profileId === p.id;
-                    return (
-                      <button key={p.id} type="button" onClick={() => setProfileId(p.id)}
-                        className="flex items-center gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
-                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="h-9 w-9 shrink-0 rounded-lg" style={{ background: p.accent_color }} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">{p.label}</span>
-                          <span className="block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>{p.display_name}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Név" value={quick.display_name} onChange={(v) => setQ("display_name", v)} placeholder="pl. Kovács Péter" />
-                  <Field label="Titulus" value={quick.title} onChange={(v) => setQ("title", v)} placeholder="pl. ingatlanértékesítő" />
-                  <Field label="Telefon" value={quick.phone} onChange={(v) => setQ("phone", v)} placeholder="pl. +36 30 123 4567" />
-                  <Field label="E-mail" value={quick.email} onChange={(v) => setQ("email", v)} placeholder="pl. peter@iroda.hu" />
-                  <Field label="Cégnév" value={quick.company} onChange={(v) => setQ("company", v)} placeholder="pl. Prémium Ingatlanok" />
-                  <div>
-                    <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Fő szín</label>
-                    <div className="mt-1 flex items-center gap-2">
-                      <input type="color" value={quick.accent_color} onChange={(e) => setQ("accent_color", e.target.value)} className="h-9 w-12 cursor-pointer rounded" style={{ border: "1px solid var(--twx-line)" }} />
-                      <input type="text" value={quick.accent_color} onChange={(e) => setQ("accent_color", e.target.value)} className="twx-input w-28 text-sm" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 2) KÉPEK — fotónkénti felirattal + záró kép */}
-          {step === 2 && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                 <strong>{design.name} · {aspect}</strong>: {imageCountLabel(design, aspect).toLowerCase()} szükséges
-                {" "}(most {shots.length}). Az első a <strong>nyitófotó</strong>.
-                {supportsClosing && " Minden képhez írhatsz saját feliratot — az a fotó alján jelenik meg a videóban."}
+                {" "}(most {shots.length}). Az <strong>első kép a nyitókép</strong> — ezzel indul a videó, és ezen jelennek
+                meg az ingatlan fő adatai. A többi képhez opcionálisan írhatsz feliratot. A záróképre (fotó nélkül) az
+                adatok és az elérhetőséged kerülnek.
               </p>
               <div
                 onClick={() => fileRef.current?.click()}
@@ -482,155 +398,109 @@ export default function VideoWizard({
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
                   onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} />
               </div>
+              {/* NYITÓKÉP — nagy, kiemelt + az ingatlan fő adatai */}
               {shots.length > 0 && (
-                <ul className="space-y-2.5">
-                  {shots.map((s, i) => (
-                    <li key={s.url + i} className="flex items-center gap-3 rounded-xl p-2.5"
-                      style={{ background: "#fff", border: `1px solid ${i === 0 ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
-                      {/* Kis bélyegkép + sorszám */}
-                      <div className="relative shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.url} alt="" className="h-16 w-24 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
-                        <span className="absolute -left-1.5 -top-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold shadow"
-                          style={{ background: i === 0 ? "var(--twx-coral)" : "var(--twx-ink)", color: i === 0 ? "#1c1005" : "#fff" }}>
-                          {i === 0 ? "Nyitó" : i + 1}
-                        </span>
-                      </div>
-                      {/* Kiemelt felirat-mező */}
-                      <div className="min-w-0 flex-1">
-                        <label className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-coral)" }}>
-                          Felirat a képhez
-                        </label>
-                        <input
-                          type="text"
-                          value={s.caption}
-                          maxLength={MAX_PHOTO_CAPTION}
-                          onChange={(e) => setCaption(i, e.target.value)}
-                          placeholder={i === 2 ? "pl. Szépen felújított, 15 m² fürdő" : "Írd ide, mi látszik a képen (nem kötelező)"}
-                          className="mt-1 w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
-                          style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }}
-                        />
-                      </div>
-                      {/* Sorrend + törlés */}
-                      <div className="flex shrink-0 flex-col gap-1">
-                        <button type="button" aria-label="Feljebb" onClick={() => moveImage(i, i - 1)} disabled={i === 0}
-                          className="flex h-6 w-6 items-center justify-center rounded-md text-sm disabled:opacity-30" style={{ border: "1px solid var(--twx-line)" }}>↑</button>
-                        <button type="button" aria-label="Lejjebb" onClick={() => moveImage(i, i + 1)} disabled={i === shots.length - 1}
-                          className="flex h-6 w-6 items-center justify-center rounded-md text-sm disabled:opacity-30" style={{ border: "1px solid var(--twx-line)" }}>↓</button>
-                        <button type="button" aria-label="Törlés" onClick={() => removeImage(i)}
-                          className="flex h-6 w-6 items-center justify-center rounded-md text-sm" style={{ border: "1px solid var(--twx-line)", color: "#b4462f" }}>×</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <div className="rounded-xl p-3" style={{ background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "#7a2e17" }}>1. Nyitókép — ezzel indul a videó</p>
+                  <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Ezen jelennek meg az első infók: típus, elhelyezkedés, ár, méret, szoba. Ugyanezek a záróképen is.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-[220px_1fr]">
+                    <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={shots[0].url} alt="" className="aspect-[4/3] w-full rounded-lg object-cover" style={{ border: "2px solid var(--twx-coral)" }} />
+                      <span className="absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold shadow" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>Nyitókép</span>
+                      <button type="button" onClick={() => removeImage(0)} aria-label="Nyitókép törlése" className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full text-sm shadow" style={{ background: "#fff" }}>×</button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="pl. Eladó panellakás" />
+                      <MemField label="Elhelyezkedés" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, XIII. kerület" mem={locationMem} />
+                      <MemField label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 59,9 M Ft" mem={priceMem} />
+                      <MemField label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 74 m²" mem={sizeMem} />
+                      <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="pl. 3" />
+                      <Combo label="Fürdő / wc" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="pl. 1" />
+                      <MemField label="Utca, házszám (opcionális)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." mem={addressMem} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TOVÁBBI KÉPEK — kisebbek + opcionális felirat */}
+              {shots.length > 1 && (
+                <div>
+                  <p className="text-sm font-semibold">További képek — felirat opcionális</p>
+                  <ul className="mt-2 space-y-2.5">
+                    {shots.slice(1).map((s, idx) => {
+                      const i = idx + 1;
+                      return (
+                        <li key={s.url + i} className="flex items-center gap-3 rounded-xl p-2.5" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
+                          <div className="relative shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={s.url} alt="" className="h-14 w-20 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
+                            <span className="absolute -left-1.5 -top-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold shadow" style={{ background: "var(--twx-ink)", color: "#fff" }}>{i + 1}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <input type="text" value={s.caption} maxLength={MAX_PHOTO_CAPTION} onChange={(e) => setCaption(i, e.target.value)}
+                              placeholder={i === 2 ? "pl. Szépen felújított, 15 m² fürdő" : "Felirat ehhez a képhez (nem kötelező)"}
+                              className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
+                              style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }} />
+                          </div>
+                          <div className="flex shrink-0 flex-col gap-1">
+                            <button type="button" aria-label="Feljebb (a nyitókép felé)" onClick={() => moveImage(i, i - 1)}
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-sm" style={{ border: "1px solid var(--twx-line)" }}>↑</button>
+                            <button type="button" aria-label="Lejjebb" onClick={() => moveImage(i, i + 1)} disabled={i === shots.length - 1}
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-sm disabled:opacity-30" style={{ border: "1px solid var(--twx-line)" }}>↓</button>
+                            <button type="button" aria-label="Törlés" onClick={() => removeImage(i)}
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-sm" style={{ border: "1px solid var(--twx-line)", color: "#b4462f" }}>×</button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
               <AssetTray onPick={(u) => addUrl(u)} selectedUrls={shots.map((s) => s.url)}
                 note="Válassz egy mappát, majd kattints egy képre — vagy húzd a feltöltőre." />
 
-              {/* ZÁRÓ KÉP — a feltöltött és tallózható képek ALATT */}
-              <div className="rounded-xl p-3" style={{ background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }}>
-                <p className="text-sm font-semibold" style={{ color: "#7a2e17" }}>
-                  Záró kép {isJson && <span className="font-normal" style={{ color: "var(--twx-ink-muted)" }}>(nem kötelező)</span>}
-                </p>
+              {/* ZÁRÓKÉP — fotó NÉLKÜL: adatok + elérhetőség a sablon színes hátterén */}
+              <div className="rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                <p className="text-sm font-semibold">Zárókép — összegzés a sablon színes hátterén (fotó nélkül)</p>
                 <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {isJson
-                    ? "Ez lesz a videó záró képének háttere. A rá kerülő infók (cím, ár, adatok, elérhetőség) az Adatok lépésből jönnek. Ha üresen hagyod, az első fotó ismétlődik a végén."
-                    : "Egy szép háttérfotó, rajta jól olvasható összegzővel az ingatlanról (9:16 és 1:1 is social-ready)."}
+                  A videó végén az ingatlan fő adatai és az elérhetőséged jelennek meg — nincs rajta fotó.
                 </p>
-                <div className="flex items-start gap-3">
-                  {/* Kis előnézet / feltöltő */}
-                  {closing.url ? (
-                    <div className="relative shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={closing.url} alt="" className="h-24 w-36 rounded-lg object-cover" style={{ border: "1px solid var(--twx-line)" }} />
-                      <button type="button" onClick={() => setClosing({ url: "", caption: closing.caption })} aria-label="Záró kép törlése"
-                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full text-sm shadow" style={{ background: "#fff" }}>×</button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => closingRef.current?.click()}
-                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                      onDragLeave={() => setDragOver(false)}
-                      onDrop={(e) => {
-                        e.preventDefault(); setDragOver(false);
-                        const url = readTwxDragUrl(e.dataTransfer);
-                        if (url) { setClosingUrl(url); return; }
-                        setClosingFiles(e.dataTransfer.files);
-                      }}
-                      className="flex h-24 w-36 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-2 text-center text-xs"
-                      style={{ borderColor: "var(--twx-coral)", color: "var(--twx-ink-muted)", background: "#fff" }}>
-                      Húzd ide, vagy kattints a tallózáshoz
-                      <input ref={closingRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                        onChange={(e) => { setClosingFiles(e.target.files); e.currentTarget.value = ""; }} />
-                    </div>
-                  )}
-                  {/* JSON: mi kerül rá (előnézet) · Satori: szabad összegző */}
-                  <div className="min-w-0 flex-1">
-                    {isJson ? (
-                      <div className="rounded-lg p-2.5 text-xs" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-                        <p className="font-semibold" style={{ color: "var(--twx-ink)" }}>A záró képre kerül:</p>
-                        <ul className="mt-1 space-y-0.5" style={{ color: "var(--twx-ink-muted)" }}>
-                          <li>Cím: {facts.location || facts.address || "az Adatok lépésből"}</li>
-                          <li>Ár: {facts.price || "az Adatok lépésből"}</li>
-                          <li>Adatok: méret · szoba · fürdő · emelet (az Adatok lépésből)</li>
-                          <li>Elérhetőség: {profileData.display_name || profileData.company || "az arculatodból"}{profileData.phone ? ` · ${profileData.phone}` : ""}</li>
-                        </ul>
-                      </div>
-                    ) : (
-                      <>
-                        <label className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#7a2e17" }}>Összegző felirat</label>
-                        <input
-                          type="text"
-                          value={closing.caption}
-                          maxLength={MAX_CLOSING_CAPTION}
-                          onChange={(e) => setClosingCaption(e.target.value)}
-                          placeholder="pl. Eladó 3 szobás, felújított panellakás · 74 m² · 59,9 M Ft"
-                          className="mt-1 w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
-                          style={{ border: "1.5px solid var(--twx-line)", background: "#fff", color: "var(--twx-ink)" }}
-                        />
-                      </>
-                    )}
+                <div className="rounded-lg p-2.5 text-xs" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
+                  <p className="font-semibold" style={{ color: "var(--twx-ink)" }}>A záróképre kerül:</p>
+                  <ul className="mt-1 space-y-0.5" style={{ color: "var(--twx-ink-muted)" }}>
+                    <li>Elhelyezkedés: {facts.location || facts.address || "add meg a nyitóképnél"}</li>
+                    <li>Ár: {facts.price || "add meg a nyitóképnél"}</li>
+                    <li>Adatok: {[facts.size, facts.rooms && `${facts.rooms} szoba`, facts.bathrooms && `${facts.bathrooms} fürdő`].filter(Boolean).join(" · ") || "méret · szoba · fürdő"}</li>
+                  </ul>
+                </div>
+
+                <p className="mt-3 text-sm font-semibold">Ingatlanos elérhetőség</p>
+                {profiles.length > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Betöltés korábbi arculatból:</span>
+                    {profiles.map((p) => (
+                      <button key={p.id} type="button" onClick={() => loadContactFromProfile(p.id)}
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{ border: `1px solid ${profileId === p.id ? "var(--twx-coral)" : "var(--twx-line)"}`, background: profileId === p.id ? "var(--twx-coral-soft)" : "#fff", color: profileId === p.id ? "#7a2e17" : "var(--twx-ink)" }}>
+                        {p.label}
+                      </button>
+                    ))}
                   </div>
+                )}
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Field label="Név" value={contact.name} onChange={(v) => setContact({ ...contact, name: v })} placeholder="pl. Kovács Márk" />
+                  <Field label="Telefon" value={contact.phone} onChange={(v) => setContact({ ...contact, phone: v })} placeholder="pl. +36 30 123 4567" />
+                  <Field label="E-mail (opcionális)" value={contact.email} onChange={(v) => setContact({ ...contact, email: v })} placeholder="pl. mark@iroda.hu" />
                 </div>
               </div>
             </div>
           )}
 
-          {/* 3) ADATOK */}
-          {step === 3 && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-sm font-semibold">Nyitókártya</p>
-                <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <MemField label="Főcím" value={title} onChange={setTitle} placeholder={defaultTitle()} mem={titleMem} />
-                  <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="a főcímhez (pl. Eladó panellakás)" />
-                  <MemField label="Település, kerület" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, V. kerület" mem={locationMem} />
-                  <MemField label="Utca, házszám" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." mem={addressMem} />
-                  <MemField label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 100 M Ft" mem={priceMem} />
-                </div>
-              </div>
-              <p className="rounded-xl p-3 text-xs" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                A fotók feliratait a <strong>Képek</strong> lépésben, képenként adod meg.
-              </p>
-              {isJson && (
-                <div>
-                  <p className="text-sm font-semibold">Záró kártya adatai</p>
-                  <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Ezek a videó végén, a záró kártyán jelennek meg: méret · szoba · fürdő · emelet. Csak amit megadsz.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <MemField label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 100 m²" mem={sizeMem} />
-                    <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="Válassz vagy írj sajátot" />
-                    <Combo label="Fürdő / wc" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="Válassz vagy írj sajátot" />
-                    <Combo label="Emelet" value={facts.floor} onChange={(v) => setF("floor", v)} options={FLOOR_OPTIONS} placeholder="Válassz a listából" />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 4) BEÁLLÍTÁS */}
-          {step === 4 && (
+          {/* 2) BEÁLLÍTÁS */}
+          {step === 2 && (
             <div className="space-y-5">
               <div>
                 <p className="text-sm font-semibold">Méret</p>
@@ -665,13 +535,13 @@ export default function VideoWizard({
                 </div>
               </div>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Várható hossz: ~{lengthSec} mp (nyitókártya + {shots.length || imageRange(design, aspect).min} fotó + {supportsClosing ? "záró kép" : "zárókártya"}). Hang: csak zene.
+                Várható hossz: ~{lengthSec} mp (nyitókép + {shots.length || imageRange(design, aspect).min} fotó + záró összegző). Hang: csak zene.
               </p>
             </div>
           )}
 
           {/* 5) GENERÁLÁS */}
-          {step === 5 && (
+          {step === 3 && (
             <div className="space-y-4 text-center">
               {!jobId ? (
                 <div className="py-8">
