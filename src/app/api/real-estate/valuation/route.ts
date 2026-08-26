@@ -30,10 +30,11 @@ import {
 import { type RawComp } from "@/lib/valuation-engine";
 
 export const runtime = "nodejs";
-// A Perplexity-hívás hosszú lehet. 60 a Vercel HOBBY csomag PLAFONJA — ez most a max.
-// Vercel Pro-ra váltás után ez felvihető (akár 180), és a lenti belső `deadline`/
-// `sonarTimeout` értékeket is arányosan emelni kell (route törzsében).
-export const maxDuration = 60;
+// A Perplexity-hívás hosszú lehet, és a motoros ág KÉT hívást tehet egymás után
+// (comp-lekérés → AI-tartalék). Vercel PRO alatt a plafon 300 mp; 180-at használunk,
+// hogy legyen bőven keret, de a partner se várjon értelmetlenül sokat.
+// A belső `deadline`/`sonarTimeout` ezzel arányosan van beállítva (route törzsében).
+export const maxDuration = 180;
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "valuation";
@@ -165,15 +166,13 @@ export async function POST(request: Request) {
     // ~55 mp-es keretből gazdálkodik: minden hívás annyit kaphat, amennyi a keretből
     // MARADT. Így a belső időkorlát mindig HAMARABB elsül, mint a platform kése →
     // lefut a `catch`, tiszta hibaüzenet, és (mivel még nem vontunk le) nincs kredit-veszés.
-    // A Vercel Hobby csomag PLAFONJA 60 mp (maxDuration). A belső időkeretet
-    // eddig húzzuk fel — 57 mp —, hogy a Perplexity a lehető legtovább futhasson,
-    // de maradjon ~3 mp a válasz összeállítására + az előzmény mentésére, MIELŐTT
-    // a platform 60-nál megölné a függvényt. Egy hívás így akár 56 mp-et kaphat
-    // (korábban csak 50-et). Vercel Pro-ra váltás után ez és a maxDuration is
-    // feljebb vihető (akár 180 mp).
-    const deadline = Date.now() + 57_000;
+    // VERCEL PRO: a maxDuration 180 mp. A belső keret 170 mp — marad ~10 mp a válasz
+    // összeállítására + az előzmény mentésére, MIELŐTT a platform megölné a függvényt.
+    // Egy hívás legfeljebb 100 mp-et kaphat: így ha a comp-lekérés kifut, az AI-tartalék
+    // ágnak is marad bőven ideje (100 + 70), és nem a platform kése vág közbe.
+    const deadline = Date.now() + 170_000;
     const sonarTimeout = () =>
-      Math.max(8_000, Math.min(56_000, deadline - Date.now())); // legalább 8 mp, legfeljebb 56
+      Math.max(8_000, Math.min(100_000, deadline - Date.now())); // legalább 8 mp, legfeljebb 100
 
     const sonarBase = {
       // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság a fontos.
