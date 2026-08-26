@@ -81,7 +81,7 @@ export type VideoCaption = { line1: string; line2: string };
 // --- SZABAD, KÉPENKÉNTI FELIRATOK ---
 // A partner minden fotóhoz saját feliratot írhat (pl. „Szépen felújított 15 m² fürdő").
 // A záró képhez egy hosszabb, összegző felirat tartozik az ingatlanról.
-export const MAX_PHOTO_CAPTION = 70;   // egy fotó-felirat max hossza
+export const MAX_PHOTO_CAPTION = 30;   // egy fotó-felirat max hossza
 export const MAX_CLOSING_CAPTION = 120; // a záró összegző felirat max hossza
 
 /** Szabad felirat → legfeljebb két, kiegyensúlyozott sor (a rendernek).

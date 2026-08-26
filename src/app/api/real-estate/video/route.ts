@@ -22,7 +22,7 @@ import { submitVideoRender, submitTemplateRender, type TimelineClip, type Overla
 import { buildMergeRenderBody, contentImageWindows } from "@/lib/video-merge";
 import { submitImageToVideoFal, videoClipPrompt } from "@/lib/fal";
 import { failJobOnce, initClips, type AiClipState } from "@/lib/video-pipeline";
-import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderClosingPhoto, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
+import { loadVideoFonts, renderOpeningCard, renderClosingCard, renderClosingPhoto, renderModernIntro, renderPhotoFrame, renderCaptionOverlay } from "@/lib/video-frames";
 import { logCost, shotstackRenderCostUsd, falVideoCostUsd } from "@/lib/costs";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 import { formatPrice, formatSize } from "@/lib/flyer-poster";
@@ -196,14 +196,36 @@ export async function POST(request: Request) {
         AGENT_PICTURE: profile.agent_photo_url || "",
         AGENCY_LOGO: profile.logo_url || "",
       };
-      // Képenkénti felirat-sáv (átlátszó PNG-k) a fotók idő-ablakaira ültetve.
-      const capOverlays: Array<{ src: string; start: number; length: number }> = [];
-      if (anyFreeCaption) {
+      // Saját rétegek a Modern Sárgához: (1) NYITÓKÉP a fő infókkal a bal panelen,
+      // (2) képenkénti felirat-sáv a 2..N fotóra. Mindkettő a fotók idő-ablakaira ül.
+      const capOverlays: Array<{ src: string; start: number; length: number; transition?: { in?: string; out?: string } }> = [];
+      {
         const windows = contentImageWindows(designJson);
         const capUnits = photoUrls.map((_, i) => splitCaption(freeCaptions[i] ?? ""));
-        const fontPack = await loadVideoFonts(profile, capUnits.flatMap((c) => [c.line1, c.line2]));
+        const fontPack = await loadVideoFonts(profile, [
+          facts.address, facts.location, clean((facts as { propertyType?: string }).propertyType), price, facts.rooms, facts.bathrooms, size,
+          ...capUnits.flatMap((c) => [c.line1, c.line2]),
+        ]);
         const ctx = { width: format.width, height: format.height, profile, ...fontPack };
-        for (let i = 0; i < photoUrls.length; i++) {
+
+        // (1) NYITÓKÉP — a videó első képére (windows[0]) teljes, saját réteg.
+        if (windows[0] && photoUrls[0]) {
+          const buf = await renderModernIntro(ctx, {
+            photoUrl: photoUrls[0],
+            title: facts.address || facts.location || "",
+            location: facts.address ? facts.location : "",
+            type: clean((facts as { propertyType?: string }).propertyType),
+            price, rooms: clean(facts.rooms), bathrooms: clean(facts.bathrooms), size,
+          });
+          const path = `video-frames/${user.id}/${jobId}/intro.png`;
+          const { error } = await admin.storage.from(BUCKET).upload(path, buf, { contentType: "image/png", upsert: true });
+          if (error) throw new Error(`Nyitókép mentés hiba: ${error.message}`);
+          // Nyitó-animáció: a fotó rögtön látszik, a panel + szöveg BALRÓL úszik be.
+          capOverlays.push({ src: admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, start: windows[0].start, length: windows[0].length, transition: { in: "slideRight" } });
+        }
+
+        // (2) Fotó-feliratok a TÖBBI képre (az 1. kép a nyitó, arra nem tesszük).
+        for (let i = 1; i < photoUrls.length; i++) {
           const c = capUnits[i];
           const w = windows[i];
           if (!w || !(c.line1 || c.line2)) continue;

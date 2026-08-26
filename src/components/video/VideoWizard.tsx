@@ -5,7 +5,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
-import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
+import { readTwxDragUrl } from "@/components/AssetTray";
+import AssetPicker from "@/components/video/AssetPicker";
 import ComboField from "@/components/ComboField";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 import { compressImage } from "@/lib/image-compress";
@@ -22,7 +23,6 @@ import {
   VIDEO_DESIGNS, getDesign, imageCountOk, imageCountLabel, imageRange,
   ASPECT_LABEL, type VideoDesign, type VideoAspect,
 } from "@/lib/video-templates";
-import VideoTemplatePreview from "@/components/video/VideoTemplatePreview";
 import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
 
 /** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
@@ -360,15 +360,16 @@ export default function VideoWizard({
                   );
                 })}
               </div>
-              {/* Élő előnézet: így épül fel a kész videó a választott sablonnal + mérettel. */}
-              <div className="rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                <p className="mb-2 text-xs font-semibold" style={{ color: "var(--twx-ink)" }}>
-                  Előnézet: {design.name} · {ASPECT_LABEL[aspect]}
-                </p>
-                <VideoTemplatePreview design={design} aspect={aspect} accent={profileData.accent_color} font={profileData.font} />
-                <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {imageCountLabel(design, aspect)}. A képek lépésnél pontosan ennyit kérünk.
-                </p>
+              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                {imageCountLabel(design, aspect)}. A képek lépésnél pontosan ennyit kérünk.
+              </p>
+              {/* Pici, elegáns jelzés: a sablonkínálat hamarosan bővül. */}
+              <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-center"
+                style={{ background: "var(--twx-cream)", border: "1px dashed var(--twx-line)" }}>
+                <span aria-hidden style={{ color: "var(--twx-coral)" }}>✦</span>
+                <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                  Hamarosan bővül a sablonkínálat — új dizájnok érkeznek.
+                </span>
               </div>
             </div>
           )}
@@ -413,13 +414,14 @@ export default function VideoWizard({
                       <button type="button" onClick={() => removeImage(0)} aria-label="Nyitókép törlése" className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full text-sm shadow" style={{ background: "#fff" }}>×</button>
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {/* Sorrend: típus + ár egy sorban → alatta a helyszín (település, utca) → végül a méretek */}
                       <Combo label="Ingatlan típusa" value={facts.propertyType} onChange={(v) => setF("propertyType", v)} options={PROPERTY_TYPE_OPTIONS} placeholder="pl. Eladó panellakás" />
-                      <MemField label="Elhelyezkedés" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, XIII. kerület" mem={locationMem} />
                       <MemField label="Ár" value={facts.price} onChange={(v) => setF("price", v)} placeholder="pl. 59,9 M Ft" mem={priceMem} />
+                      <MemField label="Elhelyezkedés" value={facts.location} onChange={(v) => setF("location", v)} placeholder="pl. Budapest, XIII. kerület" mem={locationMem} />
+                      <MemField label="Utca, házszám (opcionális)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." mem={addressMem} />
                       <MemField label="Méret" value={facts.size} onChange={(v) => setF("size", v)} placeholder="pl. 74 m²" mem={sizeMem} />
                       <Combo label="Szobaszám" value={facts.rooms} onChange={(v) => setF("rooms", v)} options={ROOMS_OPTIONS} placeholder="pl. 3" />
                       <Combo label="Fürdő / wc" value={facts.bathrooms} onChange={(v) => setF("bathrooms", v)} options={BATHROOM_OPTIONS} placeholder="pl. 1" />
-                      <MemField label="Utca, házszám (opcionális)" value={facts.address} onChange={(v) => setF("address", v)} placeholder="pl. Sas utca 12." mem={addressMem} />
                     </div>
                   </div>
                 </div>
@@ -441,7 +443,7 @@ export default function VideoWizard({
                           </div>
                           <div className="min-w-0 flex-1">
                             <input type="text" value={s.caption} maxLength={MAX_PHOTO_CAPTION} onChange={(e) => setCaption(i, e.target.value)}
-                              placeholder={i === 2 ? "pl. Szépen felújított, 15 m² fürdő" : "Felirat ehhez a képhez (nem kötelező)"}
+                              placeholder="Felirat ehhez a képhez (nem kötelező)"
                               className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
                               style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }} />
                           </div>
@@ -459,35 +461,39 @@ export default function VideoWizard({
                   </ul>
                 </div>
               )}
-              <AssetTray onPick={(u) => addUrl(u)} selectedUrls={shots.map((s) => s.url)}
-                note="Válassz egy mappát, majd kattints egy képre — vagy húzd a feltöltőre." />
-
               {/* ZÁRÓKÉP — fotó NÉLKÜL: adatok + elérhetőség a sablon színes hátterén */}
               <div className="rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                <p className="text-sm font-semibold">Zárókép — összegzés a sablon színes hátterén (fotó nélkül)</p>
-                <p className="mt-0.5 mb-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  A videó végén az ingatlan fő adatai és az elérhetőséged jelennek meg — nincs rajta fotó.
-                </p>
-                <div className="rounded-lg p-2.5 text-xs" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-                  <p className="font-semibold" style={{ color: "var(--twx-ink)" }}>A záróképre kerül:</p>
-                  <ul className="mt-1 space-y-0.5" style={{ color: "var(--twx-ink-muted)" }}>
-                    <li>Elhelyezkedés: {facts.location || facts.address || "add meg a nyitóképnél"}</li>
-                    <li>Ár: {facts.price || "add meg a nyitóképnél"}</li>
-                    <li>Adatok: {[facts.size, facts.rooms && `${facts.rooms} szoba`, facts.bathrooms && `${facts.bathrooms} fürdő`].filter(Boolean).join(" · ") || "méret · szoba · fürdő"}</li>
-                  </ul>
-                </div>
-
-                <p className="mt-3 text-sm font-semibold">Ingatlanos elérhetőség</p>
+                <p className="text-sm font-semibold">Zárókép — ingatlanos elérhetőség</p>
                 {profiles.length > 0 && (
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Betöltés korábbi arculatból:</span>
-                    {profiles.map((p) => (
-                      <button key={p.id} type="button" onClick={() => loadContactFromProfile(p.id)}
-                        className="rounded-full px-2.5 py-1 text-xs font-medium"
-                        style={{ border: `1px solid ${profileId === p.id ? "var(--twx-coral)" : "var(--twx-line)"}`, background: profileId === p.id ? "var(--twx-coral-soft)" : "#fff", color: profileId === p.id ? "#7a2e17" : "var(--twx-ink)" }}>
-                        {p.label}
-                      </button>
-                    ))}
+                  <div className="mt-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                      Betöltés korábbi arculatból
+                    </p>
+                    <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {profiles.map((p) => {
+                        const on = profileId === p.id;
+                        const who = p.display_name || p.label || "";
+                        const initials = who.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+                        return (
+                          <button key={p.id} type="button" onClick={() => loadContactFromProfile(p.id)}
+                            className="flex items-center gap-2.5 rounded-xl p-2 text-left transition hover:shadow-sm"
+                            style={{ border: `1.5px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                              style={{ background: p.accent_color || "var(--twx-ink)", color: "#fff" }}>
+                              {initials || "?"}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold" style={{ color: on ? "#7a2e17" : "var(--twx-ink)" }}>{who}</span>
+                              <span className="block truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>{p.phone || p.email || "nincs elérhetőség"}</span>
+                            </span>
+                            {on && (
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                                style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -611,6 +617,14 @@ export default function VideoWizard({
           )}
         </div>
       </div>
+
+      {/* KORÁBBI MUNKÁK — a MODALON KÍVÜL, a lap jobb margójában (csak a Képek lépésnél).
+          Így nem vágja ketté a feltöltést és a zárókép-adatokat. */}
+      {step === 1 && (
+        <div className="absolute right-4 top-1/2 hidden w-[340px] max-h-[88vh] -translate-y-1/2 overflow-y-auto xl:block">
+          <AssetPicker onPick={(u) => addUrl(u)} selectedUrls={shots.map((s) => s.url)} />
+        </div>
+      )}
 
       {/* Megerősítés bezárás előtt — csak ha van elveszíthető munka */}
       {confirmClose && (

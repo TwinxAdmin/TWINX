@@ -130,7 +130,8 @@ export type MergeInput = {
   values: Record<string, string>; // egyéb helyőrzők: ADDRESS, SUBURB, AGENT_NAME, ...
   callbackUrl: string;
   // Képenkénti felirat-sáv (kész, átlátszó PNG-k) az adott idő-ablakokra ráültetve.
-  captionOverlays?: Array<{ src: string; start: number; length: number }>;
+  // A `transition` opcionális be-/kiúsztatás (pl. a nyitókép animált bevezetője).
+  captionOverlays?: Array<{ src: string; start: number; length: number; transition?: { in?: string; out?: string } }>;
   // A ZÁRÓKÉP háttere: a sablon a záró szegmensben az 1. fotót ismétli — ezt
   // cseréljük a partner által feltöltött, dedikált záró képre (ha van).
   closingBgUrl?: string | null;
@@ -169,12 +170,24 @@ export function buildMergeRenderBody(tpl: TemplateJson, input: MergeInput): Reco
 
   // 2/B) Képenkénti felirat-sáv a legfelső rétegre (átlátszó PNG-k).
   if (input.captionOverlays?.length) {
-    t.timeline.tracks.unshift({
-      clips: input.captionOverlays.map((o) => ({
-        asset: { type: "image", src: o.src },
-        start: o.start, length: o.length, fit: "cover",
-      })),
-    });
+    const overlayTrack = {
+      clips: input.captionOverlays.map((o) => {
+        const clip: Record<string, unknown> = {
+          asset: { type: "image", src: o.src },
+          start: o.start, length: o.length, fit: "cover",
+        };
+        if (o.transition) clip.transition = o.transition;
+        return clip;
+      }),
+    };
+    // A képek közötti ÁTMENET-videó réteg maradjon MINDEN FELETT (jól szolgálja a
+    // képváltásokat). A felirat/nyitó-réteget ezért közvetlenül alá tesszük:
+    // átmenet-videó (felül) → feliratok → képek. Ha nincs videó-réteg, legfelülre.
+    const vidIdx = t.timeline.tracks.findIndex((tr) =>
+      tr.clips.some((c: any) => c?.asset?.type === "video")
+    );
+    if (vidIdx >= 0) t.timeline.tracks.splice(vidIdx + 1, 0, overlayTrack);
+    else t.timeline.tracks.unshift(overlayTrack);
   }
 
   // 3) A merge-tömb a végső értékekből (csak amikre van helyőrző a sablonban).

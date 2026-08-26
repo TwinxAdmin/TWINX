@@ -103,6 +103,130 @@ export async function renderOpeningCard(
   return renderPng(el, ctx);
 }
 
+/**
+ * MODERN SÁRGA NYITÓKÉP — teljes réteg a videó első pár másodpercére.
+ * Bal oldali, majdnem a túloldalig érő sötét arculati háromszög (chevron),
+ * rajta NAGY, szépen elrendezett fő infók: cím, elhelyezkedés, típus, adatok, ár.
+ * Ugyanaz a felépítés 9:16-ra és 1:1-re is (méretarányos).
+ */
+export async function renderModernIntro(
+  ctx: VideoFrameCtx,
+  opts: { photoUrl: string; title: string; location: string; type: string; price: string; rooms: string; bathrooms: string; size: string }
+): Promise<Buffer> {
+  const { width: W, height: H } = ctx;
+  const u = W / 1080;
+  const YELLOW = "#f0c20c";
+  const PANEL = "rgba(26,18,48,0.94)";
+  const SKEW = "skewX(-9deg)"; // átlós (ferde) él — dinamikus kompozíció
+  const tall = H / W > 1.3; // 9:16 → magas; 1:1 → négyzetes
+  const textW = Math.round(W * 0.58);
+  const edgeX = Math.round(W * 0.60); // a ferde él nagyjából itt fut
+
+  const bigTitle = truncate(opts.title || "Eladó ingatlan", 24);
+  const titleFs = Math.round((bigTitle.length > 16 ? 74 : 92) * u);
+
+  // Aspektus-függő méretek: 9:16-nál nagyobb adat- és ár-betűk, tágabb térközök.
+  const statFs = tall ? 46 : 40;
+  const statGap = tall ? 22 : 13;
+  const priceFs = tall ? 88 : 68;
+
+  // A statisztikák CSAK a fehér értékek (a sárga „Szoba/Fürdő/Méret" címkék
+  // feleslegesek — az érték magától érthető). A hosszú érték nem vágódik le, tördel.
+  const statLine = (val: string) =>
+    val
+      ? box({ fontSize: Math.round(statFs * u), color: "#ffffff", fontWeight: 700, lineHeight: 1.15, marginTop: Math.round(statGap * u) }, truncate(val, 42))
+      : null;
+
+  // FONTOS: a gyökér ÁTLÁTSZÓ (nincs fotó) — a fotót a sablon adja alatta, így
+  // a fotó rögtön látszik, és CSAK ez a panel + szöveg úszik be (balról jobbra).
+  void opts.photoUrl;
+  const el = box(
+    { position: "relative", width: W, height: H, fontFamily: ctx.family },
+    [
+      // Arculati panel — túlméretezett, FERDE (átlós élű) parallelogramma.
+      box({ position: "absolute", top: -Math.round(H * 0.35), left: -Math.round(W * 0.45), width: Math.round(W * 1.05), height: Math.round(H * 1.7), background: PANEL, transform: SKEW }),
+      // Vékony sárga átlós akcentus a panel élén.
+      box({ position: "absolute", top: -Math.round(H * 0.35), left: edgeX, width: Math.round(9 * u), height: Math.round(H * 1.7), background: YELLOW, transform: SKEW }),
+      // Szövegblokk — 9:16-nál FELÜLRE tolva és tágabban; 1:1-nél középre.
+      box(
+        {
+          position: "absolute", top: 0, left: 0, width: textW, height: H,
+          flexDirection: "column",
+          justifyContent: tall ? "flex-start" : "center",
+          paddingTop: tall ? Math.round(H * 0.12) : 0,
+          paddingLeft: Math.round(76 * u), paddingRight: Math.round(48 * u),
+        },
+        [
+          box({ width: Math.round(84 * u), height: Math.round(7 * u), background: YELLOW, marginBottom: Math.round(24 * u) }, ""),
+          box({ fontSize: titleFs, fontWeight: 800, color: YELLOW, lineHeight: 1.03 }, bigTitle),
+          opts.location
+            ? box({ fontSize: Math.round(37 * u), color: "#ffffff", opacity: 0.92, marginTop: Math.round(15 * u) }, truncate(opts.location, 34))
+            : null,
+          opts.type
+            ? box({ fontSize: Math.round(33 * u), fontWeight: 800, color: YELLOW, letterSpacing: Math.round(2 * u), marginTop: Math.round(24 * u) }, truncate(opts.type.toUpperCase(), 34))
+            : null,
+          box({ flexDirection: "column", marginTop: tall ? Math.round(H * 0.087) : Math.round(28 * u) }, [
+            statLine(opts.rooms),
+            statLine(opts.bathrooms),
+            statLine(opts.size),
+          ].filter(Boolean)),
+          opts.price
+            ? box({ fontSize: Math.round(priceFs * u), fontWeight: 800, color: YELLOW, marginTop: tall ? Math.round(H * 0.087) : Math.round(36 * u), lineHeight: 1.0 }, truncate(opts.price, 18))
+            : null,
+        ].filter(Boolean)
+      ),
+    ]
+  );
+  return renderPng(el, ctx);
+}
+
+/**
+ * MODERN SÁRGA ZÁRÓKÉP — fotó NÉLKÜL, a sablon színes (sötét lila) hátterén.
+ * Nagy, jól olvasható összegzés: elhelyezkedés, ár, adatok + az ingatlanos
+ * elérhetősége. Mindkét méretre (9:16 és 1:1) méretarányosan.
+ */
+export async function renderModernClosing(
+  ctx: VideoFrameCtx,
+  opts: { location: string; price: string; specs: string; contactName: string; contactPhone: string; contactEmail: string }
+): Promise<Buffer> {
+  const { width: W, height: H } = ctx;
+  const u = W / 1080;
+  const YELLOW = "#f0c20c";
+  const BG = "#1a1230";
+  const tall = H / W > 1.3;
+
+  const el = box(
+    {
+      position: "relative", width: W, height: H, background: BG, fontFamily: ctx.family,
+      flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(80 * u),
+    },
+    [
+      box({ width: Math.round(100 * u), height: Math.round(8 * u), background: YELLOW, marginBottom: Math.round(34 * u) }, ""),
+      opts.location
+        ? box({ fontSize: Math.round((tall ? 62 : 56) * u), fontWeight: 800, color: "#ffffff", textAlign: "center", lineHeight: 1.05 }, truncate(opts.location, 34))
+        : null,
+      opts.price
+        ? box({ fontSize: Math.round((tall ? 116 : 100) * u), fontWeight: 800, color: YELLOW, marginTop: Math.round(24 * u), lineHeight: 1.0 }, truncate(opts.price, 18))
+        : null,
+      opts.specs
+        ? box({ fontSize: Math.round((tall ? 42 : 40) * u), fontWeight: 700, color: "#ffffff", marginTop: Math.round(24 * u), textAlign: "center", lineHeight: 1.2 }, truncate(opts.specs, 60))
+        : null,
+      // Elválasztó
+      box({ width: Math.round(W * 0.52), height: Math.round(3 * u), background: "rgba(255,255,255,0.28)", marginTop: Math.round(50 * u), marginBottom: Math.round(38 * u) }, ""),
+      opts.contactName
+        ? box({ fontSize: Math.round((tall ? 54 : 50) * u), fontWeight: 800, color: "#ffffff", textAlign: "center" }, truncate(opts.contactName, 30))
+        : null,
+      opts.contactPhone
+        ? box({ fontSize: Math.round((tall ? 64 : 58) * u), fontWeight: 800, color: YELLOW, marginTop: Math.round(14 * u) }, truncate(opts.contactPhone, 22))
+        : null,
+      opts.contactEmail
+        ? box({ fontSize: Math.round((tall ? 34 : 32) * u), fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(12 * u), textAlign: "center" }, truncate(opts.contactEmail, 38))
+        : null,
+    ].filter(Boolean)
+  );
+  return renderPng(el, ctx);
+}
+
 /** ZÁRÓKÁRTYA: fotó + logó körben, név, titulus, telefonszám nagyban, e-mail/web. */
 export async function renderClosingCard(ctx: VideoFrameCtx): Promise<Buffer> {
   const { width: W, height: H, profile: p } = ctx;
@@ -213,13 +337,13 @@ export async function renderCaptionOverlay(
   const u = W / 1080;
   const t = buildTheme(MOOD, p.accent_color);
   const hasLine2 = Boolean((opts.line2 ?? "").trim());
-  const zoneH = Math.round((hasLine2 ? 340 : 290) * u);
+  const zoneH = Math.round((hasLine2 ? 430 : 360) * u);
 
-  // A fő sor betűmérete a hosszhoz igazodik, hogy sose lógjon ki (kb. 22 karakter/sor 9:16-ban).
+  // A fő sor betűmérete a hosszhoz igazodik, hogy sose lógjon ki — de nagyobb, olvashatóbb.
   const line1 = truncate(opts.line1, 42);
-  const mainFs = Math.round((line1.length > 30 ? 40 : line1.length > 22 ? 48 : 58) * u);
+  const mainFs = Math.round((line1.length > 30 ? 54 : line1.length > 22 ? 66 : 80) * u);
   const line2 = truncate((opts.line2 ?? "").trim(), 42);
-  const subFs = Math.round((line2.length > 30 ? 40 : line2.length > 22 ? 46 : 52) * u);
+  const subFs = Math.round((line2.length > 30 ? 50 : line2.length > 22 ? 58 : 68) * u);
 
   const el = box(
     // A gyökéren NINCS background → a PNG átlátszó marad.
