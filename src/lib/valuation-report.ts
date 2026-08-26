@@ -189,6 +189,11 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
   // hogy a partner mindig a reális, levezetéssel egyező árat lássa.
   headlinePrice = reconcileHeadline(headlinePrice, sections);
 
+  // ZÁRÓ ÉP-ÉSZ ELLENŐRZÉS: bármelyik lépés hozhat be tévedésből NÉGYZETMÉTERÁRAT
+  // (pl. „1 310 000 Ft" egy 50 m²-es lakásnál). Ezért legvégül újra megnézzük,
+  // hogy a fejléc-ár a nm-ár × alapterület nagyságrendjében van-e; ha nem, javítjuk.
+  headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
     .filter(Boolean)
     .join(" · ");
@@ -254,8 +259,20 @@ function formatFt(n: number): string {
 }
 
 /** Az első, ezres-tagolt szám a szövegből (min. határértékkel). */
+/**
+ * A NÉGYZETMÉTERÁRAK kitakarása a szövegből. Enélkül egy „1 345 000 Ft/m²" simán
+ * beleférne az ingatlan-ár nagyságrendbe (> 1 M Ft), és a fejlécbe kerülhetne
+ * teljes árként — ezért minden „… Ft/m²" alakú számot eltávolítunk a keresésből.
+ */
+function stripUnitPrices(text: string): string {
+  return String(text ?? "").replace(
+    /\d[\d.\s ]*\d\s*(?:e\s?)?(?:Ft|forint)?\s*\/\s*(?:nm|m²|m2|négyzetméter|négyzet)/gi,
+    " "
+  );
+}
+
 function firstBigNumber(text: string, min = 100000): number | null {
-  const matches = text.match(/\d[\d.\s ]*\d|\d/g) ?? [];
+  const matches = stripUnitPrices(text).match(/\d[\d.\s ]*\d|\d/g) ?? [];
   for (const m of matches) {
     const n = Number(m.replace(/[.\s ]/g, ""));
     if (Number.isFinite(n) && n >= min) return n;
@@ -300,9 +317,15 @@ function ensureTotalPrice(
 
   const expectedTotal = Math.round((unit * size) / 1000) * 1000;
   const current = firstBigNumber(headline);
-  // Ha nincs szám, vagy a szám a várható teljes ár felénél kisebb (tehát
-  // valószínűleg a nm-ár csúszott ide), a számított teljes árra cseréljük.
-  if (!current || current < expectedTotal * 0.5) return formatFt(expectedTotal);
+  if (!current) return formatFt(expectedTotal);
+
+  // A fejléc-ár akkor hihető, ha a nm-ár × alapterület nagyságrendjében van.
+  // Ennél lényegesen kisebb szám szinte biztosan NÉGYZETMÉTERÁR (ez okozta a
+  // „1 310 000 Ft" típusú hibát egy ~65 M Ft-os lakásnál), a jóval nagyobb pedig
+  // elszámolás — mindkét esetben a számított teljes árat használjuk.
+  const tooSmall = current < expectedTotal * 0.6;
+  const tooLarge = current > expectedTotal * 2.5;
+  if (tooSmall || tooLarge) return formatFt(expectedTotal);
   return headline;
 }
 
@@ -333,7 +356,7 @@ function bodyBigNumber(sections: ReportSection[], test: RegExp): number | null {
 /** Az értéksáv [alsó, felső] a riportból, ha értelmezhető. */
 function parseValueRange(sections: ReportSection[]): [number, number] | null {
   const collect = (text: string): number[] =>
-    (text.match(/\d[\d.\s ]*\d|\d/g) ?? [])
+    (stripUnitPrices(text).match(/\d[\d.\s ]*\d|\d/g) ?? [])
       .map((m) => Number(m.replace(/[.\s ]/g, "")))
       .filter((n) => Number.isFinite(n) && n >= PRICE_MIN);
 
