@@ -178,21 +178,31 @@ export function parseValuationReport(raw: string, facts: ValuationFacts = {}): R
     if (est) headlinePrice = toSinglePrice(firstValue(est.body));
   }
 
-  // A fejléc-ár a teljes forgalmi érték legyen (ne a nm-ár) — ha kell, korrigáljuk.
-  headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+  // MOTOROS vagy AI-riport? A determinisztikus motor riportja tartalmazza a
+  // „Számítás levezetése" szakaszt. Ott a „Becsült piaci érték" a motor SAJÁT,
+  // kiszámított száma (comp-medián × méret, majd állapot/emelet/lokáció/tranzakciós
+  // korrekciók) — ezt semmilyen heurisztika NEM írhatja felül, mert a korrekciók
+  // miatt jogosan tér el a nm-ár × alapterület szorzattól.
+  const isEngineReport = sections.some((s) => /számítás\s*levezetése/i.test(s.heading));
 
-  // REKONCILIÁCIÓ: a fejléc-ár MINDIG a riport SAJÁT levezetésével egyezzen.
-  // Az AI-tartalék ágon a modell néha a korrekciók ELŐTTI (comp-alapú, hirdetési)
-  // árat teszi a fejlécbe, miközben a törzsben a korrigált, alacsonyabb értéket
-  // vezeti le. Ilyenkor a fejléc-ár kilóg az értéksávból. Ezt itt determinisztikusan
-  // felülírjuk a törzs „Becsült piaci/forgalmi érték"-ével (vagy a sáv középértékével),
-  // hogy a partner mindig a reális, levezetéssel egyező árat lássa.
-  headlinePrice = reconcileHeadline(headlinePrice, sections);
+  if (isEngineReport) {
+    const est = sections.find((s) => /becsült\s*piaci\s*érték/i.test(s.heading));
+    if (est) headlinePrice = toSinglePrice(firstValue(est.body));
+  } else {
+    // AI-TARTALÉK ág: itt a modell téveszthet, ezért három védelmi réteg.
+    // 1) A fejléc-ár a teljes forgalmi érték legyen (ne a nm-ár).
+    headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
 
-  // ZÁRÓ ÉP-ÉSZ ELLENŐRZÉS: bármelyik lépés hozhat be tévedésből NÉGYZETMÉTERÁRAT
-  // (pl. „1 310 000 Ft" egy 50 m²-es lakásnál). Ezért legvégül újra megnézzük,
-  // hogy a fejléc-ár a nm-ár × alapterület nagyságrendjében van-e; ha nem, javítjuk.
-  headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+    // 2) REKONCILIÁCIÓ: a fejléc-ár MINDIG a riport SAJÁT levezetésével egyezzen.
+    //    A modell néha a korrekciók ELŐTTI (comp-alapú, hirdetési) árat teszi a
+    //    fejlécbe, miközben a törzsben a korrigált, alacsonyabb értéket vezeti le
+    //    — ilyenkor a fejléc kilógna az értéksávból.
+    headlinePrice = reconcileHeadline(headlinePrice, sections);
+
+    // 3) ZÁRÓ ÉP-ÉSZ ELLENŐRZÉS: bármelyik lépés hozhat be tévedésből
+    //    NÉGYZETMÉTERÁRAT (pl. „1 310 000 Ft" egy 50 m²-es lakásnál).
+    headlinePrice = ensureTotalPrice(headlinePrice, sections, fact(facts.meret));
+  }
 
   const detail = [fact(facts.tipus), fact(facts.meret), fact(facts.szobak)]
     .filter(Boolean)
