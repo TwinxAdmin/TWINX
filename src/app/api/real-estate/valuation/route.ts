@@ -11,28 +11,28 @@
 // KREDIT: a levonás CSAK kész riport esetén (lásd lib/valuation-finalize.ts).
 // A PDF-et NEM itt készítjük: a partner előbb szerkeszti a riportot, és a
 // böngésző rendereli a végleges dokumentumot (lásd ./save).
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
 import { checkCreditAvailable } from "@/lib/credits";
 import {
-  submitSonarAsync,
+  runSonarWithSources,
   PERPLEXITY_MODEL,
   HU_PROPERTY_DOMAINS,
   VALUATION_RECENCY,
 } from "@/lib/perplexity";
-import { finalizeValuation } from "@/lib/valuation-finalize";
+import { finalizeValuation, sourcesSection } from "@/lib/valuation-finalize";
 import { buildValuationPromptActive } from "@/lib/prompts";
 import {
   analyzePropertyPhotos,
   renderConditionBlock,
   type VisionImage,
 } from "@/lib/property-vision";
-import { computeValuation } from "@/lib/valuation-engine";
+import { computeValuation, type EngineResult } from "@/lib/valuation-engine";
 import {
-  loadActiveEngineConfig, buildCompsPrompt, buildSubject, composeEngineReport,
-  compsCacheKey, getCachedComps,
+  loadActiveEngineConfig, buildCompsPrompt, buildSubject, parseCompsJson, composeEngineReport,
+  compsCacheKey, getCachedComps, setCachedComps,
 } from "@/lib/valuation-engine-server";
 import { type RawComp } from "@/lib/valuation-engine";
 
@@ -41,7 +41,7 @@ export const runtime = "nodejs";
 // (comp-lekérés → AI-tartalék). Vercel PRO alatt a plafon 300 mp; 180-at használunk,
 // hogy legyen bőven keret, de a partner se várjon értelmetlenül sokat.
 // A belső `deadline`/`sonarTimeout` ezzel arányosan van beállítva (route törzsében).
-export const maxDuration = 180;
+export const maxDuration = 300; // a háttérlánc (after) eddig futhat — Vercel Pro plafon
 
 const SERVICE_SLUG = "real-estate";
 
@@ -178,30 +178,80 @@ export async function POST(request: Request) {
       }
     }
 
-    // ---- ASZINKRON ÚT: beküldjük a kérést a Perplexity async végpontjára, és
-    //      csak egy JOB-ot hozunk létre. A partner NEM vár a HTTP-kérésben →
-    //      soha nincs platform-időkorlát. A kliens a /status végponton pollingoz.
-    const stage: "comps" | "ai" = engineOn ? "comps" : "ai";
-    const prompt = engineOn
-      ? buildCompsPrompt(input, engineCfg)
-      : await buildValuationPromptActive(input, conditionText);
-    const requestId = await submitSonarAsync(prompt, PERPLEXITY_MODEL, sonarOpts);
-
+    // ---- HÁTTÉR-FELDOLGOZÁS: azonnal létrehozunk egy JOB-ot és VISSZATÉRÜNK.
+    //      A tényleges (hosszú) Perplexity-lánc az `after()`-ben fut tovább, MIUTÁN
+    //      a partner már megkapta a választ → a böngésző semmire nem vár, tehát
+    //      SOHA nincs időkorlát-élmény. A kliens a /status végponton pollingoz.
+    //      (A Perplexity async API-ja csak sonar-deep-research-t támogat, ezért
+    //      a sima `sonar` modellt itt szinkron hívjuk — csak épp a háttérben.)
     const { data: job, error: jobError } = await admin
       .from("valuation_jobs")
       .insert({
         user_id: user.id,
         service_id: service.id,
         status: "processing",
-        input_data: { input, conditionText: conditionText ?? null, stage, photoCount: photoImages.length },
-        request_id: requestId,
-        credits_charged: 0, // a levonás CSAK a kész riportnál (status végpont)
+        input_data: { input, conditionText: conditionText ?? null, photoCount: photoImages.length },
+        credits_charged: 0, // a levonás CSAK a kész riportnál
       })
       .select("id")
       .single();
     if (jobError || !job) throw new Error(jobError?.message ?? "A job létrehozása nem sikerült.");
 
-    return NextResponse.json({ ok: true, jobId: job.id, async: true });
+    const jobId = job.id as string;
+    const userId = user.id;
+    const serviceId = service.id as string;
+
+    after(async () => {
+      const bg = createAdminClient();
+      try {
+        let report: string;
+        let engineAudit: EngineResult | null = null;
+
+        if (engineOn) {
+          // 1) Comp-lekérés → determinisztikus motor.
+          const { content: compsRaw, sources } = await runSonarWithSources(
+            buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
+          );
+          const comps = parseCompsJson(compsRaw);
+          if (comps.length) {
+            try { await setCachedComps(compsCacheKey(input), comps); } catch { /* cache best-effort */ }
+          }
+          const calc = computeValuation(comps, buildSubject(input), engineCfg);
+          if (calc.ok) {
+            engineAudit = calc;
+            report = composeEngineReport(calc, input, engineCfg) + sourcesSection(sources);
+          } else {
+            // 2) Kevés használható comp → AI-tartalék becslés.
+            const r = await runSonarWithSources(
+              await buildValuationPromptActive(input, conditionText), PERPLEXITY_MODEL, sonarOpts
+            );
+            report =
+              "> Kevés összehasonlító állt rendelkezésre, ezért tájékoztató jellegű, AI-alapú becslés készült.\n\n" +
+              r.content + sourcesSection(r.sources);
+          }
+        } else {
+          const r = await runSonarWithSources(
+            await buildValuationPromptActive(input, conditionText), PERPLEXITY_MODEL, sonarOpts
+          );
+          report = r.content + sourcesSection(r.sources);
+        }
+
+        // KÉSZ riport → kredit levonása (CSAK itt!) + mentés az előzményekbe.
+        const fin = await finalizeValuation({
+          userId, serviceId, input, report, engineAudit, bypassed, photoCount: photoImages.length,
+        });
+        await bg.from("valuation_jobs").update({
+          status: "done", report: fin.report, credits_charged: fin.charged ? 1 : 0,
+        }).eq("id", jobId);
+      } catch (err) {
+        // Hiba: a job "failed" lesz — kreditet SOHA nem vontunk le idáig.
+        await bg.from("valuation_jobs")
+          .update({ status: "failed", error: (err as Error).message })
+          .eq("id", jobId);
+      }
+    });
+
+    return NextResponse.json({ ok: true, jobId, async: true });
   } catch (err) {
     // Itt még SOHA nem vontunk le kreditet (a levonás a kész riportnál történik),
     // ezért nincs mit visszatéríteni.
