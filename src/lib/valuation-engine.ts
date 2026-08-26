@@ -78,6 +78,9 @@ export type EngineResult = {
   comps: CompRow[];
   steps: AdjustStep[];
   fellBack: boolean;
+  /** true: kevés comp volt, ezért TÁGABB értéksávval, jelzetten készült a becslés.
+   *  A szám ettől még DETERMINISZTIKUS (nem AI) — így nem ugrál futásról futásra. */
+  lowConfidence?: boolean;
   note: string;
 };
 
@@ -211,14 +214,18 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
     }
   }
 
-  // Fallback jelzés: túl kevés comp → a hívó a régi AI-módra vált.
-  if (pool.length < cfg.fallback.min_comps_for_engine) {
+  // NULLA comp: nincs mihez viszonyítani → a hívó dönt (AI-tartalék).
+  // FONTOS: 1-2 compnál NEM esünk vissza szabadfutású AI-becslésre, mert az
+  // futásonként MÁS árat adna (ez okozta a 61 M / 78 M / 85 M típusú ingadozást).
+  // Helyette determinisztikusan számolunk, csak TÁGABB sávval és jelzéssel.
+  if (pool.length === 0) {
     return {
       ok: false, estimateHuf: 0, lowHuf: 0, highHuf: 0, centralPricePerM2: 0,
-      usedCount: pool.length, comps: rows, steps, fellBack: true,
-      note: `Kevés használható összehasonlító (${pool.length} db) — a motor nem tud stabil árat adni.`,
+      usedCount: 0, comps: rows, steps, fellBack: true,
+      note: "Nem találtunk használható összehasonlító ingatlant.",
     };
   }
+  const lowConfidence = pool.length < cfg.fallback.min_comps_for_engine;
 
   // 3) Központi Ft/m² (medián vagy méret-súlyozott).
   let central: number;
@@ -263,15 +270,19 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
     if (value < floor) { const before = value; value = floor; steps.push({ label: `BP realitás-küszöb (${cfg.realism.bp_min_huf_per_m2.toLocaleString("hu-HU")} Ft/m²)`, deltaPct: Math.round((value / before - 1) * 100), deltaHuf: Math.round(value - before) }); }
   }
 
-  // 9) Kerekítés + prezentációs sáv (±3%).
+  // 9) Kerekítés + prezentációs sáv. Kevés compnál TÁGABB (±8%) a sáv, mert
+  //    kisebb mintából nagyobb a bizonytalanság — de a szám így is stabil marad.
+  const bandPct = lowConfidence ? 0.08 : 0.03;
   const estimate = roundTo(value, cfg.rounding.step_huf);
-  const low = roundTo(estimate * 0.97, cfg.rounding.step_huf);
-  const high = roundTo(estimate * 1.03, cfg.rounding.step_huf);
+  const low = roundTo(estimate * (1 - bandPct), cfg.rounding.step_huf);
+  const high = roundTo(estimate * (1 + bandPct), cfg.rounding.step_huf);
 
   return {
     ok: true, estimateHuf: estimate, lowHuf: low, highHuf: high,
     centralPricePerM2: Math.round(central), usedCount: pool.length,
-    comps: rows, steps, fellBack: false,
-    note: `${pool.length} összehasonlító alapján, determinisztikus számítással.${loosened ? ` (Tágított kör: ${loosened}.)` : ""}`,
+    comps: rows, steps, fellBack: false, lowConfidence,
+    note: lowConfidence
+      ? `Kevés (${pool.length} db) összehasonlító állt rendelkezésre, ezért az érték tájékoztató jellegű és tágabb sávval szerepel — a számítás determinisztikus.${loosened ? ` (Tágított kör: ${loosened}.)` : ""}`
+      : `${pool.length} összehasonlító alapján, determinisztikus számítással.${loosened ? ` (Tágított kör: ${loosened}.)` : ""}`,
   };
 }

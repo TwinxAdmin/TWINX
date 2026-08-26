@@ -208,25 +208,40 @@ export async function POST(request: Request) {
         let engineAudit: EngineResult | null = null;
 
         if (engineOn) {
-          // 1) Comp-lekérés → determinisztikus motor.
-          const { content: compsRaw, sources } = await runSonarWithSources(
-            buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
-          );
-          const comps = parseCompsJson(compsRaw);
+          // 1) Comp-lekérés. HA nem jön értelmezhető comp, EGYSZER újrapróbáljuk —
+          //    a legtöbb üres találat átmeneti (formátum-hiba, elakadt keresés).
+          //    Ez azért fontos, mert comp nélkül szabadfutású AI-becslés jönne,
+          //    ami futásonként MÁS árat ad (61 M / 78 M / 85 M ugrálás).
+          let comps: RawComp[] = [];
+          let sources: Awaited<ReturnType<typeof runSonarWithSources>>["sources"] = [];
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const r = await runSonarWithSources(
+              buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL, sonarOpts
+            );
+            comps = parseCompsJson(r.content);
+            sources = r.sources;
+            if (comps.length) break;
+          }
           if (comps.length) {
             try { await setCachedComps(compsCacheKey(input), comps); } catch { /* cache best-effort */ }
           }
+
           const calc = computeValuation(comps, buildSubject(input), engineCfg);
           if (calc.ok) {
+            // A motor akkor is determinisztikusan számol, ha kevés a comp — ilyenkor
+            // csak tágabb sávot és jelzést kapunk (calc.lowConfidence), de a szám STABIL.
             engineAudit = calc;
-            report = composeEngineReport(calc, input, engineCfg) + sourcesSection(sources);
+            const prefix = calc.lowConfidence
+              ? "> Kevesebb összehasonlító állt rendelkezésre, ezért az érték tájékoztató jellegű, tágabb értéksávval. A számítás így is determinisztikus.\n\n"
+              : "";
+            report = prefix + composeEngineReport(calc, input, engineCfg) + sourcesSection(sources);
           } else {
-            // 2) Kevés használható comp → AI-tartalék becslés.
+            // Ide már CSAK akkor jutunk, ha EGYETLEN használható comp sincs.
             const r = await runSonarWithSources(
               await buildValuationPromptActive(input, conditionText), PERPLEXITY_MODEL, sonarOpts
             );
             report =
-              "> Kevés összehasonlító állt rendelkezésre, ezért tájékoztató jellegű, AI-alapú becslés készült.\n\n" +
+              "> Nem találtunk használható összehasonlító ingatlant, ezért tájékoztató jellegű, AI-alapú becslés készült. Az érték nagyobb bizonytalanságot hordoz.\n\n" +
               r.content + sourcesSection(r.sources);
           }
         } else {
