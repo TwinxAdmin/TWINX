@@ -200,18 +200,25 @@ export async function runSonarWithSources(
 
 // Aszinkron beküldés (pl. sonar-deep-research a "magas" szinthez).
 // Visszaadja a Perplexity request id-t, amivel később lekérdezhető az állapot.
-export async function submitSonarAsync(prompt: string, model: string): Promise<string> {
+export async function submitSonarAsync(
+  prompt: string,
+  model: string,
+  opts?: { temperature?: number; domains?: string[]; recency?: SonarRecency }
+): Promise<string> {
   const apiKey = apiKeyOrThrow();
+  const req: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: opts?.temperature ?? 0.2,
+  };
+  // Ugyanazok a szűkítések, mint a szinkron ágon (magyar ingatlanportálok, frissesség).
+  if (opts?.domains?.length) req.search_domain_filter = opts.domains;
+  if (opts?.recency) req.search_recency_filter = opts.recency;
+
   const res = await fetch(`${PPLX_BASE}/v1/async/sonar`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      request: {
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-      },
-    }),
+    body: JSON.stringify({ request: req }),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -225,8 +232,29 @@ export async function submitSonarAsync(prompt: string, model: string): Promise<s
 
 export type SonarAsyncResult =
   | { status: "processing"; raw?: string }
-  | { status: "completed"; content: string }
+  | { status: "completed"; content: string; sources: SonarSource[] }
   | { status: "failed"; error: string };
+
+/** Forrás-lista kinyerése az async válaszból (ugyanaz a formátum, mint szinkronban). */
+function extractSonarSources(data: unknown): SonarSource[] {
+  const d = (data ?? {}) as Record<string, unknown>;
+  const resp = (d.response ?? {}) as Record<string, unknown>;
+  const out: SonarSource[] = [];
+  const raw = (resp.search_results ?? d.search_results) as unknown;
+  if (Array.isArray(raw)) {
+    for (const r of raw as Array<Record<string, unknown>>) {
+      const url = typeof r?.url === "string" ? r.url : "";
+      if (!url) continue;
+      out.push({ title: typeof r?.title === "string" ? r.title : url, url, date: r?.date as string | undefined });
+    }
+    return out;
+  }
+  const cites = (resp.citations ?? d.citations) as unknown;
+  if (Array.isArray(cites)) {
+    for (const c of cites) if (typeof c === "string" && c) out.push({ title: c, url: c });
+  }
+  return out;
+}
 
 // A válaszból kinyerhető szöveges tartalom többféle helyről (robusztus a formátumra).
 function extractSonarContent(data: unknown): string {
@@ -262,7 +290,7 @@ export async function getSonarAsync(requestId: string): Promise<SonarAsyncResult
   if (status === "COMPLETED" || status === "COMPLETE" || status === "SUCCEEDED") {
     const content = extractSonarContent(data);
     if (!content) return { status: "failed", error: "Üres válasz a kutatástól." };
-    return { status: "completed", content };
+    return { status: "completed", content, sources: extractSonarSources(data) };
   }
   if (status === "FAILED" || status === "ERROR" || status === "CANCELLED") {
     return { status: "failed", error: (data?.error_message as string) ?? "A kutatás sikertelen." };

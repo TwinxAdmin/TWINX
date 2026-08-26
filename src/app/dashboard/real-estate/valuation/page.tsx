@@ -72,6 +72,9 @@ export default function ValuationPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EditorState | null>(null);
+  // Aszinkron becslés: a futó job azonosítója + az eltelt idő (folyamatjelzőhöz).
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -172,6 +175,41 @@ export default function ValuationPage() {
     loadHistory();
   }, [loadHistory]);
 
+  // ASZINKRON becslés állapotának lekérdezése 3 mp-enként, amíg kész nem lesz.
+  // A partner el is navigálhat: a kész riport az előzményekbe kerül.
+  useEffect(() => {
+    if (!jobId) return;
+    const timer = setInterval(async () => {
+      setElapsed((s) => s + 3);
+      try {
+        const res = await fetch(`/api/real-estate/valuation/status?job=${encodeURIComponent(jobId)}`);
+        const data = await res.json();
+        if (!res.ok) return; // átmeneti hiba — jöhet a következő kör
+        if (data.status === "done") {
+          setJobId(null);
+          setLoading(false);
+          if (data.report) {
+            setResult({
+              id: data.id ?? null,
+              doc: parseValuationReport(String(data.report), values as ValuationFacts),
+              url: null,
+              dateLabel: new Date().toLocaleDateString("hu-HU"),
+            });
+            setEditorOpen(true);
+          }
+          setMessage("Kész! Nézd át, szerkeszd, majd készítsd el a PDF-et.");
+          loadHistory();
+        } else if (data.status === "failed") {
+          setJobId(null);
+          setLoading(false);
+          setServerError(data.error ?? "A becslés nem sikerült. Kredit nem került levonásra.");
+        }
+      } catch { /* következő kör */ }
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
+
   useEffect(() => {
     if (!editorOpen) return;
     const prev = document.body.style.overflow;
@@ -269,10 +307,19 @@ export default function ValuationPage() {
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
         return;
       }
-      // Sikeres generálás: a szabadszöveges mezők értékének megjegyzése.
+      // Sikeres beküldés: a szabadszöveges mezők értékének megjegyzése.
       telepulesMem.remember(values.telepules.trim());
       utcaMem.remember(values.utca.trim());
       egyebMem.remember(values.egyeb.trim());
+
+      // ASZINKRON ÁG: a szerver csak egy jobot hozott létre — pollingozzuk az
+      // állapotát. Így NINCS időkorlát, és a partner el is navigálhat közben.
+      if (data.async && data.jobId) {
+        setJobId(String(data.jobId));
+        setMessage("A becslés készül — ez 1–2 percet is igénybe vehet.");
+        return; // a `loading` marad true-n, a polling zárja le
+      }
+
       if (data.report) {
         setResult({
           id: data.id ?? null,
@@ -529,15 +576,30 @@ export default function ValuationPage() {
           disabled={loading}
           className="twx-btn w-full"
         >
-          {loading ? "Feldolgozás… (akár 30-60 mp)" : "Ingatlan értékbecslés indítása"}
+          {loading ? "Becslés készül…" : "Ingatlan értékbecslés indítása"}
         </button>
         <p className="text-center text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          Költség: <strong>1 kredit</strong> / értékbecslés.
+          Költség: <strong>1 kredit</strong> / értékbecslés — a levonás csak a kész becslésnél.
         </p>
       </form>
 
+      {/* ASZINKRON állapot: folyamatjelző + nyugtató üzenet (elnavigálhat) */}
+      {jobId && (
+        <div className="rounded-xl p-4 text-center" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+          <p className="text-sm font-semibold">A becslés készül…</p>
+          <div className="mx-auto mt-3 h-2 w-64 overflow-hidden rounded-full" style={{ background: "var(--twx-line)" }}>
+            <div className="h-full rounded-full transition-all"
+              style={{ background: "var(--twx-coral)", width: `${Math.min(95, Math.round((elapsed / 120) * 100))}%` }} />
+          </div>
+          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Ez 1–2 percet is igénybe vehet — friss piaci adatokat gyűjtünk.
+            Nyugodtan itt hagyhatod: a kész becslés a <strong>Korábbi munkák</strong> közé kerül.
+          </p>
+        </div>
+      )}
+
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
+      {message && !jobId && <p className="text-sm text-green-700">{message}</p>}
 
       {/* Kész becslés — a legutóbb megnyitott/elkészített munka gyors elérése */}
       {result && (

@@ -1,31 +1,38 @@
-// POST /api/real-estate/valuation — Ingatlan Értékbecslő teljes lánc.
-// Sorrend: validáció -> kredit levonás (admin/sales megkerül) -> Perplexity (Sonar)
-// -> usage_history. Hiba esetén kredit-visszatérítés.
+// POST /api/real-estate/valuation — Ingatlan Értékbecslő BEKÜLDÉS (aszinkron).
+//
+// MIÉRT ASZINKRON: a Perplexity válasza néha percekig tart, és egy HTTP-kérésben
+// kivárva a hosting platform (Vercel) időkorlátjába futottunk. Mostantól:
+//   1) validáció + fotó-elemzés + kredit-FEDEZET ellenőrzés (levonás NÉLKÜL),
+//   2) ha a comp-halmaz gyorsítótárban van → a riport AZONNAL elkészül (gyors út),
+//   3) különben a kérés a Perplexity async végpontjára megy, és csak egy JOB jön
+//      létre → a kliens a /status végponton pollingoz. Így a partner SOHA nem
+//      ütközik időkorlátba, és el is navigálhat: a kész riport az előzményekbe kerül.
+//
+// KREDIT: a levonás CSAK kész riport esetén (lásd lib/valuation-finalize.ts).
 // A PDF-et NEM itt készítjük: a partner előbb szerkeszti a riportot, és a
 // böngésző rendereli a végleges dokumentumot (lásd ./save).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
-import { chargeCredit, checkCreditAvailable } from "@/lib/credits";
+import { checkCreditAvailable } from "@/lib/credits";
 import {
-  runSonarWithSources,
+  submitSonarAsync,
   PERPLEXITY_MODEL,
   HU_PROPERTY_DOMAINS,
   VALUATION_RECENCY,
-  type SonarSource,
 } from "@/lib/perplexity";
+import { finalizeValuation } from "@/lib/valuation-finalize";
 import { buildValuationPromptActive } from "@/lib/prompts";
 import {
   analyzePropertyPhotos,
   renderConditionBlock,
   type VisionImage,
 } from "@/lib/property-vision";
-import { logCost, perplexityCostUsd } from "@/lib/costs";
-import { computeValuation, type EngineResult } from "@/lib/valuation-engine";
+import { computeValuation } from "@/lib/valuation-engine";
 import {
-  loadActiveEngineConfig, buildCompsPrompt, buildSubject, parseCompsJson, composeEngineReport,
-  compsCacheKey, getCachedComps, setCachedComps, stripHiddenReportSections,
+  loadActiveEngineConfig, buildCompsPrompt, buildSubject, composeEngineReport,
+  compsCacheKey, getCachedComps,
 } from "@/lib/valuation-engine-server";
 import { type RawComp } from "@/lib/valuation-engine";
 
@@ -37,7 +44,6 @@ export const runtime = "nodejs";
 export const maxDuration = 180;
 
 const SERVICE_SLUG = "real-estate";
-const FEATURE = "valuation";
 
 /** Egy publikus kép-URL letöltése bájttá (méret- és típus-korláttal). Hibatűrő: null. */
 async function fetchImageBytes(url: string): Promise<VisionImage | null> {
@@ -53,15 +59,6 @@ async function fetchImageBytes(url: string): Promise<VisionImage | null> {
   } catch {
     return null;
   }
-}
-
-/** A felhasznált források külön szakaszként a riport végén (ellenőrizhetőség). */
-function sourcesSection(sources: SonarSource[]): string {
-  if (!sources.length) return "";
-  const lines = sources
-    .slice(0, 12)
-    .map((s) => `- ${s.title}${s.date ? ` (${s.date})` : ""} — ${s.url}`);
-  return `\n\n## Felhasznált források\n${lines.join("\n")}`;
 }
 
 export async function POST(request: Request) {
@@ -144,13 +141,8 @@ export async function POST(request: Request) {
     );
   }
   const bypassed = avail.bypassed;
-  // Levontuk-e ténylegesen a kreditet? (A generálás UTÁN állítjuk true-ra.)
-  let didCharge = false;
 
   try {
-    // 2) Perplexity (Sonar) hívás a validált adatokból (az aktív prompttal).
-    //    A keresést a magyar ingatlanportálokra és piaci forrásokra szűkítjük —
-    //    így nagyobb eséllyel dolgozik KONKRÉT hirdetésekből, nem általános cikkekből.
     // Fotó-alapú állapotértékelés (opcionális): ha jött fotó, gépi képelemzés →
     // strukturált állapot-blokk, amit a modell a lakás-korrekcióknál használ (±5% plafon).
     let conditionText: string | undefined;
@@ -159,148 +151,60 @@ export async function POST(request: Request) {
       if (rep) conditionText = renderConditionBlock(rep);
     }
 
-    // KÖZÖS IDŐKERET. A motoros ág legrosszabb esetben KÉT Perplexity-hívást tesz
-    // egymás után (comp-lekérés, majd AI-tartalék), és ezek együtt kicsúszhatnak a
-    // Vercel 60 mp-es futásidejéből → a platform megöli a függvényt, a `catch`
-    // NEM fut le, a partner „Hálózati hibát" lát. Ezért a két hívás EGY közös,
-    // ~55 mp-es keretből gazdálkodik: minden hívás annyit kaphat, amennyi a keretből
-    // MARADT. Így a belső időkorlát mindig HAMARABB elsül, mint a platform kése →
-    // lefut a `catch`, tiszta hibaüzenet, és (mivel még nem vontunk le) nincs kredit-veszés.
-    // VERCEL PRO: a maxDuration 180 mp. A belső keret 170 mp — marad ~10 mp a válasz
-    // összeállítására + az előzmény mentésére, MIELŐTT a platform megölné a függvényt.
-    // Egy hívás legfeljebb 100 mp-et kaphat: így ha a comp-lekérés kifut, az AI-tartalék
-    // ágnak is marad bőven ideje (100 + 70), és nem a platform kése vág közbe.
-    const deadline = Date.now() + 170_000;
-    const sonarTimeout = () =>
-      Math.max(8_000, Math.min(100_000, deadline - Date.now())); // legalább 8 mp, legfeljebb 100
+    const engineCfg = await loadActiveEngineConfig();
+    const engineOn = engineCfg.engine.mode === "on";
 
-    const sonarBase = {
-      // Alacsony hőmérséklet: az értékbecslésnél a kiszámíthatóság a fontos.
+    const sonarOpts = {
       temperature: 0.1,
       domains: HU_PROPERTY_DOMAINS,
       recency: VALUATION_RECENCY || undefined,
     } as const;
 
-    // Az AI-becslő ág (régi mód / fallback): a válasz + források.
-    const runAiValuation = async (prefix = "") => {
-      const prompt = await buildValuationPromptActive(input, conditionText);
-      const r = await runSonarWithSources(prompt, PERPLEXITY_MODEL, {
-        ...sonarBase,
-        timeoutMs: sonarTimeout(),
-      });
-      return prefix + r.content + sourcesSection(r.sources);
-    };
-
-    // Comp-alapú MOTOR, ha az adminban be van kapcsolva; különben a régi AI-becslő.
-    const engineCfg = await loadActiveEngineConfig();
-    let report: string;
-    let engineAudit: EngineResult | null = null;
-
-    if (engineCfg.engine.mode === "on") {
-      // Comp-halmaz: előbb a gyorsítótárból (→ konzisztens ismételt becslés, kevesebb hívás),
-      // különben friss Perplexity-lekérés + eltárolás.
+    // ---- GYORS ÚT: ha a comp-halmaz már a gyorsítótárban van, nincs szükség
+    //      Perplexity-hívásra → a riport AZONNAL elkészül, nincs várakozás.
+    if (engineOn) {
       const cacheKey = compsCacheKey(input);
-      let comps: RawComp[] | null = await getCachedComps(cacheKey, engineCfg.cache.comps_days);
-      let sources: SonarSource[] = [];
-      if (!comps) {
-        const { content: compsRaw, sources: s } = await runSonarWithSources(
-          buildCompsPrompt(input, engineCfg), PERPLEXITY_MODEL,
-          { ...sonarBase, timeoutMs: sonarTimeout() }
-        );
-        comps = parseCompsJson(compsRaw);
-        sources = s;
-        if (comps.length) await setCachedComps(cacheKey, comps);
-      }
-      const res = computeValuation(comps, buildSubject(input), engineCfg);
-      if (res.ok) {
-        engineAudit = res;
-        report = composeEngineReport(res, input, engineCfg) + sourcesSection(sources);
-      } else {
-        report = await runAiValuation(
-          "> Kevés összehasonlító állt rendelkezésre, ezért tájékoztató jellegű, AI-alapú becslés készült.\n\n"
-        );
-      }
-    } else {
-      report = await runAiValuation();
-    }
-
-    // A partnernek szánt kimenetből kivesszük a belső, módszertani szakaszokat
-    // (korlátozások, szűrési/lazítási elvek, kizárt comp-ok) — a PDF-ben ne látszódjanak.
-    report = stripHiddenReportSections(report);
-
-    // 2) A generálás SIKERES → MOST vonjuk le a kreditet (admin megkerüli).
-    //    Ha közben (a ritka verseny miatt) elfogyott az egyenleg, a riport akkor is
-    //    kész — nem dobjuk el, csak nem számlázunk érte.
-    if (!bypassed) {
-      try {
-        const c = await chargeCredit({ userId: user.id, amount: 1 });
-        didCharge = c.ok && !c.bypassed;
-      } catch {
-        // A levonás technikai hibája ne buktassa el a kész riportot.
-        didCharge = false;
+      const cached: RawComp[] | null = await getCachedComps(cacheKey, engineCfg.cache.comps_days);
+      if (cached && cached.length) {
+        const res = computeValuation(cached, buildSubject(input), engineCfg);
+        if (res.ok) {
+          const fin = await finalizeValuation({
+            userId: user.id, serviceId: service.id, input,
+            report: composeEngineReport(res, input, engineCfg),
+            engineAudit: res, bypassed, photoCount: photoImages.length,
+          });
+          return NextResponse.json({ ok: true, id: fin.id, report: fin.report, charged: fin.charged });
+        }
       }
     }
 
-    // 3) Mentés a usage_history táblába — a PDF-et már a BÖNGÉSZŐ készíti a
-    //    szerkesztett riportból (/api/real-estate/valuation/save), így pontosan
-    //    az kerül a dokumentumba, amit a partner az előnézetben jóváhagyott.
-    const { data: hist, error: histError } = await admin
-      .from("usage_history")
+    // ---- ASZINKRON ÚT: beküldjük a kérést a Perplexity async végpontjára, és
+    //      csak egy JOB-ot hozunk létre. A partner NEM vár a HTTP-kérésben →
+    //      soha nincs platform-időkorlát. A kliens a /status végponton pollingoz.
+    const stage: "comps" | "ai" = engineOn ? "comps" : "ai";
+    const prompt = engineOn
+      ? buildCompsPrompt(input, engineCfg)
+      : await buildValuationPromptActive(input, conditionText);
+    const requestId = await submitSonarAsync(prompt, PERPLEXITY_MODEL, sonarOpts);
+
+    const { data: job, error: jobError } = await admin
+      .from("valuation_jobs")
       .insert({
         user_id: user.id,
         service_id: service.id,
-        feature_used: FEATURE,
-        input_data: input,
-        output_text: report,
-        credits_charged: didCharge ? 1 : 0,
+        status: "processing",
+        input_data: { input, conditionText: conditionText ?? null, stage, photoCount: photoImages.length },
+        request_id: requestId,
+        credits_charged: 0, // a levonás CSAK a kész riportnál (status végpont)
       })
       .select("id")
       .single();
-    if (histError) throw new Error(`Előzmény mentés hiba: ${histError.message}`);
+    if (jobError || !job) throw new Error(jobError?.message ?? "A job létrehozása nem sikerült.");
 
-    // A motor levezetése (audit) az előzményhez — best-effort (ha a column létezik).
-    if (engineAudit && hist?.id) {
-      try {
-        await admin.from("usage_history").update({ valuation_audit: engineAudit }).eq("id", hist.id);
-      } catch { /* a valuation-engine.sql még nem futott — nem gond */ }
-    }
-
-    // Nyers API-önköltség logolása (admin-only, best-effort).
-    await logCost({
-      userId: user.id,
-      serviceId: service.id,
-      feature: FEATURE,
-      serviceName: "perplexity",
-      units: 1,
-      estimatedCostUsd: perplexityCostUsd(PERPLEXITY_MODEL),
-    });
-
-    // A fotó-elemzés (Gemini) nyers költsége — best-effort, admin-only.
-    if (photoImages.length > 0 && conditionText) {
-      await logCost({
-        userId: user.id,
-        serviceId: service.id,
-        feature: FEATURE,
-        serviceName: "gemini-vision",
-        units: photoImages.length,
-        estimatedCostUsd: 0.03,
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      id: hist?.id ?? null,
-      report,
-      charged: didCharge,
-    });
+    return NextResponse.json({ ok: true, jobId: job.id, async: true });
   } catch (err) {
-    // Csak akkor térítünk vissza, ha TÉNYLEGESEN levontunk (pl. a levonás után a
-    // history-mentés bukott el). Az esetek zömében a hiba a generálás közben jön,
-    // amikor még nem vontunk le — ilyenkor nincs mit visszaadni. Így soha nem
-    // vész el és nem is duplázódik a kredit.
-    if (didCharge) {
-      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: 1 });
-    }
+    // Itt még SOHA nem vontunk le kreditet (a levonás a kész riportnál történik),
+    // ezért nincs mit visszatéríteni.
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
