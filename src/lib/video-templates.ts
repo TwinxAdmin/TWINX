@@ -28,6 +28,8 @@ export type VideoDesign = {
   aspects: VideoAspect[];
   /** JSON dizájnnál: méretenkénti Shotstack template. */
   jsonByAspect?: Partial<Record<VideoAspect, TemplateJson>>;
+  /** Opcionális fotó a választó előnézetéhez (a nyitókép hátterét idézi). */
+  previewPhoto?: string;
   /** Satori dizájn képszám-tartománya (json-nál a JSON-ból jön). */
   minImages: number;
   maxImages: number;
@@ -63,9 +65,13 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
   //   defaultMusic: "elegans",
   // },
   {
+    // Az azonosító marad `modern-sarga` (a korábbi videók erre hivatkoznak az
+    // előzményekben) — csak a MEGJELENŐ név változott fantázianévre.
     id: "modern-sarga",
-    name: "Modern Sárga",
-    tagline: "Sárga kiemelés · intro-panel · feliratos fotók · záró kép",
+    name: "TWINX Aurora",
+    tagline: "Nyitó adatlap · feliratos fotók · záró névjegy",
+    /** A választóban megjelenő valósághű előnézet (a nyitókép kompozíciója). */
+    previewPhoto: "/video-samples/aurora-hero.jpg",
     kind: "json",
     // Két méret elérhető, méretenként külön Shotstack-JSON-nal.
     aspects: ["9:16", "1:1"],
@@ -81,7 +87,8 @@ export const VIDEO_DESIGNS: VideoDesign[] = [
     motions: [],
     introPanel: true,
     agentCard: true,
-    preview: { from: "#111111", to: "#2a2408", ink: "#f0c20c" },
+    // A valódi videó hangulata: mély kék panel, fehér szöveg, arany kiemelés.
+    preview: { from: "#1a1230", to: "#0d0a1c", ink: "#f0c20c" },
     defaultMusic: "cinematic",
   },
 ];

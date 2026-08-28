@@ -23,7 +23,8 @@ import {
   VIDEO_DESIGNS, getDesign, imageCountOk, imageCountLabel, imageRange,
   ASPECT_LABEL, type VideoDesign, type VideoAspect,
 } from "@/lib/video-templates";
-import { PROPERTY_TYPE_OPTIONS, FLOOR_OPTIONS } from "@/lib/valuation";
+import { PROPERTY_TYPE_OPTIONS } from "@/lib/valuation";
+import { readyColorVariants, getColorVariant, type VideoColorId } from "@/lib/video-color";
 
 /** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
 type VideoDebug = {
@@ -56,6 +57,11 @@ export default function VideoWizard({
   const design: VideoDesign = getDesign(designId) ?? VIDEO_DESIGNS[0];
   const [aspect, setAspect] = useState<VideoAspect>(design.aspects[0]);
 
+  // Szín-variáns: ugyanaz a sablon, csak más kiemelő színnel. Csak az élesített
+  // (feltöltött grafikájú) színek jelennek meg.
+  const colorChoices = readyColorVariants();
+  const [colorId, setColorId] = useState<VideoColorId>("sarga");
+
   // Dizájnváltáskor a méret a dizájn első elérhető arányára ugrik.
   function pickDesign(id: string) {
     const d = getDesign(id) ?? VIDEO_DESIGNS[0];
@@ -63,10 +69,9 @@ export default function VideoWizard({
     setAspect(d.aspects.includes(aspect) ? aspect : d.aspects[0]);
   }
 
-  const isJson = design.kind === "json";
-
   // 1) Képek (5, az első a NYITÓKÉP). Minden fotóhoz saját, szabad felirat tartozik.
-  type Shot = { url: string; caption: string };
+  type CaptionPos = "bottom" | "center";
+  type Shot = { url: string; caption: string; captionPos: CaptionPos };
   const [shots, setShots] = useState<Shot[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -79,7 +84,7 @@ export default function VideoWizard({
 
   // Az ingatlan adatai — EGYSZER megadva, a nyitó- és a záróképen is megjelennek.
   const [debug, setDebug] = useState<VideoDebug | null>(null);
-  const [title, setTitle] = useState("");
+  const [title] = useState("");
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
   });
@@ -140,10 +145,10 @@ export default function VideoWizard({
     const max = imageRange(design, aspect).max;
     const room = max - shots.length;
     if (room <= 0) { showToast(`Ehhez a mérethez legfeljebb ${max} kép.`, "info"); return; }
-    setShots((prev) => [...prev, ...Array.from(list).slice(0, room).map((f) => ({ url: URL.createObjectURL(f), caption: "" }))]);
+    setShots((prev) => [...prev, ...Array.from(list).slice(0, room).map((f) => ({ url: URL.createObjectURL(f), caption: "", captionPos: "bottom" as CaptionPos }))]);
   }
   const addUrl = (u: string) =>
-    setShots((prev) => (prev.some((s) => s.url === u) || prev.length >= imageRange(design, aspect).max ? prev : [...prev, { url: u, caption: "" }]));
+    setShots((prev) => (prev.some((s) => s.url === u) || prev.length >= imageRange(design, aspect).max ? prev : [...prev, { url: u, caption: "", captionPos: "bottom" as CaptionPos }]));
   const removeImage = (i: number) => setShots((prev) => prev.filter((_, j) => j !== i));
   const moveImage = (from: number, to: number) =>
     setShots((prev) => {
@@ -152,6 +157,8 @@ export default function VideoWizard({
     });
   const setCaption = (i: number, text: string) =>
     setShots((prev) => prev.map((s, j) => (j === i ? { ...s, caption: text } : s)));
+  const setCaptionPos = (i: number, pos: CaptionPos) =>
+    setShots((prev) => prev.map((s, j) => (j === i ? { ...s, captionPos: pos } : s)));
 
   // --- Generálás indítása ---
   async function generate() {
@@ -166,6 +173,9 @@ export default function VideoWizard({
       // Fotónkénti szabad feliratok — a képek sorrendjéhez igazítva.
       // (Az 1. kép a nyitókép; ahhoz nem felirat, hanem az összefoglaló adatok tartoznak.)
       fd.append("captions", JSON.stringify(shots.map((s) => s.caption.trim())));
+      // Képenkénti felirat-pozíció: lent vagy középen (középen vonal fölötte és alatta).
+      fd.append("captionPositions", JSON.stringify(shots.map((s) => s.captionPos)));
+      fd.append("colorVariant", colorId);
       fd.append("profile", JSON.stringify(profileData));
       fd.append("facts", JSON.stringify(facts));
       fd.append("title", title.trim() || defaultTitle());
@@ -308,57 +318,103 @@ export default function VideoWizard({
           {step === 0 && (
             <div className="space-y-4">
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Először válaszd ki, <strong>melyik dizájnnal</strong> dolgozol, és <strong>milyen méretben</strong>.
-                Ugyanaz a dizájn több arányban is elérhető — a méretre kattintva választhatsz.
+                Válaszd ki a <strong>sablont</strong>, majd a <strong>méretet</strong>. A sablonok
+                felépítése azonos — a kiemelő szín különbözteti meg őket.
               </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {VIDEO_DESIGNS.map((d) => {
-                  const on = d.id === designId;
-                  return (
-                    <div
-                      key={d.id}
-                      className="overflow-hidden rounded-xl transition"
-                      style={{
-                        border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
-                        boxShadow: on ? "0 6px 20px rgba(239,122,90,0.18)" : "none",
-                      }}
-                    >
+              {/* SABLON-CSEMPÉK: a valódi nyitókép kompozícióját mutató előnézet */}
+              {/* Sűrű rács: 5-10 sablon is elférjen görgetés nélkül, első ránézésre */}
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                {VIDEO_DESIGNS.flatMap((d) =>
+                  (d.kind === "json" ? colorChoices : [getColorVariant("sarga")]).map((v) => {
+                    const on = d.id === designId && (d.kind !== "json" || v.id === colorId);
+                    // Több szín esetén a szín adja a nevet, egyébként a sablon neve.
+                    const label = d.kind === "json" && colorChoices.length > 1 ? v.title : d.name;
+                    return (
                       <button
+                        key={`${d.id}-${v.id}`}
                         type="button"
-                        onClick={() => pickDesign(d.id)}
-                        className="block w-full text-left"
+                        onClick={() => { pickDesign(d.id); setColorId(v.id); }}
+                        aria-pressed={on}
+                        className="overflow-hidden rounded-xl text-left transition"
+                        style={{
+                          border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
+                          boxShadow: on ? "0 8px 22px rgba(239,122,90,0.20)" : "0 1px 2px rgba(0,0,0,0.04)",
+                          background: "#fff",
+                        }}
                       >
-                        <div
-                          className="flex items-center justify-center"
-                          style={{ height: 88, background: `linear-gradient(135deg, ${d.preview.from}, ${d.preview.to})`, color: d.preview.ink }}
-                        >
-                          <div className="font-display text-base font-bold">{d.name}</div>
+                        {/* Előnézet: fotó + ferde arculati panel + a videó tipográfiája */}
+                        <div className="relative aspect-[3/4] w-full overflow-hidden"
+                          style={{ background: `linear-gradient(150deg, ${d.preview.from}, ${d.preview.to})` }}>
+                          {d.previewPhoto && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={d.previewPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                          )}
+                          {/* Ferde panel — mint a videó nyitóképén */}
+                          <span className="absolute" style={{
+                            left: "-26%", top: "-14%", width: "92%", height: "128%",
+                            background: d.preview.from, opacity: 0.94, transform: "skewX(-9deg)",
+                          }} />
+                          {/* Vékony arculati él a panel szélén */}
+                          <span className="absolute" style={{
+                            left: "64%", top: "-14%", width: 4, height: "128%",
+                            background: v.swatch.accent, transform: "skewX(-9deg)",
+                          }} />
+                          {/* Tipográfia: kis vonal, cím, lokáció, adatok, ár */}
+                          <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
+                            <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: v.swatch.accent }} />
+                            <span className="text-[10px] font-bold leading-tight" style={{ color: v.swatch.accent }}>
+                              Sas utca 22.
+                            </span>
+                            <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>
+                              Budapest II. kerület
+                            </span>
+                            <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: v.swatch.accent }}>
+                              ÚJ ÉPÍTÉSŰ LAKÁS
+                            </span>
+                            <span className="mt-1.5 text-[7px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.88)" }}>
+                              50 m² · 1 + 1 fél szoba
+                            </span>
+                            <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: v.swatch.accent }}>
+                              60 M Ft
+                            </span>
+                          </div>
+                        </div>
+                        {/* Csak a név — a leírás tooltipben, hogy sok sablon is elférjen */}
+                        <div className="truncate px-2 py-1.5 text-[11px] font-semibold leading-tight"
+                          title={d.tagline}
+                          style={{ color: "var(--twx-ink)" }}>
+                          {label}
                         </div>
                       </button>
-                      {/* Méret-választó — csak a dizájn elérhető arányai */}
-                      <div className="flex flex-wrap gap-1.5 p-3">
-                        {d.aspects.map((a) => {
-                          const active = on && a === aspect;
-                          return (
-                            <button
-                              key={a}
-                              type="button"
-                              onClick={() => { pickDesign(d.id); setAspect(a); }}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold"
-                              style={{
-                                border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                                background: active ? "var(--twx-coral)" : "#fff",
-                                color: active ? "#1c1005" : "var(--twx-ink)",
-                              }}
-                            >
-                              {a}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
+              </div>
+              {/* MÉRET — a választott sablon elérhető arányai */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                  Méret
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {design.aspects.map((a) => {
+                    const active = a === aspect;
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setAspect(a)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                        style={{
+                          border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                          background: active ? "var(--twx-coral)" : "#fff",
+                          color: active ? "#1c1005" : "var(--twx-ink)",
+                        }}
+                      >
+                        {ASPECT_LABEL[a]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                 {imageCountLabel(design, aspect)}. A képek lépésnél pontosan ennyit kérünk.
@@ -446,6 +502,33 @@ export default function VideoWizard({
                               placeholder="Felirat ehhez a képhez (nem kötelező)"
                               className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
                               style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }} />
+                            {/* Felirat helye a képen — kis, elegáns kapcsoló */}
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                                Felirat helye
+                              </span>
+                              <div className="inline-flex overflow-hidden rounded-full" style={{ border: "1px solid var(--twx-line)", background: "#fff", opacity: s.caption.trim() ? 1 : 0.55 }}>
+                                {([
+                                  { key: "bottom" as CaptionPos, label: "Lent" },
+                                  { key: "center" as CaptionPos, label: "Középen" },
+                                ]).map((o) => {
+                                  const on = s.captionPos === o.key;
+                                  return (
+                                    <button key={o.key} type="button" onClick={() => setCaptionPos(i, o.key)}
+                                      aria-pressed={on} title={o.key === "center" ? "Középen — vonal a felirat fölött és alatt" : "Lent — vonal a felirat fölött"}
+                                      className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                                      style={{ background: on ? "var(--twx-ink)" : "transparent", color: on ? "#fff" : "var(--twx-ink-muted)" }}>
+                                      {/* mini piktogram: hol ül a szövegsáv a képen */}
+                                      <span className="flex h-3.5 w-2.5 flex-col rounded-[3px]"
+                                        style={{ border: `1px solid ${on ? "rgba(255,255,255,0.65)" : "var(--twx-line)"}`, justifyContent: o.key === "center" ? "center" : "flex-end", padding: "1px" }}>
+                                        <span className="block h-[2px] w-full rounded-full" style={{ background: on ? "#fff" : "var(--twx-ink-muted)" }} />
+                                      </span>
+                                      {o.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                           <div className="flex shrink-0 flex-col gap-1">
                             <button type="button" aria-label="Feljebb (a nyitókép felé)" onClick={() => moveImage(i, i - 1)}

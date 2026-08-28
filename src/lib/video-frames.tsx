@@ -111,12 +111,24 @@ export async function renderOpeningCard(
  */
 export async function renderModernIntro(
   ctx: VideoFrameCtx,
-  opts: { photoUrl: string; title: string; location: string; type: string; price: string; rooms: string; bathrooms: string; size: string }
+  opts: {
+    photoUrl: string; title: string; location: string; type: string; price: string;
+    rooms: string; bathrooms: string; size: string;
+    /** A sablon szín-variánsának kiemelő színe (alapértelmezés: az eredeti sárga). */
+    accent?: string;
+    /** A ferde panel (a szöveg mögötti nagy felület) színe a variánsból. */
+    panel?: string;
+    /** A kiemelt szövegek (cím, típus, ár) színe. Új variánsoknál FEHÉR. */
+    heading?: string;
+  }
 ): Promise<Buffer> {
   const { width: W, height: H } = ctx;
   const u = W / 1080;
-  const YELLOW = "#f0c20c";
-  const PANEL = "rgba(26,18,48,0.94)";
+  const hex = (v: string | undefined) => (/^#[0-9a-fA-F]{6}$/.test(v ?? "") ? (v as string) : null);
+  // ACCENT: a grafikai elemek (ferde él, kis vonal). HEADING: a kiemelt szövegek.
+  const ACCENT = hex(opts.accent) ?? "#f0c20c";
+  const HEADING = hex(opts.heading) ?? ACCENT;
+  const PANEL = (opts.panel ?? "").trim() || "rgba(26,18,48,0.94)";
   const SKEW = "skewX(-9deg)"; // átlós (ferde) él — dinamikus kompozíció
   const tall = H / W > 1.3; // 9:16 → magas; 1:1 → négyzetes
   const textW = Math.round(W * 0.58);
@@ -146,7 +158,7 @@ export async function renderModernIntro(
       // Arculati panel — túlméretezett, FERDE (átlós élű) parallelogramma.
       box({ position: "absolute", top: -Math.round(H * 0.35), left: -Math.round(W * 0.45), width: Math.round(W * 1.05), height: Math.round(H * 1.7), background: PANEL, transform: SKEW }),
       // Vékony sárga átlós akcentus a panel élén.
-      box({ position: "absolute", top: -Math.round(H * 0.35), left: edgeX, width: Math.round(9 * u), height: Math.round(H * 1.7), background: YELLOW, transform: SKEW }),
+      box({ position: "absolute", top: -Math.round(H * 0.35), left: edgeX, width: Math.round(9 * u), height: Math.round(H * 1.7), background: ACCENT, transform: SKEW }),
       // Szövegblokk — 9:16-nál FELÜLRE tolva és tágabban; 1:1-nél középre.
       box(
         {
@@ -157,13 +169,13 @@ export async function renderModernIntro(
           paddingLeft: Math.round(76 * u), paddingRight: Math.round(48 * u),
         },
         [
-          box({ width: Math.round(84 * u), height: Math.round(7 * u), background: YELLOW, marginBottom: Math.round(24 * u) }, ""),
-          box({ fontSize: titleFs, fontWeight: 800, color: YELLOW, lineHeight: 1.03 }, bigTitle),
+          box({ width: Math.round(84 * u), height: Math.round(7 * u), background: ACCENT, marginBottom: Math.round(24 * u) }, ""),
+          box({ fontSize: titleFs, fontWeight: 800, color: HEADING, lineHeight: 1.03 }, bigTitle),
           opts.location
             ? box({ fontSize: Math.round(37 * u), color: "#ffffff", opacity: 0.92, marginTop: Math.round(15 * u) }, truncate(opts.location, 34))
             : null,
           opts.type
-            ? box({ fontSize: Math.round(33 * u), fontWeight: 800, color: YELLOW, letterSpacing: Math.round(2 * u), marginTop: Math.round(24 * u) }, truncate(opts.type.toUpperCase(), 34))
+            ? box({ fontSize: Math.round(33 * u), fontWeight: 800, color: HEADING, letterSpacing: Math.round(2 * u), marginTop: Math.round(24 * u) }, truncate(opts.type.toUpperCase(), 34))
             : null,
           box({ flexDirection: "column", marginTop: tall ? Math.round(H * 0.087) : Math.round(28 * u) }, [
             statLine(opts.rooms),
@@ -171,7 +183,7 @@ export async function renderModernIntro(
             statLine(opts.size),
           ].filter(Boolean)),
           opts.price
-            ? box({ fontSize: Math.round(priceFs * u), fontWeight: 800, color: YELLOW, marginTop: tall ? Math.round(H * 0.087) : Math.round(36 * u), lineHeight: 1.0 }, truncate(opts.price, 18))
+            ? box({ fontSize: Math.round(priceFs * u), fontWeight: 800, color: HEADING, marginTop: tall ? Math.round(H * 0.087) : Math.round(36 * u), lineHeight: 1.0 }, truncate(opts.price, 18))
             : null,
         ].filter(Boolean)
       ),
@@ -329,13 +341,17 @@ export async function renderPhotoFrame(
  * így NEM zoomol a képpel — végig olvasható marad. Nincs tömör színes sáv:
  * csak egy alig látható sötétedés + árnyékolt fehér betű.
  */
+export type CaptionPosition = "bottom" | "center";
+
 export async function renderCaptionOverlay(
   ctx: VideoFrameCtx,
-  opts: { line1: string; line2?: string }
+  opts: { line1: string; line2?: string; position?: CaptionPosition; accent?: string }
 ): Promise<Buffer> {
   const { width: W, height: H, profile: p } = ctx;
   const u = W / 1080;
   const t = buildTheme(MOOD, p.accent_color);
+  // A kis arculati vonal színe: ha a sablon szín-variánsa megadja, az az elsődleges.
+  const variantAccent = /^#[0-9a-fA-F]{6}$/.test(opts.accent ?? "") ? (opts.accent as string) : null;
   const hasLine2 = Boolean((opts.line2 ?? "").trim());
   const zoneH = Math.round((hasLine2 ? 430 : 360) * u);
 
@@ -344,6 +360,53 @@ export async function renderCaptionOverlay(
   const mainFs = Math.round((line1.length > 30 ? 54 : line1.length > 22 ? 66 : 80) * u);
   const line2 = truncate((opts.line2 ?? "").trim(), 42);
   const subFs = Math.round((line2.length > 30 ? 50 : line2.length > 22 ? 58 : 68) * u);
+  const hair = variantAccent ?? t.hair ?? p.accent_color;
+
+  // KÖZÉPRE igazított változat: lágy vízszintes sáv, a szöveg fölött ÉS alatt is
+  // ott az arculati vonal. A fotó teteje-alja szabadon marad.
+  if ((opts.position ?? "bottom") === "center") {
+    const bandH = Math.round((hasLine2 ? 500 : 430) * u);
+    const rule = (mt: number) =>
+      box({
+        width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)),
+        background: hair, opacity: 0.95, marginTop: mt,
+      });
+    const centered = box(
+      { position: "relative", width: W, height: H, fontFamily: ctx.family },
+      [
+        box({
+          position: "absolute", left: 0, top: Math.round((H - bandH) / 2), width: W, height: bandH,
+          backgroundImage:
+            "linear-gradient(180deg, rgba(12,14,16,0) 0%, rgba(12,14,16,0.58) 26%, rgba(12,14,16,0.64) 74%, rgba(12,14,16,0) 100%)",
+        }),
+        box(
+          {
+            position: "absolute", left: 0, top: 0, width: W, height: H,
+            flexDirection: "column", alignItems: "center", justifyContent: "center",
+            paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u),
+          },
+          [
+            rule(0),
+            box({
+              fontSize: mainFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.12,
+              letterSpacing: Math.round(1 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+              textAlign: "center", marginTop: Math.round(26 * u),
+            }, line1),
+            hasLine2
+              ? box({
+                  fontSize: subFs, fontWeight: 700, color: "#ffffff",
+                  lineHeight: 1.12, letterSpacing: Math.round(1 * u),
+                  marginTop: Math.round(10 * u), textShadow: "0 3px 18px rgba(0,0,0,0.9)",
+                  textAlign: "center",
+                }, line2)
+              : null,
+            rule(Math.round(26 * u)),
+          ].filter(Boolean)
+        ),
+      ]
+    );
+    return renderPng(centered, ctx);
+  }
 
   const el = box(
     // A gyökéren NINCS background → a PNG átlátszó marad.
@@ -379,7 +442,7 @@ export async function renderCaptionOverlay(
       box({
         position: "absolute", left: Math.round(W / 2 - 50 * u), bottom: Math.round((hasLine2 ? 210 : 160) * u),
         width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)),
-        background: t.hair ?? p.accent_color, opacity: 0.95,
+        background: hair, opacity: 0.95,
       }),
     ]
   );

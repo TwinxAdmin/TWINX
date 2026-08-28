@@ -4,7 +4,6 @@
 // zene + webhook); PRO: előbb fal.ai AI-klip az 1. fotóból (webhook), majd a
 // fal-webhook indítja a Shotstack rendert. Hibánál automatikus kredit-visszatérítés.
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
@@ -17,6 +16,7 @@ import {
   getDesign, aspectAvailable, variantJson, imageCountOk, imageCountLabel,
   VIDEO_DESIGNS, type VideoAspect,
 } from "@/lib/video-templates";
+import { applyColorVariant, getColorVariant, colorVariantReady } from "@/lib/video-color";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, submitTemplateRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 import { buildMergeRenderBody, contentImageWindows } from "@/lib/video-merge";
@@ -87,6 +87,23 @@ export async function POST(request: Request) {
     if (Array.isArray(c)) freeCaptions = c.map((x) => String(x ?? ""));
   } catch { /* felirat nélkül is megy */ }
   const anyFreeCaption = freeCaptions.some((c) => c.trim());
+
+  // Képenkénti felirat-pozíció: "bottom" (alapértelmezett) vagy "center".
+  let captionPositions: Array<"bottom" | "center"> = [];
+  try {
+    const cp = JSON.parse(String(form.get("captionPositions") ?? "[]"));
+    if (Array.isArray(cp)) captionPositions = cp.map((x) => (String(x) === "center" ? "center" : "bottom"));
+  } catch { /* alapértelmezett pozícióval is megy */ }
+
+  // A sablon szín-variánsa. Csak kész (feltöltött grafikájú) színt fogadunk el —
+  // félkész variánsnál (átszínezett szöveg + eredeti sárga ékek) inkonzisztens
+  // lenne a videó, ezért ilyenkor a sárgára esünk vissza.
+  const colorVariant = getColorVariant(String(form.get("colorVariant") ?? ""));
+  if (!colorVariantReady(colorVariant.id)) {
+    return NextResponse.json({
+      error: "Ez a színváltozat még nincs élesítve. Válaszd a sárgát — kredit nem került levonásra.",
+    }, { status: 422 });
+  }
 
   // Záró kép (csak satori dizájnnál): háttérfotó + jól olvasható összegző felirat.
   const closingRaw = form.get("closingImage");
@@ -162,7 +179,10 @@ export async function POST(request: Request) {
 
     // 3/B) JSON-SABLON ÁG: kész Shotstack template merge-mezőkkel (a választott mérethez).
     //      A dizájn a JSON-ban van; mi csak a helyőrzőket töltjük ki + a zenét cseréljük.
-    const designJson = design.kind === "json" ? variantJson(design, aspect) : null;
+    //      A szín-variáns csak a kiemelő színt cseréli benne (elrendezés, időzítés,
+    //      áttűnés változatlan); a sárga a sablon eredeti, érintetlen állapota.
+    const baseJson = design.kind === "json" ? variantJson(design, aspect) : null;
+    const designJson = baseJson ? applyColorVariant(baseJson, colorVariant) : null;
     if (designJson) {
       const musicUrl = await pickMusic(musicStyle);
       const digits = (s: string) => (String(s).match(/\d+/)?.[0] ?? "");
@@ -216,6 +236,7 @@ export async function POST(request: Request) {
             location: facts.address ? facts.location : "",
             type: clean((facts as { propertyType?: string }).propertyType),
             price, rooms: clean(facts.rooms), bathrooms: clean(facts.bathrooms), size,
+            accent: colorVariant.accent, panel: colorVariant.panel, heading: colorVariant.heading,
           });
           const path = `video-frames/${user.id}/${jobId}/intro.png`;
           const { error } = await admin.storage.from(BUCKET).upload(path, buf, { contentType: "image/png", upsert: true });
@@ -229,7 +250,9 @@ export async function POST(request: Request) {
           const c = capUnits[i];
           const w = windows[i];
           if (!w || !(c.line1 || c.line2)) continue;
-          const buf = await renderCaptionOverlay(ctx, c);
+          const buf = await renderCaptionOverlay(ctx, {
+            ...c, position: captionPositions[i] ?? "bottom", accent: colorVariant.accent,
+          });
           const path = `video-frames/${user.id}/${jobId}/cap-${i}.png`;
           const { error } = await admin.storage.from(BUCKET).upload(path, buf, { contentType: "image/png", upsert: true });
           if (error) throw new Error(`Felirat mentés hiba: ${error.message}`);
@@ -260,8 +283,8 @@ export async function POST(request: Request) {
         music_url: musicUrl,
         poster_url: photoUrls[0], // előkép: az első fotó
         meta: {
-          title, template: design.id, aspect, render_id: renderId,
-          captions: freeCaptions, closing: closingBgUrl ? { caption: closingCaption } : null,
+          title, template: design.id, aspect, render_id: renderId, color: colorVariant.id,
+          captions: freeCaptions, captionPositions, closing: closingBgUrl ? { caption: closingCaption } : null,
         },
       }).eq("id", jobId);
 
@@ -293,7 +316,7 @@ export async function POST(request: Request) {
       // A fotó-keret TISZTA (a felirat külön, felső rétegen megy rá → nem zoomol el).
       frames.push({ name: `photo-${i}.png`, buf: await renderPhotoFrame(ctx, { photoUrl: photoUrls[i] }) });
       if (captions[i]?.line1 || captions[i]?.line2) {
-        frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, captions[i]) });
+        frames.push({ name: `cap-${i}.png`, buf: await renderCaptionOverlay(ctx, { ...captions[i], position: captionPositions[i] ?? "bottom" }) });
       }
     }
     // Záró képkocka: ha van feltöltött záró fotó + összegző, arra kerül a NAGY,
