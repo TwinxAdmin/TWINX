@@ -239,6 +239,12 @@ export default function AdChecker() {
               body: JSON.stringify({ id, folderId }),
             })
           }
+          onRenameItem={(it, title) =>
+            send("/api/real-estate/ad-check/manage", {
+              method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: it.id, title }),
+            })
+          }
           onDelete={(it) => send(`/api/real-estate/ad-check/manage?id=${it.id}&kind=item`, { method: "DELETE" })}
         />
       </section>

@@ -21,15 +21,18 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [{ data: jobs }, { data: viz }, { data: favs }, { data: named }, { data: items }, { data: labels }, { data: hidden }] =
+  const [{ data: jobs }, { data: viz }, { data: favs }, { data: named }, { data: items }, { data: labels }, { data: hidden }, { data: itemNames }] =
     await Promise.all([
-      supabase.from("image_enhance_jobs").select("items, mode, created_at").order("created_at", { ascending: false }).limit(80),
-      supabase.from("usage_history").select("input_data, output_file_url, created_at").eq("feature_used", "visualization").order("created_at", { ascending: false }).limit(80),
+      supabase.from("image_enhance_jobs").select("items, mode, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(80),
+      supabase.from("usage_history").select("input_data, output_file_url, created_at").eq("user_id", user.id).eq("feature_used", "visualization").order("created_at", { ascending: false }).limit(80),
       supabase.from("image_enhance_favorites").select("enhanced, created_at").order("created_at", { ascending: false }).limit(120),
       supabase.from("asset_folders").select("id, name, created_at").order("created_at", { ascending: false }),
       supabase.from("asset_folder_items").select("folder_id, url, created_at").order("created_at", { ascending: false }),
       supabase.from("asset_date_labels").select("date_key, name"),
       supabase.from("asset_hidden_dates").select("date_key"),
+      // A partner saját elnevezései (asset-item-names.sql). Ha a tábla még nincs
+      // meg, a hívás hibázik, de a többi adat ettől még megjön.
+      supabase.from("asset_item_names").select("url, name"),
     ]);
 
   // --- Elnevezett mappák (címkézés) ---
@@ -102,5 +105,9 @@ export async function GET() {
   const badges: Record<string, string[]> = {};
   for (const [url, set] of works.entries()) badges[url] = [...set];
 
-  return NextResponse.json({ favorites, folders: [...namedFolders, ...dateFolders], badges });
+  // url -> a partner saját elnevezése (ha adott neki nevet)
+  const names: Record<string, string> = {};
+  for (const n of itemNames ?? []) names[n.url as string] = n.name as string;
+
+  return NextResponse.json({ favorites, folders: [...namedFolders, ...dateFolders], badges, names });
 }

@@ -13,6 +13,8 @@ export async function GET() {
     supabase
       .from("video_jobs")
       .select("id, status, output_url, poster_url, title, package, format, image_count, folder_id, created_at, meta")
+      // Csak a saját videók (adminként az RLS mást is átengedne).
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(200),
     supabase.from("video_folders").select("id, name").order("name"),

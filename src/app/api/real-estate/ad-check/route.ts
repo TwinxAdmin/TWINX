@@ -35,6 +35,8 @@ export async function GET() {
     supabase
       .from("ad_checks")
       .select("id, source_url, title, tone, score, result, pdf_url, folder_id, created_at")
+      // Csak a saját elemzések (adminként az RLS mást is átengedne).
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50), // az előzményekben max 50 elemet listázunk
     supabase.from("ad_check_folders").select("id, name").order("name"),

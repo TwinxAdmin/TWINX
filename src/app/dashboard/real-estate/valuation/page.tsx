@@ -62,7 +62,10 @@ type EditorState = {
 };
 
 function historyTitle(h: HistoryItem): string {
-  return reportTitle((h.input_data ?? {}) as ValuationFacts);
+  // Ha a partner saját nevet adott a becslésnek, az az elsődleges; egyébként a
+  // címből és az adatokból generált cím.
+  const own = String(((h.input_data ?? {}) as Record<string, unknown>).title ?? "").trim();
+  return own || reportTitle((h.input_data ?? {}) as ValuationFacts);
 }
 
 export default function ValuationPage() {
@@ -678,6 +681,13 @@ export default function ValuationPage() {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id, folderId }),
+              })
+            }
+            onRenameItem={(v, title) =>
+              manage("/api/real-estate/valuation/manage", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: v.id, title }),
               })
             }
             onDelete={(v) =>

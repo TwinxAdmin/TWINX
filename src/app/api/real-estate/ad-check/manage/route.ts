@@ -43,12 +43,27 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { id?: string; folderId?: string | null };
+  let body: { id?: string; folderId?: string | null; title?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
   const id = String(body.id ?? "");
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Hiányzó vagy hibás azonosító." }, { status: 400 });
 
   const admin = createAdminClient();
+
+  // --- ÁTNEVEZÉS: a partner saját neve az elemzésnek. ---
+  if (typeof body.title === "string") {
+    const title = body.title.trim();
+    if (!title || title.length > 120) {
+      return NextResponse.json({ error: "Adj meg nevet (max 120 karakter)." }, { status: 422 });
+    }
+    const { data: renamed, error } = await admin
+      .from("ad_checks").update({ title })
+      .eq("id", id).eq("user_id", user.id).select("id");
+    if (error) return NextResponse.json({ error: "Az átnevezés nem sikerült." }, { status: 500 });
+    if (!renamed?.length) return NextResponse.json({ error: "Nem található." }, { status: 404 });
+    return NextResponse.json({ ok: true, title });
+  }
+
   const folderId = body.folderId || null;
   if (folderId) {
     if (!UUID_RE.test(folderId)) return NextResponse.json({ error: "Hibás mappa-azonosító." }, { status: 400 });

@@ -48,6 +48,10 @@ export default function AssetTray({
   const [renaming, setRenaming] = useState<string | null>(null); // folder key
   const [renameValue, setRenameValue] = useState("");
   const [assignFor, setAssignFor] = useState<string | null>(null); // image url
+  // A partner saját elnevezései (url -> név) és az épp szerkesztett kép.
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [renameUrl, setRenameUrl] = useState<string | null>(null);
+  const [renameName, setRenameName] = useState("");
   const [menuFor, setMenuFor] = useState<string | null>(null); // folder key (⋯ menü)
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -59,6 +63,7 @@ export default function AssetTray({
       if (res.ok) {
         setFolders(data.folders ?? []);
         setFavorites(data.favorites ?? []);
+        setNames((data.names ?? {}) as Record<string, string>);
         const raw = (data.badges ?? {}) as Record<string, string[]>;
         const clean: Record<string, WorkKind[]> = {};
         for (const [url, ks] of Object.entries(raw)) clean[url] = ks.filter(isWorkKind);
@@ -143,6 +148,25 @@ export default function AssetTray({
       await fetchAssets();
     } catch { showToast("Nem sikerült áthelyezni.", "error"); }
   }
+  /** Kép saját elnevezése (üres név = vissza az alapértelmezett felirathoz). */
+  async function renameAsset(url: string, name: string) {
+    try {
+      const res = await fetch(`${API}/assets/name`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      setNames((prev) => {
+        const next = { ...prev };
+        if (name.trim()) next[url] = name.trim(); else delete next[url];
+        return next;
+      });
+      setRenameUrl(null);
+      showToast(name.trim() ? "Átnevezve." : "Elnevezés törölve.", "success");
+    } catch { showToast("Nem sikerült átnevezni.", "error"); }
+  }
+
   async function removeFromFolder(folderId: string, url: string) {
     try {
       const res = await fetch(`${API}/folders/items?folderId=${encodeURIComponent(folderId)}&url=${encodeURIComponent(url)}`, { method: "DELETE" });
@@ -373,26 +397,6 @@ export default function AssetTray({
               </div>
             )}
 
-            {/* Áthelyezés menü (egy kijelölt képhez) */}
-            {assignFor && (
-              <div className="border-b p-3" style={{ borderColor: "var(--twx-line)", background: "var(--twx-cream)" }}>
-                <div className="mb-2 text-xs font-semibold">Áthelyezés mappába:</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {namedFolders.length === 0 && (
-                    <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Még nincs ingatlan-mappád — hozz létre egyet a ＋ gombbal.</span>
-                  )}
-                  {namedFolders.map((f) => (
-                    <button key={f.key} type="button" onClick={() => f.id && void assignToFolder(f.id, assignFor)}
-                      className="rounded-full border px-3 py-1 text-xs font-medium transition hover:shadow-sm"
-                      style={{ borderColor: "var(--twx-line)", background: "#fff" }}>{f.label}</button>
-                  ))}
-                  <button type="button" onClick={() => { const name = prompt("Új mappa neve (pl. ingatlan címe):"); if (name) void createFolder(name, assignFor); }}
-                    className="rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>＋ Új mappa</button>
-                  <button type="button" onClick={() => setAssignFor(null)} className="rounded-full px-3 py-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Mégse</button>
-                </div>
-              </div>
-            )}
-
             <div className="flex-1 overflow-y-auto p-3">
               {openUrls.length === 0 ? (
                 <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs kép ebben a mappában.</p>
@@ -401,7 +405,8 @@ export default function AssetTray({
                   {openUrls.map((url, idx) => {
                     const isSel = selected.has(url);
                     return (
-                      <div key={url} className="relative overflow-hidden rounded-lg border-2" style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}>
+                      <div key={url} className="contents">
+                      <div className="relative overflow-hidden rounded-lg border-2" style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}>
                         <button
                           type="button"
                           draggable
@@ -421,10 +426,23 @@ export default function AssetTray({
                         )}
                         {/* Áthelyezés gomb */}
                         <button type="button" title="Áthelyezés mappába" aria-label="Áthelyezés mappába"
-                          onClick={() => setAssignFor(assignFor === url ? null : url)}
+                          onClick={() => { setAssignFor(assignFor === url ? null : url); setRenameUrl(null); }}
                           className="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.92)", border: "1px solid var(--twx-line)" }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /></svg>
                         </button>
+                        {/* Átnevezés gomb */}
+                        <button type="button" title="Átnevezés" aria-label="Átnevezés"
+                          onClick={() => { setRenameName(names[url] ?? ""); setRenameUrl(renameUrl === url ? null : url); setAssignFor(null); }}
+                          className="absolute left-8 top-1 flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.92)", border: "1px solid var(--twx-line)" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink)" }}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                        </button>
+                        {/* A partner saját elnevezése a kép alatt */}
+                        {names[url] && (
+                          <span className="block truncate px-1.5 py-1 text-[10px] font-semibold" title={names[url]}
+                            style={{ background: "#fff", color: "var(--twx-ink)" }}>
+                            {names[url]}
+                          </span>
+                        )}
                         {/* Kivétel a mappából (csak elnevezett mappa nézetében) */}
                         {openFolder?.kind === "named" && openFolder.id && (
                           <button type="button" title="Kivétel a mappából" aria-label="Kivétel a mappából"
@@ -434,6 +452,68 @@ export default function AssetTray({
                         {isSel && (
                           <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
                         )}
+                      </div>
+
+                      {/* ÁTNEVEZÉS — a kép alatt, teljes szélességben */}
+                      {renameUrl === url && (
+                        <div className="col-span-full rounded-xl p-2" style={{ border: "1px solid var(--twx-coral)", background: "#fff" }}>
+                          <p className="mb-1.5 text-[11px] font-semibold">Add meg a kép nevét</p>
+                          <div className="flex items-center gap-1.5">
+                            <input type="text" value={renameName} autoFocus maxLength={120}
+                              onChange={(e) => setRenameName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setRenameUrl(null);
+                                if (e.key === "Enter") void renameAsset(url, renameName);
+                              }}
+                              placeholder="pl. Sas utca 22. — nappali"
+                              className="twx-input flex-1 text-xs" />
+                            <button type="button" onClick={() => void renameAsset(url, renameName)}
+                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                              style={{ background: "var(--twx-coral)" }}>Mentés</button>
+                            <button type="button" onClick={() => setRenameUrl(null)}
+                              className="rounded-lg px-2.5 py-1.5 text-xs" style={{ border: "1px solid var(--twx-line)" }}>Mégse</button>
+                          </div>
+                          {names[url] && (
+                            <button type="button" onClick={() => void renameAsset(url, "")}
+                              className="mt-1.5 text-[11px] underline" style={{ color: "var(--twx-ink-muted)" }}>
+                              Elnevezés törlése
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ÁTHELYEZÉS — a kép alatt kinyíló mappalista, egy kattintás */}
+                      {assignFor === url && (
+                        <div className="col-span-full overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-coral)", background: "#fff" }}>
+                          <p className="px-3 py-2 text-[11px] font-semibold"
+                            style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                            Melyik mappába kerüljön? Kattints rá.
+                          </p>
+                          <div className="max-h-44 overflow-y-auto p-1.5">
+                            {namedFolders.length === 0 && (
+                              <p className="px-2.5 py-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                                Még nincs ingatlan-mappád. A tálca tetején, a ＋ gombbal tudsz létrehozni egyet.
+                              </p>
+                            )}
+                            {namedFolders.map((f) => {
+                              const here = f.urls.includes(url);
+                              return (
+                                <button key={f.key} type="button" disabled={here}
+                                  onClick={() => f.id && void assignToFolder(f.id, url)}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-[color:var(--twx-cream)] disabled:cursor-default">
+                                  <span aria-hidden className="inline-block h-4 w-5 shrink-0 rounded-[3px]" style={{ background: "var(--twx-coral)" }} />
+                                  <span className="flex-1 truncate">{f.label}</span>
+                                  {here && (
+                                    <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--twx-ink-muted)" }}>
+                                      már itt van
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       </div>
                     );
                   })}

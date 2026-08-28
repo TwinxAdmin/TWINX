@@ -79,6 +79,12 @@ export default function VideoLibrary({
           body: JSON.stringify({ id, folderId }),
         })
       }
+      onRenameItem={(v, title) =>
+        call("/api/real-estate/video/manage", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: v.id, title }),
+        })
+      }
       onDelete={(v) => call(`/api/real-estate/video/manage?id=${v.id}`, { method: "DELETE" })}
     />
   );

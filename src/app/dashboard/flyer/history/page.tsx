@@ -74,13 +74,15 @@ export default function FlyerHistoryPage() {
             noun="hirdetés"
             emptyText="Még nincs elkészült hirdetésed."
             downloadUrl={(f) => toDownloadUrl(f.url)}
+            cols={4}
             renderItem={(f) => (
               <button type="button" onClick={() => setViewUrl(f.url)}
-                className="block w-full overflow-hidden rounded-lg"
-                style={{ border: "1px solid var(--twx-line)" }}
+                className="flex h-36 w-full items-center justify-center overflow-hidden rounded-lg"
+                style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}
                 title="Kattints a nagy nézethez">
+                {/* A TELJES hirdetés látszik (nincs levágás), csak kisebb méretben. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={f.url} alt={f.title} className="aspect-[3/4] w-full object-cover" />
+                <img src={f.url} alt={f.title} className="max-h-full max-w-full object-contain" />
               </button>
             )}
             onCreateFolder={async (name) => {
@@ -94,6 +96,12 @@ export default function FlyerHistoryPage() {
               post("/api/flyer/manage", {
                 method: "PATCH", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id, folderId }),
+              })
+            }
+            onRenameItem={(f, title) =>
+              post("/api/flyer/manage", {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: f.id, title }),
               })
             }
             onDelete={(f) => post(`/api/flyer/manage?id=${f.id}`, { method: "DELETE" })}

@@ -39,6 +39,8 @@ export type FolderLibraryProps<T extends LibraryItem> = {
   onCreateFolder: (name: string) => Promise<LibraryFolder | void>;
   /** Elem áthelyezése mappába (null = vissza a dátum-mappába). */
   onMove: (itemId: string, folderId: string | null) => Promise<unknown>;
+  /** Elem saját nevének mentése (ha nincs megadva, nincs átnevezés gomb). */
+  onRenameItem?: (item: T, name: string) => Promise<unknown>;
   /** Végleges törlés (ha nincs megadva, nincs törlés gomb). */
   onDelete?: (item: T) => Promise<unknown>;
   /** Saját mappa átnevezése (ha nincs megadva, nincs átnevezés gomb). */
@@ -50,19 +52,32 @@ export type FolderLibraryProps<T extends LibraryItem> = {
   emptyText?: string;
   /** Az elem típusának neve a szövegekhez (pl. „videó", „hirdetés"). */
   noun?: string;
+  /**
+   * Hány elem legyen egymás mellett a megnyitott mappában. Képeknél (hirdetés)
+   * 4 az ideális: kisebb, de teljes egészében látszó előnézetek; videónál 2.
+   */
+  cols?: 2 | 3 | 4;
+};
+
+const GRID_CLASS: Record<2 | 3 | 4, string> = {
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-2 sm:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
 };
 
 export default function FolderLibrary<T extends LibraryItem>({
   items, folders, renderItem, onCreateFolder, onMove, onDelete, downloadUrl,
-  onRenameFolder, onDeleteFolder,
+  onRenameFolder, onDeleteFolder, onRenameItem,
   emptyText = "Még nincs elkészült munkád.",
   noun = "elem",
+  cols = 2,
 }: FolderLibraryProps<T>) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");     // a mappanézet mezője
-  const [moveFolder, setMoveFolder] = useState("");   // az áthelyezés-panel mezője
+  const [renameFor, setRenameFor] = useState<string | null>(null); // elem átnevezése
+  const [itemName, setItemName] = useState("");
   const [renaming, setRenaming] = useState(false);    // a megnyitott mappa átnevezése
   const [renameVal, setRenameVal] = useState("");
 
@@ -227,10 +242,10 @@ export default function FolderLibrary<T extends LibraryItem>({
             <div className="overflow-y-auto p-4">
               {open.items.length === 0 ? (
                 <p className="py-10 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                  Ez a mappa üres. Egy {noun} „Áthelyezés" gombjával tehetsz ide tartalmat.
+                  Ez a mappa üres. Egy {noun} „Áthelyezés&quot; gombjával tehetsz ide tartalmat.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className={`grid gap-3 ${GRID_CLASS[cols]}`}>
                   {open.items.map((it) => {
                     const dl = downloadUrl?.(it) ?? null;
                     return (
@@ -238,7 +253,36 @@ export default function FolderLibrary<T extends LibraryItem>({
                         style={{ border: "1px solid var(--twx-line)" }}>
                         {renderItem(it)}
 
-                        <p className="mt-2 truncate text-sm font-semibold">{it.title}</p>
+                        {/* NÉV — a partner saját elnevezése, helyben szerkeszthető */}
+                        {renameFor === it.id ? (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <input type="text" value={itemName} autoFocus maxLength={120}
+                              onChange={(e) => setItemName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setRenameFor(null);
+                                if (e.key === "Enter" && itemName.trim()) {
+                                  void guard(async () => {
+                                    await onRenameItem?.(it, itemName.trim()); setRenameFor(null);
+                                  }, "Átnevezve.");
+                                }
+                              }}
+                              className="twx-input flex-1 text-sm" placeholder="Add meg a nevét" />
+                            <button type="button" disabled={busy || !itemName.trim()}
+                              onClick={() => void guard(async () => {
+                                await onRenameItem?.(it, itemName.trim()); setRenameFor(null);
+                              }, "Átnevezve.")}
+                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                              style={{ background: "var(--twx-coral)" }}>
+                              Mentés
+                            </button>
+                            <button type="button" onClick={() => setRenameFor(null)}
+                              className="rounded-lg px-2.5 py-1.5 text-xs" style={{ border: "1px solid var(--twx-line)" }}>
+                              Mégse
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="mt-2 truncate text-sm font-semibold">{it.title}</p>
+                        )}
                         <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                           {new Date(it.createdAt).toLocaleDateString("hu-HU")}
                         </p>
@@ -247,15 +291,26 @@ export default function FolderLibrary<T extends LibraryItem>({
                           {dl && (
                             // `download`: a böngésző töltse le, ne navigáljon el rá.
                             <a href={dl} download
-                              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+                              className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white"
                               style={{ background: "var(--twx-coral)" }}>
                               Letöltés
                             </a>
                           )}
+                          {onRenameItem && renameFor !== it.id && (
+                            <button type="button" disabled={busy}
+                              onClick={() => { setItemName(it.title); setRenameFor(it.id); setMoveFor(null); }}
+                              className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
+                              style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                              Átnevezés
+                            </button>
+                          )}
                           <button type="button" disabled={busy}
-                            onClick={() => setMoveFor(moveFor === it.id ? null : it.id)}
-                            className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-                            style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                            onClick={() => { setMoveFor(moveFor === it.id ? null : it.id); setRenameFor(null); }}
+                            className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
+                            style={{
+                              border: `1px solid ${moveFor === it.id ? "var(--twx-coral)" : "var(--twx-line)"}`,
+                              background: moveFor === it.id ? "var(--twx-coral-soft)" : "#fff",
+                            }}>
                             Áthelyezés
                           </button>
                           {onDelete && (
@@ -264,50 +319,57 @@ export default function FolderLibrary<T extends LibraryItem>({
                                 if (!confirm(`Biztosan törlöd véglegesen? „${it.title}"\n\nA tárhelyről is törlődik, és nem állítható vissza.`)) return;
                                 void guard(async () => { await onDelete(it); }, "Törölve.");
                               }}
-                              className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                              className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
                               style={{ border: "1px solid #f0b3b3", color: "#c0392b", background: "#fff" }}>
                               Törlés
                             </button>
                           )}
                         </div>
 
+                        {/* ÁTHELYEZÉS: az elem alatt kinyíló mappalista, egy kattintás */}
                         {moveFor === it.id && (
-                          <div className="mt-2 space-y-1 rounded-xl p-2"
-                            style={{ border: "1px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
-                            <p className="text-[11px] font-semibold" style={{ color: "#7a2e17" }}>Áthelyezés mappába</p>
-                            {folders.map((f) => (
-                              <button key={f.id} type="button" disabled={busy || it.folderId === f.id}
-                                onClick={() => void guard(async () => { await onMove(it.id, f.id); setMoveFor(null); }, "Áthelyezve.")}
-                                className="block w-full rounded-lg px-2 py-1.5 text-left text-xs disabled:opacity-40"
-                                style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-                                {f.name}{it.folderId === f.id ? " (itt van)" : ""}
-                              </button>
-                            ))}
-                            {it.folderId && (
-                              <button type="button" disabled={busy}
+                          <div className="mt-2 overflow-hidden rounded-xl"
+                            style={{ border: "1px solid var(--twx-coral)", background: "#fff" }}>
+                            <p className="px-3 py-2 text-[11px] font-semibold"
+                              style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                              Hová kerüljön? Kattints a mappára.
+                            </p>
+                            <div className="max-h-52 overflow-y-auto p-1.5">
+                              {/* Dátum szerinti (alapértelmezett) hely */}
+                              <button type="button" disabled={busy || !it.folderId}
                                 onClick={() => void guard(async () => { await onMove(it.id, null); setMoveFor(null); }, "Áthelyezve.")}
-                                className="block w-full rounded-lg px-2 py-1.5 text-left text-xs"
-                                style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-                                Vissza a dátum szerinti mappába
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-[color:var(--twx-cream)] disabled:cursor-default disabled:opacity-100">
+                                <span aria-hidden className="inline-block h-4 w-5 shrink-0 rounded-[3px]"
+                                  style={{ background: "#e8c97a" }} />
+                                <span className="flex-1 truncate">Dátum szerinti mappa</span>
+                                {!it.folderId && (
+                                  <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--twx-ink-muted)" }}>
+                                    jelenleg itt
+                                  </span>
+                                )}
                               </button>
-                            )}
-                            <div className="flex gap-1.5 pt-1">
-                              <input type="text" value={moveFolder} onChange={(e) => setMoveFolder(e.target.value)}
-                                placeholder="Új mappa neve" className="twx-input flex-1 text-xs" />
-                              <button type="button" disabled={busy || !moveFolder.trim()}
-                                onClick={() => void guard(async () => {
-                                  // Létrehozás UTÁN rögtön ide is helyezzük az elemet —
-                                  // különben a partner azt hinné, hogy áthelyezte.
-                                  const name = moveFolder.trim();
-                                  const created = await onCreateFolder(name);
-                                  if (created?.id) await onMove(it.id, created.id);
-                                  setMoveFolder("");
-                                  setMoveFor(null);
-                                }, "Mappa létrehozva, az elem áthelyezve.")}
-                                className="rounded-lg px-3 text-xs font-semibold text-white disabled:opacity-40"
-                                style={{ background: "var(--twx-coral)" }}>
-                                Létrehoz
-                              </button>
+                              {folders.map((f) => {
+                                const here = it.folderId === f.id;
+                                return (
+                                  <button key={f.id} type="button" disabled={busy || here}
+                                    onClick={() => void guard(async () => { await onMove(it.id, f.id); setMoveFor(null); }, "Áthelyezve.")}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-[color:var(--twx-cream)] disabled:cursor-default disabled:opacity-100">
+                                    <span aria-hidden className="inline-block h-4 w-5 shrink-0 rounded-[3px]"
+                                      style={{ background: "var(--twx-coral)" }} />
+                                    <span className="flex-1 truncate">{f.name}</span>
+                                    {here && (
+                                      <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--twx-ink-muted)" }}>
+                                        jelenleg itt
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                              {folders.length === 0 && (
+                                <p className="px-2.5 py-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                                  Még nincs saját mappád. A könyvtár tetején, az „Új mappa&quot; kártyán tudsz létrehozni egyet.
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}

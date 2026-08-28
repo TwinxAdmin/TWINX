@@ -76,13 +76,18 @@ export async function PUT(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
-/** Becslés áthelyezése mappába (null = vissza a dátum-mappába). */
+/**
+ * Becslés áthelyezése mappába (null = vissza a dátum-mappába), VAGY átnevezése.
+ * Ha a kérésben van `title`, az átnevezés fut le — a partner saját neve az
+ * input_data.title mezőbe kerül (nem kell hozzá új oszlop), és ez jelenik meg
+ * a könyvtárban a generált cím helyett.
+ */
 export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { id?: string; folderId?: string | null };
+  let body: { id?: string; folderId?: string | null; title?: string };
   try {
     body = await request.json();
   } catch {
@@ -92,6 +97,30 @@ export async function PATCH(request: Request) {
   if (!UUID_RE.test(id)) return NextResponse.json({ error: "Hibás azonosító." }, { status: 400 });
 
   const admin = createAdminClient();
+
+  // --- ÁTNEVEZÉS ---
+  if (typeof body.title === "string") {
+    const title = body.title.trim();
+    if (!title || title.length > 120) {
+      return NextResponse.json({ error: "Adj meg nevet (max 120 karakter)." }, { status: 422 });
+    }
+    // Tulajdonos- és típusellenőrzés, majd a meglévő input_data kiegészítése.
+    const { data: row } = await admin
+      .from("usage_history")
+      .select("id, input_data")
+      .eq("id", id).eq("user_id", user.id).eq("feature_used", FEATURE)
+      .maybeSingle();
+    if (!row) return NextResponse.json({ error: "Nem található." }, { status: 404 });
+
+    const input = (row.input_data ?? {}) as Record<string, unknown>;
+    const { error } = await admin
+      .from("usage_history")
+      .update({ input_data: { ...input, title } })
+      .eq("id", id).eq("user_id", user.id).eq("feature_used", FEATURE);
+    if (error) return NextResponse.json({ error: "Az átnevezés nem sikerült." }, { status: 500 });
+    return NextResponse.json({ ok: true, title });
+  }
+
   const folderId = body.folderId || null;
   if (folderId) {
     if (!UUID_RE.test(folderId)) return NextResponse.json({ error: "Hibás mappa-azonosító." }, { status: 400 });
