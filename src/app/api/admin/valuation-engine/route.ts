@@ -73,6 +73,7 @@ export async function POST(request: Request) {
         isBudapest: s.isBudapest ?? true,
         district: String(s.district ?? ""),
         floorNum: s.floorNum ?? null,
+        isBasement: s.isBasement ?? false,
         hasLift: s.hasLift ?? false,
         hasBalcony: s.hasBalcony ?? false,
       };

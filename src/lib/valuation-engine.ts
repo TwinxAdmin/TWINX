@@ -13,6 +13,7 @@ export type EngineConfig = {
     condition: { felujitando: number; kozepes: number; jo: number; ujszeru: number };
     location_premium_pct: number;
     floor_ground_pct: number;      // földszint (jellemzően diszkont)
+    floor_basement_pct: number;    // SZUTERÉN / alagsor (erős diszkont, a földszint HELYETT)
     floor_high_nolift_pct: number; // magas emelet lift NÉLKÜL (diszkont)
     lift_pct: number;              // van lift (felár)
     balcony_pct: number;           // van erkély/terasz (felár)
@@ -31,7 +32,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   adjust: {
     condition: { felujitando: -12, kozepes: 0, jo: 4, ujszeru: 10 },
     location_premium_pct: 0,
-    floor_ground_pct: -3, floor_high_nolift_pct: -5, lift_pct: 2, balcony_pct: 3,
+    floor_ground_pct: -3, floor_basement_pct: -20, floor_high_nolift_pct: -5, lift_pct: 2, balcony_pct: 3,
   },
   realism: { bp_min_huf_per_m2: 1_000_000, asking_to_tx_pct: -7, correction_cap_pct: 5 },
   rounding: { step_huf: 100_000 },
@@ -61,6 +62,7 @@ export type Subject = {
   isBudapest: boolean;
   district: string;
   floorNum: number | null;    // a lakás emelete (0 = földszint), null = ismeretlen
+  isBasement: boolean;        // szuterén / alagsor — a földszintnél lényegesen rosszabb
   hasLift: boolean;
   hasBalcony: boolean;
 };
@@ -249,11 +251,18 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
 
   // 5b) Emelet / lift / erkély (hard) — fontos, forgalomképességet befolyásoló tényezők.
   let flPct = 0;
-  if (subject.floorNum === 0) flPct += cfg.adjust.floor_ground_pct;
+  // A szuterén/alagsor a földszint HELYETT kap korrekciót (nem összeadódik vele).
+  if (subject.isBasement) flPct += cfg.adjust.floor_basement_pct;
+  else if (subject.floorNum === 0) flPct += cfg.adjust.floor_ground_pct;
   else if (subject.floorNum !== null && subject.floorNum >= 3 && !subject.hasLift) flPct += cfg.adjust.floor_high_nolift_pct;
   if (subject.hasLift) flPct += cfg.adjust.lift_pct;
   if (subject.hasBalcony) flPct += cfg.adjust.balcony_pct;
-  if (flPct) { const before = value; value *= 1 + flPct / 100; steps.push({ label: "Emelet / lift / erkély", deltaPct: flPct, deltaHuf: Math.round(value - before) }); }
+  if (flPct) {
+    const before = value; value *= 1 + flPct / 100;
+    // A levezetésben külön nevesítjük a szuterént, hogy a partner is lássa, miért alacsonyabb.
+    const label = subject.isBasement ? "Szuterén / alagsor + lift / erkély" : "Emelet / lift / erkély";
+    steps.push({ label, deltaPct: flPct, deltaHuf: Math.round(value - before) });
+  }
 
   // 6) Soft korrekció: lokációs prémium (partner + globális) + fotó, ±plafonnal.
   const cap = cfg.realism.correction_cap_pct;

@@ -24,6 +24,7 @@ export function mergeConfig(p: Partial<EngineConfig> | undefined | null): Engine
       condition: { ...d.adjust.condition, ...q.adjust?.condition },
       location_premium_pct: q.adjust?.location_premium_pct ?? d.adjust.location_premium_pct,
       floor_ground_pct: q.adjust?.floor_ground_pct ?? d.adjust.floor_ground_pct,
+      floor_basement_pct: q.adjust?.floor_basement_pct ?? d.adjust.floor_basement_pct,
       floor_high_nolift_pct: q.adjust?.floor_high_nolift_pct ?? d.adjust.floor_high_nolift_pct,
       lift_pct: q.adjust?.lift_pct ?? d.adjust.lift_pct,
       balcony_pct: q.adjust?.balcony_pct ?? d.adjust.balcony_pct,
@@ -129,6 +130,11 @@ function parseFloorNum(emelet: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** Szuterén / alagsor (a földszintnél lényegesen rosszabb fekvés). */
+export function isBasementFloor(emelet: string): boolean {
+  return /szuter[ée]n|alagsor|souterrain/i.test(String(emelet ?? ""));
+}
+
 export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Subject {
   return {
     sizeM2: parseSize(input.meret),
@@ -138,6 +144,7 @@ export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Sub
     isBudapest: /budapest/i.test(input.telepules),
     district: districtOf(input.telepules),
     floorNum: parseFloorNum(input.emelet),
+    isBasement: isBasementFloor(input.emelet),
     hasLift: input.lift === "igen",
     hasBalcony: input.erkely === "igen",
   };
@@ -253,6 +260,7 @@ export function buildSwot(input: ValuationInput): { s: string[]; w: string[]; o:
   if (cond === "felujitando") w.push("Felújítandó, jelentős ráfordítás igénye");
   if (yearNum && yearNum < 1990) w.push(`${year}-es építés (idősebb ingatlan)`);
   if (size && size < 45) w.push("Kisebb alapterület");
+  if (isBasementFloor(input.emelet)) w.push("Szuterén / alagsori fekvés (szűkebb vevőkör, kedvezőtlenebb megvilágítás)");
   { const fl = parseFloorNum(input.emelet); if (fl !== null && fl >= 3 && input.lift !== "igen") w.push("Magas emelet lift nélkül"); }
   if (!w.length) w.push("A szegmens árérzékeny lehet");
 
