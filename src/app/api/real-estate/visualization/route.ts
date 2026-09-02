@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { addWatermark } from "@/lib/watermark";
 import {
   MAX_IMAGES,
   ROOM_TYPES,
@@ -122,12 +123,26 @@ export async function POST(request: Request) {
         reference,
       });
 
-      const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
+      // VÍZJEL — a mi rendszerünk teszi rá, közvetlenül a feltöltés előtt, hogy
+      // minden látványterv egységes legyen és ne kerülhessen ki jelöletlen kép.
+      // Ha a vízjelezés bármiért elakad, az EREDETI kép megy fel: a partner
+      // generálása soha ne bukjon el emiatt (a kredit már le van vonva).
+      let finalBytes: Uint8Array = result.bytes;
+      let finalMime = result.mimeType;
+      try {
+        const marked = await addWatermark(result.bytes);
+        finalBytes = marked.bytes;
+        finalMime = marked.mimeType;
+      } catch (e) {
+        console.error("[visualization] Vízjelezés sikertelen:", (e as Error).message);
+      }
+
+      const ext = finalMime.includes("jpeg") ? "jpg" : "png";
       const filePath = `visualization/${user.id}/${randomUUID()}.${ext}`;
       const { error: uploadError } = await admin.storage
         .from(BUCKET)
-        .upload(filePath, result.bytes, {
-          contentType: result.mimeType,
+        .upload(filePath, finalBytes, {
+          contentType: finalMime,
           upsert: false,
         });
       if (uploadError) throw new Error(`Storage feltöltés hiba: ${uploadError.message}`);
