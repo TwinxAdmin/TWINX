@@ -12,7 +12,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const VIDEO_MP4 = "/ingatlan/hero.mp4";
+// A ?v= a böngésző-gyorsítótár miatt kell: ugyanazon a néven cserélt fájlt
+// különben a régi (cache-elt) példány takarhatja. Új videónál növeld.
+const VIDEO_VERSION = 4;
+const VIDEO_MP4 = `/ingatlan/hero.mp4?v=${VIDEO_VERSION}`;
 const POSTER = "/ingatlan/hero-poster.jpg";
 const MOBILE = "/ingatlan/hero-mobile.jpg";
 const FALLBACK = "/design/hero-bg.jpg";
@@ -40,8 +43,17 @@ export default function IngatlanHero() {
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !useVideo) return;
-    const p = v.play();
-    if (p && typeof p.catch === "function") p.catch(() => setVideoReady(false));
+    let cancelled = false;
+    const tryPlay = () => {
+      const p = v.play();
+      if (p && typeof p.catch === "function") p.catch(() => { if (!cancelled) setVideoReady(false); });
+    };
+    v.load();
+    tryPlay();
+    // Ha a lap háttérből előtérbe kerül, a böngésző néha megállítja — indítsuk újra.
+    const onVisible = () => { if (document.visibilityState === "visible" && v.paused) tryPlay(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { cancelled = true; document.removeEventListener("visibilitychange", onVisible); };
   }, [useVideo]);
 
   return (
@@ -76,9 +88,10 @@ export default function IngatlanHero() {
           loop
           playsInline
           autoPlay
-          preload="metadata"
+          preload="auto"
           poster={poster}
-          onCanPlay={() => setVideoReady(true)}
+          onPlaying={() => setVideoReady(true)}
+          onPause={() => setVideoReady(false)}
           onError={() => setVideoReady(false)}
         >
           <source src={VIDEO_MP4} type="video/mp4" />
