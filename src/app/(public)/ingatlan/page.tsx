@@ -9,6 +9,7 @@ import ModuleIcon from "@/components/ModuleIcon";
 import IngatlanLeadForm from "@/components/IngatlanLeadForm";
 import IngatlanCta from "@/components/IngatlanCta";
 import Reveal from "@/components/motion/Reveal";
+import IngatlanHero from "@/components/IngatlanHero";
 
 export const metadata: Metadata = {
   title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
@@ -50,11 +51,9 @@ export default function IngatlanLanding() {
   return (
     <main className="font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
       {/* ============================ 1) HERO ============================ */}
-      <section className="relative overflow-hidden" style={{ background: "var(--twx-dark)" }}>
-        <div className="pointer-events-none absolute -left-20 -top-24 h-96 w-96 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(239,122,90,0.28), transparent 70%)", filter: "blur(40px)" }} aria-hidden />
-        <div className="pointer-events-none absolute right-0 top-40 h-96 w-96 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(249,201,182,0.20), transparent 70%)", filter: "blur(44px)" }} aria-hidden />
+      <section className="relative overflow-hidden" style={{ background: "var(--twx-dark)", minHeight: "min(92vh, 860px)" }}>
+        {/* Filmes hero-háttér: loop-videó asztalon, állókép mobilon; a bal harmad sötét maszkot kap. */}
+        <IngatlanHero />
 
         <nav className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-6">
           {/* A logó a TWINX főoldalra visz. */}
@@ -67,7 +66,7 @@ export default function IngatlanLanding() {
           </a>
         </nav>
 
-        <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-14 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 items-end gap-10 px-6 py-16 sm:py-20 lg:grid-cols-[1.2fr_0.8fr] lg:py-24">
           <div>
             <p className="font-display text-sm font-semibold uppercase" style={{ color: "var(--twx-coral)", letterSpacing: "0.2em" }}>
               TWINX ingatlanos eszköztár
@@ -106,9 +105,10 @@ export default function IngatlanLanding() {
             </div>
           </div>
 
-          {/* Valódi minta a saját motorunkból — rögtön mutatja a kimenet minőségét. */}
-          <div className="relative mx-auto w-full max-w-sm">
-            <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+          {/* Valódi minta a saját motorunkból — rögtön mutatja a kimenet minőségét.
+              Kisebb és a jobb alsó sarokban, hogy a filmes jelenet látszódjon körülötte. */}
+          <div className="relative mx-auto w-full max-w-[280px] lg:ml-auto lg:mr-4">
+            <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ border: "1px solid rgba(255,255,255,0.16)", boxShadow: "0 30px 60px rgba(0,0,0,0.45)" }}>
               <Image src="/flyer-samples/openhouse-1x1.png" alt="TWINX hirdetéskép minta" width={800} height={800} className="h-auto w-full" priority />
             </div>
             <span className="absolute -bottom-3 left-4 rounded-full px-3 py-1 text-xs font-semibold"
