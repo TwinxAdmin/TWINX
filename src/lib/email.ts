@@ -151,6 +151,84 @@ export async function sendCreditRequestNotification(req: {
   }
 }
 
+/**
+ * Ingatlanos kampány — ÚJ JELENTKEZŐ. MINDEN admin megkapja (nem csak a
+ * LEADS_NOTIFY_EMAIL), mert a kód kiadása admin-döntés, és ne múljon egy emberen.
+ */
+export async function sendInviteApplicationNotification(
+  invite: { name: string; email: string; phone: string; office: string },
+  adminEmails: string[]
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = adminEmails.filter(Boolean);
+  if (!apiKey || !to.length) throw new Error("Hiányzó RESEND_API_KEY vagy admin cím.");
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+
+  const html = `
+    <h2>Új jelentkező az ingatlanos ajándékkreditre</h2>
+    <p><strong>Név:</strong> ${escapeHtml(invite.name)}</p>
+    <p><strong>E-mail:</strong> ${escapeHtml(invite.email)}</p>
+    <p><strong>Telefon:</strong> ${escapeHtml(invite.phone)}</p>
+    <p><strong>Iroda:</strong> ${escapeHtml(invite.office)}</p>
+    <p>Elfogadás után a rendszer automatikusan kiküldi neki az ajándékkódot.</p>
+    <p>Ügyintézés${site ? `: <a href="${site}/admin/meghivok">${site}/admin/meghivok</a>` : " az admin felület Jelentkezők oldalán."}</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from, to, reply_to: invite.email,
+      subject: `Új ingatlanos jelentkező: ${invite.name}`,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
+/** Ingatlanos kampány — a JELENTKEZŐ megkapja a kódját és a regisztrációs linket. */
+export async function sendInviteCodeEmail(invite: {
+  name: string;
+  email: string;
+  code: string;
+  credits: number;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("Hiányzó RESEND_API_KEY.");
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://twinx.hu").replace(/\/$/, "");
+  const link = `${site}/register?kod=${encodeURIComponent(invite.code)}`;
+
+  const html = `
+    <p>Kedves ${escapeHtml(invite.name)}!</p>
+    <p>Köszönjük a jelentkezésed — jóváhagytuk, így a TWINX-et <strong>${invite.credits} ingyenes kredittel</strong> tudod kipróbálni.</p>
+    <p>Az ajándékkódod:</p>
+    <p style="font-size:22px;font-weight:700;letter-spacing:2px">${escapeHtml(invite.code)}</p>
+    <p><a href="${link}" style="display:inline-block;padding:12px 20px;background:#ef7a5a;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">Regisztrálok a kóddal</a></p>
+    <p>A link automatikusan kitölti a kódot. Ha már van fiókod, belépés után a kezdőlapon is beváltható.</p>
+    <p style="color:#6b6b6b;font-size:13px">A kód egyszer használható fel.</p>
+    <p>Üdvözlettel,<br>TWINX</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from, to: invite.email,
+      subject: `A TWINX ajándékkódod: ${invite.credits} kredit`,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

@@ -9,6 +9,7 @@ import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { resolveViewContext } from "@/lib/view-as";
 import WelcomeHero from "@/components/dashboard/WelcomeHero";
+import InviteRedeem from "@/components/dashboard/InviteRedeem";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
 
 type HistoryRow = {
@@ -27,7 +28,7 @@ export default async function DashboardHome() {
   } = await supabase.auth.getUser();
 
   const { data: me } = user
-    ? await supabase.from("profiles").select("role, full_name").eq("id", user.id).single()
+    ? await supabase.from("profiles").select("role, full_name, invite_code").eq("id", user.id).single()
     : { data: null };
   // Adminként előnézetbe lehet váltani (lásd lib/view-as.ts) — a megjelenítés
   // ilyenkor a választott szerepkört követi, a jogosultságok nem változnak.
@@ -155,6 +156,17 @@ export default async function DashboardHome() {
         balance={balance}
         hasWelcomeCredits={hasWelcomeCredits}
       />
+
+      {/* Ajándékkód beváltása — csak annak, aki még nem váltott be (pl. Google-lel
+          regisztrálóknak, akik a regisztrációs űrlapon nem tudtak kódot megadni). */}
+      {!isAdmin && !me?.invite_code && (
+        <section className="twx-card flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            Kaptál tőlünk ajándékkódot? Váltsd be, és a kereted 10 kreditre egészül ki.
+          </p>
+          <InviteRedeem />
+        </section>
+      )}
 
       {/* „Folytasd, ahol abbahagytad" — a saját munkák bélyegképes sávja.
           Előrébb került a kategóriáknál: a visszatérő partnert a SAJÁT anyaga

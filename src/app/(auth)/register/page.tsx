@@ -2,23 +2,52 @@
 // Sorrend: űrlap validáció -> API route (/api/auth/register) -> Supabase Auth.
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import Wordmark from "@/components/Wordmark";
+import { normalizeInviteCode } from "@/lib/invites";
+
+/** A kód beváltása a friss fiókra. Hiba esetén nem blokkoljuk a belépést —
+ *  a kezdőlapon később is beváltható. */
+async function redeemInvite(code: string): Promise<void> {
+  try {
+    await fetch("/api/invite/redeem", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: normalizeInviteCode(code) }),
+    });
+  } catch { /* a kezdőlapon újrapróbálható */ }
+}
 
 export default function RegisterPage() {
+  // A useSearchParams miatt Suspense-be kell tenni (Next követelmény).
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  // Ingatlanos ajándékkód — a levélbeli link (?kod=...) automatikusan kitölti.
+  const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fromLink = params.get("kod") ?? params.get("kód") ?? "";
+    if (fromLink) setInviteCode(normalizeInviteCode(fromLink));
+  }, [params]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -48,9 +77,13 @@ export default function RegisterPage() {
 
       if (data.needsConfirmation) {
         setMessage(
-          "Sikeres regisztráció! Erősítsd meg az e-mail címed a kiküldött linkkel."
+          inviteCode.trim()
+            ? "Sikeres regisztráció! Erősítsd meg az e-mail címed a kiküldött linkkel — utána a kezdőlapon váltsd be az ajándékkódot."
+            : "Sikeres regisztráció! Erősítsd meg az e-mail címed a kiküldött linkkel."
         );
       } else {
+        // Van session → azonnal beváltjuk az ajándékkódot, ha adott meg ilyet.
+        if (inviteCode.trim()) await redeemInvite(inviteCode);
         router.push("/dashboard");
         router.refresh();
       }
@@ -134,6 +167,25 @@ export default function RegisterPage() {
               {errors.password && (
                 <p className="mt-1 text-xs text-red-600">{errors.password}</p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="inviteCode" className="block text-sm">
+                Ajándékkód <span style={{ color: "var(--twx-ink-muted)" }}>(ha kaptál)</span>
+              </label>
+              <input
+                id="inviteCode"
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                onBlur={() => setInviteCode((c) => (c.trim() ? normalizeInviteCode(c) : c))}
+                className="twx-input mt-1"
+                placeholder="TWX-XXXX-XXXX"
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                Az ingatlanos ajándékkóddal a fiókod 10 kredittel indul.
+              </p>
             </div>
 
             <div>

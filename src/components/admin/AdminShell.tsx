@@ -17,6 +17,7 @@ const GROUPS: Group[] = [
       // A kredit-ADÁS a Felhasználók táblában van (sorvégi „+" gomb);
       // itt csak a napló látszik, hogy ki kinek mikor mennyit adott.
       { href: "/admin/credit-requests", label: "Kredit-kérések" },
+      { href: "/admin/meghivok", label: "Jelentkezők" },
       { href: "/admin/credit-log", label: "Kredit-napló" },
       { href: "/admin/analytics", label: "Költségfigyelő" },
     ],

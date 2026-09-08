@@ -88,8 +88,9 @@ export default function IngatlanLeadForm() {
             Köszönjük a jelentkezést!
           </h3>
           <p className="mt-2 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-            Hamarosan felvesszük veled a kapcsolatot, elküldjük a hozzáférést és beállítjuk
-            a 10 ajándék kreditet. Nézd majd az e-mail-fiókodat is.
+            Megnézzük a jelentkezésed, és jóváhagyás után e-mailben küldünk egy
+            ajándékkódot. A kódot a regisztrációnál kell beírnod — ezzel indul a
+            fiókod 10 ingyenes kredittel. Nézd majd az e-mail-fiókodat is.
           </p>
         </div>
       ) : (
@@ -105,10 +106,11 @@ export default function IngatlanLeadForm() {
               className="w-full rounded-xl px-6 py-3.5 text-base font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
-              {busy ? "Küldés…" : "Regisztrálok és kérem a krediteket!"}
+              {busy ? "Küldés…" : "Kérem az ajándékkódot"}
             </button>
             <p className="mt-2 text-center text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
-              A jelentkezéssel elfogadod, hogy felvegyük veled a kapcsolatot. Nincs kötelezettség.
+              A jelentkezés ingyenes és nem regisztráció — jóváhagyás után e-mailben
+              küldjük az ajándékkódot, amivel a fiókod 10 kredittel indul.
             </p>
           </div>
         </form>

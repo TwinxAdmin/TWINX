@@ -1,6 +1,8 @@
 // Ingatlanos landing (/ingatlan) jelentkező-űrlap — közös típusok és validáció.
-// A meglévő `leads` táblába megy (nincs séma-változás): a telefonszám és az
-// érdeklődés típusa a `message` mezőbe kerül összeállítva, az iroda a `company`-be.
+//
+// A jelentkezés az `ingatlan_invites` kampány-táblába megy (státusszal, kóddal),
+// NEM a közös `leads`-be. A `composeLeadMessage` csak az e-mail/összefoglaló
+// szöveghez maradt meg.
 
 export type IngatlanLeadIntent = "kreditek" | "bemutato";
 

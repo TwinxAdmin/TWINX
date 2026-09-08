@@ -81,9 +81,18 @@ export default function IngatlanLanding() {
               használatért fizetsz.
             </p>
 
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
-              style={{ background: "rgba(239,122,90,0.16)", color: "var(--twx-coral)", border: "1px solid var(--twx-coral)" }}>
-              <span aria-hidden>🎁</span> Akció: az első 50 jelentkező 10 ajándék kreditet kap!
+            {/* Az akció PONTOS menete — ne ígérjünk azonnali kreditet, mert
+                a kód kiadása jóváhagyáshoz kötött. */}
+            <div className="mt-6 rounded-2xl px-5 py-4"
+              style={{ background: "rgba(239,122,90,0.14)", border: "1px solid var(--twx-coral)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--twx-coral)" }}>
+                <span aria-hidden>🎁</span> Indulási ajándék — az első 50 ingatlanosnak
+              </p>
+              <ol className="mt-2 space-y-1 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+                <li>1. Jelentkezel az alábbi űrlapon (nem regisztráció, nincs kötelezettség).</li>
+                <li>2. Átnézzük, és jóváhagyás után e-mailben küldünk egy ajándékkódot.</li>
+                <li>3. A kóddal regisztrálsz — a fiókod <strong style={{ color: "var(--twx-on-dark)" }}>10 ingyenes kredittel</strong> indul a szokásos 3 helyett.</li>
+              </ol>
             </div>
 
             <div className="mt-8">
@@ -92,7 +101,7 @@ export default function IngatlanLanding() {
                 className="rounded-xl px-7 py-4 text-base font-semibold transition-opacity hover:opacity-90"
                 style={{ background: "var(--twx-coral)", color: "#1c1005" }}
               >
-                Kérem a 10 ajándék kreditet!
+                Kérem az ajándékkódot
               </IngatlanCta>
             </div>
           </div>
@@ -263,11 +272,12 @@ export default function IngatlanLanding() {
         <div className="mx-auto w-full max-w-2xl">
           <div className="text-center">
             <h2 className="font-display text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-on-dark)" }}>
-              Szerezd meg a 10 ajándék kreditet!
+              Kérem az ajándékkódot
             </h2>
             <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
-              Légy az első 50 jelentkező között, töltsd ki az űrlapot, és kezdd el ingyen
-              használni a TWINX-et!
+              Töltsd ki az űrlapot, és ha beleférsz az első 50-be, e-mailben küldjük az
+              ajándékkódot, amivel a fiókod 10 kredittel indul. A jelentkezés ingyenes,
+              és semmire nem kötelez.
             </p>
           </div>
           <div className="mt-8">
