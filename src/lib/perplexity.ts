@@ -55,7 +55,7 @@ export async function runValuation(input: ValuationInput): Promise<string> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) throw new Error("Hiányzó PERPLEXITY_API_KEY.");
 
-  const res = await fetch("https://api.perplexity.ai/chat/completions", {
+  const res = await fetchWithRetry("https://api.perplexity.ai/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -68,10 +68,7 @@ export async function runValuation(input: ValuationInput): Promise<string> {
     }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
-  }
+  if (!res.ok) throw friendlyHttpError(res.status, await res.text());
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
@@ -88,6 +85,33 @@ function apiKeyOrThrow(): string {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) throw new Error("Hiányzó PERPLEXITY_API_KEY.");
   return apiKey;
+}
+
+// Átmeneti hibák (429 rate limit, 5xx) esetén rövid várakozás után újrapróbáljuk.
+// A 429 azonnal jön vissza a Perplexitytől, így a várakozás nem eszi meg az időkeretet.
+const RETRY_DELAYS_MS = [3000, 7000];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function friendlyHttpError(status: number, text: string): Error {
+  if (status === 429) {
+    return new Error("A kereső pillanatnyilag túlterhelt (túl sok kérés rövid időn belül). Próbáld újra 1 perc múlva.");
+  }
+  return new Error(`Keresési hiba (${status}): ${text.slice(0, 300)}`);
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let res: Response | null = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    res = await fetch(url, init);
+    const transient = res.status === 429 || res.status >= 500;
+    if (!transient || attempt === RETRY_DELAYS_MS.length) return res;
+    // Retry-After fejléc (mp), ha van — különben a saját lépcső.
+    const ra = Number(res.headers.get("retry-after") ?? "");
+    const wait = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 15000) : RETRY_DELAYS_MS[attempt];
+    await res.text().catch(() => undefined); // a body elengedése
+    await sleep(wait);
+  }
+  return res as Response;
 }
 
 export type SonarRecency = "hour" | "day" | "week" | "month" | "year";
@@ -117,15 +141,12 @@ export async function runSonar(
   if (opts?.domains?.length) body.search_domain_filter = opts.domains.slice(0, 20);
   if (opts?.recency) body.search_recency_filter = opts.recency;
 
-  const res = await fetch(`${PPLX_BASE}/chat/completions`, {
+  const res = await fetchWithRetry(`${PPLX_BASE}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
-  }
+  if (!res.ok) throw friendlyHttpError(res.status, await res.text());
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Üres válasz a keresőtől.");
@@ -160,7 +181,7 @@ export async function runSonarWithSources(
   const timer = timeoutMs > 0 ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
   let res: Response;
   try {
-    res = await fetch(`${PPLX_BASE}/chat/completions`, {
+    res = await fetchWithRetry(`${PPLX_BASE}/chat/completions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -174,10 +195,7 @@ export async function runSonarWithSources(
   } finally {
     if (timer) clearTimeout(timer);
   }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
-  }
+  if (!res.ok) throw friendlyHttpError(res.status, await res.text());
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) throw new Error("Üres válasz a keresőtől.");
@@ -215,15 +233,12 @@ export async function submitSonarAsync(
   if (opts?.domains?.length) req.search_domain_filter = opts.domains;
   if (opts?.recency) req.search_recency_filter = opts.recency;
 
-  const res = await fetch(`${PPLX_BASE}/v1/async/sonar`, {
+  const res = await fetchWithRetry(`${PPLX_BASE}/v1/async/sonar`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ request: req }),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Keresési hiba (${res.status}): ${text.slice(0, 300)}`);
-  }
+  if (!res.ok) throw friendlyHttpError(res.status, await res.text());
   const data = await res.json();
   const id = data?.id;
   if (!id) throw new Error("A kutatás indítása nem adott vissza azonosítót.");
