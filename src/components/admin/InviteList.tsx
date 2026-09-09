@@ -1,6 +1,10 @@
-// Ingatlanos jelentkezők kezelése: elfogadás (kód + automatikus levél),
-// elutasítás, kód újraküldése. A keret betelését a szerver őrzi, itt csak
-// megjelenítjük, hogy hányadiknál tartunk.
+// Ingatlanos jelentkezők kezelése — KÉTLÉPCSŐS kiküldéssel:
+//   1) „Elfogadom”  → a rendszer legenerálja a kódot (levél még nem megy ki),
+//   2) „Átnézem és kiküldöm” → felugrik a KÉSZ levél a jelentkező nevével és
+//      címével; a kolléga ellenőrzi az adatokat, és egy gombbal kiküldi.
+// Így soha nem kell kézzel bemásolni a kódot vagy a nevet, de van egy emberi
+// ellenőrzési pont, mielőtt a levél elmegy a partnernek.
+// A keret betelését a szerver őrzi, itt csak megjelenítjük, hol tartunk.
 "use client";
 
 import { useState } from "react";
@@ -8,14 +12,27 @@ import { useRouter } from "next/navigation";
 import { showToast } from "@/components/Toast";
 import { INVITE_STATUS_LABEL, type Invite } from "@/lib/invites";
 
+type Preview = {
+  id: string;
+  to: string;
+  toName: string;
+  from: string;
+  subject: string;
+  html: string;
+  code: string;
+  sentAt: string | null;
+};
+
 export default function InviteList({
   invites, issued, limit, readOnly = false,
 }: { invites: Invite[]; issued: number; limit: number; readOnly?: boolean }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [sending, setSending] = useState(false);
   const full = issued >= limit;
 
-  async function act(id: string, action: "accept" | "reject" | "resend") {
+  async function act(id: string, action: "accept" | "reject") {
     setBusyId(id);
     try {
       const res = await fetch("/api/admin/invites", {
@@ -25,16 +42,62 @@ export default function InviteList({
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "A művelet nem sikerült.");
       if (action === "accept") {
-        showToast(d.mailed
-          ? `Elfogadva, a kód kiment: ${d.code}`
-          : `Kód létrehozva (${d.code}), de a levél NEM ment ki — küldd újra.`,
-          d.mailed ? "success" : "info");
-      } else if (action === "resend") showToast("A kód újra kiment.", "success");
-      else showToast("Elutasítva.", "info");
+        showToast(`Kód legenerálva: ${d.code} — nézd át a levelet, és küldd ki.`, "success");
+        router.refresh();
+        // Rögtön felajánljuk az átnézést, hogy ne maradjon kiküldetlenül.
+        await openPreview(id);
+        return;
+      }
+      showToast("Elutasítva.", "info");
       router.refresh();
     } catch (e) {
       showToast((e as Error).message, "error");
+      // Tipikus ok: közben egy másik munkatárs már elbírálta — húzzuk be a friss állapotot.
+      router.refresh();
     } finally { setBusyId(null); }
+  }
+
+  /** A kész levél lekérése megjelenítésre (küldés nélkül). */
+  async function openPreview(id: string) {
+    setBusyId(id);
+    try {
+      const res = await fetch("/api/admin/invites", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "preview" }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Az előnézet nem tölthető be.");
+      setPreview({ id, to: d.to, toName: d.toName, from: d.from, subject: d.subject, html: d.html, code: d.code, sentAt: d.sentAt });
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally { setBusyId(null); }
+  }
+
+  /** A megnézett levél kiküldése a jelentkező saját címére. */
+  async function sendNow() {
+    if (!preview) return;
+    setSending(true);
+    try {
+      // Ha már ment ki levél, az TUDATOS újraküldés ("resend"); az első küldést
+      // a szerver elutasítja, ha közben egy kolléga már elintézte.
+      const action = preview.sentAt ? "resend" : "send";
+      const res = await fetch("/api/admin/invites", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: preview.id, action }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Ütközés: időközben más küldte ki. Zárjuk az ablakot és frissítünk,
+        // hogy ne menjen ki kétszer ugyanaz a levél.
+        if (d.alreadySent) { setPreview(null); router.refresh(); }
+        throw new Error(d.error || "A levél nem ment ki.");
+      }
+      showToast(`A kód kiment ide: ${preview.to}`, "success");
+      setPreview(null);
+      router.refresh();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+    } finally { setSending(false); }
   }
 
   return (
@@ -62,8 +125,10 @@ export default function InviteList({
       <div className="space-y-2">
         {invites.map((it) => {
           const busy = busyId === it.id;
+          const awaitingSend = !!it.code && !it.code_sent_at;
           return (
-            <div key={it.id} className="twx-card p-4">
+            <div key={it.id} className="twx-card p-4"
+              style={awaitingSend ? { borderColor: "var(--twx-coral)" } : undefined}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">
@@ -97,10 +162,20 @@ export default function InviteList({
                           </span>}
                     </p>
                   )}
+                  {/* Kiküldés állapota — ez a lépés könnyen elfelejthető, ezért kiemelt. */}
+                  {it.code && (
+                    it.code_sent_at
+                      ? <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                          ✉️ Kiküldve: {new Date(it.code_sent_at).toLocaleString("hu-HU")}
+                          {it.code_sent_by_email ? ` · ${it.code_sent_by_email}` : ""}
+                        </p>
+                      : <p className="mt-1 text-[11px] font-semibold" style={{ color: "#c0392b" }}>
+                          ⚠️ A kód még NINCS kiküldve a jelentkezőnek.
+                        </p>
+                  )}
                 </div>
 
                 <div className="flex shrink-0 flex-wrap gap-1.5">
-                  {/* Sales csak látja a jelentkezőket — a kód kiadása (=kredit) admin döntés. */}
                   {readOnly && it.status === "uj" && (
                     <span className="rounded-lg px-3 py-1.5 text-xs font-medium"
                       style={{ background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)", border: "1px solid var(--twx-line)" }}>
@@ -111,7 +186,7 @@ export default function InviteList({
                     <>
                       <button type="button" disabled={busy || full}
                         onClick={() => void act(it.id, "accept")}
-                        title={full ? "A kampány kerete betelt." : "Kód generálása és kiküldése"}
+                        title={full ? "A kampány kerete betelt." : "Kód generálása (a levél még nem megy ki)"}
                         className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
                         style={{ background: "var(--twx-coral)" }}>
                         Elfogadom
@@ -124,12 +199,14 @@ export default function InviteList({
                       </button>
                     </>
                   )}
-                  {!readOnly && it.status === "elfogadva" && !it.redeemed_at && (
+                  {!readOnly && it.code && (
                     <button type="button" disabled={busy}
-                      onClick={() => void act(it.id, "resend")}
-                      className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-                      style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                      Kód újraküldése
+                      onClick={() => void openPreview(it.id)}
+                      className={`rounded-lg px-3 py-1.5 text-xs disabled:opacity-40 ${awaitingSend ? "font-semibold text-white" : "font-medium"}`}
+                      style={awaitingSend
+                        ? { background: "var(--twx-coral)" }
+                        : { border: "1px solid var(--twx-line)", background: "#fff" }}>
+                      {awaitingSend ? "Átnézem és kiküldöm" : "Levél újraküldése"}
                     </button>
                   )}
                 </div>
@@ -138,6 +215,68 @@ export default function InviteList({
           );
         })}
       </div>
+
+      {/* ------------------- Levél-előnézet ablak ------------------- */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(18,16,14,0.6)" }}
+          onClick={() => { if (!sending) setPreview(null); }}>
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Fejléc: kinek, honnan, milyen tárggyal megy ki */}
+            <div className="border-b p-5" style={{ borderColor: "var(--twx-line)" }}>
+              <p className="font-display text-lg font-semibold">Kiküldés előtti ellenőrzés</p>
+              <p className="mt-1 text-[12px]" style={{ color: "var(--twx-ink-muted)" }}>
+                Pontosan ez a levél megy ki. Nézd át az adatokat, mielőtt elküldöd.
+              </p>
+              <dl className="mt-3 space-y-1 text-[13px]">
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0" style={{ color: "var(--twx-ink-muted)" }}>Címzett</dt>
+                  <dd className="font-semibold">{preview.toName} &lt;{preview.to}&gt;</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0" style={{ color: "var(--twx-ink-muted)" }}>Feladó</dt>
+                  <dd>{preview.from}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0" style={{ color: "var(--twx-ink-muted)" }}>Tárgy</dt>
+                  <dd>{preview.subject}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0" style={{ color: "var(--twx-ink-muted)" }}>Kód</dt>
+                  <dd className="font-bold tracking-wider" style={{ color: "var(--twx-coral)" }}>{preview.code}</dd>
+                </div>
+              </dl>
+              {preview.sentAt && (
+                <p className="mt-2 rounded-lg px-3 py-2 text-[12px]"
+                  style={{ background: "var(--twx-cream)", color: "var(--twx-ink-muted)" }}>
+                  Ez a levél már kiment egyszer ({new Date(preview.sentAt).toLocaleString("hu-HU")}). Az újraküldéssel ugyanezt a kódot kapja meg még egyszer.
+                </p>
+              )}
+            </div>
+
+            {/* Maga a levél, ahogy a partner látni fogja */}
+            <div className="min-h-0 flex-1 overflow-auto" style={{ background: "var(--twx-cream)" }}>
+              <iframe title="Levél előnézete" srcDoc={preview.html}
+                className="h-[46vh] w-full border-0" sandbox="" />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t p-4"
+              style={{ borderColor: "var(--twx-line)" }}>
+              <button type="button" disabled={sending} onClick={() => setPreview(null)}
+                className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
+                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                Mégsem
+              </button>
+              <button type="button" disabled={sending} onClick={() => void sendNow()}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                style={{ background: "var(--twx-coral)" }}>
+                {sending ? "Küldés…" : `Kiküldöm neki (${preview.to})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

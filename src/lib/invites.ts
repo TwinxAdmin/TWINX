@@ -43,6 +43,10 @@ export type Invite = {
   redeemed_by: string | null;
   redeemed_at: string | null;
   created_at: string;
+  /** Mikor ment ki a kódot tartalmazó levél (NULL = még nem küldtük ki). */
+  code_sent_at?: string | null;
+  /** Ki indította a kiküldést (admin vagy sales munkatárs). */
+  code_sent_by_email?: string | null;
 };
 
 /**

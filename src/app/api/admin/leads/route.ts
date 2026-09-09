@@ -51,5 +51,7 @@ export async function POST(request: Request) {
   const { error } = await admin.from("leads").update(patch).eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, handled, noted: isNote });
+  // Az e-mailt visszaadjuk, hogy a listában rögtön látszódjon, KI végezte el —
+  // a többi munkatárs is ezt látja majd a szerverről.
+  return NextResponse.json({ ok: true, handled, noted: isNote, email: staff.email });
 }

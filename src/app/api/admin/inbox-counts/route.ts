@@ -19,8 +19,12 @@ export async function GET() {
   const admin = createAdminClient();
   const openLeadsQuery = admin.from("leads").select("id", { count: "exact", head: true }).is("handled_at", null);
 
-  const [invites, leads, credits, ideas] = await Promise.all([
+  const [invites, pendingSend, leads, credits, ideas] = await Promise.all([
     admin.from("ingatlan_invites").select("id", { count: "exact", head: true }).eq("status", "uj"),
+    // Elfogadva, kód megvan, DE a levél még nem ment ki — ez is elintézetlen tétel.
+    // (Ha az invite-code-sent.sql még nem futott le, ez a lekérdezés 0-t ad, nem hibázik.)
+    admin.from("ingatlan_invites").select("id", { count: "exact", head: true })
+      .not("code", "is", null).is("code_sent_at", null),
     isAdmin ? openLeadsQuery : openLeadsQuery.ilike("message", `%${CONSULTATION_MARKER}%`),
     isAdmin
       ? admin.from("credit_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
@@ -31,14 +35,18 @@ export async function GET() {
   ]);
 
   const newInvites = invites.count ?? 0;
+  const unsentCodes = pendingSend.count ?? 0;
   const openLeads = leads.count ?? 0;
   const pendingCredits = credits.count ?? 0;
   const newIdeas = ideas.count ?? 0;
 
+  // A jelentkezőknél két teendő lehet: elbírálás és a kód kiküldése.
+  const inviteTodo = newInvites + unsentCodes;
+
   return NextResponse.json({
-    newInvites, openLeads, pendingCredits, newIdeas,
+    newInvites, unsentCodes, openLeads, pendingCredits, newIdeas,
     // A „Kérések és üzenetek" oldalon két dolog van egy helyen.
-    inboxPage: openLeads + newInvites,
-    total: newInvites + openLeads + pendingCredits + newIdeas,
+    inboxPage: openLeads + inviteTodo,
+    total: inviteTodo + openLeads + pendingCredits + newIdeas,
   });
 }

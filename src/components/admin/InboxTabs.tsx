@@ -11,7 +11,7 @@
 // nem látja. (leads-handled.sql)
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/components/Toast";
 import InviteList from "@/components/admin/InviteList";
@@ -56,6 +56,19 @@ function LeadRow({ lead }: { lead: Lead }) {
   });
   const [savingNote, setSavingNote] = useState(false);
   const dirty = note.trim() !== savedNote.trim();
+
+  // KÖZÖS ÁLLAPOT: ha közben egy másik munkatárs lezárta vagy jegyzetelte ezt a
+  // megkeresést, a frissülő szerver-adat felülírja a helyi állapotot. Enélkül a
+  // saját böngészőnk „nyitott”-ként mutatná azt, amit a kolléga már elintézett.
+  useEffect(() => { setHandled(Boolean(lead.handled_at)); }, [lead.handled_at]);
+  useEffect(() => {
+    const incoming = lead.note ?? "";
+    setSavedNote(incoming);
+    setNoteMeta({ at: lead.note_updated_at, by: lead.note_email });
+    // A saját, még el nem mentett gépelésünket NEM dobjuk el.
+    setNote((cur) => (cur.trim() === "" || cur === savedNote ? incoming : cur));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.note, lead.note_updated_at, lead.note_email]);
   const src = leadSource(lead.message);
   const subject = encodeURIComponent("TWINX — válasz a megkeresésedre");
   const body = encodeURIComponent(`Kedves ${lead.name.split(" ").pop() || lead.name}!\n\n`);
@@ -88,7 +101,7 @@ function LeadRow({ lead }: { lead: Lead }) {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "A jegyzet mentése nem sikerült.");
       setSavedNote(note);
-      setNoteMeta({ at: new Date().toISOString(), by: null });
+      setNoteMeta({ at: new Date().toISOString(), by: d.email ?? null });
       setNoteOpen(false); // mentés után visszacsukjuk, hogy a lista átlátható maradjon
       showToast("Jegyzet elmentve.", "success");
       router.refresh();
@@ -237,8 +250,27 @@ function LeadRow({ lead }: { lead: Lead }) {
 export default function InboxTabs({
   leads, invites, issued, limit, inviteReadOnly = false,
 }: { leads: Lead[]; invites: Invite[]; issued: number; limit: number; inviteReadOnly?: boolean }) {
+  const router = useRouter();
   const [tab, setTab] = useState<"leads" | "invites">("leads");
+
+  // TÖBBEN DOLGOZUNK UGYANAZON A LISTÁN: ha egy kolléga lezár egy megkeresést
+  // vagy kiküld egy kódot, azt a többi nyitva hagyott felületnek is látnia kell.
+  // Ezért percenként, illetve ablakra visszatéréskor újrahúzzuk a szerver-adatot.
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === "visible") router.refresh(); };
+    const timer = setInterval(tick, 60_000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [router]);
   const newInvites = invites.filter((i) => i.status === "uj").length;
+  // Elfogadva, de a kódot tartalmazó levél még nem ment ki — ez is nyitott teendő.
+  const unsentCodes = invites.filter((i) => i.code && !i.code_sent_at).length;
+  const inviteTodo = newInvites + unsentCodes;
   const openLeads = leads.filter((l) => !l.handled_at).length;
   // Típusonkénti bontás, hogy ránézésre látszódjon, MELYIK részre érkezett.
   const openConsult = leads.filter((l) => !l.handled_at && l.message.includes("Bővebb tájékoztatás")).length;
@@ -283,11 +315,17 @@ export default function InboxTabs({
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#2f9e5f" }} />
           Ajándékkód-jelentkező <strong>{newInvites}</strong>
         </span>
+        {unsentCodes > 0 && (
+          <span className="flex items-center gap-1.5" style={{ color: "#c0392b" }}>
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#c0392b" }} />
+            Kód kiküldésre vár <strong>{unsentCodes}</strong>
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
         {tabBtn("leads", "Kérések és üzenetek", openLeads)}
-        {tabBtn("invites", "Ajándékkód-jelentkezők", newInvites)}
+        {tabBtn("invites", "Ajándékkód-jelentkezők", inviteTodo)}
       </div>
 
       {tab === "leads" ? (
