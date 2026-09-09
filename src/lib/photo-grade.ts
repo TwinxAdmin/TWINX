@@ -345,6 +345,8 @@ export function planGradeFromPixels(
 // 5) VÉGREHAJTÁS — sharp (csak szerveroldalon)
 // ---------------------------------------------------------------------------
 
+import { toGray, estimateTilt, planGeometry, warpImage } from "@/lib/photo-geometry";
+
 export type GradeResult = { buffer: Buffer; plan: GradePlan; width: number; height: number };
 
 /** Az elemzéshez használt minta mérete — ennyiből már stabilak a százalékosok. */
@@ -360,7 +362,7 @@ const SAMPLE_PX = 120;
  */
 export async function gradePhoto(
   input: Buffer,
-  opts: { maxDim?: number; quality?: number; preset?: GradePreset } = {}
+  opts: { maxDim?: number; quality?: number; preset?: GradePreset; straighten?: boolean } = {}
 ): Promise<GradeResult> {
   const sharp = (await import("sharp")).default;
   const maxDim = opts.maxDim ?? 2048;
@@ -385,7 +387,23 @@ export async function gradePhoto(
     .removeAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
-  const graded = applyLut(new Uint8Array(full.data), buildLut(plan));
+  let graded = applyLut(new Uint8Array(full.data), buildLut(plan));
+
+  // 2b) GEOMETRIA: ferdeség és összetartó falak. Ugyanezen a nyers pufferen
+  //     dolgozunk, hogy a kép csak EGYSZER menjen át újramintavételezésen.
+  //     Bizonytalan méréskor a `planGeometry` kihagyja a korrekciót.
+  if (opts.straighten !== false) {
+    try {
+      const est = estimateTilt(toGray(graded, full.info.width, full.info.height), full.info.width, full.info.height);
+      const geo = planGeometry(est, full.info.width, full.info.height);
+      if (geo.apply) {
+        graded = warpImage(graded, full.info.width, full.info.height, geo.params);
+        plan.notes.push(...geo.notes);
+      }
+    } catch {
+      // A geometria hibája ne buktassa el a fény/szín-korrekciót.
+    }
+  }
 
   // 3) Helyi kontraszt, telítettség, élesítés — ezeket a sharp végzi.
   let pipe = sharp(Buffer.from(graded), {
