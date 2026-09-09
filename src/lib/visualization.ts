@@ -120,10 +120,10 @@ export const EMPTY_ROOM_CONFIG: RoomConfig = {
 };
 
 // ---- Validáció ----
-export function validateImageFiles(files: File[]): string | null {
+export function validateImageFiles(files: File[], max: number = MAX_IMAGES): string | null {
   if (files.length === 0) return "Tölts fel legalább egy képet.";
-  if (files.length > MAX_IMAGES) {
-    return `Legfeljebb ${MAX_IMAGES} kép tölthető fel egy ingatlanhoz.`;
+  if (files.length > max) {
+    return `Legfeljebb ${max} kép tölthető fel egyszerre.`;
   }
   for (const f of files) {
     if (!ALLOWED_IMAGE_TYPES.includes(f.type)) {

@@ -2,7 +2,7 @@
 // Két művelet: Feljavítás (fal.ai) és Rendrakás (Nano Banana). Mindkettőre kattintva
 // egy ablak nyílik, ahol a tallózás, a feldolgozás és az eredmény is látszik. Az
 // elkészült képen egy gombbal rögtön futtatható a MÁSIK művelet (átjátszás).
-// Max 4 kép. Dátum-mappák + Kedvencek a korábbi munkákhoz. Nagy nézet: lightbox.
+// Max 2 kép feldolgozásonként. Dátum-mappák + Kedvencek a korábbi munkákhoz. Nagy nézet: lightbox.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -13,7 +13,7 @@ import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import { imageMeanDiff, NOOP_DIFF_THRESHOLD, imageBusyness, EXTREME_BUSYNESS_THRESHOLD } from "@/lib/image-diff";
 import {
-  ENHANCE_MODES, MAX_IMAGES, ALLOWED_IMAGE_TYPES,
+  ENHANCE_MODES, ENHANCE_MAX_IMAGES as MAX_IMAGES, ALLOWED_IMAGE_TYPES,
   type EnhanceMode,
 } from "@/lib/image-enhance";
 

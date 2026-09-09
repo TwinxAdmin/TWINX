@@ -1,5 +1,5 @@
 // POST /api/real-estate/image-enhance — Egyszerű képjavító.
-// Max 4 kép, 1 kredit / feldolgozás (all-or-nothing). A kép TARTALMÁN nem változtatunk,
+// Max 2 kép, 1 kredit / feldolgozás (all-or-nothing). A kép TARTALMÁN nem változtatunk,
 // csak a minőségén (mód szerint enyhe rendrakással). Nano Banana image-to-image.
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
-import { logCost, googleImageCostUsd } from "@/lib/costs";
+import { logCost, googleImageCostUsd, FAL_USD_PER_IMAGE } from "@/lib/costs";
 import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
 import { enhanceImageFal } from "@/lib/fal";
+import { gradePhoto, shouldUpscale } from "@/lib/photo-grade";
 import {
-  isEnhanceMode, validateImageFiles, enhanceModeLabel, EXTREME_DECLUTTER_SUFFIX,
+  isEnhanceMode, validateImageFiles, enhanceModeLabel, EXTREME_DECLUTTER_SUFFIX, ENHANCE_MAX_IMAGES,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
   const defer = String(form.get("defer") ?? "") === "1";
 
   const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
-  const imagesError = validateImageFiles(files);
+  const imagesError = validateImageFiles(files, ENHANCE_MAX_IMAGES);
   if (imagesError) {
     return NextResponse.json({ errors: { images: imagesError } }, { status: 422 });
   }
@@ -94,8 +95,11 @@ export async function POST(request: Request) {
 
     // Feljavítás = felbontásnövelés: nagyobb upscale_factor, a szerkezet hű marad.
     const upscaleFactor = Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4);
+    // Hány képnél futott le ténylegesen a fal.ai hívás (a költségnaplóhoz):
+    // egy eleve éles, nagy felbontású fotónál kihagyjuk, mert nem tesz hozzá.
+    let falCalls = 0;
 
-    // Párhuzamos feldolgozás — a 4 kép ne fusson a 60 mp-es limitbe egymás után.
+    // Párhuzamos feldolgozás — a képek ne fussanak a 60 mp-es limitbe egymás után.
     const items = await Promise.all(files.map(async (file) => {
       const inputBytes = new Uint8Array(await file.arrayBuffer());
       const mime = file.type || "image/jpeg";
@@ -110,9 +114,31 @@ export async function POST(request: Request) {
       // Munkakép — lépésről lépésre halad végig a láncon.
       let workBytes: Uint8Array = inputBytes;
       let workMime = mime;
+      let gradeNotes: string[] = [];
 
-      // 1) Feljavítás (fal.ai) — élesebb, nagyobb felbontású alap.
-      if (falCfg) {
+      // 1) FOTÓ-KORREKCIÓ (saját, determinisztikus — nincs AI-költsége).
+      //    Ez adja a látható változást: fehéregyensúly, árnyéknyitás, csúcsfény-
+      //    lágyítás, helyi kontraszt. A helyiséget nem érinti, csak a fényt/színt.
+      let needsFal = true;
+      if (useFal) {
+        try {
+          const g = await gradePhoto(Buffer.from(workBytes));
+          workBytes = new Uint8Array(g.buffer);
+          workMime = "image/jpeg";
+          gradeNotes = g.plan.notes;
+          // A drága felskálázást CSAK akkor hívjuk, ha van mit javítania: kis
+          // felbontás vagy lágy rajzolat. Egy éles, nagy telefonfotón alig tesz
+          // hozzá — ott a korrekció önmagában is látványos, és marad a keret.
+          needsFal = await shouldUpscale(Buffer.from(g.buffer));
+        } catch {
+          // A korrekció hibája ne buktassa el a feldolgozást — megy a régi úton.
+          needsFal = true;
+        }
+      }
+
+      // 2) Élesítés / felbontás (fal.ai) — csak ha a fenti vizsgálat indokolja.
+      if (falCfg && needsFal) {
+        falCalls++;
         const dataUri = `data:${workMime};base64,${Buffer.from(workBytes).toString("base64")}`;
         const r = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative, upscaleFactor });
         workBytes = new Uint8Array(r.bytes);
@@ -134,7 +160,9 @@ export async function POST(request: Request) {
       if (upErr) throw new Error(`Storage feltöltés hiba: ${upErr.message}`);
       const enhanced = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
 
-      return { original, enhanced };
+      // A korrekció lépései elmentve: az eredménynél megmutatható, MIT javítottunk
+      // („Sárgás fény semlegesítve", „Sötét felvétel — árnyékok megnyitva" …).
+      return { original, enhanced, notes: gradeNotes };
     }));
 
     // Job mentése (dátum-mappák + before/after) — halasztott módban csak jóváhagyás után.
@@ -163,7 +191,9 @@ export async function POST(request: Request) {
       feature: FEATURE,
       serviceName: mode === "feljavitas" ? "fal" : "google-studio",
       units: files.length,
-      estimatedCostUsd: mode === "feljavitas" ? 0.05 * files.length : googleImageCostUsd(files.length),
+      // A fotó-korrekció a saját szerverünkön fut (nincs API-díja); a fal.ai-t
+      // csak a ténylegesen meghívott képekre számoljuk el.
+      estimatedCostUsd: mode === "feljavitas" ? FAL_USD_PER_IMAGE * falCalls : googleImageCostUsd(files.length),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });

@@ -65,3 +65,10 @@ export async function logCost(entry: CostLogEntry): Promise<void> {
     console.error("Költséglogolás hiba:", (err as Error).message);
   }
 }
+
+/**
+ * A fal.ai clarity-upscaler becsült önköltsége képenként (USD).
+ * BECSLÉS, nem számlázott adat — a valós díjat a fal.ai kimutatása mutatja.
+ * Env-ből felülírható, ha pontosítjuk: FAL_USD_PER_IMAGE.
+ */
+export const FAL_USD_PER_IMAGE = Number(process.env.FAL_USD_PER_IMAGE || 0.05);

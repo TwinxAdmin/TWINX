@@ -2,7 +2,17 @@
 // változtatja meg. Két mód: "feljavitas" (csak képminőség) és "rendrakas" (minőség +
 // apró rendetlenség eltakarítása). A képet a bekötött Nano Banana (image-to-image)
 // generálja, ezért a promptok NAGYON SZIGORÚAK: valós ingatlan, nem szabad félrevezetni.
-export { MAX_IMAGES, MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, validateImageFiles } from "@/lib/visualization";
+export { MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, validateImageFiles } from "@/lib/visualization";
+
+/**
+ * Feldolgozásonként feltölthető képek száma a Képjavítóban.
+ *
+ * MIÉRT 2 (és nem 4, mint a Látványtervezőnél): egy feldolgozás 1 kredit, a
+ * fal.ai felskálázás viszont KÉPENKÉNT kerül pénzbe. Négy képnél a fedezet
+ * leszűkült; kettőnél a 100%-os haszon-szabály a legmélyebb kedvezményes
+ * szinten is bőven tartható.
+ */
+export const ENHANCE_MAX_IMAGES = 2;
 
 export const ENHANCE_MODES = [
   {
