@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   }
 
   // A profil a felhasználóé?
-  const { data: profile } = await supabase.from("branding_profiles").select("id").eq("id", profileId).single();
+  const { data: profile } = await supabase.from("branding_profiles").select("id").eq("id", profileId).eq("user_id", user.id).single();
   if (!profile) return NextResponse.json({ error: "A profil nem található." }, { status: 404 });
 
   const admin = createAdminClient();

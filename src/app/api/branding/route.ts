@@ -27,6 +27,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("branding_profiles")
     .select("*")
+    .eq("user_id", user.id) // csak a saját arculat — az admin sem látja a partnerekét
     .order("created_at", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ profiles: data ?? [] });
