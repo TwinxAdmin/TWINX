@@ -257,11 +257,13 @@ export function renderInviteCodeEmail(invite: {
           <!-- Fő gomb -->
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
             <tr><td style="background:#ef7a5a;border-radius:12px;">
-              <a href="${link}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">Beváltom a kódot</a>
+              <a href="${link}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">Regisztrálok a TWINX-be</a>
             </td></tr>
           </table>
           <p style="margin:0 0 24px;color:#6b6b6b;font-size:13px;line-height:1.5;">
-            A gomb automatikusan kitölti a kódot a regisztrációnál. Ha már van fiókod, lépj be, és a kezdőlapon is be tudod váltani.<br>
+            <strong style="color:#1c1815;">A kódot nem a regisztrációnál kell megadni.</strong>
+            Előbb regisztrálj (e-maillel vagy Google-fiókkal), majd belépés után a kezdőlapon,
+            az egyenleged mellett kattints az „Ajándékkód beváltása” gombra, és írd be a kódot.<br>
             Ha a gomb nem működne, másold be ezt a linket: <span style="color:#1c1815;">${link}</span>
           </p>
 
@@ -295,8 +297,8 @@ export function renderInviteCodeEmail(invite: {
     ``,
     `Az ajándékkódod: ${invite.code}`,
     ``,
-    `Beváltás: ${link}`,
-    `(A link kitölti a kódot a regisztrációnál. Ha már van fiókod, belépés után a kezdőlapon is beváltható.)`,
+    `Regisztráció: ${link}`,
+    `A kódot NEM a regisztrációnál kell megadni. Előbb regisztrálj (e-maillel vagy Google-fiokkal), majd belépés után a kezdőlapon, az egyenleged mellett az "Ajándékkód beváltása" gombbal váltsd be.`,
     ``,
     `Ezeket próbálhatod ki a kredittel:`,
     ...perks.map((p) => `- ${p}`),

@@ -86,7 +86,7 @@ export default function IngatlanLanding() {
               <ol className="mt-2 space-y-1 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
                 <li>1. Jelentkezel az alábbi űrlapon (nem regisztráció, nincs kötelezettség).</li>
                 <li>2. Átnézzük, és jóváhagyás után e-mailben küldünk egy ajándékkódot.</li>
-                <li>3. A kóddal regisztrálsz — a fiókod <strong style={{ color: "var(--twx-on-dark)" }}>10 ingyenes kredittel</strong> indul a szokásos 3 helyett.</li>
+                <li>3. Regisztrálsz, majd belépve beváltod a kódot — <strong style={{ color: "var(--twx-on-dark)" }}>10 ingyenes kredit</strong>.</li>
               </ol>
             </div>
 
@@ -244,8 +244,8 @@ export default function IngatlanLanding() {
             </h2>
             <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
               Töltsd ki az űrlapot, és ha beleférsz az első 50-be, e-mailben küldjük az
-              ajándékkódot, amivel a fiókod 10 kredittel indul. A jelentkezés ingyenes,
-              és semmire nem kötelez.
+              ajándékkódot, amit regisztráció után, belépve válthatsz be 10 kreditre.
+              A jelentkezés ingyenes, és semmire nem kötelez.
             </p>
           </div>
           <div className="mt-8">

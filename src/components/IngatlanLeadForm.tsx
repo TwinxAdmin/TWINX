@@ -89,9 +89,15 @@ export default function IngatlanLeadForm() {
           </h3>
           <p className="mt-2 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
             Megnézzük a jelentkezésed, és jóváhagyás után e-mailben küldünk egy
-            ajándékkódot. A kódot a regisztrációnál kell beírnod — ezzel indul a
-            fiókod 10 ingyenes kredittel. Nézd majd az e-mail-fiókodat is.
+            ajándékkódot. Nézd majd az e-mail-fiókodat is.
           </p>
+          {/* A sorrend fontos: a kód NEM a regisztrációs űrlapon kell,
+              hanem utána, a belépett felületen. */}
+          <ol className="mx-auto mt-4 max-w-xs space-y-1.5 text-left text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+            <li><strong style={{ color: "var(--twx-on-dark)" }}>1.</strong> Megkapod a kódot e-mailben.</li>
+            <li><strong style={{ color: "var(--twx-on-dark)" }}>2.</strong> Regisztrálsz a TWINX-be.</li>
+            <li><strong style={{ color: "var(--twx-on-dark)" }}>3.</strong> Belépés után a kezdőlapon váltod be a kódot.</li>
+          </ol>
         </div>
       ) : (
         <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -110,7 +116,7 @@ export default function IngatlanLeadForm() {
             </button>
             <p className="mt-2 text-center text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
               A jelentkezés ingyenes és nem regisztráció — jóváhagyás után e-mailben
-              küldjük az ajándékkódot, amivel a fiókod 10 kredittel indul.
+              küldjük az ajándékkódot, amit regisztráció után, belépve válthatsz be.
             </p>
           </div>
         </form>
