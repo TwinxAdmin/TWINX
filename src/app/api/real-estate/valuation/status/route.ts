@@ -27,14 +27,17 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: job, error } = await admin
     .from("valuation_jobs")
-    .select("id, user_id, status, report, error, created_at")
+    .select("id, user_id, status, report, error, created_at, history_id, input_data")
     .eq("id", jobId)
     .single();
   if (error || !job) return NextResponse.json({ error: "A job nem található." }, { status: 404 });
   if (job.user_id !== user.id) return NextResponse.json({ error: "Nincs jogosultság." }, { status: 403 });
 
   if (job.status === "done") {
-    return NextResponse.json({ status: "done", report: job.report ?? "", id: job.id });
+    // Az `id` az ELŐZMÉNY-sor azonosítója (ezzel menthető/szerkeszthető a riport),
+    // nem a jobé — a szerkesztő mentése különben „Nem található" hibát adna.
+    const inp = (job.input_data as { input?: unknown } | null)?.input ?? null;
+    return NextResponse.json({ status: "done", report: job.report ?? "", id: job.history_id ?? null, input: inp });
   }
   if (job.status === "failed") {
     return NextResponse.json({

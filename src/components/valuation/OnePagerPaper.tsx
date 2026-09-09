@@ -25,13 +25,15 @@ function contrastText(hex: string): string {
 }
 
 export default function OnePagerPaper({
-  data, profile, photoUrl = null,
+  data, profile, photos = [],
 }: {
   data: OnePagerData;
   profile: BrandingProfile | null;
-  /** Az ingatlan fotója (a partner választja ki a feltöltöttek közül). Nincs → a hely kimarad. */
-  photoUrl?: string | null;
+  /** Az ingatlan fotói (max 2) — a lap ALJÁN, az adatok alatt jelennek meg,
+   *  egymás mellett. Üres lista → a sáv kimarad, a lap tartalma kitölti a helyet. */
+  photos?: string[];
 }) {
+  const pics = photos.filter(Boolean).slice(0, 2);
   const accent = profile && /^#[0-9a-fA-F]{6}$/.test(profile.accent_color)
     ? profile.accent_color
     : "#ef7a5a";
@@ -139,8 +141,8 @@ export default function OnePagerPaper({
 
         {/* ---------- TÖRZS ---------- */}
         <div style={{ flex: 1, padding: "30px 48px 0", display: "flex", flexDirection: "column" }}>
-          {/* Cím + ár balra; ha van fotó, jobbra egy kártya — ha nincs, a
-              cím-blokk kitölti a teljes szélességet (a hely nem marad üresen). */}
+          {/* Cím + ár — teljes szélességben (a fotók a lap alján kapnak helyet,
+              így az ár-doboz soha nem ütközik képpel). */}
           <div style={{ display: "flex", gap: 22, alignItems: "stretch" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, letterSpacing: 2.4, textTransform: "uppercase", color: muted }}>
@@ -154,7 +156,7 @@ export default function OnePagerPaper({
               {/* ---------- AZ ÁR: egyetlen szám, kiemelve ---------- */}
               <div style={{
                 marginTop: 18, borderRadius: 16, border: `2px solid ${accent}`,
-                padding: photoUrl ? "18px 22px" : "22px 26px",
+                padding: "20px 26px",
                 display: "flex", alignItems: "center", gap: 20, flexWrap: "nowrap",
               }}>
                 <div>
@@ -162,7 +164,7 @@ export default function OnePagerPaper({
                     Javasolt ár
                   </div>
                   {/* Egy sorban, a „Ft” a szám mellett marad (nowrap). */}
-                  <div style={{ fontSize: photoUrl ? 32 : 36, fontWeight: 800, color: accent, lineHeight: 1.1, marginTop: 4, whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 36, fontWeight: 800, color: accent, lineHeight: 1.1, marginTop: 4, whiteSpace: "nowrap" }}>
                     {data.price || "—"}
                   </div>
                 </div>
@@ -176,17 +178,6 @@ export default function OnePagerPaper({
                 )}
               </div>
             </div>
-
-            {photoUrl && (
-              <div style={{
-                width: 210, flexShrink: 0, borderRadius: 16, overflow: "hidden",
-                background: "#f1ece4", border: `1px solid ${line}`,
-              }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl} alt="" crossOrigin="anonymous"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </div>
-            )}
           </div>
 
           {/* ---------- KIS GRAFIKON: hol áll az ár a sávban ---------- */}
@@ -212,7 +203,7 @@ export default function OnePagerPaper({
           )}
 
           {/* ---------- KÉT OSZLOP: adatok + indoklás ---------- */}
-          <div style={{ display: "flex", gap: 28, marginTop: 26, flex: 1 }}>
+          <div style={{ display: "flex", gap: 28, marginTop: 26, flex: pics.length ? "0 0 auto" : 1 }}>
             {/* Az ingatlan adatai */}
             <div style={{ width: 300 }}>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: muted }}>
@@ -259,6 +250,27 @@ export default function OnePagerPaper({
               </div>
             </div>
           </div>
+
+          {/* ---------- FOTÓK: a lap alján, egymás mellett (max 2) ---------- */}
+          {pics.length > 0 && (
+            <div style={{
+              flex: 1, minHeight: 0, marginTop: 22, marginBottom: 18,
+              display: "flex", gap: 16,
+            }}>
+              {pics.map((url, i) => (
+                <div key={`${url}-${i}`} style={{
+                  flex: 1, minWidth: 0, borderRadius: 16, overflow: "hidden",
+                  background: "#f1ece4", border: `1px solid ${line}`,
+                  // Egy képnél is legfeljebb a rendelkezésre álló sáv magasságát foglalja.
+                  maxHeight: 250,
+                }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" crossOrigin="anonymous"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ---------- LÁBLÉC ---------- */}

@@ -24,7 +24,14 @@ export type ValuationInput = {
   // Lokációs prémium: a környék megítélése és a partner által megadott felár.
   lokacioKategoria: string;
   lokacioSzazalek: string;
+  // Megjelenés (az indító ablakban választva): melyik arculattal és milyen
+  // fotókkal készül az egyoldalas lap. Nem befolyásolja a számítást.
+  brandingProfileId?: string;
+  pagePhotos?: string[]; // max 2 kép URL-je
 };
+
+/** Az űrlap szöveges mezői (a megjelenés-beállítások nélkül). */
+export type ValuationFieldKey = Exclude<keyof ValuationInput, "brandingProfileId" | "pagePhotos">;
 
 export const EMPTY_VALUATION: ValuationInput = {
   telepules: "",
@@ -50,7 +57,7 @@ export const EMPTY_VALUATION: ValuationInput = {
 };
 
 export type ValuationField = {
-  key: keyof ValuationInput;
+  key: ValuationFieldKey;
   label: string; // a promptban is ez a címke szerepel
   placeholder: string;
   required: boolean;

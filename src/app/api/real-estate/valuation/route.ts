@@ -12,6 +12,7 @@
 // A PDF-et NEM itt készítjük: a partner előbb szerkeszti a riportot, és a
 // böngésző rendereli a végleges dokumentumot (lásd ./save).
 import { NextResponse, after } from "next/server";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
@@ -76,11 +77,20 @@ export async function POST(request: Request) {
   // fájlok, "systemUrls" a rendszerből behúzott képek URL-listája.
   let body: unknown;
   const photoImages: VisionImage[] = [];
+  // Az egyoldalas lapra szánt képek (max 2): feltöltött fájl vagy már meglévő URL.
+  const pageFiles: File[] = [];
+  const pageUrls: string[] = [];
   const contentType = request.headers.get("content-type") || "";
   try {
     if (contentType.includes("multipart/form-data")) {
       const form = await request.formData();
       body = JSON.parse(String(form.get("data") ?? "{}"));
+      for (const f of form.getAll("pageImages")) {
+        if (pageFiles.length >= 2) break;
+        if (f instanceof File && f.size > 0 && f.size <= 8_000_000) pageFiles.push(f);
+      }
+      const pu = form.get("pagePhotoUrls");
+      if (pu) for (const u of JSON.parse(String(pu)) as string[]) if (typeof u === "string" && /^https?:\/\//.test(u)) pageUrls.push(u);
       // Feltöltött fájlok → bájtok (max 5 kép).
       for (const f of form.getAll("images")) {
         if (photoImages.length >= 5) break;
@@ -111,6 +121,29 @@ export async function POST(request: Request) {
   const input = body as ValuationInput;
 
   const admin = createAdminClient();
+
+  // Megjelenés: arculat-azonosító (csak a sajátja lehet) + a lap fotói tárhelyre.
+  // Ezek NEM befolyásolják a számítást, csak az egyoldalas lap kinézetét; az
+  // előzményekből újranyitva is ugyanazzal a képpel/arculattal jön elő a lap.
+  {
+    const raw = (body as Record<string, unknown>).brandingProfileId;
+    let brandingId = typeof raw === "string" && raw ? raw : "";
+    if (brandingId) {
+      const { data: bp } = await admin.from("branding_profiles").select("id").eq("id", brandingId).eq("user_id", user.id).maybeSingle();
+      if (!bp) brandingId = "";
+    }
+    const pagePhotos: string[] = [...pageUrls];
+    for (const f of pageFiles) {
+      if (pagePhotos.length >= 2) break;
+      const ext = (f.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+      const path = `valuation-photos/${user.id}/${randomUUID()}.${ext}`;
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const { error: upErr } = await admin.storage.from("reports").upload(path, bytes, { contentType: f.type || "image/jpeg", upsert: false });
+      if (!upErr) pagePhotos.push(admin.storage.from("reports").getPublicUrl(path).data.publicUrl);
+    }
+    input.brandingProfileId = brandingId || undefined;
+    input.pagePhotos = pagePhotos.slice(0, 2);
+  }
 
   const { data: service } = await admin
     .from("services")
@@ -257,6 +290,7 @@ export async function POST(request: Request) {
         });
         await bg.from("valuation_jobs").update({
           status: "done", report: fin.report, credits_charged: fin.charged ? 1 : 0,
+          history_id: fin.id,
         }).eq("id", jobId);
       } catch (err) {
         // Hiba: a job "failed" lesz — kreditet SOHA nem vontunk le idáig.

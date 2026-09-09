@@ -7,6 +7,7 @@ import SelectField from "@/components/SelectField";
 import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 
 import ValuationEditor from "@/components/valuation/ValuationEditor";
+import ValuationStartModal, { type PagePhotoPick } from "@/components/valuation/ValuationStartModal";
 import FolderLibrary, {
   type LibraryFolder,
   type LibraryItem,
@@ -36,6 +37,7 @@ import {
   parseBaths,
   formatBaths,
   type ValuationInput,
+  type ValuationFieldKey,
 } from "@/lib/valuation";
 import NumberStepper from "@/components/NumberStepper";
 import { toDownloadUrl } from "@/lib/files";
@@ -70,6 +72,8 @@ type EditorState = {
   doc: ReportDoc;
   url: string | null;
   dateLabel: string;
+  /** A becslés bemenete (előzményből: az akkori arculat és fotók is benne vannak). */
+  facts?: Partial<ValuationInput>;
 };
 
 function historyTitle(h: HistoryItem): string {
@@ -91,6 +95,16 @@ export default function ValuationPage() {
   const [elapsed, setElapsed] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
+  // Indító ablak (arculat + fotók a laphoz) — az űrlap validálása után nyílik.
+  const [startOpen, setStartOpen] = useState(false);
+  // Munkatárs (admin/sales): a részletes riport is látszik; partnernek csak az egyoldalas lap.
+  const [staff, setStaff] = useState(false);
+  useEffect(() => {
+    fetch("/api/me/billing-state")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStaff(d?.role === "admin" || d?.role === "sales"))
+      .catch(() => {});
+  }, []);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
 
@@ -203,11 +217,14 @@ export default function ValuationPage() {
           setJobId(null);
           setLoading(false);
           if (data.report) {
+            // A mentett bemenet tartalmazza a választott arculatot és a lap fotóit is.
+            const facts = (data.input ?? values) as ValuationInput;
             setResult({
               id: data.id ?? null,
-              doc: parseValuationReport(String(data.report), values as ValuationFacts),
+              doc: parseValuationReport(String(data.report), facts as ValuationFacts),
               url: null,
               dateLabel: new Date().toLocaleDateString("hu-HU"),
+              facts,
             });
             setEditorOpen(true);
           }
@@ -252,6 +269,7 @@ export default function ValuationPage() {
       doc: parseValuationReport(h.output_text, facts),
       url: h.output_file_url,
       dateLabel: new Date(h.created_at).toLocaleDateString("hu-HU"),
+      facts: facts as Partial<ValuationInput>,
     });
     setEditorOpen(true);
   }
@@ -280,15 +298,15 @@ export default function ValuationPage() {
     return d as { folder?: LibraryFolder };
   }
 
-  function setField(key: keyof ValuationInput, value: string) {
+  function setField(key: ValuationFieldKey, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function onSubmit(e: FormEvent) {
+  // 1. lépés: az űrlap ellenőrzése, majd az indító ablak (arculat + fotók).
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setServerError(null);
     setMessage(null);
-    setResult(null);
 
     const check = validateValuationInput(values);
     setErrors(check.errors);
@@ -296,25 +314,30 @@ export default function ValuationPage() {
       setServerError("Tölts ki minden kötelező mezőt.");
       return;
     }
+    setStartOpen(true);
+  }
 
+  // A laphoz választható fotók: az űrlapon feltöltöttek + a rendszerből behúzottak.
+  const pageCandidates: PagePhotoPick[] = [
+    ...photos.map((p, i) => ({ key: `file-${i}-${p.file.name}`, preview: p.preview, file: p.file })),
+    ...photoUrls.map((u) => ({ key: `url-${u}`, preview: u, url: u })),
+  ];
+
+  // 2. lépés: tényleges beküldés a választott megjelenéssel.
+  async function startValuation(choice: { profileId: string; photos: PagePhotoPick[] }) {
+    setStartOpen(false);
+    setResult(null);
     setLoading(true);
     try {
-      // Fotóval multipart FormData, fotó nélkül a megszokott JSON (visszafelé kompatibilis).
-      const hasPhotos = photos.length > 0 || photoUrls.length > 0;
-      let res: Response;
-      if (hasPhotos) {
-        const fd = new FormData();
-        fd.append("data", JSON.stringify(values));
-        photos.forEach((p, i) => fd.append("images", p.file, `foto-${i + 1}.jpg`));
-        fd.append("systemUrls", JSON.stringify(photoUrls));
-        res = await fetch("/api/real-estate/valuation", { method: "POST", body: fd });
-      } else {
-        res = await fetch("/api/real-estate/valuation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
-        });
-      }
+      // Mindig multipart: a lap fotói (fájl vagy URL) és az arculat is ebben megy.
+      const fd = new FormData();
+      const brandingProfileId = choice.profileId || undefined;
+      fd.append("data", JSON.stringify({ ...values, brandingProfileId }));
+      photos.forEach((p, i) => fd.append("images", p.file, `foto-${i + 1}.jpg`));
+      fd.append("systemUrls", JSON.stringify(photoUrls));
+      choice.photos.forEach((p, i) => { if (p.file) fd.append("pageImages", p.file, `lap-${i + 1}.jpg`); });
+      fd.append("pagePhotoUrls", JSON.stringify(choice.photos.map((p) => p.url).filter(Boolean)));
+      const res = await fetch("/api/real-estate/valuation", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
@@ -703,6 +726,14 @@ export default function ValuationPage() {
         </p>
       </form>
 
+      <ValuationStartModal
+        open={startOpen}
+        candidates={pageCandidates}
+        busy={loading}
+        onCancel={() => setStartOpen(false)}
+        onStart={startValuation}
+      />
+
       {/* ASZINKRON állapot: folyamatjelző + nyugtató üzenet (elnavigálhat) */}
       {jobId && (
         <div className="rounded-xl p-4 text-center" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
@@ -858,10 +889,9 @@ export default function ValuationPage() {
               initialDoc={result.doc}
               initialUrl={result.url}
               dateLabel={result.dateLabel}
-              // Az egyoldalas laphoz az ingatlan adatai az űrlapról jönnek.
-              facts={values}
-              // A laphoz választható fotók: a feltöltöttek + a rendszerből behúzottak.
-              photos={[...photos.map((p) => p.preview), ...photoUrls]}
+              // Az egyoldalas laphoz az ingatlan adatai + a választott arculat és fotók.
+              facts={result.facts ?? values}
+              staff={staff}
               onDirtyChange={setEditorDirty}
               onSaved={(url) => {
                 setResult((prev) => (prev ? { ...prev, url } : prev));

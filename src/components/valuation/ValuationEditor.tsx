@@ -36,7 +36,7 @@ export default function ValuationEditor({
   dateLabel,
   initialUrl,
   facts,
-  photos,
+  staff = false,
   onSaved,
   onDirtyChange,
 }: {
@@ -46,20 +46,22 @@ export default function ValuationEditor({
   initialUrl?: string | null;
   /** Az űrlap adatai — az egyoldalas laphoz kellenek az ingatlan-jellemzők. */
   facts?: Partial<ValuationInput>;
-  /** A becsléshez feltöltött fotók URL-jei — ezekből választ a partner a laphoz. */
-  photos?: string[];
+  /** Admin/sales: a részletes (belső) riport nézet is elérhető. Partnernek csak az egyoldalas lap. */
+  staff?: boolean;
   onSaved?: (url: string) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [doc, setDoc] = useState<ReportDoc>(initialDoc);
-  // Nézet: részletes riport vagy egyoldalas, ügyfélnek adható lap.
-  const [view, setView] = useState<"full" | "one">("full");
+  // Nézet: az ügyfélnek adható egyoldalas lap (alap); a részletes riport csak
+  // a munkatársaknak (admin/sales) belső ellenőrzésre.
+  const [view, setView] = useState<"full" | "one">("one");
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
-  const [profileId, setProfileId] = useState<string>("");
+  // Az arculat az indító ablakban választott profil; "" = TWINX alapstílus.
+  const [profileId, setProfileId] = useState<string>(facts?.brandingProfileId ?? "");
   const [onePagerMode, setOnePagerMode] = useState(false);
   const onePagerRef = useRef<HTMLDivElement>(null);
-  // A lapra kerülő fotó: alapból az első feltöltött; "" = kép nélkül.
-  const [photoUrl, setPhotoUrl] = useState<string>(photos?.[0] ?? "");
+  // A lap fotói (max 2) — az indító ablakban megadva, a lap alján jelennek meg.
+  const pagePhotos = useMemo(() => (facts?.pagePhotos ?? []).slice(0, 2), [facts?.pagePhotos]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | "pdf" | "save">(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,6 @@ export default function ValuationEditor({
         if (!alive) return;
         const list: BrandingProfile[] = d.profiles ?? [];
         setProfiles(list);
-        if (list.length) setProfileId((cur) => cur || list[0].id);
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -282,9 +283,9 @@ export default function ValuationEditor({
         className="twx-card flex flex-wrap items-center gap-2 p-3"
         style={{ position: "sticky", top: 8, zIndex: 20 }}
       >
-        {/* Nézetváltó: részletes riport (belső munka) vagy egyoldalas lap (ügyfélnek). */}
-        <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
-          {(["full", "one"] as const).map((v) => (
+        {/* Nézetváltó CSAK munkatársnak: részletes riport (belső) vagy egyoldalas lap. */}
+        {staff && <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
+          {(["one", "full"] as const).map((v) => (
             <button key={v} type="button" onClick={() => setView(v)}
               className="px-3 py-1.5 text-xs font-semibold transition-colors"
               style={view === v
@@ -293,7 +294,7 @@ export default function ValuationEditor({
               {v === "full" ? "Részletes riport" : "Egyoldalas lap"}
             </button>
           ))}
-        </div>
+        </div>}
 
         {view === "one" ? (
           <>
@@ -318,28 +319,6 @@ export default function ValuationEditor({
               <a className="twx-btn-outline" href="/dashboard/branding">Arculat beállítása</a>
             )}
 
-            {/* Fotó a lapra: a feltöltöttek közül egy, vagy kép nélkül. */}
-            {photos && photos.length > 0 && (
-              <div className="flex w-full items-center gap-2 pt-1">
-                <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Fotó a lapon:</span>
-                <button type="button" onClick={() => setPhotoUrl("")}
-                  className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
-                  style={photoUrl === ""
-                    ? { background: "var(--twx-coral)", color: "#1c1005" }
-                    : { border: "1px solid var(--twx-line)", background: "#fff" }}>
-                  Kép nélkül
-                </button>
-                {photos.map((url, i) => (
-                  <button key={url} type="button" onClick={() => setPhotoUrl(url)}
-                    aria-label={`${i + 1}. fotó`}
-                    className="h-11 w-14 overflow-hidden rounded-lg"
-                    style={{ border: `2px solid ${photoUrl === url ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
           </>
         ) : (
           <>
@@ -368,6 +347,8 @@ export default function ValuationEditor({
             `Mentve ${savedAt}`
           ) : dirty ? (
             "Nem mentett módosítások"
+          ) : view === "one" ? (
+            "Ezt a lapot kapja az ügyfél — a PDF pontosan így készül"
           ) : (
             "A szakaszok a „Szerkeszt” gombbal írhatók át"
           )}
@@ -398,7 +379,7 @@ export default function ValuationEditor({
             }}
           >
             {view === "one" ? (
-              <OnePagerPaper data={onePager} profile={profile} photoUrl={photoUrl || null} />
+              <OnePagerPaper data={onePager} profile={profile} photos={pagePhotos} />
             ) : (
               <ReportPaper doc={doc} dateLabel={dateLabel} tools={tools} />
             )}
@@ -424,7 +405,7 @@ export default function ValuationEditor({
           aria-hidden
           style={{ position: "fixed", left: -20000, top: 0, zIndex: -1, background: "#fff" }}
         >
-          <OnePagerPaper data={onePager} profile={profile} photoUrl={photoUrl || null} />
+          <OnePagerPaper data={onePager} profile={profile} photos={pagePhotos} />
         </div>
       )}
     </div>
