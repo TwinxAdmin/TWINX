@@ -156,9 +156,7 @@ export async function paperToPdfBlob(
       }
     }
 
-    // @ts-ignore - a csomag a build során települ (package.json dependency)
     const html2canvas = (await import("html2canvas")).default;
-    // @ts-ignore - a csomag a build során települ (package.json dependency)
     const { jsPDF } = await import("jspdf");
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
@@ -181,6 +179,37 @@ export async function paperToPdfBlob(
   } finally {
     host.remove();
   }
+}
+
+/**
+ * EGYOLDALAS PDF: a forrás elem MÁR pontosan A4 méretű (OnePagerPaper), ezért
+ * nincs tördelés — egy képként kerül a lapra. Így garantáltan egy oldal lesz.
+ */
+export async function singlePageToPdfBlob(
+  source: HTMLElement,
+  opts: { scale?: number; quality?: number } = {}
+): Promise<Blob> {
+  const scale = opts.scale ?? 2;
+  const quality = opts.quality ?? 0.95;
+
+  if (document.fonts?.ready) await document.fonts.ready;
+
+  const html2canvas = (await import("html2canvas")).default;
+  const { jsPDF } = await import("jspdf");
+
+  const canvas = await html2canvas(source, {
+    backgroundColor: "#ffffff",
+    scale,
+    useCORS: true,
+    width: A4_W,
+    height: A4_H,
+    windowWidth: A4_W,
+    windowHeight: A4_H,
+  });
+
+  const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
+  pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_W, A4_H);
+  return pdf.output("blob") as Blob;
 }
 
 /** Blob -> base64 (data-prefix nélkül), a szerverre küldéshez. */

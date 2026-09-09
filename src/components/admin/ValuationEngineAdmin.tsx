@@ -164,10 +164,23 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
       <div style={box}>
         <div className="text-sm font-semibold">Korrekciók, realitás és kerekítés</div>
         <div className="mb-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Szorzók az állapotra és lokációra, plusz a végső korlátok.</div>
-        <NumRow label="Állapot: felújítandó" help="szorzó · alap: −12%" value={cfg.adjust.condition.felujitando} onChange={(n) => updCond({ felujitando: n })} suffix="%" />
-        <NumRow label="Állapot: közepes" help="szorzó · alap: 0%" value={cfg.adjust.condition.kozepes} onChange={(n) => updCond({ kozepes: n })} suffix="%" />
-        <NumRow label="Állapot: jó" help="szorzó · alap: +4%" value={cfg.adjust.condition.jo} onChange={(n) => updCond({ jo: n })} suffix="%" />
-        <NumRow label="Állapot: újszerű" help="szorzó · alap: +10%" value={cfg.adjust.condition.ujszeru} onChange={(n) => updCond({ ujszeru: n })} suffix="%" />
+        <NumRow label="Állapot: bontandó / szerkezetkész" help="szorzó · alap: −30%" value={cfg.adjust.condition.bontando} onChange={(n) => updCond({ bontando: n })} suffix="%" />
+        <NumRow label="Állapot: felújítandó" help="szorzó · alap: −18%" value={cfg.adjust.condition.felujitando} onChange={(n) => updCond({ felujitando: n })} suffix="%" />
+        <NumRow label="Állapot: közepes" help="viszonyítási alap · 0%" value={cfg.adjust.condition.kozepes} onChange={(n) => updCond({ kozepes: n })} suffix="%" />
+        <NumRow label="Állapot: jó" help="szorzó · alap: +6%" value={cfg.adjust.condition.jo} onChange={(n) => updCond({ jo: n })} suffix="%" />
+        <NumRow label="Állapot: újszerű / felújított" help="szorzó · alap: +14%" value={cfg.adjust.condition.ujszeru} onChange={(n) => updCond({ ujszeru: n })} suffix="%" />
+        <NumRow label="Állapot: kiváló / prémium" help="kulcsrakész új építés is · alap: +24%" value={cfg.adjust.condition.premium} onChange={(n) => updCond({ premium: n })} suffix="%" />
+        <NumRow label="Extra fürdőszoba" help="az elsőn felül, darabonként · alap: +3%" value={cfg.adjust.extra_bathroom_pct} onChange={(n) => upd("adjust", { extra_bathroom_pct: n })} suffix="%" />
+        <NumRow label="Külön WC" help="mellékhelyiség, darabonként · alap: +1,5%" value={cfg.adjust.separate_wc_pct} onChange={(n) => upd("adjust", { separate_wc_pct: n })} suffix="%" />
+        <NumRow label="Szoba-sűrűség" help="sok/kevés szoba az alapterülethez (±) · alap: 4%" value={cfg.adjust.room_density_pct} onChange={(n) => upd("adjust", { room_density_pct: n })} suffix="%" />
+        <NumRow label="Nagy terasz felára" help="az erkély alapfelárán FELÜL · alap: +3%" value={cfg.adjust.large_terrace_pct} onChange={(n) => upd("adjust", { large_terrace_pct: n })} suffix="%" />
+        <NumRow label="Nagy terasz küszöbe" help="ekkora nm felett számít nagynak · alap: 15" value={cfg.adjust.large_terrace_threshold_m2} onChange={(n) => upd("adjust", { large_terrace_threshold_m2: n })} suffix="nm" />
+        <NumRow label="Építés: 2010 után" help="alap: +5%" value={cfg.adjust.year_new_pct} onChange={(n) => upd("adjust", { year_new_pct: n })} suffix="%" />
+        <NumRow label="Építés: 1980-2010" help="alap: 0%" value={cfg.adjust.year_mid_pct} onChange={(n) => upd("adjust", { year_mid_pct: n })} suffix="%" />
+        <NumRow label="Építés: 1980 előtt" help="alap: −4%" value={cfg.adjust.year_old_pct} onChange={(n) => upd("adjust", { year_old_pct: n })} suffix="%" />
+        <NumRow label="Fűtés: korszerű" help="hőszivattyú, padlófűtés · alap: +4%" value={cfg.adjust.heating_modern_pct} onChange={(n) => upd("adjust", { heating_modern_pct: n })} suffix="%" />
+        <NumRow label="Fűtés: konvektor / elektromos" help="alap: −4%" value={cfg.adjust.heating_convector_pct} onChange={(n) => upd("adjust", { heating_convector_pct: n })} suffix="%" />
+        <NumRow label="Fűtés: távfűtés átalánydíjas" help="nem mérhető fogyasztás · alap: −3%" value={cfg.adjust.heating_district_flat_pct} onChange={(n) => upd("adjust", { heating_district_flat_pct: n })} suffix="%" />
         <NumRow label="Lokációs prémium (globális)" help="mikro-lokáció felár/diszkont · alap: 0%" value={cfg.adjust.location_premium_pct} onChange={(n) => upd("adjust", { location_premium_pct: n })} suffix="%" />
         <NumRow label="Földszint" help="földszint / magasföldszint · alap: −3%" value={cfg.adjust.floor_ground_pct} onChange={(n) => upd("adjust", { floor_ground_pct: n })} suffix="%" />
         <NumRow label="Szuterén / alagsor" help="a földszint HELYETT érvényes, erős diszkont · alap: −20%" value={cfg.adjust.floor_basement_pct} onChange={(n) => upd("adjust", { floor_basement_pct: n })} suffix="%" />

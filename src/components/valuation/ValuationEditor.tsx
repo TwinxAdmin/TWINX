@@ -5,7 +5,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReportPaper, { PAPER_WIDTH } from "@/components/valuation/ReportPaper";
-import { paperToPdfBlob, blobToBase64 } from "@/lib/report-pdf-client";
+import OnePagerPaper, { ONEPAGER_W } from "@/components/valuation/OnePagerPaper";
+import { paperToPdfBlob, singlePageToPdfBlob, blobToBase64 } from "@/lib/report-pdf-client";
+import { buildOnePager } from "@/lib/valuation-onepager";
+import type { BrandingProfile } from "@/lib/branding";
+import type { ValuationInput } from "@/lib/valuation";
 import {
   addSection,
   moveSection,
@@ -31,6 +35,8 @@ export default function ValuationEditor({
   initialDoc,
   dateLabel,
   initialUrl,
+  facts,
+  photos,
   onSaved,
   onDirtyChange,
 }: {
@@ -38,10 +44,22 @@ export default function ValuationEditor({
   initialDoc: ReportDoc;
   dateLabel: string;
   initialUrl?: string | null;
+  /** Az űrlap adatai — az egyoldalas laphoz kellenek az ingatlan-jellemzők. */
+  facts?: Partial<ValuationInput>;
+  /** A becsléshez feltöltött fotók URL-jei — ezekből választ a partner a laphoz. */
+  photos?: string[];
   onSaved?: (url: string) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [doc, setDoc] = useState<ReportDoc>(initialDoc);
+  // Nézet: részletes riport vagy egyoldalas, ügyfélnek adható lap.
+  const [view, setView] = useState<"full" | "one">("full");
+  const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
+  const [profileId, setProfileId] = useState<string>("");
+  const [onePagerMode, setOnePagerMode] = useState(false);
+  const onePagerRef = useRef<HTMLDivElement>(null);
+  // A lapra kerülő fotó: alapból az első feltöltött; "" = kép nélkül.
+  const [photoUrl, setPhotoUrl] = useState<string>(photos?.[0] ?? "");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | "pdf" | "save">(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +82,28 @@ export default function ValuationEditor({
   const [paperHeight, setPaperHeight] = useState(0);
 
   useEffect(() => setDoc(initialDoc), [initialDoc]);
+
+  // Arculat-profilok betöltése: az egyoldalas lap ezekkel kap logót, színt,
+  // betűtípust és elérhetőséget. Hiba esetén marad a TWINX alapstílus.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/branding")
+      .then((r) => (r.ok ? r.json() : { profiles: [] }))
+      .then((d) => {
+        if (!alive) return;
+        const list: BrandingProfile[] = d.profiles ?? [];
+        setProfiles(list);
+        if (list.length) setProfileId((cur) => cur || list[0].id);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const profile = profiles.find((p) => p.id === profileId) ?? null;
+  const onePager = useMemo(
+    () => buildOnePager(doc, facts ?? {}, dateLabel),
+    [doc, facts, dateLabel]
+  );
 
   // A lap A4 szélességű; a nézetben arányosan kicsinyítjük a rendelkezésre álló helyre.
   useEffect(() => {
@@ -155,6 +195,36 @@ export default function ValuationEditor({
     }
   }
 
+  /** Az EGYOLDALAS, arculatos lap letöltése — ezt kapja kézhez az ügyfél. */
+  async function onDownloadOnePager() {
+    setError(null);
+    setBusy("pdf");
+    setOnePagerMode(true);
+    try {
+      await nextPaint();
+      // A betűtípus a hálózatról jön (Google Fonts) — várjuk meg, különben
+      // fallback-fonttal égne bele a PDF-be.
+      if (document.fonts?.ready) await document.fonts.ready;
+      const node = onePagerRef.current?.querySelector("[data-onepager]") as HTMLElement | null;
+      if (!node) throw new Error("A lap nem renderelhető.");
+      const blob = await singlePageToPdfBlob(node);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const base = (doc.title || "ertekbecsles").replace(/[^\w\-áéíóöőúüűÁÉÍÓÖŐÚÜŰ ]+/g, "").trim();
+      a.href = url;
+      a.download = `${base || "ertekbecsles"}-egyoldalas.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) {
+      setError((e as Error).message || "A PDF készítése nem sikerült.");
+    } finally {
+      setOnePagerMode(false);
+      setBusy(null);
+    }
+  }
+
   async function onSave() {
     if (!historyId) {
       setError("Ehhez a becsléshez nem tartozik előzmény-azonosító.");
@@ -212,21 +282,84 @@ export default function ValuationEditor({
         className="twx-card flex flex-wrap items-center gap-2 p-3"
         style={{ position: "sticky", top: 8, zIndex: 20 }}
       >
-        <button type="button" className="twx-btn" disabled={busy !== null} onClick={onSave}>
-          {busy === "save" ? "Mentés…" : "Mentés + PDF frissítése"}
-        </button>
-        <button
-          type="button"
-          className="twx-btn-outline"
-          disabled={busy !== null}
-          onClick={onDownload}
-        >
-          {busy === "pdf" ? "PDF készül…" : "PDF letöltése"}
-        </button>
-        {pdfUrl && (
-          <a className="twx-btn-outline" href={pdfUrl} target="_blank" rel="noreferrer">
-            Mentett PDF megnyitása
-          </a>
+        {/* Nézetváltó: részletes riport (belső munka) vagy egyoldalas lap (ügyfélnek). */}
+        <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--twx-line)" }}>
+          {(["full", "one"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              className="px-3 py-1.5 text-xs font-semibold transition-colors"
+              style={view === v
+                ? { background: "var(--twx-coral)", color: "#1c1005" }
+                : { background: "#fff", color: "var(--twx-ink-muted)" }}>
+              {v === "full" ? "Részletes riport" : "Egyoldalas lap"}
+            </button>
+          ))}
+        </div>
+
+        {view === "one" ? (
+          <>
+            {profiles.length > 0 && (
+              <select
+                value={profileId}
+                onChange={(e) => setProfileId(e.target.value)}
+                aria-label="Arculat"
+                className="rounded-lg px-3 py-1.5 text-xs"
+                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}
+              >
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label || p.display_name || "Arculat"}</option>
+                ))}
+                <option value="">TWINX alapstílus</option>
+              </select>
+            )}
+            <button type="button" className="twx-btn" disabled={busy !== null} onClick={onDownloadOnePager}>
+              {busy === "pdf" ? "PDF készül…" : "Egyoldalas PDF letöltése"}
+            </button>
+            {profiles.length === 0 && (
+              <a className="twx-btn-outline" href="/dashboard/branding">Arculat beállítása</a>
+            )}
+
+            {/* Fotó a lapra: a feltöltöttek közül egy, vagy kép nélkül. */}
+            {photos && photos.length > 0 && (
+              <div className="flex w-full items-center gap-2 pt-1">
+                <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Fotó a lapon:</span>
+                <button type="button" onClick={() => setPhotoUrl("")}
+                  className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium"
+                  style={photoUrl === ""
+                    ? { background: "var(--twx-coral)", color: "#1c1005" }
+                    : { border: "1px solid var(--twx-line)", background: "#fff" }}>
+                  Kép nélkül
+                </button>
+                {photos.map((url, i) => (
+                  <button key={url} type="button" onClick={() => setPhotoUrl(url)}
+                    aria-label={`${i + 1}. fotó`}
+                    className="h-11 w-14 overflow-hidden rounded-lg"
+                    style={{ border: `2px solid ${photoUrl === url ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <button type="button" className="twx-btn" disabled={busy !== null} onClick={onSave}>
+              {busy === "save" ? "Mentés…" : "Mentés + PDF frissítése"}
+            </button>
+            <button
+              type="button"
+              className="twx-btn-outline"
+              disabled={busy !== null}
+              onClick={onDownload}
+            >
+              {busy === "pdf" ? "PDF készül…" : "PDF letöltése"}
+            </button>
+            {pdfUrl && (
+              <a className="twx-btn-outline" href={pdfUrl} target="_blank" rel="noreferrer">
+                Mentett PDF megnyitása
+              </a>
+            )}
+          </>
         )}
         <span className="ml-auto text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           {error ? (
@@ -257,14 +390,18 @@ export default function ValuationEditor({
             style={{
               transform: `scale(${scale})`,
               transformOrigin: "top left",
-              width: PAPER_WIDTH,
+              width: view === "one" ? ONEPAGER_W : PAPER_WIDTH,
               boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
               position: "absolute",
               top: 0,
               left: 0,
             }}
           >
-            <ReportPaper doc={doc} dateLabel={dateLabel} tools={tools} />
+            {view === "one" ? (
+              <OnePagerPaper data={onePager} profile={profile} photoUrl={photoUrl || null} />
+            ) : (
+              <ReportPaper doc={doc} dateLabel={dateLabel} tools={tools} />
+            )}
           </div>
         </div>
       </div>
@@ -277,6 +414,17 @@ export default function ValuationEditor({
           style={{ position: "fixed", left: -20000, top: 0, zIndex: -1, background: "#fff" }}
         >
           <ReportPaper doc={doc} dateLabel={dateLabel} forPdf />
+        </div>
+      )}
+
+      {/* Ugyanez az egyoldalas laphoz (teljes méretben, nem kicsinyítve) */}
+      {onePagerMode && (
+        <div
+          ref={onePagerRef}
+          aria-hidden
+          style={{ position: "fixed", left: -20000, top: 0, zIndex: -1, background: "#fff" }}
+        >
+          <OnePagerPaper data={onePager} profile={profile} photoUrl={photoUrl || null} />
         </div>
       )}
     </div>

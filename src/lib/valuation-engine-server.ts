@@ -5,9 +5,9 @@
 // - a ValuationInput → Subject leképezés,
 // - a motor eredményéből szerkeszthető (a riport-parserrel kompatibilis) markdown.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { type ValuationInput } from "@/lib/valuation";
+import { type ValuationInput, parseRooms, parseBaths } from "@/lib/valuation";
 import {
-  DEFAULT_ENGINE_CONFIG, conditionKey, computeValuation, normalizeComps,
+  DEFAULT_ENGINE_CONFIG, conditionKey,
   type EngineConfig, type RawComp, type Subject, type EngineResult,
 } from "@/lib/valuation-engine";
 
@@ -21,6 +21,8 @@ export function mergeConfig(p: Partial<EngineConfig> | undefined | null): Engine
     outlier: { ...d.outlier, ...q.outlier },
     central: { ...d.central, ...q.central },
     adjust: {
+      ...d.adjust,
+      ...q.adjust,
       condition: { ...d.adjust.condition, ...q.adjust?.condition },
       location_premium_pct: q.adjust?.location_premium_pct ?? d.adjust.location_premium_pct,
       floor_ground_pct: q.adjust?.floor_ground_pct ?? d.adjust.floor_ground_pct,
@@ -135,7 +137,29 @@ export function isBasementFloor(emelet: string): boolean {
   return /szuter[ée]n|alagsor|souterrain/i.test(String(emelet ?? ""));
 }
 
+/** Építés éve a szöveges opcióból: „2020 után", „1990-es évek", „1950 előtt". */
+function parseBuildYear(text: string | undefined): number | null {
+  const s = String(text ?? "");
+  const m = s.match(/\d{4}/);
+  if (!m) return null;
+  const y = Number(m[0]);
+  return y >= 1800 && y <= 2100 ? y : null;
+}
+
+/** Fűtés-szöveg → korrekciós besorolás. */
+function heatingKeyOf(text: string | undefined): Subject["heatingKey"] {
+  const t = String(text ?? "").toLowerCase();
+  if (/hőszivatty|hoszivatty|padlófűt|padlofut|napelem/.test(t)) return "modern";
+  if (/konvektor|fűtőpanel|futopanel|infra|elektromos/.test(t)) return "konvektor";
+  if (/átalány|atalany/.test(t)) return "tavfutes_atalany";
+  return "atlagos";
+}
+
 export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Subject {
+  // A helyiség-adatok szövegként tárolódnak („3 + 1 fél szoba"), ezért itt
+  // bontjuk vissza számokra a motor számára.
+  const rooms = parseRooms(input.szobak);
+  const baths = parseBaths(input.furdok);
   return {
     sizeM2: parseSize(input.meret),
     conditionKey: conditionKey(input.allapot),
@@ -147,6 +171,15 @@ export function buildSubject(input: ValuationInput, photoCorrectionPct = 0): Sub
     isBasement: isBasementFloor(input.emelet),
     hasLift: input.lift === "igen",
     hasBalcony: input.erkely === "igen",
+    rooms: rooms.full,
+    halfRooms: rooms.half,
+    bathrooms: baths.bath,
+    separateWcs: baths.wc,
+    balconyM2: input.erkely === "igen"
+      ? Number(String(input.erkelyMeret ?? "").replace(",", ".").replace(/[^\d.]/g, "")) || 0
+      : 0,
+    buildYear: parseBuildYear(input.epitesEve),
+    heatingKey: heatingKeyOf(input.futes),
   };
 }
 
@@ -155,17 +188,33 @@ export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): stri
   const size = parseSize(input.meret);
   const hely = [input.telepules, input.utca].filter(Boolean).join(", ");
   const want = Math.max(cfg.comp.min_count + 8, 15);
+
+  // A vizsgált ingatlan JELLEMZŐI — ezek eddig nem jutottak el a keresésbe,
+  // pedig ezek döntik el, mi számít valóban hasonló ingatlannak.
+  const jellemzok = [
+    `típus: ${input.tipus || "lakás"}`,
+    `alapterület: kb. ${size} m²`,
+    input.szobak ? `szobák: ${input.szobak}` : "",
+    input.furdok ? `fürdő/WC: ${input.furdok}` : "",
+    input.emelet ? `emelet: ${input.emelet}` : "",
+    input.epitesEve ? `építés éve: ${input.epitesEve}` : "",
+    input.allapot ? `állapot: ${input.allapot}` : "",
+  ].filter(Boolean).join(" · ");
+
   return [
     "Te egy magyar ingatlanpiaci adatgyűjtő vagy. NE becsülj árat, NE írj elemzést, NE kommentálj.",
     `Gyűjts össze LEGALÁBB ${want} db, jelenleg ELADÓ vagy nemrég eladott, a megadotthoz HASONLÓ ingatlant erről a környékről: ${hely}.`,
-    `A vizsgált ingatlan: ${input.tipus || "lakás"}, kb. ${size} m², ${input.szobak || "?"} szoba.`,
+    `A vizsgált ingatlan — ${jellemzok}.`,
     "CSAK FRISS adatot használj: kizárólag az ELMÚLT 12 HÓNAP eladó/eladott hirdetéseit. Régebbi (pl. 1 évnél idősebb) forrást, cikket, archív adatot NE vegyél be.",
     "Hasonló = ugyanaz a kerület vagy közvetlen szomszédos utcák, hasonló méret (akár ±40% is jó, hogy legyen elég találat), azonos vagy hasonló típus.",
+    "A találatok között LEGYEN VEGYES az állapot (felújítandó, közepes, jó, újszerű, prémium is) — ne csak az egyik véglet, mert azzal torzul a piaci kép.",
     "MINDEN comphoz KÖTELEZŐ a valós alapterület (size_m2) ÉS a teljes ár (price_huf) — e nélkül ne vedd bele. A price_per_m2-t számold ki, ha nincs megadva.",
+    "A 'condition' mezőt MINDIG töltsd ki a hirdetés alapján, ezekből az egyikkel: bontandó / felújítandó / közepes / jó / újszerű / felújított / prémium. Ez KÖTELEZŐ, mert ez alapján számoljuk vissza az árakat közös alapra.",
+    "A 'rooms' mezőbe a szobaszámot írd (pl. \"3\" vagy \"2+1 fél\"), a 'bathrooms' mezőbe a fürdőszobák számát, a 'year' mezőbe az építés évét (ha ismert).",
     "A 'district' mezőbe a kerület SZÁMÁT írd (pl. \"13\" vagy \"XIII\"). A 'listing_date' formátuma YYYY-MM.",
     "Legalább 8-10 KONKRÉT, valós hirdetést/eladást adj vissza forrás-URL-lel. Inkább több comp, mint kevesebb.",
     "A válaszod KIZÁRÓLAG egyetlen JSON objektum legyen, más szöveg nélkül:",
-    `{"comps":[{"address":"","district":"","size_m2":0,"price_huf":0,"price_per_m2":0,"rooms":"","condition":"","floor":"","listing_date":"YYYY-MM","url":"","distance_note":""}],"notes":""}`,
+    `{"comps":[{"address":"","district":"","size_m2":0,"price_huf":0,"price_per_m2":0,"rooms":"","bathrooms":"","year":"","condition":"","floor":"","listing_date":"YYYY-MM","url":"","distance_note":""}],"notes":""}`,
   ].join("\n");
 }
 

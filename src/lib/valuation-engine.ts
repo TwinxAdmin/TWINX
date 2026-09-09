@@ -10,7 +10,34 @@ export type EngineConfig = {
   outlier: { method: "median_band" | "iqr" | "mad"; band_pct: number; min_kept: number };
   central: { method: "median" | "weighted" };
   adjust: {
-    condition: { felujitando: number; kozepes: number; jo: number; ujszeru: number };
+    condition: {
+      bontando: number;    // bontandó / szerkezetkész — a legnagyobb diszkont
+      felujitando: number; // felújítandó
+      kozepes: number;     // közepes (viszonyítási alap: 0%)
+      jo: number;          // jó, azonnal költözhető
+      ujszeru: number;     // újszerű / felújított
+      premium: number;     // kiváló, prémium, új építésű kulcsrakész
+    };
+    /** A comp-ok nm-árát visszaszámoljuk „közepes" állapotra, mielőtt mediánt veszünk. */
+    normalize_comps_by_condition: boolean;
+    /** Extra fürdőszoba (az elsőn felül) felára. */
+    extra_bathroom_pct: number;
+    /** Külön WC (mellékhelyiség) felára, darabonként. */
+    separate_wc_pct: number;
+    /** Szoba-sűrűség: ha az adott m²-hez sok/kevés a szoba, ennyivel korrigálunk (±). */
+    room_density_pct: number;
+    /** Nagy terasz (a küszöb feletti nm) felára — az erkély alapfelárán FELÜL. */
+    large_terrace_pct: number;
+    /** Ekkora nm felett számít nagy terasznak. */
+    large_terrace_threshold_m2: number;
+    /** Építési év szerinti korrekció. */
+    year_new_pct: number;      // 2010 után
+    year_mid_pct: number;      // 1980-2010
+    year_old_pct: number;      // 1980 előtt
+    /** Fűtés / energetika szerinti korrekció. */
+    heating_modern_pct: number;      // hőszivattyú, padlófűtés
+    heating_convector_pct: number;   // gázkonvektor, elektromos fűtőpanel
+    heating_district_flat_pct: number; // távfűtés átalánydíjas (nem mérhető)
     location_premium_pct: number;
     floor_ground_pct: number;      // földszint (jellemzően diszkont)
     floor_basement_pct: number;    // SZUTERÉN / alagsor (erős diszkont, a földszint HELYETT)
@@ -30,7 +57,18 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   outlier: { method: "median_band", band_pct: 25, min_kept: 4 },
   central: { method: "median" },
   adjust: {
-    condition: { felujitando: -12, kozepes: 0, jo: 4, ujszeru: 10 },
+    // Állapot-szorzók. A magyar piacon a felújítandó és a prémium ingatlan
+    // között jellemzően 35-50% a különbség — a korábbi −12…+10 sáv ehhez képest
+    // túl szűk volt, ezért a prémium alig kapott többet a közepesnél.
+    condition: { bontando: -30, felujitando: -18, kozepes: 0, jo: 6, ujszeru: 14, premium: 24 },
+    normalize_comps_by_condition: true,
+    extra_bathroom_pct: 3,
+    separate_wc_pct: 1.5,
+    room_density_pct: 4,
+    large_terrace_pct: 3,
+    large_terrace_threshold_m2: 15,
+    year_new_pct: 5, year_mid_pct: 0, year_old_pct: -4,
+    heating_modern_pct: 4, heating_convector_pct: -4, heating_district_flat_pct: -3,
     location_premium_pct: 0,
     floor_ground_pct: -3, floor_basement_pct: -20, floor_high_nolift_pct: -5, lift_pct: 2, balcony_pct: 3,
   },
@@ -52,7 +90,7 @@ export type Comp = {
   rooms: string; condition: string; url: string; distanceNote: string; ageMonths: number | null;
 };
 
-export type ConditionKey = "felujitando" | "kozepes" | "jo" | "ujszeru";
+export type ConditionKey = "bontando" | "felujitando" | "kozepes" | "jo" | "ujszeru" | "premium";
 
 export type Subject = {
   sizeM2: number;
@@ -65,9 +103,28 @@ export type Subject = {
   isBasement: boolean;        // szuterén / alagsor — a földszintnél lényegesen rosszabb
   hasLift: boolean;
   hasBalcony: boolean;
+  // --- Az űrlapon pontosan megadott helyiség- és műszaki adatok ---
+  rooms: number;              // egész szobák
+  halfRooms: number;          // fél szobák
+  bathrooms: number;          // fürdőszobák
+  separateWcs: number;        // külön WC-k
+  balconyM2: number;          // erkély / terasz mérete (0 = nincs megadva)
+  buildYear: number | null;   // építés éve (közelítés a szövegből)
+  heatingKey: HeatingKey;     // fűtés / energetika besorolás
 };
 
-export type CompRow = Comp & { kept: boolean; reason: string; weight: number };
+/** Fűtés-besorolás a korrekcióhoz. */
+export type HeatingKey = "modern" | "atlagos" | "konvektor" | "tavfutes_atalany";
+
+export type CompRow = Comp & {
+  kept: boolean;
+  reason: string;
+  weight: number;
+  /** „Közepes" állapotra visszaszámolt nm-ár (ebből képezzük a mediánt). */
+  normalizedPricePerM2?: number;
+  /** A comp saját állapot-besorolása, ha felismerhető volt. */
+  conditionKey?: ConditionKey;
+};
 export type AdjustStep = { label: string; deltaPct: number; deltaHuf: number };
 
 export type EngineResult = {
@@ -120,12 +177,36 @@ export function districtNum(s: string): number {
   return 0;
 }
 
-/** allapot / condition szöveg → config-kulcs. */
+/**
+ * allapot / condition szöveg → config-kulcs.
+ *
+ * A SORREND kritikus. Korábban a „felúj" minta előbb futott, ezért az
+ * „Újszerű (pár éve épült/FELÚJÍTOTT)" tévesen felújítandónak számított, és
+ * levonást kapott felár helyett. Ezért előbb a rossz állapotot azonosítjuk
+ * PONTOS szóalakkal (felújítandó, nem felújított), és csak utána a jókat.
+ */
 export function conditionKey(text: string | undefined): ConditionKey {
   const t = (text ?? "").toLowerCase();
-  if (/felúj|feluj|rossz|bont/.test(t)) return "felujitando";
-  if (/újszer|ujszer|új épít|uj epit|kiváló|kivalo|kitűn|kitun|prémium|premium/.test(t)) return "ujszeru";
-  if (/\bjó\b|\bjo\b|szép|szep|rendezett/.test(t)) return "jo";
+
+  // 1) Legrosszabb: bontandó, illetve a befejezetlen szerkezetkész/félkész.
+  if (/bontand|átépítend|atepitend|szerkezetkész|szerkezetkesz|félkész|felkesz/.test(t)) return "bontando";
+
+  // 2) Felújítandó / rossz állapotú — a „felújított" NEM ide tartozik.
+  if (/felúj[íi]tand|feluj[íi]tand|rossz állapot|rossz allapot|lelakott|korszerűsítend|korszerusitend/.test(t)) {
+    return "felujitando";
+  }
+
+  // 3) Csúcskategória: prémium, kiváló, kulcsrakész új építés.
+  if (/prémium|premium|kiváló|kivalo|kitűn|kitun|luxus|kulcsrakész|kulcsrakesz|új épít|uj epit/.test(t)) {
+    return "premium";
+  }
+
+  // 4) Újszerű / felújított.
+  if (/újszer|ujszer|felúj[íi]tott|feluj[íi]tott|megújult|megujult/.test(t)) return "ujszeru";
+
+  // 5) Jó, azonnal költözhető.
+  if (/\bjó\b|\bjo\b|szép|szep|rendezett|azonnal költözhet|azonnal koltozhet/.test(t)) return "jo";
+
   return "kozepes";
 }
 
@@ -229,16 +310,43 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
   }
   const lowConfidence = pool.length < cfg.fallback.min_comps_for_engine;
 
-  // 3) Központi Ft/m² (medián vagy méret-súlyozott).
+  // 2b) ÁLLAPOT-NORMALIZÁLÁS. A comp-ok saját állapota eddig figyelmen kívül
+  //     maradt: ha a találatok többsége felújítandó volt, az alacsony bázisra
+  //     jött rá a mi ingatlanunk felára, és a prémium lakás is alulárazott lett.
+  //     Ezért minden comp nm-árát visszaszámoljuk „közepes" állapotra, és a
+  //     mediánt már ebből képezzük — így a bázis állapot-semleges.
+  if (cfg.adjust.normalize_comps_by_condition) {
+    for (const r of pool) {
+      const key = conditionKey(r.condition);
+      const pct = cfg.adjust.condition[key] ?? 0;
+      if (!r.condition || !pct) { r.normalizedPricePerM2 = r.pricePerM2; continue; }
+      // Ha a comp pl. felújítandó (−18%), akkor a közepes szintje magasabb:
+      // normalizált = ár / (1 + pct/100).
+      r.normalizedPricePerM2 = r.pricePerM2 / (1 + pct / 100);
+      r.conditionKey = key;
+    }
+  } else {
+    for (const r of pool) r.normalizedPricePerM2 = r.pricePerM2;
+  }
+  const priceOf = (r: CompRow) => r.normalizedPricePerM2 ?? r.pricePerM2;
+
+  // 3) Központi Ft/m² (medián vagy méret-súlyozott) — a NORMALIZÁLT árakból.
   let central: number;
   if (cfg.central.method === "weighted") {
     const weights = pool.map((r) => 1 / (1 + Math.abs(r.sizeM2 - subject.sizeM2) / Math.max(1, subject.sizeM2)));
     const wsum = weights.reduce((a, b) => a + b, 0) || 1;
     pool.forEach((r, i) => (r.weight = weights[i] / wsum));
-    central = pool.reduce((a, r, i) => a + r.pricePerM2 * weights[i], 0) / wsum;
+    central = pool.reduce((a, r, i) => a + priceOf(r) * weights[i], 0) / wsum;
   } else {
-    central = median(pool.map((r) => r.pricePerM2));
+    central = median(pool.map((r) => priceOf(r)));
     pool.forEach((r) => (r.weight = 1 / pool.length));
+  }
+  if (cfg.adjust.normalize_comps_by_condition && pool.some((r) => r.conditionKey)) {
+    steps.push({
+      label: "Comp-ok állapot-normalizálása (közepes szintre)",
+      deltaPct: 0,
+      deltaHuf: 0,
+    });
   }
 
   // 4) Nyers érték.
@@ -262,6 +370,60 @@ export function computeValuation(rawComps: RawComp[], subject: Subject, cfg: Eng
     // A levezetésben külön nevesítjük a szuterént, hogy a partner is lássa, miért alacsonyabb.
     const label = subject.isBasement ? "Szuterén / alagsor + lift / erkély" : "Emelet / lift / erkély";
     steps.push({ label, deltaPct: flPct, deltaHuf: Math.round(value - before) });
+  }
+
+  // 5c) HELYISÉGEK (hard) — az űrlapon pontosan megadott szoba/fürdő/WC/terasz.
+  //     Eddig ezek az adatok csak a riport szövegébe kerültek, az árba nem.
+  let roomPct = 0;
+  const roomNotes: string[] = [];
+  // Extra fürdőszoba (az elsőn felül) és külön WC.
+  if (subject.bathrooms > 1) {
+    const p = (subject.bathrooms - 1) * cfg.adjust.extra_bathroom_pct;
+    roomPct += p; roomNotes.push(`+${subject.bathrooms - 1} fürdő`);
+  }
+  if (subject.separateWcs > 0) {
+    roomPct += subject.separateWcs * cfg.adjust.separate_wc_pct;
+    roomNotes.push(`${subject.separateWcs} külön WC`);
+  }
+  // Szoba-sűrűség: a fél szoba fél súllyal. Az elvárt szobaszám kb. 25 m²/szoba.
+  const effRooms = subject.rooms + subject.halfRooms * 0.5;
+  if (effRooms > 0 && subject.sizeM2 > 0) {
+    const expected = subject.sizeM2 / 25;
+    const diff = effRooms - expected;
+    // Csak érdemi eltérésnél korrigálunk (±0,7 szoba felett), max ±1 lépés.
+    if (Math.abs(diff) >= 0.7) {
+      const dir = diff > 0 ? 1 : -1;
+      roomPct += dir * cfg.adjust.room_density_pct;
+      roomNotes.push(diff > 0 ? "jó szobaszám" : "kevés szoba a méretéhez");
+    }
+  }
+  // Nagy terasz: az erkély alapfelárán FELÜL, ha a megadott méret nagy.
+  if (subject.balconyM2 >= cfg.adjust.large_terrace_threshold_m2) {
+    roomPct += cfg.adjust.large_terrace_pct;
+    roomNotes.push(`nagy terasz (${subject.balconyM2} nm)`);
+  }
+  if (roomPct) {
+    const before = value; value *= 1 + roomPct / 100;
+    steps.push({ label: `Helyiségek (${roomNotes.join(", ")})`, deltaPct: roomPct, deltaHuf: Math.round(value - before) });
+  }
+
+  // 5d) ÉPÍTÉS ÉVE + FŰTÉS (hard) — korszerűség és rezsi.
+  let techPct = 0;
+  const techNotes: string[] = [];
+  if (subject.buildYear) {
+    const y = subject.buildYear;
+    const p = y >= 2010 ? cfg.adjust.year_new_pct : y >= 1980 ? cfg.adjust.year_mid_pct : cfg.adjust.year_old_pct;
+    if (p) { techPct += p; techNotes.push(`építés ${y}`); }
+  }
+  const heatPct =
+    subject.heatingKey === "modern" ? cfg.adjust.heating_modern_pct
+      : subject.heatingKey === "konvektor" ? cfg.adjust.heating_convector_pct
+        : subject.heatingKey === "tavfutes_atalany" ? cfg.adjust.heating_district_flat_pct
+          : 0;
+  if (heatPct) { techPct += heatPct; techNotes.push("fűtés"); }
+  if (techPct) {
+    const before = value; value *= 1 + techPct / 100;
+    steps.push({ label: `Korszerűség (${techNotes.join(", ")})`, deltaPct: techPct, deltaHuf: Math.round(value - before) });
   }
 
   // 6) Soft korrekció: lokációs prémium (partner + globális) + fotó, ±plafonnal.

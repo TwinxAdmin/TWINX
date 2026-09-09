@@ -12,6 +12,7 @@ export type ValuationInput = {
   emelet: string;  // hányadik emeleten van a lakás
   lift: string;    // "igen" = van lift, "" = nincs (checkbox)
   erkely: string;  // "igen" = van erkély/terasz, "" = nincs (checkbox)
+  erkelyMeret: string; // az erkély/terasz mérete nm-ben (csak ha van erkély)
   szobak: string;
   furdok: string;
   epitesEve: string;
@@ -35,6 +36,7 @@ export const EMPTY_VALUATION: ValuationInput = {
   emelet: "",
   lift: "",
   erkely: "",
+  erkelyMeret: "",
   szobak: "",
   furdok: "",
   epitesEve: "",
@@ -144,6 +146,57 @@ export const ROOM_OPTIONS = [
 ];
 
 // Fürdőszobák / mellékhelyiségek.
+/**
+ * Szobaszám oda-vissza alakítása. A `szobak` mező a promptban és a riportban
+ * SZÖVEG marad („3 + 1 fél szoba"), az űrlapon viszont két számláló állítja.
+ * Így a régi, listából választott értékek is visszaolvashatók.
+ */
+export function parseRooms(raw: string | undefined): { full: number; half: number } {
+  const s = String(raw ?? "").trim();
+  if (!s) return { full: 0, half: 0 };
+  const nums = s.match(/\d+/g) ?? [];
+  const full = Number(nums[0] ?? 0);
+  // Fél szoba csak akkor van, ha a szöveg is említi (a „2 fürdőszoba" nem az).
+  const half = /f[ée]l/i.test(s) ? Number(nums[1] ?? 1) : 0;
+  return {
+    full: Number.isFinite(full) ? full : 0,
+    half: Number.isFinite(half) ? half : 0,
+  };
+}
+
+/** A két számlálóból a mentendő szöveg. */
+export function formatRooms(full: number, half: number): string {
+  if (full <= 0 && half <= 0) return "";
+  if (half <= 0) return `${full} szoba`;
+  if (full <= 0) return `${half} fél szoba`;
+  return `${full} + ${half} fél szoba`;
+}
+
+/**
+ * Fürdőszoba és külön WC (mellékhelyiség) darabszáma. Ugyanaz az elv, mint a
+ * szobáknál: a mentett érték szöveg marad, hogy a régi becslések is nyithatók
+ * legyenek („1 fürdőszoba + külön WC", „2 fürdőszoba", „1 fürdőszoba (WC-vel egyben)").
+ */
+export function parseBaths(raw: string | undefined): { bath: number; wc: number } {
+  const s = String(raw ?? "").trim();
+  if (!s) return { bath: 0, wc: 0 };
+  const nums = (s.match(/\d+/g) ?? []).map(Number);
+  const bath = Number.isFinite(nums[0]) ? nums[0] : 0;
+  // „WC-vel egyben" = nincs külön mellékhelyiség.
+  const hasSeparateWc = /wc/i.test(s) && !/egyben/i.test(s);
+  const wc = hasSeparateWc ? (Number.isFinite(nums[1]) ? nums[1] : 1) : 0;
+  return { bath, wc };
+}
+
+/** A két számlálóból a mentendő szöveg. */
+export function formatBaths(bath: number, wc: number): string {
+  if (bath <= 0 && wc <= 0) return "";
+  const parts: string[] = [];
+  if (bath > 0) parts.push(`${bath} fürdőszoba`);
+  if (wc > 0) parts.push(`${wc} külön WC`);
+  return parts.join(" + ");
+}
+
 export const BATHROOM_OPTIONS = [
   "1 fürdőszoba (WC-vel egyben)",
   "1 fürdőszoba + külön WC",
@@ -163,20 +216,31 @@ export const CONDITION_OPTIONS = [
   "Bontandó / Teljesen átépítendő",
 ];
 
-// --- Lokációs prémium korrekció -------------------------------------------
-// A környék megítélése felfelé módosíthatja a piaci átlagárat. A kategóriát ÉS a
-// százalékot is a partner adja meg — ő ismeri a mikrolokációt, nem a modell.
+// --- Lokációs korrekció ----------------------------------------------------
+// A környék megítélése FEL és LE is módosíthatja a piaci átlagárat. A kategóriát
+// ÉS a százalékot is a partner adja meg — ő ismeri a mikrolokációt, nem a modell.
 export const LOCATION_PREMIUM_MIN = 5;
 export const LOCATION_PREMIUM_MAX = 25;
+// Átlagon aluli környék: FIX −15% levonás. Szándékosan nem állítható, hogy a
+// becslések egységesek és összehasonlíthatók maradjanak.
+export const LOCATION_DISCOUNT_FIXED = -15;
 
 // range = a legördülőben látszó sáv, suggested = a csúszka kezdőértéke.
 export const LOCATION_CATEGORIES = [
+  {
+    value: "Átlagon aluli",
+    premium: true,
+    negative: true,
+    range: "−15%",
+    suggested: LOCATION_DISCOUNT_FIXED,
+    hint: "Kedvezőtlen környék (zajos út, rossz megközelítés, leromlott utcakép) — fix 15% levonás a piaci átlagárból.",
+  },
   {
     value: "Átlagos",
     premium: false,
     range: "0%",
     suggested: 0,
-    hint: "Nincs felár (0%) — a piaci átlagár változatlan marad.",
+    hint: "Nincs korrekció (0%) — a piaci átlagár változatlan marad.",
   },
   {
     value: "Népszerű",
@@ -203,9 +267,23 @@ export function isPremiumCategory(value: string): boolean {
   return LOCATION_CATEGORIES.some((c) => c.value === value && c.premium);
 }
 
+/** Levonós (átlagon aluli) kategória? Ilyenkor a százalék NEGATÍV. */
+export function isDiscountCategory(value: string): boolean {
+  return LOCATION_CATEGORIES.some((c) => c.value === value && "negative" in c && c.negative);
+}
+
+/** A kategóriához tartozó megengedett sáv (a csúszka határai). */
+export function locationPremiumRange(category: string): { min: number; max: number } {
+  return isDiscountCategory(category)
+    ? { min: LOCATION_DISCOUNT_FIXED, max: LOCATION_DISCOUNT_FIXED }
+    : { min: LOCATION_PREMIUM_MIN, max: LOCATION_PREMIUM_MAX };
+}
+
 /** A megadott százalék beolvasása és határok közé szorítása. 0 = nincs korrekció. */
 export function parseLocationPremium(raw: string | undefined, category: string): number {
   if (!isPremiumCategory(category)) return 0;
+  // Átlagon aluli: mindig a FIX érték, akármit is tartalmaz a mező.
+  if (isDiscountCategory(category)) return LOCATION_DISCOUNT_FIXED;
   const n = Number(String(raw ?? "").replace("%", "").replace(",", ".").trim());
   if (!Number.isFinite(n) || n <= 0) return 0;
   return Math.min(LOCATION_PREMIUM_MAX, Math.max(LOCATION_PREMIUM_MIN, Math.round(n)));
@@ -258,6 +336,24 @@ export const VALUATION_FIELDS: ValuationField[] = [
     required: true,
     options: APARTMENT_FLOOR_OPTIONS,
   },
+  // Az építés éve SZÁNDÉKOSAN itt van: így az emelettel egy sorba kerül a
+  // kétoszlopos rácsban, és nem marad üres hely az űrlapon.
+  {
+    key: "epitesEve",
+    label: "Építés éve",
+    placeholder: "Válassz a listából vagy írd be",
+    required: true,
+    options: [
+      "2020 után (Új vagy újszerű)",
+      "2010-2020 között",
+      "2000-es évek",
+      "1990-es évek",
+      "1980-as évek",
+      "1970-es évek",
+      "1960-as évek",
+      "1950 előtt (Klasszikus/Polgári)",
+    ],
+  },
   {
     key: "lift",
     label: "Van lift az épületben",
@@ -285,22 +381,6 @@ export const VALUATION_FIELDS: ValuationField[] = [
     placeholder: "Válassz a listából vagy írj sajátot",
     required: true,
     options: BATHROOM_OPTIONS,
-  },
-  {
-    key: "epitesEve",
-    label: "Építés éve",
-    placeholder: "Válassz a listából vagy írd be",
-    required: true,
-    options: [
-      "2020 után (Új vagy újszerű)",
-      "2010-2020 között",
-      "2000-es évek",
-      "1990-es évek",
-      "1980-as évek",
-      "1970-es évek",
-      "1960-as évek",
-      "1950 előtt (Klasszikus/Polgári)",
-    ],
   },
   {
     key: "szerkezet",
@@ -336,6 +416,10 @@ export const VALUATION_FIELDS: ValuationField[] = [
       "Gázcirkó (csak radiátorok)",
       "Távfűtés (egyedi mérős)",
       "Távfűtés (átalánydíjas)",
+      // Házközponti = a ház saját kazánja fűt (nem távhő). Az egyedi mérés
+      // külön tétel, mert a rezsi kiszámíthatósága miatt más az értéke.
+      "Házközponti fűtés",
+      "Házközponti fűtés (egyedi méréssel)",
       "Gázkonvektor",
       "Elektromos (fűtőpanel / infra)",
       "Hűtő-fűtő klímák (H-tarifa)",
@@ -412,9 +496,17 @@ export function valuationDataBlock(input: ValuationInput): string {
 - Épület összes szintje: ${vv(input.szint)}
 - A lakás emelete: ${vv(input.emelet)}
 - Lift: ${input.lift === "igen" ? "van" : "nincs"}
-- Erkély / terasz: ${input.erkely === "igen" ? "van" : "nincs"}
-- Szobák száma: ${vv(input.szobak)}
-- Fürdőszobák/mellékhelyiségek száma: ${vv(input.furdok)}
+- Erkély / terasz: ${input.erkely === "igen"
+    ? `van${String(input.erkelyMeret ?? "").trim() ? ` (${String(input.erkelyMeret).trim()} nm)` : ""}`
+    : "nincs"}
+- Szobák száma: ${vv(input.szobak)}${(() => {
+    const r = parseRooms(input.szobak);
+    return r.full || r.half ? ` (egész: ${r.full}, fél: ${r.half})` : "";
+  })()}
+- Fürdőszobák/mellékhelyiségek: ${vv(input.furdok)}${(() => {
+    const b = parseBaths(input.furdok);
+    return b.bath || b.wc ? ` (fürdőszoba: ${b.bath}, külön WC: ${b.wc})` : "";
+  })()}
 - Építés éve: ${vv(input.epitesEve)}
 - Szerkezet: ${vv(input.szerkezet)}
 - Műszaki és esztétikai állapot: ${vv(input.allapot)}
@@ -447,21 +539,25 @@ function locationBlock(input: ValuationInput): string {
   const pct = parseLocationPremium(input.lokacioSzazalek, category);
   if (!pct) {
     return `- Lokációs kategória: ${category || "Átlagos"}
-- Lokációs prémium: NINCS (0%) — ne alkalmazz semmilyen lokációs szorzót
+- Lokációs korrekció: NINCS (0%) — ne alkalmazz semmilyen lokációs szorzót
 
-KÖTELEZŐ LOKÁCIÓS SZABÁLY: a lokáció átlagos, ezért a bázisárat NEM módosítod felfelé.
-A "Korrekciós táblázat" szakaszban ettől függetlenül szerepeljen egy "Lokációs prémium"
-sor, ezzel a tartalommal: 0% — 0 Ft — a korrigált ár megegyezik a bázisárral.`;
+KÖTELEZŐ LOKÁCIÓS SZABÁLY: a lokáció átlagos, ezért a bázisárat NEM módosítod sem felfelé,
+sem lefelé. A "Korrekciós táblázat" szakaszban ettől függetlenül szerepeljen egy "Lokációs
+korrekció" sor, ezzel a tartalommal: 0% — 0 Ft — a korrigált ár megegyezik a bázisárral.`;
   }
+  // Negatív százalék = átlagon aluli környék, tehát ÉRTÉKCSÖKKENTŐ korrekció.
+  const down = pct < 0;
+  const label = down ? "értékcsökkentő" : "értéknövelő";
   return `- Lokációs kategória: ${category}
-- Lokációs prémium: ${pct}% (a partner által megadott, KÖTELEZŐEN ezzel számolj)
+- Lokációs korrekció: ${pct}% (a partner által megadott, KÖTELEZŐEN ezzel számolj)
 
-KÖTELEZŐ LOKÁCIÓS SZABÁLY: a bázisárat KÖTELEZŐEN súlyozd pontosan ${pct}%-os értéknövelő
+KÖTELEZŐ LOKÁCIÓS SZABÁLY: a bázisárat KÖTELEZŐEN súlyozd pontosan ${pct}%-os ${label}
 szorzóval (bázisár × ${(1 + pct / 100).toFixed(2)}). Saját szorzót NE találj ki, és a ${pct}%-tól
 semmilyen irányban ne térj el. A "Korrekciós táblázat" szakaszban szerepeljen egy "Lokációs
-prémium" sor, amely tartalmazza: a százalékos mértéket (${pct}%), a forintos különbséget és a
-korrigált árat. Minden ezt követő érték (végső nm-ár, becsült piaci érték, értéksáv) már a
-lokációs prémiummal korrigált árra épüljön.`;
+korrekció" sor, amely tartalmazza: a százalékos mértéket (${pct}%), a forintos különbséget
+${down ? "(negatív, tehát levonás)" : "(pozitív, tehát felár)"} és a korrigált árat. Minden ezt
+követő érték (végső nm-ár, becsült piaci érték, értéksáv) már a lokációs korrekcióval korrigált
+árra épüljön.`;
 }
 
 export const VALUATION_DATA_BLOCK_PREVIEW = `Az értékelt ingatlan adatai:

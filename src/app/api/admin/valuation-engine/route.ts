@@ -76,6 +76,14 @@ export async function POST(request: Request) {
         isBasement: s.isBasement ?? false,
         hasLift: s.hasLift ?? false,
         hasBalcony: s.hasBalcony ?? false,
+        // Próbafuttatásnál ezek opcionálisak — hiányuk 0 korrekciót jelent.
+        rooms: Number(s.rooms) || 0,
+        halfRooms: Number(s.halfRooms) || 0,
+        bathrooms: Number(s.bathrooms) || 0,
+        separateWcs: Number(s.separateWcs) || 0,
+        balconyM2: Number(s.balconyM2) || 0,
+        buildYear: s.buildYear ? Number(s.buildYear) : null,
+        heatingKey: s.heatingKey ?? "atlagos",
       };
       const result = computeValuation(comps, subject, cfg);
       return NextResponse.json({ ok: true, result, compsParsed: comps.length });

@@ -26,16 +26,27 @@ import {
   EMPTY_VALUATION,
   validateValuationInput,
   LOCATION_CATEGORIES,
-  LOCATION_PREMIUM_MIN,
-  LOCATION_PREMIUM_MAX,
+  LOCATION_DISCOUNT_FIXED,
+  locationPremiumRange,
+  isDiscountCategory,
   isPremiumCategory,
   suggestedLocationPremium,
+  parseRooms,
+  formatRooms,
+  parseBaths,
+  formatBaths,
   type ValuationInput,
 } from "@/lib/valuation";
+import NumberStepper from "@/components/NumberStepper";
 import { toDownloadUrl } from "@/lib/files";
 
 // A lokációs prémium mezői külön blokkban jelennek meg, ezért kimaradnak a fő rácsból.
 const LOCATION_KEYS: string[] = ["lokacioKategoria", "lokacioSzazalek"];
+
+// A pipálós mezők EGY sorban, egymás mellett jelennek meg (lásd az űrlapot),
+// ezért külön gyűjtjük őket, és csak az elsőnél rajzoljuk ki a blokkot.
+const checkboxFields = VALUATION_FIELDS.filter((f) => f.type === "checkbox");
+const firstCheckboxKey = checkboxFields[0]?.key;
 
 type HistoryItem = {
   id: string;
@@ -355,18 +366,101 @@ export default function ValuationPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
             const fm = fieldMem[field.key];
-            // Checkbox mező (lift, erkély): "igen" / "" érték.
+
+            // PIPÁLÓS MEZŐK (lift, erkély): egy közös, teljes szélességű sorba
+            // kerülnek egymás mellé. Korábban a rácsban szétszóródtak a szöveges
+            // mezők közé, és ez rendezetlenné tette az űrlapot.
             if (field.type === "checkbox") {
-              const on = values[field.key] === "igen";
+              if (field.key !== firstCheckboxKey) return null; // a többit itt rajzoljuk ki
               return (
-                <label key={field.key} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5"
-                  style={{ border: "1px solid var(--twx-line)", background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                  <input type="checkbox" checked={on} onChange={(e) => setField(field.key, e.target.checked ? "igen" : "")}
-                    style={{ width: 18, height: 18, accentColor: "var(--twx-coral)" }} />
-                  <span className="text-sm font-medium">{field.label}</span>
-                </label>
+                <div key="checkbox-row" className="sm:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {checkboxFields.map((cf) => {
+                    const on = values[cf.key] === "igen";
+                    return (
+                      // Fix magasság (44 px): az erkély méret-mezője BELÜL jelenik
+                      // meg, ezért a sáv bepipálva sem lesz vastagabb.
+                      <label key={cf.key} className="flex h-11 cursor-pointer items-center gap-2 rounded-lg px-3"
+                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
+                        <input type="checkbox" checked={on}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setValues((prev) => ({
+                              ...prev,
+                              [cf.key]: checked ? "igen" : "",
+                              // Erkély kivételekor a mérete se maradjon bent.
+                              ...(cf.key === "erkely" && !checked ? { erkelyMeret: "" } : {}),
+                            }));
+                          }}
+                          style={{ width: 18, height: 18, accentColor: "var(--twx-coral)" }} />
+                        <span className="truncate text-sm font-medium">{cf.label}</span>
+
+                        {/* Erkély esetén a méret ugyanabban a sávban kérhető be. */}
+                        {cf.key === "erkely" && on && (
+                          <span
+                            className="ml-auto flex shrink-0 items-center gap-1"
+                            // A label-en belüli kattintás egyébként átbillentené a pipát.
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          >
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={values.erkelyMeret}
+                              onChange={(e) => setField("erkelyMeret", e.target.value.replace(/[^\d.,]/g, ""))}
+                              onFocus={(e) => e.currentTarget.select()}
+                              placeholder="pl. 6"
+                              aria-label="Erkély / terasz mérete négyzetméterben"
+                              className="h-7 w-16 rounded-md px-2 text-center text-sm outline-none"
+                              style={{ border: "1px solid var(--twx-coral)", background: "#fff", color: "var(--twx-ink)" }}
+                            />
+                            <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>nm</span>
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
               );
             }
+
+            // HELYISÉGEK: a szobák, a fél szobák, a fürdőszobák és a külön WC-k
+            // EGY blokkban, négy egyforma számlálóval — beírhatók és +/− gombbal
+            // is állíthatók. A mentett értékek továbbra is szövegek (`szobak`,
+            // `furdok`), így a régi becslések változatlanul olvashatók.
+            if (field.key === "szobak") {
+              const { full, half } = parseRooms(values.szobak);
+              const { bath, wc } = parseBaths(values.furdok);
+              const setRooms = (f: number, h: number) => setField("szobak", formatRooms(f, h));
+              const setBaths = (b: number, w: number) => setField("furdok", formatBaths(b, w));
+              const summary = [formatRooms(full, half), formatBaths(bath, wc)].filter(Boolean).join(" · ");
+              const roomErr = errors.szobak || errors.furdok;
+              return (
+                <div key="helyisegek" className="sm:col-span-2 rounded-xl p-4"
+                  style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
+                      Helyiségek<span style={{ color: "var(--twx-coral)" }}> *</span>
+                    </p>
+                    <p className="text-sm font-semibold" style={{ color: summary ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                      {summary || "Add meg a helyiségek számát"}
+                    </p>
+                  </div>
+
+                  {/* Négy azonos szélességű oszlop — mobilon kettő, hogy semmi
+                      ne lógjon ki és ne csússzon el egymáshoz képest. */}
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                    <NumberStepper label="Szobák" value={full} onChange={(v) => setRooms(v, half)} min={0} max={20} />
+                    <NumberStepper label="Fél szobák" value={half} onChange={(v) => setRooms(full, v)} min={0} max={10} />
+                    <NumberStepper label="Fürdőszobák" value={bath} onChange={(v) => setBaths(v, wc)} min={0} max={10} />
+                    <NumberStepper label="Külön WC" value={wc} onChange={(v) => setBaths(bath, v)} min={0} max={10} />
+                  </div>
+
+                  {roomErr && <p className="mt-2 text-xs text-red-600">{roomErr}</p>}
+                </div>
+              );
+            }
+            // A fürdőszoba a fenti blokkban szerepel, külön mezőként nem kell.
+            if (field.key === "furdok") return null;
+
             return (
             <div
               key={field.key}
@@ -542,29 +636,52 @@ export default function ValuationPage() {
               </span>
             </label>
 
-            {isPremiumCategory(values.lokacioKategoria) && (
-              <label className="block">
+            {/* ÁTLAGON ALULI: fix −15%, nincs csúszka — így a becslések
+                egységesek és összehasonlíthatók maradnak. */}
+            {isDiscountCategory(values.lokacioKategoria) && (
+              <div className="block">
                 <span className="mb-1 block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
-                  Felár mértéke ({LOCATION_PREMIUM_MIN}-{LOCATION_PREMIUM_MAX}%) — ajánlott:{" "}
-                  {LOCATION_CATEGORIES.find((c) => c.value === values.lokacioKategoria)?.range}
+                  Levonás mértéke
                 </span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={LOCATION_PREMIUM_MIN}
-                    max={LOCATION_PREMIUM_MAX}
-                    step={1}
-                    value={Number(values.lokacioSzazalek) || LOCATION_PREMIUM_MIN}
-                    onChange={(e) => setField("lokacioSzazalek", e.target.value)}
-                    className="flex-1"
-                    style={{ accentColor: "var(--twx-coral)" }}
-                  />
-                  <span className="w-14 text-right text-sm font-bold" style={{ color: "var(--twx-coral)" }}>
-                    {Number(values.lokacioSzazalek) || LOCATION_PREMIUM_MIN}%
+                <div className="flex h-10 items-center justify-between rounded-lg px-3"
+                  style={{ border: "1px solid #f0b3b3", background: "rgba(192,57,43,0.06)" }}>
+                  <span className="text-sm font-bold" style={{ color: "#c0392b" }}>
+                    {LOCATION_DISCOUNT_FIXED}%
+                  </span>
+                  <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    fix érték, nem módosítható
                   </span>
                 </div>
-              </label>
+              </div>
             )}
+
+            {isPremiumCategory(values.lokacioKategoria) && !isDiscountCategory(values.lokacioKategoria) && (() => {
+              const { min, max } = locationPremiumRange(values.lokacioKategoria);
+              const current = Number(values.lokacioSzazalek) || min;
+              return (
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
+                    Felár mértéke ({min}-{max}%) — ajánlott:{" "}
+                    {LOCATION_CATEGORIES.find((c) => c.value === values.lokacioKategoria)?.range}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={current}
+                      onChange={(e) => setField("lokacioSzazalek", e.target.value)}
+                      className="flex-1"
+                      style={{ accentColor: "var(--twx-coral)" }}
+                    />
+                    <span className="w-14 text-right text-sm font-bold" style={{ color: "var(--twx-coral)" }}>
+                      {current}%
+                    </span>
+                  </div>
+                </label>
+              );
+            })()}
           </div>
 
           {isPremiumCategory(values.lokacioKategoria) && (
@@ -741,6 +858,10 @@ export default function ValuationPage() {
               initialDoc={result.doc}
               initialUrl={result.url}
               dateLabel={result.dateLabel}
+              // Az egyoldalas laphoz az ingatlan adatai az űrlapról jönnek.
+              facts={values}
+              // A laphoz választható fotók: a feltöltöttek + a rendszerből behúzottak.
+              photos={[...photos.map((p) => p.preview), ...photoUrls]}
               onDirtyChange={setEditorDirty}
               onSaved={(url) => {
                 setResult((prev) => (prev ? { ...prev, url } : prev));
