@@ -3,12 +3,15 @@
 //   action: "reject"  → elutasítja (kód nélkül)
 //   action: "resend"  → a már kiadott kódot újraküldi
 //
-// Csak 'admin' szerepkör hívhatja. A kiadható kódok száma KEMÉNY LIMIT
-// (INVITE_LIMIT): az 50. kiadott kód után a rendszer nem enged többet.
+// Admin ÉS sales hívhatja — több kolléga tud párhuzamosan jóváhagyni, így nem
+// torlódik a kampány. A kiadható kódok száma KEMÉNY LIMIT (INVITE_LIMIT): az
+// 50. kiadott kód után a rendszer senkinek nem enged többet, és a döntés
+// naplózva van (decided_by_email), tehát utólag látszik, ki hagyta jóvá.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendInviteCodeEmail } from "@/lib/email";
+import { getStaffRole } from "@/lib/staff";
 import {
   INVITE_LIMIT, INVITE_TOTAL_CREDITS, generateInviteCode, type Invite,
 } from "@/lib/invites";
@@ -19,13 +22,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
-
-  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (me?.role !== "admin") {
-    return NextResponse.json({ error: "Csak admin végezheti." }, { status: 403 });
+  const staff = await getStaffRole(supabase);
+  if (!staff) {
+    return NextResponse.json({ error: "Csak admin vagy értékesítő végezheti." }, { status: 403 });
   }
+  const user = { id: staff.userId, email: staff.email };
 
   let body: { id?: string; action?: string; note?: string };
   try { body = await request.json(); }

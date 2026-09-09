@@ -9,6 +9,7 @@ import B2BModal from "@/components/B2BModal";
 import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
+import AdminInboxBadge from "@/components/AdminInboxBadge";
 import { resolveViewContext } from "@/lib/view-as";
 
 export default async function DashboardLayout({
@@ -31,6 +32,8 @@ export default async function DashboardLayout({
   // A jogosultságokat ez NEM érinti (lásd lib/view-as.ts).
   const view = await resolveViewContext(me?.role as string | undefined);
   const isAdmin = view.role === "admin";
+  // A sales saját, szűkített megkeresés-felületet kap (jelvénnyel).
+  const isSales = view.role === "sales";
   const balance = (wallet?.balance as number | undefined) ?? 0;
 
   return (
@@ -51,10 +54,22 @@ export default async function DashboardLayout({
           {isAdmin && (
             <a
               href="/admin"
-              className="hidden rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-block"
+              className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
               style={{ color: "var(--twx-on-dark-muted)" }}
             >
               Admin
+              {/* Korall karika: csak akkor látszik, ha van elintézetlen megkeresés. */}
+              <AdminInboxBadge />
+            </a>
+          )}
+          {isSales && (
+            <a
+              href="/sales/megkeresesek"
+              className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
+              style={{ color: "var(--twx-on-dark-muted)" }}
+            >
+              Megkeresések
+              <AdminInboxBadge />
             </a>
           )}
         </div>

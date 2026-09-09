@@ -172,7 +172,7 @@ export async function sendInviteApplicationNotification(
     <p><strong>Telefon:</strong> ${escapeHtml(invite.phone)}</p>
     <p><strong>Iroda:</strong> ${escapeHtml(invite.office)}</p>
     <p>Elfogadás után a rendszer automatikusan kiküldi neki az ajándékkódot.</p>
-    <p>Ügyintézés${site ? `: <a href="${site}/admin/meghivok">${site}/admin/meghivok</a>` : " az admin felület Jelentkezők oldalán."}</p>
+    <p>Ügyintézés${site ? `: <a href="${site}/admin/megkeresesek">${site}/admin/megkeresesek</a>` : " az admin felület Jelentkezők oldalán."}</p>
   `;
 
   const res = await fetch("https://api.resend.com/emails", {

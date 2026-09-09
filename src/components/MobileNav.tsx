@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { CATEGORIES } from "@/lib/catalog";
 import ModuleIcon from "@/components/ModuleIcon";
 import LogoutButton from "@/components/LogoutButton";
+import AdminInboxBadge from "@/components/AdminInboxBadge";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 
@@ -131,8 +132,15 @@ export default function MobileNav({
                   Arculatom
                 </a>
                 {isAdmin && (
-                  <a href="/admin" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  <a href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                     Admin
+                    <AdminInboxBadge />
+                  </a>
+                )}
+                {role === "sales" && (
+                  <a href="/sales/megkeresesek" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                    Megkeresések
+                    <AdminInboxBadge />
                   </a>
                 )}
                 <LogoutButton />

@@ -40,11 +40,22 @@ export async function POST(request: Request) {
   });
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
+  // Az értesítő levél best-effort: ha nem megy ki, a kérés akkor is mentve van,
+  // és az admin a Megkeresések oldalon látja. A `mailed` mezőt visszaadjuk, hogy
+  // a hiba ne maradjon néma — a szerver naplójában a pontos ok is megjelenik.
+  let mailed = false;
   try {
-    await sendConsultationNotification(clean, await adminNotifyEmails(admin));
+    const to = await adminNotifyEmails(admin);
+    if (!to.length) {
+      console.error("[ingatlan-consultation] nincs értesítendő admin e-mail cím (profiles.role='admin' és LEADS_NOTIFY_EMAIL is üres).");
+    } else {
+      await sendConsultationNotification(clean, to);
+      mailed = true;
+      console.log(`[ingatlan-consultation] értesítő kiment (${to.length} címre).`);
+    }
   } catch (err) {
-    console.error("[ingatlan-consultation] értesítő e-mail hiba:", (err as Error).message);
+    console.error("[ingatlan-consultation] értesítő e-mail HIBA:", (err as Error).message);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, mailed });
 }

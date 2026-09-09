@@ -9,8 +9,8 @@ import { showToast } from "@/components/Toast";
 import { INVITE_STATUS_LABEL, type Invite } from "@/lib/invites";
 
 export default function InviteList({
-  invites, issued, limit,
-}: { invites: Invite[]; issued: number; limit: number }) {
+  invites, issued, limit, readOnly = false,
+}: { invites: Invite[]; issued: number; limit: number; readOnly?: boolean }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const full = issued >= limit;
@@ -83,7 +83,7 @@ export default function InviteList({
                   </p>
                   <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                     Jelentkezett: {new Date(it.created_at).toLocaleString("hu-HU")}
-                    {it.decided_at && ` · Elbírálta: ${it.decided_by_email ?? "admin"} (${new Date(it.decided_at).toLocaleDateString("hu-HU")})`}
+                    {it.decided_at && ` · Elbírálta: ${it.decided_by_email ?? "munkatárs"} (${new Date(it.decided_at).toLocaleDateString("hu-HU")})`}
                   </p>
                   {it.code && (
                     <p className="mt-1.5 text-sm font-bold tracking-wider" style={{ color: "var(--twx-coral)" }}>
@@ -100,7 +100,14 @@ export default function InviteList({
                 </div>
 
                 <div className="flex shrink-0 flex-wrap gap-1.5">
-                  {it.status === "uj" && (
+                  {/* Sales csak látja a jelentkezőket — a kód kiadása (=kredit) admin döntés. */}
+                  {readOnly && it.status === "uj" && (
+                    <span className="rounded-lg px-3 py-1.5 text-xs font-medium"
+                      style={{ background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)", border: "1px solid var(--twx-line)" }}>
+                      Admin jóváhagyásra vár
+                    </span>
+                  )}
+                  {!readOnly && it.status === "uj" && (
                     <>
                       <button type="button" disabled={busy || full}
                         onClick={() => void act(it.id, "accept")}
@@ -117,7 +124,7 @@ export default function InviteList({
                       </button>
                     </>
                   )}
-                  {it.status === "elfogadva" && !it.redeemed_at && (
+                  {!readOnly && it.status === "elfogadva" && !it.redeemed_at && (
                     <button type="button" disabled={busy}
                       onClick={() => void act(it.id, "resend")}
                       className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
