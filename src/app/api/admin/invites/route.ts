@@ -75,9 +75,34 @@ export async function POST(request: Request) {
       from: mail.from,
       subject: mail.subject,
       html: mail.html,
+      text: mail.text,
       code: row.code,
       sentAt: row.code_sent_at ?? null,
+      sentBy: row.code_sent_by_email ?? null,
     });
+  }
+
+  // --- KÉZI KIKÜLDÉS MEGJELÖLÉSE ---
+  // Amíg a saját domain hitelesítése nincs kész, a levelet a kolléga a saját
+  // (office@) postafiókjából küldi ki. Ilyenkor a rendszer nem küld semmit,
+  // csak rögzíti, hogy a kód eljutott a jelentkezőhöz — így a többi munkatárs
+  // sem fogja elintézetlen feladatként látni.
+  if (body.action === "mark-sent") {
+    if (!row.code) {
+      return NextResponse.json({ error: "Ehhez a jelentkezőhöz még nincs kód." }, { status: 400 });
+    }
+    if (row.code_sent_at) {
+      return NextResponse.json({
+        error: `Ez a kód már ki van küldve (${row.code_sent_by_email ?? "munkatárs"}).`,
+        alreadySent: true,
+      }, { status: 409 });
+    }
+    const { error } = await admin.from("ingatlan_invites").update({
+      code_sent_at: new Date().toISOString(),
+      code_sent_by_email: `${user.email ?? "munkatárs"} (kézi küldés)`,
+    }).eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, manual: true });
   }
 
   // --- KIKÜLDÉS (és újraküldés) ---

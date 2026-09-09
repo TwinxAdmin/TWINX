@@ -328,10 +328,14 @@ export async function sendInviteCodeEmail(invite: {
   if (!apiKey) throw new Error("Hiányzó RESEND_API_KEY.");
   const { subject, html, text, from } = renderInviteCodeEmail(invite);
 
+  // A válaszok a hivatalos, közös postafiókba fussanak be (nem egy kolléga
+  // magánfiókjába). Ha nincs külön beállítva, a feladó címére válaszol a partner.
+  const replyTo = process.env.RESEND_REPLY_TO || undefined;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: invite.email, subject, html, text }),
+    body: JSON.stringify({ from, to: invite.email, subject, html, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) {
     const t = await res.text();

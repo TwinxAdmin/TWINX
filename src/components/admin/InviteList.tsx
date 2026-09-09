@@ -19,9 +19,25 @@ type Preview = {
   from: string;
   subject: string;
   html: string;
+  text: string;
   code: string;
   sentAt: string | null;
 };
+
+/** Fájl letöltése a böngészőből (szerver nélkül). */
+function downloadFile(name: string, content: string, mime: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: `${mime};charset=utf-8` }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Ékezet nélküli, fájlnévbe illő változat. */
+function slug(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "jelentkezo";
+}
 
 export default function InviteList({
   invites, issued, limit, readOnly = false,
@@ -67,7 +83,7 @@ export default function InviteList({
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "Az előnézet nem tölthető be.");
-      setPreview({ id, to: d.to, toName: d.toName, from: d.from, subject: d.subject, html: d.html, code: d.code, sentAt: d.sentAt });
+      setPreview({ id, to: d.to, toName: d.toName, from: d.from, subject: d.subject, html: d.html, text: d.text ?? "", code: d.code, sentAt: d.sentAt });
     } catch (e) {
       showToast((e as Error).message, "error");
     } finally { setBusyId(null); }
@@ -97,6 +113,54 @@ export default function InviteList({
       router.refresh();
     } catch (e) {
       showToast((e as Error).message, "error");
+    } finally { setSending(false); }
+  }
+
+  /** A levél HTML-je letöltve — a saját postafiókból küldhető ki. */
+  function downloadHtml() {
+    if (!preview) return;
+    downloadFile(`twinx-ajandekkod-${slug(preview.toName)}.html`, preview.html, "text/html");
+    showToast("Letöltve. Nyisd meg böngészőben, jelöld ki, és másold a levélbe.", "info");
+  }
+
+  /** Formázottan a vágólapra: Gmail/Outlook levélbe beillesztve megtartja a kinézetet. */
+  async function copyRich() {
+    if (!preview) return;
+    try {
+      const ClipItem = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
+      if (ClipItem && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipItem({
+          "text/html": new Blob([preview.html], { type: "text/html" }),
+          "text/plain": new Blob([preview.text], { type: "text/plain" }),
+        })]);
+        showToast("A levél a vágólapon — illeszd be a levelezőbe (Cmd+V).", "success");
+      } else {
+        await navigator.clipboard.writeText(preview.text);
+        showToast("A szöveges változat a vágólapon.", "info");
+      }
+    } catch {
+      showToast("A másolás nem sikerült — használd a letöltést.", "error");
+    }
+  }
+
+  /** Kézi kiküldés után: a rendszer csak megjelöli, levelet nem küld. */
+  async function markSent() {
+    if (!preview) return;
+    if (!confirm(`Megerősíted, hogy a kódot kiküldted ide: ${preview.to}?`)) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/admin/invites", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: preview.id, action: "mark-sent" }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "A megjelölés nem sikerült.");
+      showToast("Megjelölve kiküldöttként.", "success");
+      setPreview(null);
+      router.refresh();
+    } catch (e) {
+      showToast((e as Error).message, "error");
+      router.refresh();
     } finally { setSending(false); }
   }
 
@@ -261,18 +325,54 @@ export default function InviteList({
                 className="h-[46vh] w-full border-0" sandbox="" />
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t p-4"
-              style={{ borderColor: "var(--twx-line)" }}>
-              <button type="button" disabled={sending} onClick={() => setPreview(null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
-                style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                Mégsem
-              </button>
-              <button type="button" disabled={sending} onClick={() => void sendNow()}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-                style={{ background: "var(--twx-coral)" }}>
-                {sending ? "Küldés…" : `Kiküldöm neki (${preview.to})`}
-              </button>
+            <div className="space-y-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
+              {/* KÉZI KIKÜLDÉS — amíg a saját domain hitelesítése nincs kész, a
+                  levelet a kolléga a saját (office@) postafiókjából küldi ki. */}
+              <div className="rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                <p className="text-xs font-semibold">Kézi kiküldés a saját postafiókodból</p>
+                <p className="mt-0.5 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  Másold be a levelet egy új üzenetbe, címzett: <strong>{preview.to}</strong>, tárgy: <strong>{preview.subject}</strong>
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => void copyRich()}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                    style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                    Levél másolása (formázott)
+                  </button>
+                  <button type="button" onClick={downloadHtml}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium"
+                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                    HTML letöltése
+                  </button>
+                  <button type="button"
+                    onClick={() => downloadFile(`twinx-ajandekkod-${slug(preview.toName)}.txt`, preview.text, "text/plain")}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium"
+                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                    Szöveg letöltése
+                  </button>
+                  {!preview.sentAt && (
+                    <button type="button" disabled={sending} onClick={() => void markSent()}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                      style={{ border: "1px solid #2f9e5f", color: "#2f9e5f", background: "#fff" }}>
+                      ✓ Kézzel kiküldtem
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button type="button" disabled={sending} onClick={() => setPreview(null)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
+                  style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                  Bezárás
+                </button>
+                <button type="button" disabled={sending} onClick={() => void sendNow()}
+                  title="A rendszer küldi ki a TWINX feladó címéről"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                  style={{ background: "var(--twx-coral)" }}>
+                  {sending ? "Küldés…" : "Kiküldés a rendszerből"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
