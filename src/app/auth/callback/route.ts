@@ -7,7 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Csak SAJÁT oldalra irányítunk vissza (nyílt átirányítás elleni védelem):
+  // egy „/”-rel kezdődő, de nem „//”-val induló útvonal fogadható el.
+  const raw = searchParams.get("next") ?? "/dashboard";
+  const next = /^\/(?!\/)/.test(raw) ? raw : "/dashboard";
 
   if (code) {
     const supabase = await createClient();

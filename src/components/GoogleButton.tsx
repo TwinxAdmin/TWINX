@@ -4,15 +4,23 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function GoogleButton({ label = "Folytatás Google-lel" }: { label?: string }) {
+/**
+ * `next`: hova térjen vissza a Google után. A regisztrációs oldal ezzel kéri
+ * vissza magát, hogy ott is meg tudja mutatni a „Sikeres regisztráció” ablakot
+ * — különben a Google-fiókosok egyből a kezdőlapon találnák magukat.
+ */
+export default function GoogleButton({
+  label = "Folytatás Google-lel", next,
+}: { label?: string; next?: string }) {
   const [loading, setLoading] = useState(false);
 
   async function onClick() {
     setLoading(true);
     const supabase = createClient();
+    const callback = `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: callback },
     });
     if (error) setLoading(false); // sikeres esetben átirányít a Google-re
   }

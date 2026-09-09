@@ -1,8 +1,9 @@
-// „Van ajándékkódom" — az ingatlanos kód beváltása belépés után.
+// „Van ajándékkódom" — az ingatlanos kód beváltása BELÉPÉS UTÁN.
 //
-// Miért kell a regisztrációs mezőn KÍVÜL is: a Google-fiókkal belépők nem
-// töltenek ki regisztrációs űrlapot, tehát ott nem tudnak kódot megadni.
-// Ugyanaz a végpont, ugyanaz az ellenőrzés — csak másik belépési pont.
+// A kód szándékosan NEM a regisztrációs űrlapon van: ott a Google-fiókkal
+// belépők nem tudnák megadni, és e-mail-megerősítéses regisztrációnál sem
+// váltódna be. Egy belépési pont van helyette: a kezdőlapi egyenleg-sáv,
+// az „Egyenleg feltöltése” mellett. Beváltás után a gomb eltűnik.
 "use client";
 
 import { useState } from "react";
@@ -10,7 +11,8 @@ import { useRouter } from "next/navigation";
 import { showToast } from "@/components/Toast";
 import { normalizeInviteCode } from "@/lib/invites";
 
-export default function InviteRedeem() {
+/** `onDark`: a sötét egyenleg-sávon áll, ott világos szöveg kell. */
+export default function InviteRedeem({ onDark = false }: { onDark?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -39,9 +41,11 @@ export default function InviteRedeem() {
   if (!open) {
     return (
       <button type="button" onClick={() => setOpen(true)}
-        className="text-sm font-semibold underline underline-offset-2"
-        style={{ color: "var(--twx-coral)" }}>
-        Van ajándékkódom
+        className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+        style={onDark
+          ? { border: "1px solid rgba(255,255,255,0.35)", color: "var(--twx-on-dark)" }
+          : { border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+        Ajándékkód beváltása
       </button>
     );
   }
@@ -52,14 +56,21 @@ export default function InviteRedeem() {
         onChange={(e) => setCode(e.target.value.toUpperCase())}
         onKeyDown={(e) => { if (e.key === "Enter") void redeem(); if (e.key === "Escape") setOpen(false); }}
         placeholder="TWX-XXXX-XXXX"
-        className="twx-input max-w-[200px] text-sm" />
+        aria-label="Ajándékkód"
+        className="rounded-full px-4 py-2.5 text-sm outline-none"
+        style={onDark
+          ? { background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.35)", color: "var(--twx-on-dark)", width: 180 }
+          : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", width: 180 }} />
       <button type="button" onClick={() => void redeem()} disabled={busy || !code.trim()}
-        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-        style={{ background: "var(--twx-coral)" }}>
+        className="rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
+        style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
         {busy ? "Beváltás…" : "Beváltom"}
       </button>
       <button type="button" onClick={() => setOpen(false)}
-        className="rounded-lg px-2.5 py-1.5 text-xs" style={{ border: "1px solid var(--twx-line)" }}>
+        className="rounded-full px-3 py-2.5 text-sm"
+        style={onDark
+          ? { color: "var(--twx-on-dark-muted)" }
+          : { color: "var(--twx-ink-muted)" }}>
         Mégse
       </button>
     </div>

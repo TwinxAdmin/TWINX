@@ -128,23 +128,28 @@ export default async function DashboardHome() {
                 <AnimatedNumber value={balance} animateOnMount />
               </p>
             </div>
-            {isSales ? (
-              // Csak a gomb: a magyarázat („az admin által biztosított folyamatok")
-              // már ott van az egyenleg fölött, felesleges kétszer kiírni.
-              <PricingTrigger
-                className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-              >
-                Keret igénylése
-              </PricingTrigger>
-            ) : (
-              <PricingTrigger
-                className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-                style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-              >
-                Egyenleg feltöltése
-              </PricingTrigger>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Ajándékkód beváltása — az egyenleg feltöltése MELLETT. Csak addig
+                  látszik, amíg a fiók nem váltott be kódot; utána eltűnik. */}
+              {!isSales && !me?.invite_code && <InviteRedeem onDark />}
+              {isSales ? (
+                // Csak a gomb: a magyarázat („az admin által biztosított folyamatok")
+                // már ott van az egyenleg fölött, felesleges kétszer kiírni.
+                <PricingTrigger
+                  className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                >
+                  Keret igénylése
+                </PricingTrigger>
+              ) : (
+                <PricingTrigger
+                  className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+                >
+                  Egyenleg feltöltése
+                </PricingTrigger>
+              )}
+            </div>
           </>
         )}
       </section>
@@ -156,17 +161,6 @@ export default async function DashboardHome() {
         balance={balance}
         hasWelcomeCredits={hasWelcomeCredits}
       />
-
-      {/* Ajándékkód beváltása — csak annak, aki még nem váltott be (pl. Google-lel
-          regisztrálóknak, akik a regisztrációs űrlapon nem tudtak kódot megadni). */}
-      {!isAdmin && !me?.invite_code && (
-        <section className="twx-card flex flex-wrap items-center justify-between gap-3 p-4">
-          <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Kaptál tőlünk ajándékkódot? Váltsd be, és a kereted 10 kreditre egészül ki.
-          </p>
-          <InviteRedeem />
-        </section>
-      )}
 
       {/* „Folytasd, ahol abbahagytad" — a saját munkák bélyegképes sávja.
           Előrébb került a kategóriáknál: a visszatérő partnert a SAJÁT anyaga
