@@ -52,6 +52,9 @@ export default function ValuationEditor({
 }) {
   const [doc, setDoc] = useState<ReportDoc>(initialDoc);
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
+  // Amíg az arculat be nem töltött, NEM készítünk PDF-et: különben a lap
+  // (és a háttérmentés) a TWINX alapstílussal égne bele a dokumentumba.
+  const [brandingReady, setBrandingReady] = useState(false);
   const [pdfMode, setPdfMode] = useState(false);
   const paperForPdfRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
@@ -73,8 +76,8 @@ export default function ValuationEditor({
     let alive = true;
     fetch("/api/branding")
       .then((r) => (r.ok ? r.json() : { profiles: [] }))
-      .then((d) => { if (alive) setProfiles(d.profiles ?? []); })
-      .catch(() => {});
+      .then((d) => { if (alive) { setProfiles(d.profiles ?? []); setBrandingReady(true); } })
+      .catch(() => { if (alive) setBrandingReady(true); });
     return () => { alive = false; };
   }, []);
 
@@ -162,14 +165,14 @@ export default function ValuationEditor({
   const saveRef = useRef(save);
   saveRef.current = save;
   useEffect(() => {
-    if (autoSaved.current || !historyId || initialUrl) return;
+    if (autoSaved.current || !historyId || initialUrl || !brandingReady) return;
     const t = setTimeout(() => {
       if (autoSaved.current) return;
       autoSaved.current = true;
       saveRef.current();
     }, 800);
     return () => clearTimeout(t);
-  }, [historyId, initialUrl]);
+  }, [historyId, initialUrl, brandingReady]);
 
   return (
     <div className="space-y-3">
@@ -182,11 +185,11 @@ export default function ValuationEditor({
         <button
           type="button"
           className="twx-btn"
-          disabled={busy}
+          disabled={busy || !brandingReady}
           onClick={onDownload}
           style={{ boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}
         >
-          {busy ? "PDF készül…" : "Értékbecslés letöltése"}
+          {busy ? "PDF készül…" : !brandingReady ? "Betöltés…" : "Értékbecslés letöltése"}
         </button>
         {error && (
           <span

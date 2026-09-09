@@ -6,8 +6,9 @@
 // mentődik, így az előzményekből újranyitva is ugyanaz a lap jön elő.
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
+import { compressImage } from "@/lib/image-compress";
 
 /** Egy jelölt kép: már feltöltött fájl (előnézettel) vagy rendszerbeli URL. */
 export type PagePhotoPick = { key: string; preview: string; file?: File; url?: string };
@@ -47,12 +48,25 @@ export default function ValuationStartModal({
     return () => { alive = false; };
   }, [open]);
 
-  // Nyitáskor az első (max 2) már feltöltött fotó legyen kiválasztva.
+  // Nyitáskor EGYSZER: az első (max 2) már feltöltött fotó legyen kiválasztva.
+  // Fontos, hogy csak a NYITÁS pillanatában fusson — különben minden újrarajzolás
+  // visszaállítaná a kijelölést, és a modalban hozzáadott képek kiesnének.
+  const wasOpen = useRef(false);
+  const candidatesRef = useRef(candidates);
+  candidatesRef.current = candidates;
   useEffect(() => {
-    if (open) setPicked(candidates.slice(0, 2));
-  }, [open, candidates]);
+    if (open && !wasOpen.current) {
+      setPicked(candidatesRef.current.slice(0, 2));
+      setExtra([]);
+    }
+    wasOpen.current = open;
+  }, [open]);
 
-  useEffect(() => () => extra.forEach((e) => URL.revokeObjectURL(e.preview)), [extra]);
+  // Az előnézeti URL-eket CSAK a komponens megszűnésekor engedjük el (korábban
+  // minden új kép hozzáadásakor lefutott, és elrontotta a már felvett bélyegképeket).
+  const extraRef = useRef(extra);
+  extraRef.current = extra;
+  useEffect(() => () => extraRef.current.forEach((e) => URL.revokeObjectURL(e.preview)), []);
 
   if (!open) return null;
 
@@ -65,13 +79,17 @@ export default function ValuationStartModal({
       return [...cur, p];
     });
   }
-  function addFiles(files: FileList | null) {
+  // A telefonról jövő fotó könnyen 8 MB fölött van — a szerver az ekkorát
+  // eldobná, ezért feltöltés előtt itt is tömörítünk (mint az űrlapon).
+  async function addFiles(files: FileList | null) {
     if (!files) return;
-    const next: PagePhotoPick[] = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .slice(0, 2)
-      .map((f) => ({ key: `new-${f.name}-${f.size}-${Date.now()}`, preview: URL.createObjectURL(f), file: f }));
-    if (!next.length) return;
+    const picks = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, 2);
+    if (!picks.length) return;
+    const next: PagePhotoPick[] = [];
+    for (const raw of picks) {
+      const f = await compressImage(raw, 1600, 0.82);
+      next.push({ key: `new-${f.name}-${f.size}-${Date.now()}-${next.length}`, preview: URL.createObjectURL(f), file: f });
+    }
     setExtra((cur) => [...cur, ...next]);
     setPicked((cur) => [...cur, ...next].slice(-2));
   }
@@ -134,7 +152,7 @@ export default function ValuationStartModal({
               style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
             >
               + Kép
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
             </label>
           </div>
           <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>

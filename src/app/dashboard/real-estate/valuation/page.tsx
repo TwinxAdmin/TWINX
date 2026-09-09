@@ -181,17 +181,20 @@ export default function ValuationPage() {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragActive(false);
   }
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (): Promise<HistoryItem[]> => {
     try {
       const res = await fetch("/api/real-estate/valuation/history");
       const data = await res.json();
       if (res.ok) {
-        setHistory((data.items ?? []) as HistoryItem[]);
+        const items = (data.items ?? []) as HistoryItem[];
+        setHistory(items);
         setFolders((data.folders ?? []) as LibraryFolder[]);
+        return items;
       }
     } catch {
       // Az előzmény-lista hiánya ne akadályozza a munkát.
     }
+    return [];
   }, []);
 
   useEffect(() => {
@@ -211,21 +214,24 @@ export default function ValuationPage() {
         if (data.status === "done") {
           setJobId(null);
           setLoading(false);
+          const items = await loadHistory();
           if (data.report) {
-            // A mentett bemenet tartalmazza a választott arculatot és a lap fotóit is.
-            const facts = (data.input ?? values) as ValuationInput;
+            // A megjelenés-adatok (arculat, fotók, levezetés) EGY forrásból: a
+            // mentett előzmény-sorból. Ha az még nem érhető el, a job válasza,
+            // végül az űrlap aktuális állapota a tartalék.
+            const row = items.find((h) => h.id === data.id);
+            const facts = (row?.input_data ?? data.input ?? values) as ValuationInput;
             setResult({
-              id: data.id ?? null,
+              id: data.id ?? row?.id ?? null,
               doc: parseValuationReport(String(data.report), facts as ValuationFacts),
-              url: null,
+              url: row?.output_file_url ?? null,
               dateLabel: new Date().toLocaleDateString("hu-HU"),
               facts,
-              audit: (data.audit ?? null) as OnePagerAudit,
+              audit: (row?.valuation_audit ?? data.audit ?? null) as OnePagerAudit,
             });
             setEditorOpen(true);
           }
-          setMessage("Kész! Nézd át, szerkeszd, majd készítsd el a PDF-et.");
-          loadHistory();
+          setMessage("Kész! A lap elkészült — nézd át, majd töltsd le.");
         } else if (data.status === "failed") {
           setJobId(null);
           setLoading(false);
@@ -348,17 +354,22 @@ export default function ValuationPage() {
         return; // a `loading` marad true-n, a polling zárja le
       }
 
+      // GYORS ÁG (cache-elt comp-ok): a válasz azonnal tartalmazza a riportot.
+      const items = await loadHistory();
       if (data.report) {
+        const row = items.find((h) => h.id === data.id);
+        const facts = (row?.input_data ?? data.input ?? values) as ValuationInput;
         setResult({
-          id: data.id ?? null,
-          doc: parseValuationReport(String(data.report), values as ValuationFacts),
-          url: null,
+          id: data.id ?? row?.id ?? null,
+          doc: parseValuationReport(String(data.report), facts as ValuationFacts),
+          url: row?.output_file_url ?? null,
           dateLabel: new Date().toLocaleDateString("hu-HU"),
+          facts,
+          audit: (row?.valuation_audit ?? data.audit ?? null) as OnePagerAudit,
         });
         setEditorOpen(true);
       }
-      setMessage("Kész! Nézd át, szerkeszd, majd készítsd el a PDF-et.");
-      loadHistory();
+      setMessage("Kész! A lap elkészült — nézd át, majd töltsd le.");
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
     } finally {

@@ -206,7 +206,12 @@ export async function POST(request: Request) {
             report: composeEngineReport(res, input, engineCfg),
             engineAudit: res, bypassed, photoCount: photoImages.length,
           });
-          return NextResponse.json({ ok: true, id: fin.id, report: fin.report, charged: fin.charged });
+          // A megjelenés-adatokat (arculat, lap-fotók) és a levezetést is átadjuk,
+          // hogy a gyors ágon is arculatos lap készüljön.
+          return NextResponse.json({
+            ok: true, id: fin.id, report: fin.report, charged: fin.charged,
+            input, audit: res,
+          });
         }
       }
     }
@@ -288,10 +293,12 @@ export async function POST(request: Request) {
         const fin = await finalizeValuation({
           userId, serviceId, input, report, engineAudit, bypassed, photoCount: photoImages.length,
         });
-        await bg.from("valuation_jobs").update({
-          status: "done", report: fin.report, credits_charged: fin.charged ? 1 : 0,
-          history_id: fin.id, audit: engineAudit,
-        }).eq("id", jobId);
+        // Az új oszlopok (history_id, audit) hiányozhatnak, ha a migráció még nem
+        // futott le — ilyenkor a becslés attól még KÉSZ, csak szűkebb adattal zárjuk.
+        const done = { status: "done", report: fin.report, credits_charged: fin.charged ? 1 : 0 };
+        const { error: updErr } = await bg.from("valuation_jobs")
+          .update({ ...done, history_id: fin.id, audit: engineAudit }).eq("id", jobId);
+        if (updErr) await bg.from("valuation_jobs").update(done).eq("id", jobId);
       } catch (err) {
         // Hiba: a job "failed" lesz — kreditet SOHA nem vontunk le idáig.
         await bg.from("valuation_jobs")

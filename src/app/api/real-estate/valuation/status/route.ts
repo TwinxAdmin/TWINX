@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: job, error } = await admin
     .from("valuation_jobs")
-    .select("id, user_id, status, report, error, created_at, history_id, input_data, audit")
+    .select("*") // teljes sor: így egy hiányzó oszlop sem töri el a lekérdezést
     .eq("id", jobId)
     .single();
   if (error || !job) return NextResponse.json({ error: "A job nem található." }, { status: 404 });
