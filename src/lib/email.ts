@@ -191,16 +191,13 @@ export async function sendInviteApplicationNotification(
 }
 
 /**
- * Ingatlanos kampány — a JELENTKEZŐ megkapja a kódját és a regisztrációs linket.
+ * Ingatlanos kampány — a JELENTKEZŐ megkapja a kódját.
  *
- * Levélsablon-elvek (ezért néz ki így a kód):
- *  - Táblázatos, 600 px széles elrendezés és CSAK inline stílus: az Outlook és a
- *    Gmail app se `<style>` blokkot, se flex/grid elrendezést nem eszik meg.
- *  - Preheader: a listanézetben a tárgysor után látszó első sor — ha nem adjuk
- *    meg, a kliens a fejléc szemetét mutatja ott.
- *  - A kód KIVÁLASZTHATÓ szöveg (nem kép), mert sokan kézzel gépelik át.
- *  - Van sima szöveges változat is (`text`): a kép- és HTML-tiltó kliensek ezt
- *    kapják, és a spam-pontszámot is javítja.
+ * SZÁNDÉKOSAN egyszerű, szöveges levél (nincs fejléc-sáv, gomb, felsorolás):
+ * a munkatárs ezt kimásolja és a saját postafiókjából küldi tovább, ahol egy
+ * díszes HTML-blokk beillesztve általában szétesik. Így viszont bárhová
+ * beilleszthető, és személyes levélnek is hat.
+ * A `html` csak a `text` sortöréshelyes megjelenítése.
  */
 export function renderInviteCodeEmail(invite: {
   name: string;
@@ -211,108 +208,40 @@ export function renderInviteCodeEmail(invite: {
   const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://twinx.hu").replace(/\/$/, "");
   const link = `${site}/register?kod=${encodeURIComponent(invite.code)}`;
 
-  const name = escapeHtml(invite.name.trim().split(/\s+/).slice(-1)[0] || invite.name);
-  const code = escapeHtml(invite.code);
+  // Keresztnév: a magyar névsorrend miatt az UTOLSÓ szó (Kovács Márk → Márk).
+  const firstName = invite.name.trim().split(/\s+/).slice(-1)[0] || invite.name;
   const credits = invite.credits;
 
-  // Amit a kredittel ki tud próbálni — a landing APPS listájának rövid kivonata.
-  const perks = [
-    "Értékbecslés valós piaci adatokból",
-    "Képjavítás és rendrakás a fotókon",
-    "Hirdetési kép és bemutató videó",
-    "Látványterv: virtuális felújítás",
-    "Hirdetésszöveg generálás és ellenőrzés",
-  ];
-
-  const html = `<!DOCTYPE html>
-<html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f7f3ec;">
-  <!-- Preheader: a levéllista előnézetében ez a sor látszik. -->
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Itt a kódod: ${code} — ${credits} kredit ajándékba a TWINX-hez.</div>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ec;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border:1px solid #e8e1d6;border-radius:18px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;">
-
-        <!-- Fejléc -->
-        <tr><td style="background:#12100e;padding:28px 32px;">
-          <span style="color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">TWINX</span>
-          <span style="color:#ef7a5a;font-size:12px;letter-spacing:2px;text-transform:uppercase;display:block;margin-top:6px;">Ingatlanos kampány</span>
-        </td></tr>
-
-        <!-- Törzs -->
-        <tr><td style="padding:32px;color:#1c1815;font-size:16px;line-height:1.6;">
-          <p style="margin:0 0 16px;">Kedves ${name}!</p>
-          <p style="margin:0 0 16px;">Köszönjük a jelentkezésed — <strong>jóváhagytuk</strong>. Ezzel a kóddal
-            <strong>${credits} kredittel</strong> indulsz a TWINX-ben, ingyen, bankkártya nélkül.</p>
-
-          <!-- Kód -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-            <tr><td align="center" style="background:#f7f3ec;border:1px dashed #ef7a5a;border-radius:14px;padding:22px;">
-              <div style="color:#6b6b6b;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Az ajándékkódod</div>
-              <div style="color:#12100e;font-size:26px;font-weight:700;letter-spacing:3px;font-family:'Courier New',Courier,monospace;">${code}</div>
-            </td></tr>
-          </table>
-
-          <!-- Fő gomb -->
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
-            <tr><td style="background:#ef7a5a;border-radius:12px;">
-              <a href="${link}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;">Regisztrálok a TWINX-be</a>
-            </td></tr>
-          </table>
-          <p style="margin:0 0 24px;color:#6b6b6b;font-size:13px;line-height:1.5;">
-            <strong style="color:#1c1815;">A kódot nem a regisztrációnál kell megadni.</strong>
-            Előbb regisztrálj (e-maillel vagy Google-fiókkal), majd belépés után a kezdőlapon,
-            az egyenleged mellett kattints az „Ajándékkód beváltása” gombra, és írd be a kódot.<br>
-            Ha a gomb nem működne, másold be ezt a linket: <span style="color:#1c1815;">${link}</span>
-          </p>
-
-          <!-- Mit tudsz vele kipróbálni -->
-          <div style="border-top:1px solid #e8e1d6;padding-top:20px;">
-            <p style="margin:0 0 12px;font-weight:700;">Ezeket próbálhatod ki a kredittel:</p>
-            <table role="presentation" cellpadding="0" cellspacing="0">
-              ${perks.map((p) => `<tr><td style="padding:4px 0;color:#1c1815;font-size:15px;"><span style="color:#ef7a5a;font-weight:700;">•</span>&nbsp; ${escapeHtml(p)}</td></tr>`).join("")}
-            </table>
-          </div>
-
-          <p style="margin:24px 0 0;">Ha bármi kérdésed van, csak válaszolj erre a levélre — segítünk a beállításban.</p>
-          <p style="margin:16px 0 0;">Üdvözlettel,<br><strong>a TWINX csapata</strong></p>
-        </td></tr>
-
-        <!-- Lábléc -->
-        <tr><td style="background:#f7f3ec;border-top:1px solid #e8e1d6;padding:20px 32px;color:#6b6b6b;font-size:12px;line-height:1.6;">
-          A kód egyszer használható fel, és a jelentkezésed e-mail címéhez tartozik.<br>
-          <a href="${site}" style="color:#6b6b6b;">twinx.hu</a>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-
   const text = [
-    `Kedves ${invite.name}!`,
+    `Kedves ${firstName}!`,
     ``,
-    `Köszönjük a jelentkezésed - jóváhagytuk. Ezzel a kóddal ${credits} kredittel indulsz a TWINX-ben, ingyen, bankkártya nélkül.`,
+    `Köszönjük a jelentkezésed a TWINX-be — jóváhagytuk. Az ajándékkódoddal ${credits} kredittel tudod kipróbálni a rendszert, ingyen.`,
     ``,
-    `Az ajándékkódod: ${invite.code}`,
+    `Ajándékkódod: ${invite.code}`,
     ``,
-    `Regisztráció: ${link}`,
-    `A kódot NEM a regisztrációnál kell megadni. Előbb regisztrálj (e-maillel vagy Google-fiokkal), majd belépés után a kezdőlapon, az egyenleged mellett az "Ajándékkód beváltása" gombbal váltsd be.`,
+    `Beváltás:`,
+    `1. Regisztrálj: ${site}/register`,
+    `2. Belépés után a kezdőlapon kattints az "Ajándékkód beváltása" gombra.`,
+    `3. Írd be a kódot — a kereted ${credits} kreditre egészül ki.`,
     ``,
-    `Ezeket próbálhatod ki a kredittel:`,
-    ...perks.map((p) => `- ${p}`),
-    ``,
-    `Kérdés esetén válaszolj erre a levélre.`,
+    `Ha kérdésed van, válaszolj erre a levélre.`,
     ``,
     `Üdvözlettel,`,
-    `a TWINX csapata`,
-    `${site}`,
-    ``,
-    `A kód egyszer használható fel.`,
+    `TWINX`,
+    site.replace(/^https?:\/\//, ""),
   ].join("\n");
 
-  return { subject: `Itt a TWINX ajándékkódod — ${credits} kredit`, html, text, from, link };
+  // A HTML csak a fenti szöveg megjelenítése, sortöréshelyesen — nincs benne
+  // fejléc-sáv, gomb és felsorolás, hogy kimásolva se essen szét sehol.
+  // Egyetlen kiemelés van: maga a kód, mert azt kell megtalálnia a partnernek.
+  const safeCode = escapeHtml(invite.code);
+  const body = escapeHtml(text).replace(
+    safeCode,
+    `<strong style="font-size:17px;letter-spacing:1px;">${safeCode}</strong>`
+  );
+  const html = `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1c1815;white-space:pre-wrap;">${body}</div>`;
+
+  return { subject: `TWINX ajándékkód — ${credits} kredit`, html, text, from, link };
 }
 
 /**

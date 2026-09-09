@@ -116,14 +116,7 @@ export default function InviteList({
     } finally { setSending(false); }
   }
 
-  /** A levél HTML-je letöltve — a saját postafiókból küldhető ki. */
-  function downloadHtml() {
-    if (!preview) return;
-    downloadFile(`twinx-ajandekkod-${slug(preview.toName)}.html`, preview.html, "text/html");
-    showToast("Letöltve. Nyisd meg böngészőben, jelöld ki, és másold a levélbe.", "info");
-  }
-
-  /** Formázottan a vágólapra: Gmail/Outlook levélbe beillesztve megtartja a kinézetet. */
+  /** Vágólapra: sortöréshelyesen illeszthető be bármelyik levelezőbe. */
   async function copyRich() {
     if (!preview) return;
     try {
@@ -337,12 +330,7 @@ export default function InviteList({
                   <button type="button" onClick={() => void copyRich()}
                     className="rounded-lg px-3 py-1.5 text-xs font-semibold"
                     style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    Levél másolása (formázott)
-                  </button>
-                  <button type="button" onClick={downloadHtml}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium"
-                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                    HTML letöltése
+                    Levél másolása
                   </button>
                   <button type="button"
                     onClick={() => downloadFile(`twinx-ajandekkod-${slug(preview.toName)}.txt`, preview.text, "text/plain")}
