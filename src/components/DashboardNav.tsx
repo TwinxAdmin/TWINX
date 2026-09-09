@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CATEGORIES } from "@/lib/catalog";
+import { visibleCategories, visibleModules } from "@/lib/catalog";
 import ModuleIcon from "@/components/ModuleIcon";
 
 type Item = { label: string; href?: string; desc?: string; icon?: string; onClick?: () => void };
@@ -184,13 +184,15 @@ export default function DashboardNav() {
         />
       )}
 
-      {CATEGORIES.map((cat) => (
+      {/* Folyamat szerinti csoportok (Tartalomgyártás, Elemzés & kutatás…).
+          Csak azok jelennek meg, amikben van látható modul — így nem áll itt
+          üres, „Hamarosan” feliratú menüpont. */}
+      {visibleCategories().map((cat) => (
         <NavDropdown
           key={cat.slug}
           id={cat.slug}
           label={cat.label}
-          soon={cat.status === "soon"}
-          items={cat.modules}
+          items={visibleModules(cat)}
           isOpen={open === cat.slug}
           onToggle={() => setOpen(open === cat.slug ? null : cat.slug)}
           onClose={() => setOpen(null)}

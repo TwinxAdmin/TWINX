@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CATEGORIES } from "@/lib/catalog";
+import { visibleCategories, visibleModules } from "@/lib/catalog";
 import ModuleIcon from "@/components/ModuleIcon";
 import LogoutButton from "@/components/LogoutButton";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
@@ -26,14 +26,15 @@ export default function MobileNav({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Ugyanaz a folyamat szerinti csoportosítás, mint a desktop navban
+  // (Tartalomgyártás, Elemzés & kutatás…) — egy forrásból, a katalógusból.
   const sections: { title: string; items: Item[] }[] = [
-    ...CATEGORIES.filter((c) => c.status === "available" && c.modules.length).map((c) => ({
+    ...visibleCategories().map((c) => ({
       title: c.label,
-      items: c.modules as Item[],
+      items: visibleModules(c) as Item[],
     })),
-    // A hirdetéskép készítőnek nincs külön szekciója: a modul az Ingatlan
-    // kategóriában van, az Arculat lentebb az „Arculatom" sorban, a korábbi
-    // munkák pedig egy közös gyűjtőoldalon.
+    // Az Arculat a lenti „Arculatom" sorban van, a korábbi munkák pedig
+    // egy közös gyűjtőoldalon.
     {
       title: "Korábbi munkák",
       items: [

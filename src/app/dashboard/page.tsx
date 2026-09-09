@@ -2,7 +2,7 @@
 // Server Component: közös egyenleg + kategória-áttekintés + a legutóbbi
 // 50 tevékenység (usage_history, LIMIT 50). Az RLS csak a saját sorokat adja vissza.
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORIES } from "@/lib/catalog";
+import { visibleCategories, visibleModules } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
 import PricingTrigger from "@/components/PricingTrigger";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
@@ -176,31 +176,31 @@ export default async function DashboardHome() {
         }))}
       />
 
-      {/* Kategóriák — a lap aljára, áttekintésnek */}
+      {/* Csoportok — a lap aljára, áttekintésnek. Folyamat szerint (nem iparág
+          szerint), és a kártyáról egy kattintással el lehet érni a modulokat. */}
       <section>
-        <h2 className="font-display text-xl font-medium">Kategóriák</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORIES.map((cat) => {
-            const soon = cat.status === "soon";
-            return (
-              <div key={cat.slug} className="twx-card flex flex-col p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-lg font-medium">{cat.label}</h3>
-                  {soon && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                      style={{ background: "var(--twx-line)", color: "var(--twx-ink-muted)" }}
-                    >
-                      Hamarosan
-                    </span>
-                  )}
-                </div>
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
-                  {soon ? `${cat.blurb} Hamarosan elérhető.` : cat.blurb}
-                </p>
+        <h2 className="font-display text-xl font-medium">Mit szeretnél csinálni?</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {visibleCategories().map((cat) => (
+            <div key={cat.slug} className="twx-card flex flex-col p-5">
+              <h3 className="font-display text-lg font-medium">{cat.label}</h3>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+                {cat.blurb}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {visibleModules(cat).map((m) => (
+                  <a
+                    key={m.href}
+                    href={m.href}
+                    className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
+                    style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+                  >
+                    {m.label}
+                  </a>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
 
