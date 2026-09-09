@@ -233,3 +233,66 @@ export async function enhanceImageFal(
   const mimeType: string = data?.image?.content_type ?? imgRes.headers.get("content-type") ?? "image/png";
   return { bytes, mimeType };
 }
+
+// ---------------------------------------------------------------------------
+// UTASÍTÁS-ALAPÚ KÉPSZERKESZTŐ (fal.ai) — „csak a hangulat, a szoba nem"
+// ---------------------------------------------------------------------------
+//
+// A clarity-upscaler csak részletet állít vissza. Egy utasítás-alapú szerkesztő
+// viszont ÉRTI a kérést („legyen szebb a fény"), ezért hangulatot is tud adni.
+//
+// FIGYELEM: ez GENERATÍV modell — elvileg át tudná rendezni a szobát. Ezért
+// (1) a prompt kimondottan tiltja a tartalmi változtatást, (2) a hívó oldalon
+// szerkezet-ellenőrzés fut, és túl nagy eltérésnél eldobjuk az eredményt.
+//
+// A modell env-ből állítható, mert a fal.ai kínálata változik:
+//   FAL_EDIT_MODEL=<szolgáltató/modell>
+const FAL_EDIT_MODEL = process.env.FAL_EDIT_MODEL || "";
+
+/** Van-e beállítva képszerkesztő modell? Enélkül a lánc kihagyja ezt a lépést. */
+export function hasFalEditor(): boolean {
+  return Boolean(FAL_EDIT_MODEL && process.env.FAL_KEY);
+}
+
+export async function editImageFal(params: {
+  dataUri: string;
+  prompt: string;
+  /** 0–1: mennyire térhet el az eredetitől. Nálunk szándékosan alacsony. */
+  strength?: number;
+}): Promise<{ bytes: Buffer; mimeType: string }> {
+  const key = process.env.FAL_KEY;
+  if (!key) throw new Error("Hiányzó FAL_KEY.");
+  if (!FAL_EDIT_MODEL) throw new Error("Nincs beállítva FAL_EDIT_MODEL.");
+
+  const res = await fetch(`${FAL_BASE}/${FAL_EDIT_MODEL}`, {
+    method: "POST",
+    headers: { Authorization: `Key ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image_url: params.dataUri,
+      prompt: params.prompt,
+      // A legtöbb szerkesztő modell ezeket a neveket érti; a felesleges mezőket
+      // a szolgáltató egyszerűen figyelmen kívül hagyja.
+      strength: params.strength ?? Number(process.env.FAL_EDIT_STRENGTH || 0.28),
+      guidance_scale: Number(process.env.FAL_EDIT_GUIDANCE || 3.5),
+      num_images: 1,
+      output_format: "jpeg",
+      enable_safety_checker: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Képszerkesztő hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const url: string | undefined = data?.image?.url ?? data?.images?.[0]?.url;
+  if (!url) throw new Error("A képszerkesztő nem adott vissza képet.");
+
+  const imgRes = await fetch(url);
+  if (!imgRes.ok) throw new Error("A szerkesztett kép letöltése nem sikerült.");
+  const bytes = Buffer.from(await imgRes.arrayBuffer());
+  const mimeType: string =
+    data?.image?.content_type ?? imgRes.headers.get("content-type") ?? "image/jpeg";
+  return { bytes, mimeType };
+}

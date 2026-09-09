@@ -81,7 +81,7 @@ import {
   composeProfessionalPrompt,
   type ProfessionalQuery,
 } from "@/lib/professionals";
-import { ENHANCE_PROMPTS, ENHANCE_FAL_PROMPT, ENHANCE_FAL_NEGATIVE, type EnhanceCoreMode } from "@/lib/image-enhance";
+import { ENHANCE_PROMPTS, type EnhanceCoreMode } from "@/lib/image-enhance";
 
 export type PromptSegments = Record<string, string>;
 
@@ -149,22 +149,19 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
-    key: "image_enhance_feljavitas",
-    label: "Képjavító — Feljavítás (fal.ai)",
-    dataBlockPreview: "(A képet a fal.ai clarity-upscaler dolgozza fel; a szerkezet-megtartást a creativity/resemblance paraméterek adják — ezek env-ből állíthatók.)",
-    dataBlockAfter: "negative",
+    // ÚJ KULCS (_v2): a Feljavítás átállt fal.ai-ról Nano Bananára, és a régi
+    // kulcson lehet mentett, AKTÍV verzió a fal.ai rövid kulcsszavas promptjával.
+    // Az felülírná az új utasítást — a kulcs cseréjével ez kizárt.
+    key: "image_enhance_feljavitas_v2",
+    label: "Képjavító — Feljavítás (Nano Banana)",
+    dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek, az EREDETI feltöltött képpel együtt.)",
+    dataBlockAfter: "prompt",
     segments: [
       {
         id: "prompt",
-        label: "Pozitív prompt",
-        hint: "A felbontás- és minőségnövelés iránya (élesség, tisztaság). Rövid, kulcsszavas. Változó nem használható.",
-        default: ENHANCE_FAL_PROMPT,
-      },
-      {
-        id: "negative",
-        label: "Negatív prompt (mit kerüljön)",
-        hint: "Amit el akarunk kerülni (amatőr, homályos, sötét, kiégett ablak, elrendezés-változás…). Változó nem használható.",
-        default: ENHANCE_FAL_NEGATIVE,
+        label: "Prompt (feljavítás)",
+        hint: "A feltöltött képre menő teljes utasítás. Cél: lágy, profi fények és jobb képminőség — a helyiség, a berendezés és a képkivágás VÁLTOZATLAN. Változó nem használható.",
+        default: ENHANCE_PROMPTS.feljavitas,
       },
     ],
   },
@@ -565,20 +562,11 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
   return composeSimulationPrompt(summaryText, segments);
 }
 
-// Rendrakás (Nano Banana) — egy szöveges prompt.
+// Képjavító (Nano Banana) — mindkét mód egy-egy szöveges prompt.
 export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<string> {
-  const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas";
+  const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas_v2";
   const segments = await getActiveSegments(key);
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
-}
-
-// Feljavítás (fal.ai) — pozitív + negatív prompt.
-export async function buildEnhanceFalActive(): Promise<{ prompt: string; negative: string }> {
-  const segments = await getActiveSegments("image_enhance_feljavitas");
-  return {
-    prompt: (segments.prompt ?? ENHANCE_FAL_PROMPT).trim(),
-    negative: (segments.negative ?? ENHANCE_FAL_NEGATIVE).trim(),
-  };
 }
 
 export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {

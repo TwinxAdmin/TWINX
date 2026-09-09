@@ -72,3 +72,6 @@ export async function logCost(entry: CostLogEntry): Promise<void> {
  * Env-ből felülírható, ha pontosítjuk: FAL_USD_PER_IMAGE.
  */
 export const FAL_USD_PER_IMAGE = Number(process.env.FAL_USD_PER_IMAGE || 0.05);
+
+/** Az utasítás-alapú képszerkesztő becsült önköltsége képenként (USD). */
+export const FAL_EDIT_USD_PER_IMAGE = Number(process.env.FAL_EDIT_USD_PER_IMAGE || 0.05);

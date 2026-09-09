@@ -1,5 +1,12 @@
 // photo-grade — determinisztikus fotó-korrekció ingatlanfotókhoz.
 //
+// !!! JELENLEG NINCS BEKÖTVE. A Képjavító láncából kivettük: a Feljavítást egyetlen
+// Nano Banana hívás végzi az EREDETI képen (lásd api/real-estate/image-enhance).
+// Ok: a több egymásra épülő lépés (korrekció → geometria → AI szerkesztő → felskálázó)
+// egyszer teljesen szétesett képet adott, és nem lehetett egyértelműen egy lépéshez
+// kötni a hibát. A fájl azért marad meg, mert a mérésekkel hangolt logika értékes —
+// de csak akkor szabad visszakötni, ha valódi képeken egyenként végigmérjük.
+//
 // MIÉRT: a partnerek visszajelzése szerint a korábbi „Feljavítás" (generatív
 // felskálázás) nem látszott. Egy telefonnal készült lakásfotó ugyanis ritkán
 // ÉLETLEN — inkább rosszul VILÁGÍTOTT: sárga izzófény, sötét sarkok, kiégett
@@ -29,6 +36,12 @@ export type PhotoStats = {
   clipLow: number;
   /** Átlagos színtelítettség 0–1 (túltelített képet nem élénkítünk tovább). */
   saturation: number;
+  /** A LEGVILÁGOSABB ~15% pixel csatorna-átlaga. Ezekből olvasható ki a fény
+   *  valódi színe (mennyezet, ablak, fehér felületek) — a teljes kép átlaga
+   *  ehhez félrevezető, mert egy sárga falú szobát „sárga fénynek" hinne. */
+  brightR: number;
+  brightG: number;
+  brightB: number;
 };
 
 /** A korrekciós terv — minden érték a LUT-hoz és a sharp-lépésekhez. */
@@ -46,6 +59,10 @@ export type GradePlan = {
   saturation: number;
   /** Helyi kontraszt erőssége (sharp clahe maxSlope; 0 = kikapcsolva). */
   claheSlope: number;
+  /** „Szoftbox": mennyire lapítjuk el a megvilágítás egyenetlenségét (0–1).
+   *  Ez adja a profi fotós lágy fényét: a sötét sarok felderül, a világos folt
+   *  visszahúzódik, a rajzolat viszont sértetlen marad. */
+  softness: number;
   /** Élesítés sugara (0 = nincs). */
   sharpenSigma: number;
   /** Emberi nyelvű indoklás — az adminban és a naplóban hasznos. */
@@ -67,20 +84,26 @@ export type GradePreset = {
   maxSaturation: number;
   /** Helyi kontraszt alap-erőssége. */
   clahe: number;
+  /** A fény-lapítás felső határa. 0,45 fölött már természetellenesen laposodik. */
+  maxSoftness: number;
 };
 
 export const PRESET_REAL_ESTATE: GradePreset = {
-  targetMedian: 132,
-  wbStrength: 0.85,
-  // Egy erős izzófényes belső tér valósan ~1,4-es kék erősítést kíván; ennél
-  // többet viszont nem engedünk, hogy a fa és a textil ne hűljön ki teljesen.
-  wbMinGain: 0.74,
-  wbMaxGain: 1.38,
+  targetMedian: 128,
+  // VISSZAFOGOTT korrekció: az otthon fotója legyen barátságos, ne steril. A
+  // korábbi 0,85-ös erősség érezhetően hideggé tette a szobákat.
+  wbStrength: 0.5,
+  wbMinGain: 0.9,
+  wbMaxGain: 1.12,
   // Egy nagyon sötét felvételnél ennél kevesebb nem elég a cél eléréséhez; a
   // felerősödő zajt a lánc második lépése (fal.ai élesítés) szűri.
   maxGamma: 1.9,
   maxSaturation: 1.1,
-  clahe: 3,
+  // A helyi kontraszt 3-as meredeksége már „agyon-HDR-es" hatást adott.
+  // A helyi kontraszt visszafogva: nem ropogósságot akarunk, hanem LÁGY fényt —
+  // azt a „szoftbox" lépés adja.
+  clahe: 1,
+  maxSoftness: 0.45,
 };
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
@@ -99,7 +122,7 @@ export const lum = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g 
 export function analyzePixels(rgb: Uint8Array | number[]): PhotoStats {
   const n = Math.floor(rgb.length / 3);
   if (n <= 0) {
-    return { p01: 0, p05: 0, p50: 128, p95: 255, p99: 255, meanR: 128, meanG: 128, meanB: 128, clipHigh: 0, clipLow: 0, saturation: 0 };
+    return { p01: 0, p05: 0, p50: 128, p95: 255, p99: 255, meanR: 128, meanG: 128, meanB: 128, clipHigh: 0, clipLow: 0, saturation: 0, brightR: 128, brightG: 128, brightB: 128 };
   }
 
   const hist = new Uint32Array(256);
@@ -130,6 +153,19 @@ export function analyzePixels(rgb: Uint8Array | number[]): PhotoStats {
     return 255;
   };
 
+  // A világos pixelek külön átlaga: a küszöb fölöttiek (felső ~15%) számítanak.
+  const brightCut = pct(0.85);
+  let br = 0, bg = 0, bb = 0, bn = 0;
+  for (let i = 0; i < n; i++) {
+    const r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2];
+    // FONTOS: ugyanúgy KEREKÍTVE, ahogy a hisztogram épült — különben a
+    // százalékos küszöb és a szűrő fél egységgel elcsúszik, és (mint kiderült)
+    // egyetlen pixel sem megy át, a mérés pedig visszaesik a teljes átlagra.
+    const L = Math.round(lum(r, g, b));
+    // A teljesen kiégett pixelek nem hordoznak színinformációt — kihagyjuk.
+    if (L >= brightCut && L < 250) { br += r; bg += g; bb += b; bn++; }
+  }
+
   return {
     p01: pct(0.01),
     p05: pct(0.05),
@@ -142,6 +178,9 @@ export function analyzePixels(rgb: Uint8Array | number[]): PhotoStats {
     clipHigh: clipHigh / n,
     clipLow: clipLow / n,
     saturation: ssat / n,
+    brightR: bn ? br / bn : sr / n,
+    brightG: bn ? bg / bn : sg / n,
+    brightB: bn ? bb / bn : sb / n,
   };
 }
 
@@ -159,22 +198,48 @@ export function planWhiteBalance(
 ): { wb: [number, number, number]; notes: string[] } {
   const notes: string[] = [];
 
-  // --- Fehéregyensúly (szürke-világ, csillapítva) ---
-  // A belső téri telefonfotó jellemzően sárgás (izzó) vagy zöldes (neon). A
-  // csatorna-átlagokat közelítjük egymáshoz, de CSAK részlegesen és korlátok
-  // között — különben egy szándékosan meleg, hangulatos fotó is szürkévé válna.
-  const avg = (s.meanR + s.meanG + s.meanB) / 3;
+  // --- Fehéregyensúly: FEHÉR-FOLT módszer (nem szürke-világ) ---
+  // A szürke-világ feltevés az egész kép átlagát akarja semlegesre húzni. Ez egy
+  // SÁRGA FALÚ szobánál katasztrófa: a fal színét fényhibának hiszi, és kékkel
+  // kompenzál — pont ettől lett hideg és élettelen a kép.
+  // Helyette a LEGVILÁGOSABB felületeket nézzük (mennyezet, ablak, fehér falrész):
+  // ezek eredetileg semlegesek, tehát az ő elszíneződésük a fény valódi hibája.
+  const avg = (s.brightR + s.brightG + s.brightB) / 3;
   const raw: [number, number, number] = [
-    s.meanR > 1 ? avg / s.meanR : 1,
-    s.meanG > 1 ? avg / s.meanG : 1,
-    s.meanB > 1 ? avg / s.meanB : 1,
+    s.brightR > 1 ? avg / s.brightR : 1,
+    s.brightG > 1 ? avg / s.brightG : 1,
+    s.brightB > 1 ? avg / s.brightB : 1,
   ];
-  const wb = raw.map((g) =>
+  const wb: [number, number, number] = raw.map((g) =>
     clamp(1 + (g - 1) * preset.wbStrength, preset.wbMinGain, preset.wbMaxGain)
   ) as [number, number, number];
+
+  // A korrekció IRÁNYA — még a melegség-védelem előtt, hogy a felirat igazat mondjon.
+  const coolingDown = raw[2] > raw[0];
+
+  // --- MELEGSÉG-VÉDELEM az EREDMÉNYRE (nem az erősítésre) ---
+  // Nem a szorzókat korlátozzuk, hanem azt, hogy a KÉSZ kép mennyire lesz meleg.
+  // Egy izzófényes szobát hűteni kell, de csak a semleges közeléig — az otthon
+  // fotója maradjon hívogató. A szorzókra kimondott tiltás ezt nem tudja: vagy
+  // a valódi színhibát hagyja bent, vagy egy meleg szobát fordít hidegbe.
+  const WARM_FLOOR = 1.03; // ennél hidegebbre (R/B) soha nem visszük
+  const warmBefore = s.meanR / Math.max(1, s.meanB);
+  const wanted = warmBefore * (wb[0] / wb[2]);
+  const allowed =
+    warmBefore > WARM_FLOOR
+      ? clamp(wanted, WARM_FLOOR, warmBefore)   // hűtés igen, de a küszöbig
+      : clamp(wanted, warmBefore, WARM_FLOOR);  // hideg képet melegítünk, túl nem
+  if (wanted > 0 && Math.abs(allowed - wanted) > 1e-6) {
+    // A két csatorna arányát igazítjuk, a fényerő-hatásuk (mértani közepük) marad.
+    const ratio = allowed / warmBefore;             // a kívánt wb[0]/wb[2]
+    const geo = Math.sqrt(wb[0] * wb[2]);
+    wb[0] = clamp(geo * Math.sqrt(ratio), preset.wbMinGain, preset.wbMaxGain);
+    wb[2] = clamp(geo / Math.sqrt(ratio), preset.wbMinGain, preset.wbMaxGain);
+  }
+
   const castStrength = Math.max(Math.abs(wb[0] - 1), Math.abs(wb[2] - 1));
-  if (castStrength > 0.04) {
-    notes.push(wb[2] > wb[0] ? "Sárgás fény semlegesítve" : "Hideg/kékes fény semlegesítve");
+  if (castStrength > 0.03) {
+    notes.push(coolingDown ? "Sárgás fény semlegesítve" : "Hideg/kékes fény melegítve");
   }
   return { wb, notes };
 }
@@ -250,6 +315,13 @@ export function planLevels(
   const claheSlope = spread > 190 ? Math.max(1, preset.clahe - 2) : spread > 150 ? preset.clahe - 1 : preset.clahe;
   if (claheSlope >= preset.clahe) notes.push("Helyi kontraszt: textúrák kiemelve");
 
+  // --- „SZOFTBOX": a fény lágyítása ---
+  // Minél nagyobb a kép tónus-terjedelme, annál egyenetlenebb a megvilágítás
+  // (éles fény-árnyék határok, sötét sarkok, kiégett foltok) — annál többet
+  // lapítunk. Egy eleve egyenletesen világított képnél alig avatkozunk be.
+  const softness = clamp(((s.p95 - s.p05) - 90) / 300, 0.12, preset.maxSoftness);
+  if (softness > 0.2) notes.push("Lágyabb, egyenletesebb fény");
+
   return {
     wb,
     black,
@@ -258,7 +330,8 @@ export function planLevels(
     knee,
     saturation,
     claheSlope,
-    sharpenSigma: 0.8,
+    softness,
+    sharpenSigma: 0.5,
     notes,
   };
 }
@@ -341,6 +414,42 @@ export function planGradeFromPixels(
   return planLevels(second, wb, notes, preset);
 }
 
+/**
+ * A LÁGY FÉNY számítása — tiszta függvény, ezért tesztelhető.
+ *
+ * Az ötlet: a világosságot két rétegre bontjuk. Az erősen elmosott réteg maga a
+ * MEGVILÁGÍTÁS (hol éri több és hol kevesebb fény a teret), a maradék pedig a
+ * RAJZOLAT (élek, textúra, tárgyak). Ha csak a megvilágítás-réteget lapítjuk el,
+ * a fény olyan lesz, mintha egy hatalmas szórt fényforrás világítana — a sötét
+ * sarok felderül, a világos folt visszahúzódik —, a részletek viszont maradnak.
+ *
+ * Ez oldja meg az ablak kérdését is: nem ablakot keresünk, hanem TÚL VILÁGOS
+ * TERÜLETET. Ha nincs ablak, nincs ilyen terület, és nem történik semmi.
+ */
+export function softenLight(
+  luma: Uint8Array,
+  base: Uint8Array,
+  softness: number,
+  /** A korrekció felső/alsó határa — ez fogja vissza az élek menti glóriát. */
+  maxGain = 1.85,
+  minGain = 0.6
+): Float32Array {
+  const gains = new Float32Array(luma.length);
+  let sum = 0;
+  for (let i = 0; i < base.length; i++) sum += base[i];
+  const mean = sum / Math.max(1, base.length);
+
+  for (let i = 0; i < luma.length; i++) {
+    const L = luma[i];
+    // Lapított megvilágítás + érintetlen rajzolat.
+    const flatBase = mean + (base[i] - mean) * (1 - softness);
+    const target = flatBase + (L - base[i]);
+    const g = L < 2 ? 1 : target / L;
+    gains[i] = g < minGain ? minGain : g > maxGain ? maxGain : g;
+  }
+  return gains;
+}
+
 // ---------------------------------------------------------------------------
 // 5) VÉGREHAJTÁS — sharp (csak szerveroldalon)
 // ---------------------------------------------------------------------------
@@ -405,16 +514,57 @@ export async function gradePhoto(
     }
   }
 
-  // 3) Helyi kontraszt, telítettség, élesítés — ezeket a sharp végzi.
-  let pipe = sharp(Buffer.from(graded), {
-    raw: { width: full.info.width, height: full.info.height, channels: 3 },
-  });
-  if (plan.claheSlope > 0) {
-    // A régió a kép rövidebb oldalának ~1/8-a: ekkora foltokban dolgozik a
-    // kiegyenlítés — elég nagy, hogy ne legyen „foltos", elég kicsi, hogy hasson.
-    const region = Math.max(16, Math.round(Math.min(full.info.width, full.info.height) / 8));
-    pipe = pipe.clahe({ width: region, height: region, maxSlope: plan.claheSlope });
+  // 3) LÁGY FÉNY („szoftbox") + finom helyi kontraszt — CSAK a világosságra.
+  //
+  // BUKTATÓ, amibe belefutottunk: a CLAHE-t korábban a teljes RGB képre hívtuk.
+  // A könyvtár ilyenkor a három csatornát KÜLÖN egyenlíti ki, és ahol a helyi
+  // hisztogramjuk eltér (padló, mennyezet), ott elcsúsznak egymáshoz képest —
+  // innen jöttek a lilás-kékes foltok. Ezért minden világosság-műveletet egyetlen
+  // csatornán végzünk, a színt pedig változatlan ARÁNYBAN visszük tovább.
+  const W = full.info.width, H = full.info.height;
+  const luma = toGray(graded, W, H);
+  let worked: Uint8Array = luma;
+
+  // 3a) A megvilágítás-réteg: erősen elmosott világosság. A sugár a kép
+  //     rövidebb oldalának ~5%-a — ekkora foltokban „látja" a fényt, tehát a
+  //     bútorok rajzolatát már nem, csak a fény eloszlását.
+  if (plan.softness > 0.02) {
+    const sigma = Math.max(2, Math.min(60, Math.round(Math.min(W, H) / 22)));
+    const base = new Uint8Array(
+      await sharp(Buffer.from(worked), { raw: { width: W, height: H, channels: 1 } })
+        .blur(sigma).raw().toBuffer()
+    );
+    const gains = softenLight(worked, base, plan.softness);
+    const next = new Uint8Array(worked.length);
+    for (let i = 0; i < worked.length; i++) {
+      next[i] = clamp(Math.round(worked[i] * gains[i]), 0, 255);
+    }
+    worked = next;
   }
+
+  // 3b) Finom helyi kontraszt a textúrákhoz (visszafogottan).
+  if (plan.claheSlope > 0) {
+    const region = Math.max(16, Math.round(Math.min(W, H) / 8));
+    worked = new Uint8Array(
+      await sharp(Buffer.from(worked), { raw: { width: W, height: H, channels: 1 } })
+        .clahe({ width: region, height: region, maxSlope: plan.claheSlope })
+        .raw().toBuffer()
+    );
+  }
+
+  // 3c) A világosság-változás visszavezetése a színes képre: csatornánként
+  //     UGYANAZ a szorzó, így a színezet és a telítettség érintetlen marad.
+  for (let i = 0, p3 = 0; i < luma.length; i++, p3 += 3) {
+    const before = luma[i];
+    if (before < 2) continue;
+    const k = worked[i] / before;
+    graded[p3] = clamp(Math.round(graded[p3] * k), 0, 255);
+    graded[p3 + 1] = clamp(Math.round(graded[p3 + 1] * k), 0, 255);
+    graded[p3 + 2] = clamp(Math.round(graded[p3 + 2] * k), 0, 255);
+  }
+
+  // 4) Telítettség és élesítés.
+  let pipe = sharp(Buffer.from(graded), { raw: { width: W, height: H, channels: 3 } });
   if (plan.saturation !== 1) pipe = pipe.modulate({ saturation: plan.saturation });
   if (plan.sharpenSigma > 0) pipe = pipe.sharpen({ sigma: plan.sharpenSigma });
 
@@ -455,4 +605,48 @@ export async function shouldUpscale(
   } catch {
     return true; // bizonytalanság esetén inkább lefuttatjuk
   }
+}
+
+/**
+ * Mennyire tér el két kép SZERKEZETE? 0 = azonos, 1 = teljesen más.
+ *
+ * MIÉRT KELL: az utasítás-alapú képszerkesztő generatív — hiába tiltjuk a
+ * promptban, előfordulhat, hogy átrendezi a szobát. Ez a mérés a biztonsági fék:
+ * a világosság-eltéréseket (a kívánt fény- és színváltozást) NEM bünteti, mert
+ * a kicsinyített képek ÉLTÉRKÉPÉT hasonlítja össze. Ha a bútorok és a falak
+ * a helyükön maradtak, az éltérkép szinte azonos — bármennyire más a fény.
+ */
+export async function structuralDrift(a: Buffer, b: Buffer): Promise<number> {
+  const sharp = (await import("sharp")).default;
+  const S = 128;
+  const grab = async (buf: Buffer) =>
+    new Uint8Array(
+      await sharp(buf, { failOn: "none" })
+        .resize(S, S, { fit: "fill" })
+        .greyscale()
+        .normalise()          // a fényerő-különbséget kivesszük az összevetésből
+        .raw()
+        .toBuffer()
+    );
+  const [ga, gb] = await Promise.all([grab(a), grab(b)]);
+
+  // Egyszerű élerősség (vízszintes + függőleges szomszéd-különbség).
+  const edges = (g: Uint8Array) => {
+    const e = new Float32Array(S * S);
+    for (let y = 1; y < S - 1; y++) {
+      for (let x = 1; x < S - 1; x++) {
+        const i = y * S + x;
+        e[i] = Math.abs(g[i] - g[i - 1]) + Math.abs(g[i] - g[i - S]);
+      }
+    }
+    return e;
+  };
+  const ea = edges(ga), eb = edges(gb);
+
+  let diff = 0, total = 0;
+  for (let i = 0; i < ea.length; i++) {
+    diff += Math.abs(ea[i] - eb[i]);
+    total += Math.max(ea[i], eb[i]);
+  }
+  return total > 0 ? diff / total : 0;
 }

@@ -2,12 +2,13 @@
 // Két művelet: Feljavítás (fal.ai) és Rendrakás (Nano Banana). Mindkettőre kattintva
 // egy ablak nyílik, ahol a tallózás, a feldolgozás és az eredmény is látszik. Az
 // elkészült képen egy gombbal rögtön futtatható a MÁSIK művelet (átjátszás).
-// Max 2 kép feldolgozásonként. Dátum-mappák + Kedvencek a korábbi munkákhoz. Nagy nézet: lightbox.
+// Max 3 kép feldolgozásonként. Dátum-mappák + Kedvencek a korábbi munkákhoz. Nagy nézet: lightbox.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
+import BeforeAfterViewer from "@/components/BeforeAfterViewer";
 import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
@@ -39,6 +40,10 @@ export default function ImageEnhancePage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Item[]>([]);
+  // Melyik eredményt mutatja az előtte/utána csúszka.
+  const [resultIdx, setResultIdx] = useState(0);
+  // „Biztosan kilépsz?" — a kész eredmény nézegetőjének véletlen bezárása ellen.
+  const [confirmClose, setConfirmClose] = useState(false);
   const [producedMode, setProducedMode] = useState<EnhanceMode | null>(null);
   const [dragOver, setDragOver] = useState(false);
   // Melyik mód-kártya fölött húzunk épp egy képet a tálcából.
@@ -64,7 +69,6 @@ export default function ImageEnhancePage() {
   const [pending, setPending] = useState<Item[] | null>(null);
   const [accepted, setAccepted] = useState<Item[]>([]); // már elfogadott képek ebből a körből
   const [reviewIdx, setReviewIdx] = useState(0);
-  const [reviewView, setReviewView] = useState<"enhanced" | "original">("enhanced");
   const [regenFor, setRegenFor] = useState<string | null>(null); // original url
   const [regenReason, setRegenReason] = useState("");
   const [regenUsed, setRegenUsed] = useState<string[]>([]);      // ahol már volt ingyenes újragenerálás
@@ -106,6 +110,15 @@ export default function ImageEnhancePage() {
     setResults([]);
     setProducedMode(null);
     setSourcePreview(null);
+    setConfirmClose(false);
+  }
+  // Bezárás-kérés: ha már KÉSZ eredményt néz a partner, egy véletlen mellékattintás
+  // ne dobja ki azonnal — előbb megerősítést kérünk. (Az eredmény mentve van a
+  // munkái közé, de a nézegetőbe nem lehet ugyanígy visszajönni.)
+  function requestClose() {
+    if (loading) return;
+    if (results.length > 0) setConfirmClose(true);
+    else closeSession();
   }
   function resetToUpload() {
     setResults([]);
@@ -159,10 +172,10 @@ export default function ImageEnhancePage() {
         setPending(data.items ?? []);
         setAccepted([]);
         setReviewIdx(0);
-        setReviewView("enhanced");
         setRegenUsed([]);
       } else {
         setResults(data.items ?? []);
+        setResultIdx(0);
         if (data.job) setHistory((h) => [data.job as Job, ...h]);
         setAssetsReload((n) => n + 1);
       }
@@ -284,7 +297,6 @@ export default function ImageEnhancePage() {
       } else {
         setPending(rest);
         setReviewIdx(Math.min(idx, rest.length - 1));
-        setReviewView("enhanced");
         showToast("Elfogadva — jöhet a következő.", "success");
       }
     } catch {
@@ -521,8 +533,8 @@ export default function ImageEnhancePage() {
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
       {session && (
-        <div onClick={loading ? undefined : closeSession} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.5)" }}>
-          <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
+        <div onClick={requestClose} className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.5)" }}>
+          <div onClick={(e) => e.stopPropagation()} className="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
             style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}>
             {/* Fejléc a művelet ikonjával — rögtön látszik, melyik folyamatban vagyunk. */}
             <div className="flex items-center justify-between gap-3 border-b px-5 py-4"
@@ -546,10 +558,38 @@ export default function ImageEnhancePage() {
                   </p>
                 </div>
               </div>
-              <button onClick={closeSession} disabled={loading}
+              <button onClick={requestClose} disabled={loading}
                 className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-lg disabled:opacity-40"
                 style={{ background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
             </div>
+
+            {/* Megerősítés — az ablakon BELÜL, hogy a mellékattintás ne tudja ezt is bezárni. */}
+            {confirmClose && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center p-6"
+                style={{ background: "rgba(20,12,8,0.45)", backdropFilter: "blur(2px)" }}
+                onClick={(e) => { e.stopPropagation(); setConfirmClose(false); }}>
+                <div className="w-full max-w-sm rounded-2xl p-5 text-center"
+                  style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 18px 48px rgba(0,0,0,0.3)" }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <div className="font-display text-lg font-semibold">Biztosan kilépsz?</div>
+                  <p className="mt-1.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+                    Az elkészült képek megmaradnak a munkáid között, de az előtte-utána nézegető bezárul.
+                  </p>
+                  <div className="mt-4 flex justify-center gap-2">
+                    <button type="button" onClick={() => setConfirmClose(false)}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold"
+                      style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                      Maradok
+                    </button>
+                    <button type="button" onClick={closeSession}
+                      className="rounded-xl px-4 py-2 text-sm font-semibold"
+                      style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                      Kilépek
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
               {results.length === 0 && loading && sourcePreview ? (
@@ -692,9 +732,19 @@ export default function ImageEnhancePage() {
                 </>
               ) : (
                 <>
-                  {/* Eredmény — kis képek, kattintásra nagy nézet */}
+                  {/* ELŐTTE / UTÁNA — a folyamat vége. Egy képet mutat, a húzható
+                      elválasztóval a két változat közvetlenül összevethető; a nyilakkal
+                      lehet a képek között lapozni. */}
+                  <BeforeAfterViewer
+                    items={results}
+                    index={resultIdx}
+                    onIndexChange={setResultIdx}
+                    keyboard={!lightbox}
+                    badge={producedMode ? <WorkChips kinds={[producedMode as WorkKind]} light /> : null}
+                  />
+
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Kattints egy képre a nagy nézethez (eredeti/feldolgozott, nyilakkal lapozható). Letöltés és kedvenc a nagy nézetben.
+                    Kattints egy bélyegképre a nagy nézethez — letöltés és kedvenc ott érhető el.
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {results.map((it, i) => (
@@ -738,7 +788,7 @@ export default function ImageEnhancePage() {
         </div>
       )}
 
-      {/* Jóváhagyó ablak (rendrakás) — lapozható, eredeti/elkészült váltással */}
+      {/* Jóváhagyó ablak (rendrakás) — előtte/utána csúszka, lapozható */}
       {pending && pending.length > 0 && (
         <div className="fixed inset-0 z-[65] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl"
@@ -756,48 +806,21 @@ export default function ImageEnhancePage() {
             </div>
 
             <div className="relative flex-1 overflow-y-auto p-4">
-              <div className="relative mx-auto w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={reviewView === "enhanced" ? pending[reviewIdx].enhanced : pending[reviewIdx].original}
-                  alt="Eredmény"
-                  className="mx-auto max-h-[52vh] w-auto rounded-xl object-contain"
-                  style={{ border: "1px solid var(--twx-line)" }}
-                />
-                {/* Jobb felső sarok: milyen munka történt ezen a képen */}
-                {producedMode && reviewView === "enhanced" && (
-                  <div className="absolute right-2 top-2">
-                    <WorkChips kinds={[producedMode as WorkKind]} light />
-                  </div>
-                )}
-                {/* Bal felső sarok: eredeti / elkészült váltás */}
-                <div className="absolute left-2 top-2 flex overflow-hidden rounded-full text-xs shadow"
-                  style={{ background: "rgba(255,255,255,0.95)", border: "1px solid var(--twx-line)" }}>
-                  {(["original", "enhanced"] as const).map((v) => (
-                    <button key={v} type="button" onClick={() => setReviewView(v)} className="px-3 py-1.5 font-medium"
-                      style={reviewView === v ? { background: "var(--twx-coral)", color: "#1c1005" } : { color: "var(--twx-ink)" }}>
-                      {v === "original" ? "Eredeti" : "Elkészült"}
-                    </button>
-                  ))}
-                </div>
-                {/* Lapozás */}
-                {pending.length > 1 && (
-                  <>
-                    <button type="button" onClick={() => setReviewIdx((i) => (i - 1 + pending.length) % pending.length)} aria-label="Előző"
-                      className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-xl shadow"
-                      style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>‹</button>
-                    <button type="button" onClick={() => setReviewIdx((i) => (i + 1) % pending.length)} aria-label="Következő"
-                      className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-xl shadow"
-                      style={{ background: "rgba(255,255,255,0.95)", color: "var(--twx-ink)" }}>›</button>
-                  </>
-                )}
-              </div>
+              {/* Előtte/utána csúszka: ugyanazon a helyen mutatja a két változatot,
+                  így a fény- és színkorrekció azonnal összevethető. */}
+              <BeforeAfterViewer
+                items={pending}
+                index={reviewIdx}
+                onIndexChange={setReviewIdx}
+                keyboard={!lightbox}
+                badge={producedMode ? <WorkChips kinds={[producedMode as WorkKind]} light /> : null}
+              />
 
               {/* Bélyegképek */}
               {pending.length > 1 && (
                 <div className="mt-3 flex justify-center gap-2">
                   {pending.map((p, i) => (
-                    <button key={p.enhanced + i} type="button" onClick={() => { setReviewIdx(i); setReviewView("enhanced"); }}
+                    <button key={p.enhanced + i} type="button" onClick={() => setReviewIdx(i)}
                       className="overflow-hidden rounded-lg border-2" style={{ borderColor: i === reviewIdx ? "var(--twx-coral)" : "var(--twx-line)" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.enhanced} alt="" className="h-12 w-16 object-cover" />

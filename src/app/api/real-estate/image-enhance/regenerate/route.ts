@@ -7,8 +7,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateImage } from "@/lib/nanobanana";
-import { enhanceImageFal } from "@/lib/fal";
-import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
+import { buildEnhancePromptActive } from "@/lib/prompts";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
 import { isEnhanceMode } from "@/lib/image-enhance";
 
@@ -47,14 +46,14 @@ export async function POST(request: Request) {
 
     let result: { bytes: Buffer; mimeType: string };
     if (mode === "feljavitas") {
-      const cfg = await buildEnhanceFalActive();
-      const dataUri = `data:${srcMime};base64,${Buffer.from(srcBytes).toString("base64")}`;
-      result = await enhanceImageFal({
-        dataUri,
-        prompt: cfg.prompt,
-        negativePrompt: cfg.negative,
-        upscaleFactor: Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4),
-      });
+      // Ugyanaz a motor és prompt, mint az első körben — az eredeti képről újra.
+      // A partner indoklása külön hangsúlyt kap: leggyakrabban az a panasz, hogy
+      // „nem látszik a különbség" vagy hogy elmozdult valami a szobában.
+      const base = await buildEnhancePromptActive("feljavitas");
+      const extra = reason
+        ? `\n\nIMPORTANT — the previous attempt was rejected by the user for this reason: "${reason}". Address it directly, while still keeping the room, its contents and the framing completely unchanged.`
+        : "";
+      result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt: base + extra });
     } else if (useRejectedAsSource) {
       // Célzott JAVÍTÁS a már rendberakott képen: csak a felsorolt tárgyakat kell eltüntetni.
       const prompt = `You are a professional real-estate photo retoucher. This photo has ALREADY been decluttered, but a few items were missed. Your ONLY job is a small, surgical touch-up.
@@ -101,9 +100,9 @@ Output exactly one photorealistic image — the same photo with only those lefto
         userId: user.id,
         serviceId: service.id,
         feature: FEATURE,
-        serviceName: mode === "feljavitas" ? "fal" : "google-studio",
+        serviceName: "google-studio",
         units: 1,
-        estimatedCostUsd: mode === "feljavitas" ? 0.05 : googleImageCostUsd(1),
+        estimatedCostUsd: googleImageCostUsd(1),
       });
     }
 

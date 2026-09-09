@@ -1,6 +1,8 @@
 // photo-geometry — a kép GEOMETRIÁJÁNAK korrekciója: ferdeség (roll),
 // összetartó függőlegesek (keystone) és objektívtorzítás (radiális).
 //
+// !!! JELENLEG NINCS BEKÖTVE — lásd a photo-grade.ts fejlécét.
+//
 // MIÉRT: a telefont ritkán tartjuk pontosan vízszintesen és függőlegesen. Ha
 // felfelé/lefelé döntjük, a falak összetartanak — ez az, amitől egy fotó
 // „amatőrnek" hat. A kiegyenesítés adja a „profi géppel készült" benyomást.

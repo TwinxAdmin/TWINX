@@ -1,16 +1,19 @@
 // POST /api/real-estate/image-enhance — Egyszerű képjavító.
-// Max 2 kép, 1 kredit / feldolgozás (all-or-nothing). A kép TARTALMÁN nem változtatunk,
-// csak a minőségén (mód szerint enyhe rendrakással). Nano Banana image-to-image.
+// Max 3 kép, 1 kredit / feldolgozás (all-or-nothing). A kép TARTALMÁN nem változtatunk,
+// csak a minőségén és a hangulatán (a Rendrakás ezen felül eltakarítja a rendetlenséget).
+//
+// EGY MOTOR, EGY LÉPÉS: mindkét mód a Nano Banana (image-to-image), és az EREDETI
+// képet kapja. A saját kódunk nem nyúl a képpixelekhez — a korábbi lánc (saját
+// fény-korrekció → hangulat-szerkesztő → fal.ai felskálázó) egyszer teljesen szétesett
+// képet adott, és több egymásra épülő lépésnél nem lehet megmondani, melyik rontotta el.
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
-import { logCost, googleImageCostUsd, FAL_USD_PER_IMAGE } from "@/lib/costs";
-import { buildEnhancePromptActive, buildEnhanceFalActive } from "@/lib/prompts";
-import { enhanceImageFal } from "@/lib/fal";
-import { gradePhoto, shouldUpscale } from "@/lib/photo-grade";
+import { logCost, googleImageCostUsd } from "@/lib/costs";
+import { buildEnhancePromptActive } from "@/lib/prompts";
 import {
   isEnhanceMode, validateImageFiles, enhanceModeLabel, EXTREME_DECLUTTER_SUFFIX, ENHANCE_MAX_IMAGES,
 } from "@/lib/image-enhance";
@@ -78,26 +81,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Motor a mód szerint:
-    //  - feljavitas: fal.ai (felbontás/minőség)
-    //  - rendrakas:  Nano Banana (rendrakás)
     // Az "átjátszás" (a másik művelet az elkészült képen) kliensoldalról jön: az eredmény
     // képet új feltöltésként küldi vissza a másik móddal — így itt nincs külön lánc-logika.
-    const useFal = mode === "feljavitas";
-    const useNano = mode === "rendrakas";
-    const falCfg = useFal ? await buildEnhanceFalActive() : null;
+    //
     // Extrém rendetlenség (a böngészőoldali zsúfoltság-heurisztika jelzi):
     // ilyenkor a rendrakás promptot megerősítjük az agresszívabb toldalékkal.
     const extreme = String(form.get("extreme") ?? "") === "1";
-    const nanoPrompt = useNano
-      ? (await buildEnhancePromptActive("rendrakas")) + (extreme ? EXTREME_DECLUTTER_SUFFIX : "")
-      : "";
-
-    // Feljavítás = felbontásnövelés: nagyobb upscale_factor, a szerkezet hű marad.
-    const upscaleFactor = Number(process.env.FAL_ENHANCE_UPSCALE_HIGH || 4);
-    // Hány képnél futott le ténylegesen a fal.ai hívás (a költségnaplóhoz):
-    // egy eleve éles, nagy felbontású fotónál kihagyjuk, mert nem tesz hozzá.
-    let falCalls = 0;
+    const basePrompt = await buildEnhancePromptActive(mode);
+    const prompt = mode === "rendrakas" && extreme ? basePrompt + EXTREME_DECLUTTER_SUFFIX : basePrompt;
 
     // Párhuzamos feldolgozás — a képek ne fussanak a 60 mp-es limitbe egymás után.
     const items = await Promise.all(files.map(async (file) => {
@@ -111,47 +102,8 @@ export async function POST(request: Request) {
       if (origErr) throw new Error(`Storage feltöltés hiba: ${origErr.message}`);
       const original = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
 
-      // Munkakép — lépésről lépésre halad végig a láncon.
-      let workBytes: Uint8Array = inputBytes;
-      let workMime = mime;
-      let gradeNotes: string[] = [];
-
-      // 1) FOTÓ-KORREKCIÓ (saját, determinisztikus — nincs AI-költsége).
-      //    Ez adja a látható változást: fehéregyensúly, árnyéknyitás, csúcsfény-
-      //    lágyítás, helyi kontraszt. A helyiséget nem érinti, csak a fényt/színt.
-      let needsFal = true;
-      if (useFal) {
-        try {
-          const g = await gradePhoto(Buffer.from(workBytes));
-          workBytes = new Uint8Array(g.buffer);
-          workMime = "image/jpeg";
-          gradeNotes = g.plan.notes;
-          // A drága felskálázást CSAK akkor hívjuk, ha van mit javítania: kis
-          // felbontás vagy lágy rajzolat. Egy éles, nagy telefonfotón alig tesz
-          // hozzá — ott a korrekció önmagában is látványos, és marad a keret.
-          needsFal = await shouldUpscale(Buffer.from(g.buffer));
-        } catch {
-          // A korrekció hibája ne buktassa el a feldolgozást — megy a régi úton.
-          needsFal = true;
-        }
-      }
-
-      // 2) Élesítés / felbontás (fal.ai) — csak ha a fenti vizsgálat indokolja.
-      if (falCfg && needsFal) {
-        falCalls++;
-        const dataUri = `data:${workMime};base64,${Buffer.from(workBytes).toString("base64")}`;
-        const r = await enhanceImageFal({ dataUri, prompt: falCfg.prompt, negativePrompt: falCfg.negative, upscaleFactor });
-        workBytes = new Uint8Array(r.bytes);
-        workMime = r.mimeType;
-      }
-
-      // 2) Rendrakás (Nano Banana) — a már feljavított képen takarítja el a rendetlenséget.
-      let result: { bytes: Buffer; mimeType: string };
-      if (useNano) {
-        result = await generateImage({ source: { bytes: workBytes, mimeType: workMime }, prompt: nanoPrompt });
-      } else {
-        result = { bytes: Buffer.from(workBytes), mimeType: workMime };
-      }
+      // EGYETLEN lépés: a feltöltött kép megy be, a mód promptjával.
+      const result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt });
 
       const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
       const filePath = `image-enhance/${user.id}/${randomUUID()}.${ext}`;
@@ -160,9 +112,7 @@ export async function POST(request: Request) {
       if (upErr) throw new Error(`Storage feltöltés hiba: ${upErr.message}`);
       const enhanced = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
 
-      // A korrekció lépései elmentve: az eredménynél megmutatható, MIT javítottunk
-      // („Sárgás fény semlegesítve", „Sötét felvétel — árnyékok megnyitva" …).
-      return { original, enhanced, notes: gradeNotes };
+      return { original, enhanced };
     }));
 
     // Job mentése (dátum-mappák + before/after) — halasztott módban csak jóváhagyás után.
@@ -189,11 +139,10 @@ export async function POST(request: Request) {
       userId: user.id,
       serviceId: service.id,
       feature: FEATURE,
-      serviceName: mode === "feljavitas" ? "fal" : "google-studio",
+      serviceName: "google-studio",
       units: files.length,
-      // A fotó-korrekció a saját szerverünkön fut (nincs API-díja); a fal.ai-t
-      // csak a ténylegesen meghívott képekre számoljuk el.
-      estimatedCostUsd: mode === "feljavitas" ? FAL_USD_PER_IMAGE * falCalls : googleImageCostUsd(files.length),
+      // Mindkét mód egy Nano Banana hívás képenként — nincs más API a láncban.
+      estimatedCostUsd: googleImageCostUsd(files.length),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });
