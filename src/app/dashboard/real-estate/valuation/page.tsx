@@ -252,6 +252,14 @@ export default function ValuationPage() {
     };
   }, [editorOpen]);
 
+  // ESC-re is záruljon (a fejléces × helyett az oldalsó „Bezárás" gomb maradt).
+  useEffect(() => {
+    if (!editorOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setEditorOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editorOpen]);
+
   function closeEditor() {
     // A lap bármikor újranyitható a Korábbi munkák közül, ezért nincs kérdés.
     setEditorOpen(false);
@@ -864,31 +872,9 @@ export default function ValuationPage() {
           style={{ background: "rgba(12,11,10,0.88)" }}
         >
           <div
-            className="w-full max-w-4xl rounded-2xl p-4"
+            className="w-full max-w-5xl rounded-2xl p-4"
             style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}
           >
-            {/* A fejléc a görgetés során is a helyén marad (a letöltő gomb alatta). */}
-            <div
-              className="mb-3 flex items-center justify-between gap-3 rounded-xl px-1 py-2"
-              style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--twx-cream)" }}
-            >
-              <div>
-                <p className="text-sm font-semibold">Elkészült értékbecslés</p>
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Ez a lap kerül a PDF-be — pontosan így kapja meg az ügyfél.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditor}
-                aria-label="Bezárás"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-lg"
-                style={{ background: "var(--twx-line)", color: "var(--twx-ink)" }}
-              >
-                ×
-              </button>
-            </div>
-
             <ValuationEditor
               key={result.id ?? "new"}
               historyId={result.id}
@@ -898,6 +884,7 @@ export default function ValuationPage() {
               // Az egyoldalas laphoz az ingatlan adatai + a választott arculat és fotók.
               facts={result.facts ?? values}
               audit={result.audit ?? null}
+              onClose={closeEditor}
               onSaved={(url) => {
                 setResult((prev) => (prev ? { ...prev, url } : prev));
                 loadHistory();

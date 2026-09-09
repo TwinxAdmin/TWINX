@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
 import { compressImage } from "@/lib/image-compress";
+import SelectField from "@/components/SelectField";
 
 /** Egy jelölt kép: már feltöltött fájl (előnézettel) vagy rendszerbeli URL. */
 export type PagePhotoPick = { key: string; preview: string; file?: File; url?: string };
@@ -94,73 +95,165 @@ export default function ValuationStartModal({
     setPicked((cur) => [...cur, ...next].slice(-2));
   }
 
+  // A választott arculat előnézete: szín + logó, hogy látszódjon, mi megy ki.
+  const active = profiles.find((p) => p.id === profileId) ?? null;
+  const accent = active && /^#[0-9a-fA-F]{6}$/.test(active.accent_color) ? active.accent_color : "#ef7a5a";
+
+  /** Egységes blokk-keret a két választóhoz. */
+  const block: React.CSSProperties = {
+    background: "var(--twx-cream-card)",
+    border: "1px solid var(--twx-line)",
+    borderRadius: 16,
+    padding: 16,
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(20,16,12,0.55)" }}>
-      <div className="twx-card w-full max-w-lg p-5 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vsm-title">
-        <h2 id="vsm-title" className="text-lg font-semibold">Megjelenés az egyoldalas lapon</h2>
-        <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          Ezzel az arculattal és ezekkel a fotókkal készül az ügyfélnek adható lap. Később nem módosítható.
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4" style={{ background: "rgba(20,16,12,0.6)" }}>
+      <div
+        className="w-full max-w-lg rounded-3xl p-6"
+        style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vsm-title"
+      >
+        <h2 id="vsm-title" className="text-xl font-semibold">Megjelenés az egyoldalas lapon</h2>
+        <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+          Ezzel az arculattal és ezekkel a fotókkal készül az ügyfélnek adható lap.
+          A becslés indítása után már nem módosítható.
         </p>
 
-        {/* Arculat */}
-        <div className="mt-4">
-          <label className="text-sm font-semibold" htmlFor="vsm-profile">Arculat</label>
+        {/* ---------- ARCULAT ---------- */}
+        <div className="mt-5" style={block}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Arculat</p>
+            <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>1. lépés</span>
+          </div>
+
           {profiles.length > 0 ? (
-            <select
-              id="vsm-profile"
-              value={profileId}
-              onChange={(e) => setProfileId(e.target.value)}
-              className="twx-input mt-1"
-            >
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>{p.label || p.display_name || "Arculat"}</option>
-              ))}
-              <option value="">TWINX alapstílus (arculat nélkül)</option>
-            </select>
+            <>
+              <div className="mt-2.5">
+                <SelectField
+                  value={profileId}
+                  onChange={setProfileId}
+                  ariaLabel="Arculat"
+                  options={[
+                    ...profiles.map((p) => ({ value: p.id, label: p.label || p.display_name || "Arculat" })),
+                    { value: "", label: "TWINX alapstílus (arculat nélkül)" },
+                  ]}
+                />
+              </div>
+
+              {/* Élő ízelítő: a lap fejlécének színe és a logó. */}
+              <div
+                className="mt-3 flex items-center gap-3 rounded-xl px-3 py-2.5"
+                style={{ background: "#fff", border: "1px solid var(--twx-line)" }}
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                  style={{ background: accent }}
+                >
+                  {active?.logo_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={active.logo_url} alt="" className="h-full w-full object-contain" />
+                  ) : (
+                    <span className="text-[9px] font-bold text-white">TWX</span>
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold">
+                    {active?.display_name || "TWINX alapstílus"}
+                  </p>
+                  <p className="truncate text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                    {active?.title || active?.company || "A lap a TWINX alapszíneivel készül"}
+                  </p>
+                </div>
+              </div>
+            </>
           ) : (
-            <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
               Még nincs arculatod — a lap a <strong>TWINX alapstílussal</strong> készül.{" "}
-              <a href="/dashboard/branding" className="underline">Arculat beállítása</a>
+              <a href="/dashboard/branding" className="font-semibold underline">Arculat beállítása</a>
             </p>
           )}
         </div>
 
-        {/* Fotók */}
-        <div className="mt-4">
-          <p className="text-sm font-semibold">Fotók a lapon <span className="font-normal" style={{ color: "var(--twx-ink-muted)" }}>(opcionális, max 2)</span></p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {all.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => toggle(p)}
-                aria-pressed={isPicked(p.key)}
-                className="relative h-16 w-20 overflow-hidden rounded-lg"
-                style={{ border: `2px solid ${isPicked(p.key) ? "var(--twx-coral)" : "var(--twx-line)"}` }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.preview} alt="" className="h-full w-full object-cover" />
-                {isPicked(p.key) && (
-                  <span className="absolute left-1 top-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    {picked.findIndex((x) => x.key === p.key) + 1}
-                  </span>
-                )}
-              </button>
-            ))}
-            <label
-              className="flex h-16 w-20 cursor-pointer items-center justify-center rounded-lg text-xs font-semibold"
-              style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
+        {/* ---------- FOTÓK ---------- */}
+        <div className="mt-3" style={block}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">
+              Fotók a lapon{" "}
+              <span className="font-normal" style={{ color: "var(--twx-ink-muted)" }}>(opcionális)</span>
+            </p>
+            <span
+              className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{ background: picked.length ? "var(--twx-coral-soft)" : "#fff", border: "1px solid var(--twx-line)" }}
             >
-              + Kép
-              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
+              {picked.length} / 2
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2.5">
+            {all.map((p) => {
+              const on = isPicked(p.key);
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => toggle(p)}
+                  aria-pressed={on}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-xl transition-all"
+                  style={{
+                    outline: on ? `2.5px solid ${accent}` : "1px solid var(--twx-line)",
+                    outlineOffset: on ? 1 : 0,
+                    boxShadow: on ? "0 4px 14px rgba(0,0,0,0.16)" : "none",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.preview}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    style={{ opacity: on ? 1 : 0.72 }}
+                  />
+                  {on && (
+                    <span
+                      className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ background: accent, boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }}
+                    >
+                      {picked.findIndex((x) => x.key === p.key) + 1}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            <label
+              className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl transition-colors hover:bg-white"
+              style={{ border: "1.5px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span className="text-[10px] font-semibold">Feltöltés</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }}
+              />
             </label>
           </div>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-            {picked.length === 0 ? "Kép nélkül a lap az adatokkal tölti ki a helyet." : `${picked.length} kép kerül a lap aljára.`}
+
+          <p className="mt-2.5 text-[11px] leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+            {picked.length === 0
+              ? "Kép nélkül a lap az adatokkal tölti ki a helyet."
+              : `A kiválasztott ${picked.length === 1 ? "kép" : "két kép"} a lap aljára kerül, a sorszám szerinti sorrendben.`}
           </p>
         </div>
 
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
+        {/* ---------- MŰVELETEK ---------- */}
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
           <button type="button" className="twx-btn-outline" onClick={onCancel} disabled={busy}>Mégse</button>
           <button
             type="button"

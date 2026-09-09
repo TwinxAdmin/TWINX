@@ -3,8 +3,9 @@
 // A partner CSAK ezt az egy lapot látja és adja tovább az ügyfélnek: nincs
 // részletes riport-nézet és nincs arculat-váltás sem, mert az arculatot és a
 // fotókat már az INDÍTÓ ablakban kiválasztotta (ValuationStartModal).
-// A letöltő gomb a görgetés közben is a helyén marad (sticky), így nem kell
-// visszagörgetni a lap tetejére.
+// A műveletek (letöltés, bezárás) a lap MELLETT, külön oszlopban ülnek és
+// görgetés közben a helyükön maradnak — így soha nem takarnak ki semmit
+// a dokumentumból.
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -39,6 +40,7 @@ export default function ValuationEditor({
   facts,
   audit = null,
   onSaved,
+  onClose,
 }: {
   historyId: string | null;
   initialDoc: ReportDoc;
@@ -49,6 +51,8 @@ export default function ValuationEditor({
   /** A motor levezetése — ebből épülnek a lap indoklásai. */
   audit?: OnePagerAudit;
   onSaved?: (url: string) => void;
+  /** Az eredmény-ablak bezárása (az oldalsó oszlopból is elérhető). */
+  onClose?: () => void;
 }) {
   const [doc, setDoc] = useState<ReportDoc>(initialDoc);
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -175,36 +179,11 @@ export default function ValuationEditor({
   }, [historyId, initialUrl, brandingReady]);
 
   return (
-    <div className="space-y-3">
-      {/* Letöltés — görgetés közben is a helyén marad. */}
-      <div
-        className="flex flex-wrap items-center gap-3"
-        // A modális fejléc alatt ragad meg, így görgetéskor is elérhető marad.
-        style={{ position: "sticky", top: 56, zIndex: 25 }}
-      >
-        <button
-          type="button"
-          className="twx-btn"
-          disabled={busy || !brandingReady}
-          onClick={onDownload}
-          style={{ boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}
-        >
-          {busy ? "PDF készül…" : !brandingReady ? "Betöltés…" : "Értékbecslés letöltése"}
-        </button>
-        {error && (
-          <span
-            className="rounded-lg px-2.5 py-1 text-xs text-red-700"
-            style={{ background: "#fdecea", border: "1px solid #f0b8ab" }}
-          >
-            {error}
-          </span>
-        )}
-      </div>
-
-      {/* Élő előnézet — pontosan az, ami a PDF-be kerül */}
+    <div className="flex flex-col items-start gap-4 md:flex-row">
+      {/* BAL: élő előnézet — pontosan az, ami a PDF-be kerül */}
       <div
         ref={previewWrapRef}
-        className="overflow-hidden rounded-2xl"
+        className="w-full min-w-0 flex-1 overflow-hidden rounded-2xl"
         style={{ border: "1px solid var(--twx-line)", background: "#e9e4db", padding: 12 }}
       >
         <div style={{ height: paperHeight * scale, position: "relative" }}>
@@ -224,6 +203,46 @@ export default function ValuationEditor({
           </div>
         </div>
       </div>
+
+      {/* JOBB: műveletek — a lap mellett, görgetéskor a helyén marad */}
+      <aside
+        className="order-first w-full shrink-0 md:order-last md:w-56"
+        style={{ position: "sticky", top: 12, zIndex: 25 }}
+      >
+        <div
+          className="rounded-2xl p-4"
+          style={{ background: "#fff", border: "1px solid var(--twx-line)", boxShadow: "0 6px 20px rgba(0,0,0,0.10)" }}
+        >
+          <p className="text-sm font-semibold">Elkészült értékbecslés</p>
+          <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+            Pontosan ez a lap kerül a PDF-be — így kapja meg az ügyfél.
+          </p>
+
+          <button
+            type="button"
+            className="twx-btn mt-3 w-full"
+            disabled={busy || !brandingReady}
+            onClick={onDownload}
+          >
+            {busy ? "PDF készül…" : !brandingReady ? "Betöltés…" : "Letöltés"}
+          </button>
+
+          {onClose && (
+            <button type="button" className="twx-btn-outline mt-2 w-full" onClick={onClose}>
+              Bezárás
+            </button>
+          )}
+
+          {error && (
+            <p
+              className="mt-3 rounded-lg px-2.5 py-1.5 text-[11px] text-red-700"
+              style={{ background: "#fdecea", border: "1px solid #f0b8ab" }}
+            >
+              {error}
+            </p>
+          )}
+        </div>
+      </aside>
 
       {/* Rejtett, teljes méretű példány a PDF-hez — csak a renderelés idejére */}
       {pdfMode && (
