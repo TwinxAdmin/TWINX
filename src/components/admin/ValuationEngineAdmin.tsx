@@ -76,12 +76,30 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
   const [dCond, setDCond] = useState("jó");
   const [dDistrict, setDDistrict] = useState("XIII");
   const [dLoc, setDLoc] = useState("0");
-  const [dry, setDry] = useState<null | { result: { ok: boolean; estimateHuf: number; lowHuf: number; highHuf: number; centralPricePerM2: number; usedCount: number; note: string }; compsParsed: number }>(null);
+  // Az új (v2) korrekciók bemenetei — enélkül a száraz próba nem mutatná meg őket.
+  const [dRooms, setDRooms] = useState("2");
+  const [dHalf, setDHalf] = useState("1");
+  const [dBaths, setDBaths] = useState("1");
+  const [dWc, setDWc] = useState("0");
+  const [dBalcony, setDBalcony] = useState("0");
+  const [dYear, setDYear] = useState("");
+  const [dHeat, setDHeat] = useState<"atlagos" | "modern" | "konvektor" | "tavfutes_atalany">("atlagos");
+  const [dFloor, setDFloor] = useState("2");
+  const [dLift, setDLift] = useState(true);
+  const [dry, setDry] = useState<null | {
+    result: { ok: boolean; estimateHuf: number; lowHuf: number; highHuf: number; centralPricePerM2: number; usedCount: number; note: string; steps?: { label: string; deltaPct: number; deltaHuf: number }[] };
+    compsParsed: number;
+  }>(null);
   async function runDry() {
     try {
       const d = await api("dryrun", {
         params: cfg, compsText,
-        subject: { sizeM2: num(dSize), condition: dCond, district: dDistrict, isBudapest: true, locationPremiumPct: num(dLoc) },
+        subject: {
+          sizeM2: num(dSize), condition: dCond, district: dDistrict, isBudapest: true, locationPremiumPct: num(dLoc),
+          floorNum: dFloor === "" ? null : num(dFloor), hasLift: dLift, hasBalcony: num(dBalcony) > 0,
+          rooms: num(dRooms), halfRooms: num(dHalf), bathrooms: num(dBaths), separateWcs: num(dWc),
+          balconyM2: num(dBalcony), buildYear: dYear ? num(dYear) : null, heatingKey: dHeat,
+        },
       });
       setDry(d);
     } catch (e) { showToast((e as Error).message, "error"); }
@@ -204,11 +222,44 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
           <label className="block"><span className="mb-1 block text-[11px]">Kerület</span><input value={dDistrict} onChange={(e) => setDDistrict(e.target.value)} className="twx-input w-full" /></label>
           <label className="block"><span className="mb-1 block text-[11px]">Lok. prémium %</span><input value={dLoc} onChange={(e) => setDLoc(e.target.value)} className="twx-input w-full" /></label>
         </div>
+        {/* v2 korrekciók bemenetei */}
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <label className="block"><span className="mb-1 block text-[11px]">Szobák</span><input value={dRooms} onChange={(e) => setDRooms(e.target.value)} className="twx-input w-full" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Fél szobák</span><input value={dHalf} onChange={(e) => setDHalf(e.target.value)} className="twx-input w-full" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Fürdőszobák</span><input value={dBaths} onChange={(e) => setDBaths(e.target.value)} className="twx-input w-full" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Külön WC</span><input value={dWc} onChange={(e) => setDWc(e.target.value)} className="twx-input w-full" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Erkély / terasz (nm)</span><input value={dBalcony} onChange={(e) => setDBalcony(e.target.value)} className="twx-input w-full" placeholder="0 = nincs" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Építés éve</span><input value={dYear} onChange={(e) => setDYear(e.target.value)} className="twx-input w-full" placeholder="pl. 1995" /></label>
+          <label className="block"><span className="mb-1 block text-[11px]">Fűtés</span>
+            <select value={dHeat} onChange={(e) => setDHeat(e.target.value as typeof dHeat)} className="twx-input w-full">
+              <option value="atlagos">Átlagos (gázcirkó, távfűtés mérős)</option>
+              <option value="modern">Korszerű (hőszivattyú, padlófűtés)</option>
+              <option value="konvektor">Konvektor / elektromos</option>
+              <option value="tavfutes_atalany">Távfűtés átalánydíjas</option>
+            </select>
+          </label>
+          <label className="block"><span className="mb-1 block text-[11px]">Emelet (0 = fsz.)</span><input value={dFloor} onChange={(e) => setDFloor(e.target.value)} className="twx-input w-full" /></label>
+          <label className="flex items-end gap-2 pb-2 text-xs"><input type="checkbox" checked={dLift} onChange={(e) => setDLift(e.target.checked)} /> Van lift</label>
+        </div>
         <button onClick={runDry} disabled={busy} className="mt-3 rounded-lg px-4 py-2 text-xs font-semibold text-white" style={{ background: "#1a56c4" }}>Kiszámol</button>
         {dry && (
           <div className="mt-3 rounded-lg p-3 text-sm" style={{ background: "#fff", border: "1px solid #cfe0f5" }}>
             {dry.result.ok ? (
-              <>Eredmény: <b>{ft(dry.result.estimateHuf)}</b> · sáv {ft(dry.result.lowHuf)} – {ft(dry.result.highHuf)} · {dry.result.centralPricePerM2.toLocaleString("hu-HU")} Ft/m² · {dry.result.usedCount} comp ({dry.compsParsed} beolvasva)</>
+              <>
+                <div>Eredmény: <b>{ft(dry.result.estimateHuf)}</b> · sáv {ft(dry.result.lowHuf)} – {ft(dry.result.highHuf)} · {dry.result.centralPricePerM2.toLocaleString("hu-HU")} Ft/m² · {dry.result.usedCount} comp ({dry.compsParsed} beolvasva)</div>
+                {/* Levezetés lépésenként — így látszik, melyik korrekció mennyit mozdít. */}
+                {dry.result.steps && dry.result.steps.length > 0 && (
+                  <ul className="mt-2 space-y-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {dry.result.steps.map((s, i) => (
+                      <li key={i}>
+                        {s.label}
+                        {s.deltaPct ? <b style={{ color: s.deltaPct > 0 ? "#2f9e5f" : "#c0392b" }}> {s.deltaPct > 0 ? "+" : ""}{s.deltaPct}%</b> : null}
+                        {s.deltaHuf && s.deltaPct ? <span> · {s.deltaHuf > 0 ? "+" : ""}{ft(s.deltaHuf)}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             ) : (
               <span style={{ color: "#c0392b" }}>{dry.result.note} ({dry.compsParsed} comp beolvasva)</span>
             )}
