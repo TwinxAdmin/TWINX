@@ -98,17 +98,8 @@ export default function ValuationPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editorDirty, setEditorDirty] = useState(false);
   // Indító ablak (arculat + fotók a laphoz) — az űrlap validálása után nyílik.
   const [startOpen, setStartOpen] = useState(false);
-  // Munkatárs (admin/sales): a részletes riport is látszik; partnernek csak az egyoldalas lap.
-  const [staff, setStaff] = useState(false);
-  useEffect(() => {
-    fetch("/api/me/billing-state")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setStaff(d?.role === "admin" || d?.role === "sales"))
-      .catch(() => {});
-  }, []);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
 
@@ -256,13 +247,7 @@ export default function ValuationPage() {
   }, [editorOpen]);
 
   function closeEditor() {
-    // A szerkesztő állapota bezáráskor elveszik — nem mentett módosításnál kérdezünk.
-    if (
-      editorDirty &&
-      !window.confirm("Vannak nem mentett módosítások. Biztosan bezárod?")
-    )
-      return;
-    setEditorDirty(false);
+    // A lap bármikor újranyitható a Korábbi munkák közül, ezért nincs kérdés.
     setEditorOpen(false);
   }
 
@@ -871,11 +856,15 @@ export default function ValuationPage() {
             className="w-full max-w-4xl rounded-2xl p-4"
             style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}
           >
-            <div className="mb-3 flex items-center justify-between gap-3">
+            {/* A fejléc a görgetés során is a helyén marad (a letöltő gomb alatta). */}
+            <div
+              className="mb-3 flex items-center justify-between gap-3 rounded-xl px-1 py-2"
+              style={{ position: "sticky", top: 0, zIndex: 30, background: "var(--twx-cream)" }}
+            >
               <div>
-                <p className="text-sm font-semibold">Értékbecslés szerkesztése</p>
+                <p className="text-sm font-semibold">Elkészült értékbecslés</p>
                 <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  Amit itt látsz, pontosan az kerül a PDF-be.
+                  Ez a lap kerül a PDF-be — pontosan így kapja meg az ügyfél.
                 </p>
               </div>
               <button
@@ -898,8 +887,6 @@ export default function ValuationPage() {
               // Az egyoldalas laphoz az ingatlan adatai + a választott arculat és fotók.
               facts={result.facts ?? values}
               audit={result.audit ?? null}
-              staff={staff}
-              onDirtyChange={setEditorDirty}
               onSaved={(url) => {
                 setResult((prev) => (prev ? { ...prev, url } : prev));
                 loadHistory();
