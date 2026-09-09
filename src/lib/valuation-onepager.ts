@@ -146,7 +146,7 @@ function reasonFromStep(step: AuditStep): Candidate | null {
       ujszeru: "Újszerű, felújított állapot",
       premium: "Prémium, kulcsrakész állapot",
     };
-    return { text: `${names[key] ?? "Műszaki állapot"}: ${pct(p)}`, weight: 90 + w };
+    return { text: `${names[key] ?? "Műszaki állapot"}: ${pct(p)} a környék átlagához`, weight: 90 + w };
   }
   if (/lokáci/i.test(label)) {
     return {
@@ -177,21 +177,71 @@ function reasonFromStep(step: AuditStep): Candidate | null {
   return { text: `${label}: ${pct(p)}`, weight: 30 + w };
 }
 
-/** Tartalék: az űrlap adataiból, százalék nélkül — ha nincs motor-levezetés. */
+/**
+ * Tartalék (nincs motor-levezetés): az űrlap adataiból, DE nem az adatot
+ * ismételve — hanem azt, hogy az adott jellemző MIT JELENT AZ ÁRBAN.
+ * A bal oldali táblázat mondja meg, MI az ingatlan; ez a blokk azt, MIÉRT ennyi.
+ */
 function reasonsFromInput(input: Partial<ValuationInput>): Candidate[] {
   const out: Candidate[] = [];
   const push = (text: string, weight: number) => out.push({ text, weight });
-  const v = (s: string | undefined) => String(s ?? "").trim();
+  const low = (s: string | undefined) => String(s ?? "").trim().toLowerCase();
 
-  if (v(input.allapot)) push(`Műszaki állapot: ${v(input.allapot).toLowerCase()}`, 90);
-  if (v(input.tipus) && v(input.meret)) push(`${v(input.tipus)}, ${v(input.meret)} m² alapterülettel`, 85);
-  if (v(input.szobak)) push(`Szobaszám: ${v(input.szobak)}`, 70);
-  if (v(input.epitesEve)) push(`Építés éve: ${v(input.epitesEve)}`, 68);
-  if (v(input.futes)) push(`Fűtés: ${v(input.futes).toLowerCase()}`, 66);
-  if (v(input.emelet)) push(`Elhelyezkedés az épületben: ${v(input.emelet)}${input.lift === "igen" ? ", lifttel" : ""}`, 64);
-  if (input.erkely === "igen") push(`Erkély / terasz${v(input.erkelyMeret) ? `: ${v(input.erkelyMeret)} nm` : ""}`, 62);
-  if (v(input.lokacioKategoria)) push(`Környék megítélése: ${v(input.lokacioKategoria).toLowerCase()}`, 60);
-  if (v(input.telepules)) push(`Helyszín: ${v(input.telepules)}${v(input.utca) ? `, ${v(input.utca)}` : ""}`, 55);
+  // --- Állapot: a felújítási költség a vevő fejében árat mozgat ---
+  const a = low(input.allapot);
+  if (a) {
+    if (/bontand|szerkezetk/.test(a)) push("Az árat a hátralévő építési költség határozza meg", 92);
+    else if (/felújítand/.test(a)) push("A várható felújítás költsége levonódik a piaci árból", 92);
+    else if (/prémium|kulcsrakész|új épít/.test(a)) push("Kulcsrakész: a vevőnek nincs felújítási költsége — felár", 92);
+    else if (/újszerű|felújított/.test(a)) push("Felújított, azonnal költözhető — ez felárat jelent", 92);
+    else if (/jó/.test(a)) push("Nagyobb ráfordítás nélkül birtokba vehető", 92);
+    else push("Kisebb korszerűsítéssel értéknövelhető állapot", 92);
+  }
+
+  // --- Lokáció: a partner helyismerete ---
+  const loc = low(input.lokacioKategoria);
+  if (/átlagon aluli/.test(loc)) push("Átlagon aluli környék — a piaci átlag alatt tartja az árat", 88);
+  else if (/kiemelt|prémium|népszerű|keresett/.test(loc)) push("Keresett környék — a piaci átlag fölé emeli az árat", 88);
+
+  // --- Emelet és lift: a vevőkör szélességét befolyásolja ---
+  const em = low(input.emelet);
+  const floorNum = Number((/(\d+)/.exec(em) ?? [])[1] ?? NaN);
+  if (/földszint|szuterén/.test(em)) push("Földszinti lakás — jellemzően a magasabb szintek alatt árazódik", 80);
+  else if (floorNum >= 3 && input.lift !== "igen") push("Felső szint lift nélkül — szűkebb vevőkör, mérsékli az árat", 80);
+  else if (floorNum >= 3 && input.lift === "igen") push("Magasabb szint lifttel — világos, csendes, keresett", 80);
+  else if (floorNum >= 1) push("Utcaszint fölötti, kényelmesen megközelíthető szint", 78);
+
+  // --- Fűtés: a rezsi közvetlenül beépül az árba ---
+  const f = low(input.futes);
+  if (/hőszivattyú|padlófűt/.test(f)) push("Korszerű fűtés, alacsony rezsi — ez felárat jelent", 76);
+  else if (/konvektor|elektromos/.test(f)) push("Elavult fűtés — a korszerűsítés költsége árcsökkentő", 76);
+  else if (/egyedi mér/.test(f)) push("Egyedi mérés: kiszámítható, szabályozható rezsi", 76);
+  else if (/távfűtés|házközponti/.test(f)) push("Átalánydíjas fűtés — a magasabb rezsi mérsékli az árat", 76);
+  else if (/gázcirk|cirkó/.test(f)) push("Saját cirkófűtés — a vevők által keresett megoldás", 76);
+
+  // --- Építés éve: fenntartási kockázat ---
+  const y = Number((/(\d{4})/.exec(String(input.epitesEve ?? "")) ?? [])[1] ?? NaN);
+  if (y >= 2010) push("Fiatal épület — alacsony felújítási és fenntartási kockázat", 74);
+  else if (y && y < 1980) push("Régebbi építésű ház — magasabb fenntartási kockázat", 74);
+
+  // --- Erkély: a szabadtér ma erős keresleti tényező ---
+  if (input.erkely === "igen") push("A szabadtéri rész ma erős keresleti tényező a piacon", 72);
+
+  // --- Alaprajz: hány szoba fér a méretbe (nem a szobaszám ismétlése) ---
+  const size = Number(String(input.meret ?? "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+  const rooms = Number((/(\d+)/.exec(String(input.szobak ?? "")) ?? [])[1] ?? NaN);
+  if (size && rooms) {
+    const perRoom = size / rooms;
+    if (perRoom < 20) push("Tagolt alaprajz — a szobaszám a méretéhez képest magas", 70);
+    else if (perRoom > 34) push("Tágas terek — a négyzetméterek jól élhetően oszlanak el", 70);
+    else push("Kiegyensúlyozott alaprajz — jól kihasznált négyzetméterek", 70);
+  }
+
+  // --- Extra helyiség ---
+  const b = low(input.furdok);
+  if (/2\s*fürdő|két fürdő/.test(b)) push("Két vizesblokk — családoknál jelentős árelőny", 68);
+  else if (/külön wc/.test(b)) push("Az extra mellékhelyiség kisebb, de valós árelőny", 66);
+
   return out;
 }
 
@@ -221,7 +271,9 @@ function fillerReasons(audit: OnePagerAudit | null, priceNum: number, sizeM2: nu
 export function buildReasons(
   audit: OnePagerAudit | null,
   input: Partial<ValuationInput>,
-  priceNum: number
+  priceNum: number,
+  /** A bal oldali adattábla sorai — amit ott lát az ügyfél, azt itt nem ismételjük. */
+  factRows: OnePagerRow[] = []
 ): string[] {
   const cands: Candidate[] = [];
 
@@ -239,13 +291,24 @@ export function buildReasons(
   const sizeM2 = Number(String(input.meret ?? "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
   cands.push(...fillerReasons(audit, priceNum, sizeM2));
 
+  // Amit a bal oldali táblázat már megmond, azt ne mondjuk el újra.
+  const factWords = new Set(
+    factRows.flatMap((r) => `${r.label} ${r.value}`.toLowerCase().split(/[^a-zá-ű0-9]+/).filter((w) => w.length > 3))
+  );
+  const isEcho = (text: string) => {
+    const words = text.toLowerCase().split(/[^a-zá-ű0-9]+/).filter((w) => w.length > 3);
+    if (words.length < 2) return false;
+    const hit = words.filter((w) => factWords.has(w)).length;
+    return hit / words.length > 0.7; // szinte csak a táblázat szavai → ismétlés
+  };
+
   // Súly szerint, duplikátumok nélkül, legfeljebb 7 sor.
   const seen = new Set<string>();
   const out: string[] = [];
   for (const c of cands.sort((a, b) => b.weight - a.weight)) {
     const text = clip(c.text);
     const key = text.toLowerCase();
-    if (seen.has(key)) continue;
+    if (seen.has(key) || isEcho(text)) continue;
     seen.add(key);
     out.push(text);
     if (out.length >= REASONS_MAX) break;
@@ -312,6 +375,8 @@ export function buildOnePager(
   }
   add("Lift", input.lift === "igen" ? "van" : "");
 
+  const shownFacts = rows.slice(0, 9);
+
   return {
     title: doc.title,
     subtitle: doc.subtitle,
@@ -321,8 +386,8 @@ export function buildOnePager(
     rangeHigh: high,
     priceNum,
     pricePerM2,
-    facts: rows.slice(0, 9),
-    reasons: buildReasons(audit, input, priceNum),
+    facts: shownFacts,
+    reasons: buildReasons(audit, input, priceNum, shownFacts),
     dateLabel,
   };
 }
