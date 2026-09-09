@@ -79,23 +79,35 @@ Everything about LIGHT, COLOUR, TONE and QUALITY is yours to transform — and i
 
 Output exactly one photorealistic image and nothing else.`,
 
-  // 2) RENDRAKÁS — alapos virtuális rendrakás (staging) + minőségjavítás. A mozdítható
-  // személyes holmi ELTŰNIK, a rögzített elemek és a bútor VÁLTOZATLAN.
-  rendrakas: `You are a professional real-estate photo editor performing VIRTUAL DECLUTTERING (tidy-up) and quality enhancement. Make this exact room look clean, tidy and listing-ready — as if the owner had put away ALL personal belongings before a professional photoshoot. Be THOROUGH, not shy: empty shelves and surfaces should end up genuinely clean.
+  // 2) RENDRAKÁS — TELJES virtuális rendrakás (staging) + minőségjavítás. A mozdítható
+  // személyes holmi MIND eltűnik, a rögzített elemek és a bútor VÁLTOZATLAN.
+  //
+  // TANULSÁG (2026-09-09): az előző változat „alapos" volt, de a modell fél munkát
+  // végzett — itt-ott hagyott egy könyvet, egy tárgyat. Ezért a prompt most a
+  // TELJESSÉGET követeli: nulla maradék, felületről felületre végigpásztázás,
+  // kétség esetén eltávolítás, és a „félig kész" kifejezetten kudarcnak számít.
+  rendrakas: `TASK: COMPLETE VIRTUAL DECLUTTERING. You are a professional real-estate photo editor. Turn this exact room into a perfectly clean, empty-surfaced, listing-ready photo — as if the owner had removed EVERY personal belonging and EVERY loose object before a professional photoshoot. The standard is ZERO leftover clutter. A half-done job is a FAILURE.
 
-You MUST produce a VISIBLY decluttered image. Returning a near-identical copy with the clutter still present is a FAILURE. Even if the room is EXTREMELY cluttered, remove as much of the movable clutter as you can and clearly reduce the mess — always deliver a noticeably tidier result than the input.
+THE RULE: if an object is loose, movable, everyday or personal, it goes. All of it. Not most of it — all of it. If you are unsure whether something is clutter, REMOVE IT. Do not leave "a few" items behind for realism; a staged listing photo has none.
 
-DO (be thorough and complete):
-- Remove ALL movable, everyday and personal items from open shelves, countertops, the sink/basin area, hooks, radiators, window sills and the floor: toiletries, cosmetics, bottles, tubes, jars, soap, sponges, toothbrushes and holders, hairdryer and cables, chargers, cleaning supplies, towels in use, laundry, papers, magazines, bins and rubbish, small clutter. Leave those shelves and surfaces CLEAN and essentially EMPTY, like a staged listing photo. Reconstruct the real, already-visible surface/material behind the removed items.
-- Improve technical quality: exposure/brightness, white balance and natural true-to-life colors, contrast, sharpness/clarity, noise reduction, and gently straighten slightly tilted vertical/horizontal lines.
+SCAN THE ROOM SURFACE BY SURFACE and clear each one completely:
+- FLOOR: bags, boxes, shoes, laundry, toys, cables, extension leads, appliances (vacuum, fans, heaters), baskets, pet items, rugs that are just thrown down, anything lying or piled on the ground.
+- OPEN SHELVES AND BOOKCASES: every book, folder, magazine, box, ornament, photo frame, souvenir, bottle, small object — the shelves end up EMPTY, showing only the clean shelf surface. Do not leave a single book or object behind.
+- TABLES, COUNTERTOPS, DESKS, NIGHTSTANDS, TV STANDS, WINDOW SILLS, RADIATOR TOPS, CABINET TOPS: cups, plates, food, bottles, papers, mail, remotes, chargers, phones, laptops, cosmetics, toiletries, keys, coins, candles, small decor — all removed, surfaces bare and clean.
+- KITCHEN AND BATHROOM: dishes, drying racks, sponges, detergents, cleaning supplies, toiletries, cosmetics, toothbrushes, hairdryers, towels in use, bath mats, bins and rubbish, hooks with hanging items — all gone; sink, counters and tiles clean.
+- WALLS AND DOORS: hanging clothes, bags, calendars, notes, stickers, novelty items, magnets on the fridge — removed. (Genuine framed artwork and mirrors that are fixed to the wall stay.)
+- SOFAS, BEDS, CHAIRS: loose clothes, blankets thrown down, laundry, bags, remotes, cushions that are clearly out of place — removed; the furniture itself stays, made neat (bed made, cushions tidy).
+- LOOSE CABLES AND WIRES everywhere: gone.
+After every removal, reconstruct the real surface behind it (floor, wall, shelf, counter, tiles) seamlessly, with matching material, lighting, shadows and perspective.
 
-DO NOT (keep it truthful — this is a REAL property):
-- Do NOT remove, move, replace, resize or add any FIXED element or piece of FURNITURE: keep the shelving unit / cabinet itself, mirror, sink, faucet, toilet, bath/shower, radiator, washing machine, tiles, walls, floor, ceiling, windows and doors exactly as they are, in the same place, with the same materials and colors.
-- Do NOT renovate, repaint, re-tile, or change any surface material or color.
-- Do NOT add new furniture, plants, artwork or decorations to fill the emptied space.
-- Do NOT change the room layout, proportions, the view through the windows, or the time of day/season.
+ALSO IMPROVE THE PHOTO: correct exposure and white balance, natural true-to-life colours, good contrast, clean sharpness, no noise — a bright, professional listing photo.
 
-The result must be the SAME room, clearly recognizable, just thoroughly tidied and professionally photographed. Output exactly one photorealistic image and nothing else.`,
+KEEP THESE THE SAME (real property, must stay honest):
+- Every piece of FURNITURE and every FIXED element stays exactly where it is, same size, shape, material and colour: sofa, bed, tables, chairs, wardrobes, the shelving unit / bookcase / cabinet itself, kitchen units and appliances (fridge, oven, washing machine), sink, taps, toilet, bath/shower, radiators, lamps, TV, tiles, walls, floor, ceiling, windows, doors.
+- Do not renovate, repaint, re-tile or change any material or colour. Do not add ANY new furniture, plant, artwork or decoration to fill emptied space — empty is correct.
+- Same camera position, framing, aspect ratio, view through the windows and time of day.
+
+The result must be the SAME room, instantly recognisable, with EVERY loose and personal object gone and every surface clean — fully decluttered, not partially. Output exactly one photorealistic image and nothing else.`,
 };
 
 /**
@@ -110,4 +122,4 @@ IMPORTANT — THIS ROOM IS EXTREMELY CLUTTERED. This is a hard case, so be MAXIM
 - Clear the FLOOR completely: remove all bags, boxes, laundry, shoes, toys, cables, appliances (vacuum, etc.), and any items lying or piled on the ground.
 - Empty every open shelf, table top, cabinet top, TV stand and window sill of the small movable clutter; reconstruct the clean surface/material behind them.
 - Remove wall/ceiling decorations that are clearly clutter (stickers, hanging ornaments, novelty items) but KEEP the walls, ceiling, built-in furniture and large fixed pieces.
-- It is acceptable if not every single tiny object can be removed in one pass — but the result MUST be dramatically tidier and clearly less cluttered than the input. Returning a barely-changed image is a FAILURE.`;
+- Do a second pass in your mind before finishing: any object still lying on a floor, shelf, table or counter must go. The result MUST be dramatically tidier — every surface clear — not merely "less cluttered". Returning a barely-changed or half-tidied image is a FAILURE.`;

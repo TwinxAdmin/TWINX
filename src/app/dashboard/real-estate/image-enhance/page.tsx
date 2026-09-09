@@ -235,21 +235,6 @@ export default function ImageEnhancePage() {
     });
   }
 
-  /** A korábbi munkák képei az ablakban való választáshoz (legfrissebb elöl). */
-  const libraryImages = (() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const f of favs) {
-      if (f.enhanced && !seen.has(f.enhanced)) { seen.add(f.enhanced); out.push(f.enhanced); }
-    }
-    for (const j of history) {
-      for (const it of j.items ?? []) {
-        if (it.enhanced && !seen.has(it.enhanced)) { seen.add(it.enhanced); out.push(it.enhanced); }
-      }
-    }
-    return out.slice(0, 24);
-  })();
-
   // Ráhúzott kép előkészítése (nem indul azonnal) — több mappából is gyűjthető.
   function stageUrl(m: EnhanceMode, url: string) {
     setStaged((prev) => {
@@ -669,41 +654,10 @@ export default function ImageEnhancePage() {
                     </div>
                   )}
 
-                  {/* Korábbi képek — ne kelljen újra feltölteni, ami már fent van. */}
-                  {libraryImages.length > 0 && (
-                    <div>
-                      <div className="mb-1.5 flex items-center gap-2">
-                        <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-                        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
-                          vagy válassz a korábbi képeidből
-                        </span>
-                        <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
-                      </div>
-                      <div className="grid max-h-52 grid-cols-4 gap-2 overflow-y-auto rounded-xl p-2 sm:grid-cols-6"
-                        style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-                        {libraryImages.map((u) => {
-                          const on = libPicks.includes(u);
-                          return (
-                            <button key={u} type="button" onClick={() => toggleLibPick(u)}
-                              className="relative overflow-hidden rounded-lg transition"
-                              style={on
-                                ? { outline: "3px solid var(--twx-coral)", outlineOffset: "-3px", boxShadow: "0 2px 10px rgba(239,122,90,0.35)" }
-                                : { border: "1px solid var(--twx-line)", opacity: 0.85 }}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={u} alt="" className="h-16 w-full object-cover" />
-                              {on && (
-                                <>
-                                  <span className="absolute inset-0" style={{ background: "rgba(239,122,90,0.18)" }} />
-                                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white shadow"
-                                    style={{ background: "var(--twx-coral)" }}>✓</span>
-                                </>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  {/* Korábbi képekből NEM itt választunk: a modul főoldalán ott a
+                      „Korábbi munkák" tálca — onnan húzással vagy kattintással kerül
+                      ide a kép (libPicks). Az ablak csak az új feltöltést kezeli. */}
+
 
                   {/* Extrém zsúfoltság figyelmeztetés — csak rendrakásnál. */}
                   {session === "rendrakas" && extremeClutter && (picks.length > 0 || libPicks.length > 0) && (

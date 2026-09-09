@@ -166,7 +166,9 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
-    key: "image_enhance_rendrakas",
+    // ÚJ KULCS (_v2): a rendrakás prompt teljesen átírva (nulla maradék). A régi
+    // kulcson mentett aktív verzió a félmunkát végző szöveget tárolná — ne írja felül.
+    key: "image_enhance_rendrakas_v2",
     label: "Képjavító — Rendrakás",
     dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek.)",
     dataBlockAfter: "prompt",
@@ -564,7 +566,7 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
 
 // Képjavító (Nano Banana) — mindkét mód egy-egy szöveges prompt.
 export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<string> {
-  const key = mode === "rendrakas" ? "image_enhance_rendrakas" : "image_enhance_feljavitas_v2";
+  const key = mode === "rendrakas" ? "image_enhance_rendrakas_v2" : "image_enhance_feljavitas_v2";
   const segments = await getActiveSegments(key);
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
 }
