@@ -93,10 +93,27 @@ const RETRY_DELAYS_MS = [3000, 7000];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function friendlyHttpError(status: number, text: string): Error {
+  const body = String(text ?? "");
+  // ELFOGYOTT KERET: a Perplexity 401-et ad `insufficient_quota` típussal.
+  // Ezt újrapróbálni értelmetlen — a fiókot kell feltölteni.
+  if (/insufficient_quota|exceeded your current quota/i.test(body)) {
+    return new Error(
+      "Az adatszolgáltatói keret elfogyott, ezért most nem tudunk friss piaci adatot lekérni. " +
+      "Kreditet NEM vontunk le. Szólj a TWINX-nek — a keret feltöltése után azonnal újra használható."
+    );
+  }
+  if (status === 401 || status === 403) {
+    return new Error(
+      "Az adatszolgáltató elutasította a kérést (hozzáférési hiba). Kreditet nem vontunk le — jelezd a TWINX-nek."
+    );
+  }
+  if (status === 402) {
+    return new Error("Az adatszolgáltatói előfizetés nem aktív. Kreditet nem vontunk le — jelezd a TWINX-nek.");
+  }
   if (status === 429) {
     return new Error("A kereső pillanatnyilag túlterhelt (túl sok kérés rövid időn belül). Próbáld újra 1 perc múlva.");
   }
-  return new Error(`Keresési hiba (${status}): ${text.slice(0, 300)}`);
+  return new Error(`Keresési hiba (${status}): ${body.slice(0, 300)}`);
 }
 
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
