@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { showToast } from "@/components/Toast";
-import { type EngineConfig } from "@/lib/valuation-engine";
+import { type EngineConfig, DEFAULT_ENGINE_CONFIG } from "@/lib/valuation-engine";
 
 type Version = { id: string; version: number; is_active: boolean; note: string | null; created_at: string; params: EngineConfig };
 
@@ -15,7 +15,13 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
   const [cfg, setCfg] = useState<EngineConfig>(initialConfig);
   const [versions, setVersions] = useState<Version[]>(initialVersions);
   const [busy, setBusy] = useState(false);
-  const activeVer = versions.find((v) => v.is_active)?.version ?? "—";
+  const active = versions.find((v) => v.is_active);
+  const activeVer = active?.version ?? "—";
+  const activeDate = active ? new Date(active.created_at).toLocaleString("hu-HU", { dateStyle: "medium", timeStyle: "short" }) : "";
+  // Elavult-e az aktív verzió: az állapot-skála kulcsai/értékei eltérnek-e a kód alapértékeitől.
+  const defCond = DEFAULT_ENGINE_CONFIG.adjust.condition as Record<string, number>;
+  const actCond = (active?.params?.adjust?.condition ?? {}) as Record<string, number>;
+  const outdated = !!active && Object.keys(defCond).some((k) => actCond[k] !== defCond[k]);
 
   // Immutábilis, csoport szintű módosítók.
   const upd = <K extends keyof EngineConfig>(group: K, patch: Partial<EngineConfig[K]>) =>
@@ -126,7 +132,22 @@ export default function ValuationEngineAdmin({ initialConfig, initialVersions }:
       <div style={box} className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Értékbecslő motor — beállítások</h1>
-          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Minden gomb egy számítási paraméter. Aktív verzió: <b>v{activeVer}</b></p>
+          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Minden gomb egy számítási paraméter.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: outdated ? "#c0392b" : "#1f8f4e" }}>
+              Élesben fut: v{activeVer}
+            </span>
+            {active && (
+              <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                {activeDate}{active.note ? ` · ${active.note}` : ""}
+              </span>
+            )}
+            {outdated && (
+              <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: "#fdecea", color: "#c0392b", border: "1px solid #f0b8ab" }}>
+                Régi állapot-skála — nyomd meg a „Vissza az alapértékre&rdquo; gombot
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="megjegyzés a verzióhoz (opc.)" className="twx-input" style={{ width: 220 }} />
