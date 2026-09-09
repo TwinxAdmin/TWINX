@@ -13,7 +13,13 @@ export type OnePagerRow = { label: string; value: string };
 
 /** A motor levezetésének kliensre átadott, minimális formája. */
 export type AuditStep = { label: string; deltaPct: number; deltaHuf?: number };
-export type OnePagerAudit = { steps?: AuditStep[]; usedCount?: number } | null;
+export type OnePagerAudit = {
+  steps?: AuditStep[];
+  usedCount?: number;
+  estimateHuf?: number;
+  lowHuf?: number;
+  highHuf?: number;
+} | null;
 
 export type OnePagerData = {
   /** Cím-sor: település, utca. */
@@ -51,6 +57,23 @@ export function shortHuf(n: number): string {
   if (!n) return "";
   const m = n / 1_000_000;
   return `${m.toFixed(m >= 100 ? 0 : 1).replace(".", ",")} M Ft`;
+}
+
+/**
+ * Tartalmaz-e a szöveg VALÓDI összeget? A tartalék (AI-írta) riportokban a
+ * szakasz-szöveg néha mondat, nem érték — abból nem szabad „értéksávot"
+ * csinálni (így került ki korábban az „A HORGONY" felirat a lapra).
+ */
+function looksLikeMoney(text: string): boolean {
+  const t = String(text ?? "");
+  if (!/\d/.test(t)) return false;
+  // Legalább egy 4+ jegyű összeg, vagy „12,5 M Ft" alak.
+  return /\d[\d\s.]{3,}/.test(t) || /\d+([.,]\d+)?\s*m\s*ft/i.test(t);
+}
+
+/** 92 000 000 → „92 000 000 Ft" */
+function huf(n: number): string {
+  return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
 }
 
 /** Az értéksáv szövegéből („92–104 M Ft" / „92 000 000 - 104 000 000 Ft") két szám. */
@@ -245,8 +268,30 @@ export function buildOnePager(
   const find = (label: string) => highlights.find((h) => h.label === label)?.value ?? "";
 
   const price = doc.headlinePrice || find("Becsült piaci érték") || find("Piaci ár");
-  const range = find("Értéksáv");
-  const { low, high } = parseRange(range);
+  const priceNum = parseHuf(price);
+
+  // --- ÉRTÉKSÁV ---
+  // 1) a motor levezetéséből (legpontosabb), 2) a riport szövegéből, ha az
+  // tényleg összeget tartalmaz, 3) az árból számolva ±4% — így a kis grafikon
+  // MINDIG megjelenik, és soha nem kerül oda félreolvasott mondattöredék.
+  const rawRange = find("Értéksáv");
+  const parsed = looksLikeMoney(rawRange) ? parseRange(rawRange) : { low: 0, high: 0 };
+  let low = Number(audit?.lowHuf) || parsed.low;
+  let high = Number(audit?.highHuf) || parsed.high;
+  if ((!low || !high || high <= low) && priceNum) {
+    low = Math.round((priceNum * 0.96) / 100_000) * 100_000;
+    high = Math.round((priceNum * 1.04) / 100_000) * 100_000;
+  }
+  const range = low && high ? `${huf(low)} – ${huf(high)}` : "";
+
+  // --- FAJLAGOS ÁR --- a riportból, különben ár / alapterület.
+  const rawPpm = find("Átlagos nm-ár");
+  const sizeM2 = Number(String(input.meret ?? "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+  const pricePerM2 = looksLikeMoney(rawPpm)
+    ? rawPpm
+    : priceNum && sizeM2
+      ? `${Math.round(priceNum / sizeM2).toLocaleString("hu-HU")} Ft/m²`
+      : "";
 
   // Az ingatlan adatai — csak a kitöltött mezők, tömören.
   const rows: OnePagerRow[] = [];
@@ -274,10 +319,10 @@ export function buildOnePager(
     range,
     rangeLow: low,
     rangeHigh: high,
-    priceNum: parseHuf(price),
-    pricePerM2: find("Átlagos nm-ár"),
+    priceNum,
+    pricePerM2,
     facts: rows.slice(0, 9),
-    reasons: buildReasons(audit, input, parseHuf(price)),
+    reasons: buildReasons(audit, input, priceNum),
     dateLabel,
   };
 }
