@@ -3,7 +3,6 @@
 // egy jelentkező-űrlappal gyűjti a leadeket. TWINX arculat (sötét-bronz hero →
 // világos editorial szekciók), a főoldallal egységes.
 import type { Metadata } from "next";
-import Image from "next/image";
 import Wordmark from "@/components/Wordmark";
 import ModuleIcon from "@/components/ModuleIcon";
 import IngatlanLeadForm from "@/components/IngatlanLeadForm";
@@ -11,6 +10,7 @@ import IngatlanCta from "@/components/IngatlanCta";
 import Reveal from "@/components/motion/Reveal";
 import IngatlanHero from "@/components/IngatlanHero";
 import IngatlanServiceTicker from "@/components/IngatlanServiceTicker";
+import IngatlanConsultModal, { IngatlanConsultButton } from "@/components/IngatlanConsultModal";
 
 export const metadata: Metadata = {
   title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
@@ -39,13 +39,6 @@ const STEPS: { icon: string; title: string; desc: string }[] = [
   { icon: "valuation", title: "1. Add meg az adatokat", desc: "Töltsd fel az ingatlan adatait és fotóit — pár mező, pár kattintás." },
   { icon: "video", title: "2. A TWINX legyártja", desc: "Percek alatt elkészül a kész anyag: hirdetéskép, videó, értékbecslés vagy szöveg." },
   { icon: "history", title: "3. Letöltöd, posztolod", desc: "Kész, posztolható tartalom — a saját arculatoddal, azonnal használható formában." },
-];
-
-// Minta-galéria: valódi kimenetek a saját motorunkból, több formátumban.
-const GALLERY: { src: string; alt: string; tag: string; ratio: string }[] = [
-  { src: "/flyer-samples/openhouse-9x16.png", alt: "TWINX story formátumú hirdetéskép", tag: "Story · 9:16", ratio: "9 / 16" },
-  { src: "/flyer-samples/unit-4x3.png", alt: "TWINX ingatlan összefoglaló hirdetéskép", tag: "Poszt · 4:3", ratio: "4 / 3" },
-  { src: "/flyer-samples/premium-1x1.png", alt: "TWINX prémium négyzetes hirdetéskép", tag: "Négyzetes · 1:1", ratio: "1 / 1" },
 ];
 
 export default function IngatlanLanding() {
@@ -150,10 +143,6 @@ export default function IngatlanLanding() {
             </p>
           </Reveal>
           <div className="relative mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {/* Összekötő vonal a lépések között (csak nagy képernyőn). */}
-            <div className="pointer-events-none absolute left-0 right-0 top-9 hidden md:block" aria-hidden>
-              <div className="mx-[16.6%] h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(239,122,90,0.5), transparent)" }} />
-            </div>
             {STEPS.map((s, i) => (
               <Reveal key={s.title} delay={i * 0.1}>
                 <div className="relative h-full rounded-2xl p-6 text-center md:text-left"
@@ -198,30 +187,9 @@ export default function IngatlanLanding() {
         </div>
       </section>
 
-      {/* ===================== 3b) MINTA-GALÉRIA (KÉPEK) ===================== */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
-        <Reveal>
-          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Ilyen anyagok készülnek</h2>
-          <p className="mt-3 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
-            Valódi TWINX kimenetek — story, poszt és négyzetes formátumban, posztolásra készen.
-          </p>
-        </Reveal>
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
-          {GALLERY.map((g, i) => (
-            <Reveal key={g.src} delay={i * 0.08}>
-              <div className="group relative overflow-hidden rounded-2xl shadow-lg transition-transform duration-300 hover:-translate-y-1"
-                style={{ border: "1px solid var(--twx-line)", aspectRatio: g.ratio, background: "var(--twx-cream-card)" }}>
-                <Image src={g.src} alt={g.alt} fill sizes="(max-width: 640px) 100vw, 33vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-105" />
-                <span className="absolute bottom-3 left-3 rounded-full px-3 py-1 text-xs font-semibold"
-                  style={{ background: "rgba(28,16,5,0.72)", color: "var(--twx-on-dark)", backdropFilter: "blur(4px)" }}>
-                  {g.tag}
-                </span>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
+      {/* 3b) „Egy ingatlan, 7 kész anyag" — IDEIGLENESEN KIVÉVE, amíg a
+          bemutató-ingatlan valódi kimenetei elkészülnek (docs/showcase-anyagok.md).
+          Visszatétel: <IngatlanShowcase /> a saját szekciójában. */}
 
       {/* ===================== 4) HITELESSÉG (SOCIAL PROOF) ===================== */}
       <section className="px-6 py-16 sm:py-20" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
@@ -246,22 +214,23 @@ export default function IngatlanLanding() {
         </div>
       </section>
 
-      {/* ===================== 5) INGYENES BEMUTATÓ (CTA) ===================== */}
+      {/* ===================== 5) BŐVEBB TÁJÉKOZTATÁS (CTA) ===================== */}
       <section className="mx-auto w-full max-w-4xl px-6 py-16 sm:py-20 text-center">
         <Reveal>
-          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Szeretnéd működés közben látni?</h2>
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Szeretnél többet tudni a TWINX-ről?</h2>
           <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
-            Kérj egy 30 perces online bemutatót! Kollégáink lépésről lépésre végigvezetnek a
-            rendszeren, és segítenek a kezdeti beállításokban.
+            Hagyd meg az elérhetőséged, és egy kollégánk felveszi veled a kapcsolatot — bővebben
+            mesél a rendszerről, válaszol a kérdéseidre, és segít eldönteni, hogyan illeszthető
+            a mindennapi munkádba.
           </p>
           <div className="mt-8">
-            <IngatlanCta
-              intent="bemutato"
+            {/* Felugró ablak: elérhetőség → minden admin kap e-mailt (leads tábla). */}
+            <IngatlanConsultButton
               className="rounded-xl px-7 py-4 text-base font-semibold transition-opacity hover:opacity-90"
               style={{ background: "var(--twx-coral)", color: "#1c1005" }}
             >
-              Időpontot foglalok az ingyenes bemutatóra
-            </IngatlanCta>
+              Bővebb tájékoztatást kérek
+            </IngatlanConsultButton>
           </div>
         </Reveal>
       </section>
@@ -295,6 +264,7 @@ export default function IngatlanLanding() {
           Vissza a főoldalra →
         </a>
       </footer>
+      <IngatlanConsultModal />
     </main>
   );
 }

@@ -29,7 +29,20 @@ export default function IngatlanServiceTicker({ titles }: Props) {
       className="relative z-10 w-full text-center lg:absolute lg:bottom-24 lg:right-8 lg:w-[min(44vw,620px)] lg:text-right xl:right-14"
       aria-live="polite"
     >
-      <p className="font-display text-sm font-semibold uppercase" style={{ color: "var(--twx-coral)", letterSpacing: "0.22em" }}>
+      {/* Kis üveges címke a felirat mögött — a világos jeleneten enélkül
+          elveszne a vékony, ritkított szöveg. */}
+      <p
+        className="inline-block rounded-full px-4 py-2 font-display text-sm font-semibold uppercase"
+        style={{
+          color: "var(--twx-coral)",
+          letterSpacing: "0.22em",
+          background: "rgba(20,16,14,0.72)",
+          border: "1px solid rgba(239,122,90,0.35)",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+      >
         Amit a TWINX elkészít neked
       </p>
 

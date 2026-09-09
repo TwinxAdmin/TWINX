@@ -9,22 +9,12 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendInviteApplicationNotification } from "@/lib/email";
+import { adminNotifyEmails } from "@/lib/admin-emails";
 import {
   validateIngatlanLead, type IngatlanLeadInput,
 } from "@/lib/ingatlan-lead";
 
 export const runtime = "nodejs";
-
-/** Az összes admin e-mail címe (profiles.role = 'admin' → auth.users e-mail). */
-async function adminEmails(admin: ReturnType<typeof createAdminClient>): Promise<string[]> {
-  const { data: profiles } = await admin.from("profiles").select("id").eq("role", "admin");
-  const ids = new Set((profiles ?? []).map((p) => p.id as string));
-  if (!ids.size) return [];
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  return (list?.users ?? [])
-    .filter((u) => ids.has(u.id) && u.email)
-    .map((u) => u.email as string);
-}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -58,14 +48,12 @@ export async function POST(request: Request) {
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
     try {
-      const to = await adminEmails(admin);
-      const fallback = process.env.LEADS_NOTIFY_EMAIL;
       await sendInviteApplicationNotification(
         {
           name: lead.name.trim(), email,
           phone: lead.phone.trim(), office: lead.office.trim(),
         },
-        to.length ? to : (fallback ? [fallback] : [])
+        await adminNotifyEmails(admin)
       );
     } catch (err) {
       console.error("[ingatlan-lead] értesítő e-mail hiba:", (err as Error).message);

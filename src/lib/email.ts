@@ -236,3 +236,46 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/**
+ * Ingatlanos landing — BŐVEBB TÁJÉKOZTATÁS kérése. Minden admin
+ * megkapja; a válasz közvetlenül az érdeklődőnek megy (reply_to).
+ */
+export async function sendConsultationNotification(
+  req: { name: string; email: string; phone: string; office?: string; preferred?: string; note?: string },
+  adminEmails: string[]
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = adminEmails.filter(Boolean);
+  if (!apiKey || !to.length) throw new Error("Hiányzó RESEND_API_KEY vagy admin cím.");
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+
+  const row = (k: string, v?: string) =>
+    v && v.trim() ? `<p><strong>${k}:</strong> ${escapeHtml(v.trim()).replace(/\n/g, "<br>")}</p>` : "";
+
+  const html = `
+    <h2>Valaki szeretné, ha mesélnénk neki a TWINX-ről</h2>
+    <p>Bővebb tájékoztatást kért az ingatlanos landingről — egy kolléga vegye fel vele a kapcsolatot.</p>
+    ${row("Név", req.name)}
+    ${row("E-mail", req.email)}
+    ${row("Telefon", req.phone)}
+    ${row("Ingatlaniroda", req.office)}
+    ${row("Mikor kereshető", req.preferred)}
+    ${row("Mire kíváncsi", req.note)}
+    <p>Erre a levélre válaszolva közvetlenül neki írsz.</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from, to, reply_to: req.email,
+      subject: `Tájékoztatás-kérés: ${req.name}`,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
