@@ -470,8 +470,15 @@ export default function ImageEnhancePage() {
                       <WorkIcon kind={m.value as WorkKind} size={18} />
                     </span>
                     <div className="font-display text-lg font-semibold" style={{ color: over ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</div>
+                    {/* Ár a cím mellett — ne a leírásból kelljen kihámozni. */}
+                    <span className="ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
+                      1 kredit
+                    </span>
                   </div>
-                  <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.desc}</div>
+                  <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {m.desc} <span className="font-semibold" style={{ color: "var(--twx-ink)" }}>1 kredit / feldolgozás, legfeljebb {MAX_IMAGES} kép.</span>
+                  </div>
                 </button>
 
                 {/* Előkészített képek — apró bélyegképek, egyenként törölhetők */}

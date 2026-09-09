@@ -21,7 +21,7 @@ import {
 } from "@/lib/video";
 import {
   VIDEO_DESIGNS, getDesign, imageCountOk, imageCountLabel, imageRange,
-  ASPECT_LABEL, type VideoDesign, type VideoAspect,
+  ASPECT_LABEL, ASPECT_HINT, type VideoDesign, type VideoAspect,
 } from "@/lib/video-templates";
 import { PROPERTY_TYPE_OPTIONS } from "@/lib/valuation";
 import { readyColorVariants, getColorVariant, type VideoColorId } from "@/lib/video-color";
@@ -395,22 +395,35 @@ export default function VideoWizard({
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                   Méret
                 </p>
-                <div className="mt-1.5 flex flex-wrap gap-2">
+                {/* Egymás alatt, kompakt rádió-sorok: arány-ikon + címke + súgó. */}
+                <div className="mt-1.5 inline-flex flex-col gap-1">
                   {design.aspects.map((a) => {
                     const active = a === aspect;
+                    const portrait = a === "9:16";
                     return (
                       <button
                         key={a}
                         type="button"
                         onClick={() => setAspect(a)}
-                        className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                        style={{
-                          border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                          background: active ? "var(--twx-coral)" : "#fff",
-                          color: active ? "#1c1005" : "var(--twx-ink)",
-                        }}
+                        aria-pressed={active}
+                        className="group flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-3 text-left transition"
+                        style={{ background: active ? "var(--twx-coral-soft)" : "transparent" }}
                       >
-                        {ASPECT_LABEL[a]}
+                        {/* Kis arány-ikon: álló téglalap vagy négyzet — ránézésre értelmezhető. */}
+                        <span className="flex h-7 w-7 items-center justify-center rounded-md"
+                          style={{ background: active ? "var(--twx-coral)" : "#fff", border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
+                          <span className="block rounded-[2px]"
+                            style={{
+                              width: portrait ? 9 : 14, height: portrait ? 16 : 14,
+                              background: active ? "#1c1005" : "var(--twx-ink-muted)", opacity: active ? 0.9 : 0.55,
+                            }} />
+                        </span>
+                        <span className="text-[13px] font-semibold" style={{ color: active ? "#7a2e17" : "var(--twx-ink)" }}>
+                          {ASPECT_LABEL[a]}
+                        </span>
+                        <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                          · {ASPECT_HINT[a]}
+                        </span>
                       </button>
                     );
                   })}

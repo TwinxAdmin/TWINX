@@ -8,7 +8,7 @@ import ModuleIntro from "@/components/ModuleIntro";
 import VideoWizard from "@/components/video/VideoWizard";
 import VideoLibrary, { type VideoItem, type Folder } from "@/components/video/VideoLibrary";
 import type { BrandingProfile } from "@/lib/branding";
-import { MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES } from "@/lib/video";
+import { MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES, VIDEO_CREDITS_ALAP } from "@/lib/video";
 
 export default function VideoPage() {
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
@@ -71,9 +71,16 @@ export default function VideoPage() {
 
       <section className="twx-card flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="font-display text-lg font-semibold">Új videó</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-lg font-semibold">Új videó</h2>
+            {/* Az ár EGY helyen: a cím mellett. */}
+            <span className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+              style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
+              {VIDEO_CREDITS_ALAP} kredit
+            </span>
+          </div>
           <p className="mt-0.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            Öt lépés, a generálás 1–3 perc. Arculat nélkül is működik.
+            Töltsd fel a fotókat, add meg az adatokat — a videó pár perc alatt elkészül.
           </p>
         </div>
         <button type="button" onClick={() => setOpen(true)}

@@ -19,6 +19,12 @@ export const ASPECT_LABEL: Record<VideoAspect, string> = {
   "1:1": "Négyzet 1:1",
 };
 
+/** Mire való az adott méret — a választónál rövid súgó a címke mellett. */
+export const ASPECT_HINT: Record<VideoAspect, string> = {
+  "9:16": "Story / Reels / TikTok",
+  "1:1": "Hírfolyam-poszt, hirdetés",
+};
+
 export type VideoDesign = {
   id: string;
   name: string;
