@@ -290,7 +290,7 @@ export async function POST(request: Request) {
         });
         await bg.from("valuation_jobs").update({
           status: "done", report: fin.report, credits_charged: fin.charged ? 1 : 0,
-          history_id: fin.id,
+          history_id: fin.id, audit: engineAudit,
         }).eq("id", jobId);
       } catch (err) {
         // Hiba: a job "failed" lesz — kreditet SOHA nem vontunk le idáig.

@@ -11,6 +11,10 @@ import type { ValuationInput } from "@/lib/valuation";
 
 export type OnePagerRow = { label: string; value: string };
 
+/** A motor levezetésének kliensre átadott, minimális formája. */
+export type AuditStep = { label: string; deltaPct: number; deltaHuf?: number };
+export type OnePagerAudit = { steps?: AuditStep[]; usedCount?: number } | null;
+
 export type OnePagerData = {
   /** Cím-sor: település, utca. */
   title: string;
@@ -28,7 +32,7 @@ export type OnePagerData = {
   pricePerM2: string;
   /** Az ingatlan adatai (bal oszlop). */
   facts: OnePagerRow[];
-  /** Rövid indoklás — 3-5 tömör mondat/pont. */
+  /** Indoklás — MINDIG 5-7 egysoros pont. */
   reasons: string[];
   /** Készítés dátuma. */
   dateLabel: string;
@@ -65,13 +69,165 @@ function parseRange(text: string): { low: number; high: number } {
   return low && high && high >= low ? { low, high } : { low: 0, high: 0 };
 }
 
-/** Egy szakasz szövegéből a legfeljebb `max` legérdemibb mondat/pont. */
-function bulletsFrom(body: string, max: number): string[] {
-  return String(body ?? "")
-    .split("\n")
-    .map((l) => l.replace(/^[-*]\s*/, "").replace(/\*\*/g, "").trim())
-    .filter((l) => l.length > 25 && !/^https?:/i.test(l))
-    .slice(0, max);
+// =====================================================================
+// INDOKLÁSOK — „Miért ennyi az ár?"
+//
+// A lapon MINDIG 5–7 indoklás áll, mindegyik EGYSOROS. Ezért nem az AI
+// riport szövegéből vágunk mondatokat (az hol üres, hol többsoros), hanem
+// a motor levezetéséből (audit) és az űrlap adataiból építjük sablonokkal.
+// Így garantált, hogy van elég sor, és egyik sem lóg bele a fotósávba.
+// =====================================================================
+
+/** Egy indoklás felső hossza — ennél a komponens amúgy is levágná. */
+const REASON_MAX_CHARS = 66;
+export const REASONS_MIN = 5;
+export const REASONS_MAX = 7;
+
+/** Prioritásos jelölt: minél nagyobb a `weight`, annál előbb kerül a lapra. */
+type Candidate = { text: string; weight: number };
+
+function pct(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  const s = String(r).replace(".", ",");
+  return `${r > 0 ? "+" : ""}${s}%`;
+}
+
+function clip(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > REASON_MAX_CHARS ? `${t.slice(0, REASON_MAX_CHARS - 1).trimEnd()}…` : t;
+}
+
+/** A motor technikai lépés-címkéiből ügyfélnek szóló, egysoros mondat. */
+function reasonFromStep(step: AuditStep): Candidate | null {
+  const label = String(step.label ?? "");
+  const p = Number(step.deltaPct) || 0;
+  const w = Math.abs(p);
+
+  // A központi árszint nem korrekció, hanem a számítás alapja.
+  const central = /Ft\/m².*×|×.*m²/.test(label) && !p;
+  if (central) {
+    const m = /^Központi\s+([\d\s]+)\s*Ft\/m²/.exec(label);
+    return m
+      ? { text: `A környék irányadó négyzetméterára: ${m[1].trim()} Ft/m²`, weight: 100 }
+      : null;
+  }
+  if (!p) return null; // 0%-os lépés nem indoklás
+
+  if (/^Állapot/i.test(label)) {
+    const key = /\(([^)]+)\)/.exec(label)?.[1] ?? "";
+    const names: Record<string, string> = {
+      bontando: "Bontandó / szerkezetkész állapot",
+      felujitando: "Felújítandó állapot",
+      kozepes: "Közepes állapot",
+      jo: "Jó állapot",
+      ujszeru: "Újszerű, felújított állapot",
+      premium: "Prémium, kulcsrakész állapot",
+    };
+    return { text: `${names[key] ?? "Műszaki állapot"}: ${pct(p)}`, weight: 90 + w };
+  }
+  if (/lokáci/i.test(label)) {
+    return {
+      text: p < 0 ? `Átlagon aluli környék: ${pct(p)}` : `Keresett, prémium lokáció: ${pct(p)}`,
+      weight: 80 + w,
+    };
+  }
+  if (/^Helyiségek/i.test(label)) {
+    const notes = /\(([^)]+)\)/.exec(label)?.[1] ?? "";
+    return { text: `Helyiség-kiosztás${notes ? ` (${notes})` : ""}: ${pct(p)}`, weight: 70 + w };
+  }
+  if (/^Korszerűség/i.test(label)) {
+    const notes = /\(([^)]+)\)/.exec(label)?.[1] ?? "";
+    return { text: `Építés éve és fűtés${notes ? ` (${notes})` : ""}: ${pct(p)}`, weight: 65 + w };
+  }
+  if (/emelet|lift|erkély|földszint/i.test(label)) {
+    return { text: `${label.replace(/\s*\(.*\)$/, "")}: ${pct(p)}`, weight: 60 + w };
+  }
+  if (/tranzakciós/i.test(label)) {
+    return { text: `Hirdetési árakról tényleges eladási szintre: ${pct(p)}`, weight: 40 };
+  }
+  if (/normalizál/i.test(label)) {
+    return { text: "Az összehasonlító árak azonos állapotra visszaszámolva", weight: 45 };
+  }
+  if (/küszöb/i.test(label)) {
+    return { text: `Budapesti realitás-küszöb miatt korrigálva: ${pct(p)}`, weight: 35 };
+  }
+  return { text: `${label}: ${pct(p)}`, weight: 30 + w };
+}
+
+/** Tartalék: az űrlap adataiból, százalék nélkül — ha nincs motor-levezetés. */
+function reasonsFromInput(input: Partial<ValuationInput>): Candidate[] {
+  const out: Candidate[] = [];
+  const push = (text: string, weight: number) => out.push({ text, weight });
+  const v = (s: string | undefined) => String(s ?? "").trim();
+
+  if (v(input.allapot)) push(`Műszaki állapot: ${v(input.allapot).toLowerCase()}`, 90);
+  if (v(input.tipus) && v(input.meret)) push(`${v(input.tipus)}, ${v(input.meret)} m² alapterülettel`, 85);
+  if (v(input.szobak)) push(`Szobaszám: ${v(input.szobak)}`, 70);
+  if (v(input.epitesEve)) push(`Építés éve: ${v(input.epitesEve)}`, 68);
+  if (v(input.futes)) push(`Fűtés: ${v(input.futes).toLowerCase()}`, 66);
+  if (v(input.emelet)) push(`Elhelyezkedés az épületben: ${v(input.emelet)}${input.lift === "igen" ? ", lifttel" : ""}`, 64);
+  if (input.erkely === "igen") push(`Erkély / terasz${v(input.erkelyMeret) ? `: ${v(input.erkelyMeret)} nm` : ""}`, 62);
+  if (v(input.lokacioKategoria)) push(`Környék megítélése: ${v(input.lokacioKategoria).toLowerCase()}`, 60);
+  if (v(input.telepules)) push(`Helyszín: ${v(input.telepules)}${v(input.utca) ? `, ${v(input.utca)}` : ""}`, 55);
+  return out;
+}
+
+/** Mindig igaz, tényszerű sorok — ezek töltik fel a listát 5-ig. */
+function fillerReasons(audit: OnePagerAudit | null, priceNum: number, sizeM2: number): Candidate[] {
+  const out: Candidate[] = [];
+  const used = Number(audit?.usedCount) || 0;
+  if (used > 0) {
+    out.push({ text: `${used} hasonló ingatlan tényleges árából számolva`, weight: 50 });
+  }
+  out.push({ text: "Az elmúlt 12 hónap piaci adatai alapján", weight: 48 });
+  if (priceNum && sizeM2) {
+    const ppm = Math.round(priceNum / sizeM2);
+    out.push({ text: `Fajlagos ár: ${ppm.toLocaleString("hu-HU")} Ft/m²`, weight: 25 });
+  }
+  out.push({ text: "Aktív hirdetések és lezárt eladások alapján", weight: 22 });
+  out.push({ text: "Egységes, minden becslésnél azonos módszertannal", weight: 20 });
+  out.push({ text: "A környék hasonló méretű ingatlanjaihoz mérve", weight: 18 });
+  out.push({ text: "Az ingatlan egyedi jellemzőire korrigált érték", weight: 15 });
+  return out;
+}
+
+/**
+ * Az 5–7 egysoros indoklás összeállítása.
+ * Sorrend: motor-korrekciók (nagyobb hatás előbb) → tényszerű kiegészítők.
+ */
+export function buildReasons(
+  audit: OnePagerAudit | null,
+  input: Partial<ValuationInput>,
+  priceNum: number
+): string[] {
+  const cands: Candidate[] = [];
+
+  const steps = Array.isArray(audit?.steps) ? audit!.steps : [];
+  if (steps.length) {
+    for (const st of steps) {
+      const c = reasonFromStep(st);
+      if (c) cands.push(c);
+    }
+  } else {
+    // Tartalék ág: nincs motor-levezetés → az űrlap adataiból építünk.
+    cands.push(...reasonsFromInput(input));
+  }
+
+  const sizeM2 = Number(String(input.meret ?? "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+  cands.push(...fillerReasons(audit, priceNum, sizeM2));
+
+  // Súly szerint, duplikátumok nélkül, legfeljebb 7 sor.
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of cands.sort((a, b) => b.weight - a.weight)) {
+    const text = clip(c.text);
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= REASONS_MAX) break;
+  }
+  return out;
 }
 
 /**
@@ -82,7 +238,8 @@ function bulletsFrom(body: string, max: number): string[] {
 export function buildOnePager(
   doc: ReportDoc,
   input: Partial<ValuationInput>,
-  dateLabel: string
+  dateLabel: string,
+  audit: OnePagerAudit = null
 ): OnePagerData {
   const highlights = reportHighlights(doc);
   const find = (label: string) => highlights.find((h) => h.label === label)?.value ?? "";
@@ -90,16 +247,6 @@ export function buildOnePager(
   const price = doc.headlinePrice || find("Becsült piaci érték") || find("Piaci ár");
   const range = find("Értéksáv");
   const { low, high } = parseRange(range);
-
-  // Indoklás: az összefoglaló, kiegészítve az értékelési/korrekciós szakaszokkal.
-  const reasons: string[] = [];
-  for (const line of bulletsFrom(doc.intro, 3)) reasons.push(line);
-  if (reasons.length < 4) {
-    const sec = doc.sections.find(
-      (s) => !s.hidden && /(indokl|értékel|korrekci|összegz|piaci helyzet)/i.test(s.heading)
-    );
-    if (sec) for (const line of bulletsFrom(sec.body, 4 - reasons.length)) reasons.push(line);
-  }
 
   // Az ingatlan adatai — csak a kitöltött mezők, tömören.
   const rows: OnePagerRow[] = [];
@@ -130,7 +277,7 @@ export function buildOnePager(
     priceNum: parseHuf(price),
     pricePerM2: find("Átlagos nm-ár"),
     facts: rows.slice(0, 9),
-    reasons: reasons.slice(0, 4),
+    reasons: buildReasons(audit, input, parseHuf(price)),
     dateLabel,
   };
 }

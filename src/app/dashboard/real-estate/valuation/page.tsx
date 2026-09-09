@@ -8,6 +8,7 @@ import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 
 import ValuationEditor from "@/components/valuation/ValuationEditor";
 import ValuationStartModal, { type PagePhotoPick } from "@/components/valuation/ValuationStartModal";
+import type { OnePagerAudit } from "@/lib/valuation-onepager";
 import FolderLibrary, {
   type LibraryFolder,
   type LibraryItem,
@@ -58,6 +59,7 @@ type HistoryItem = {
   created_at: string;
   edited_at: string | null;
   valuation_folder_id: string | null;
+  valuation_audit?: unknown;
 };
 
 // A FolderLibrary-nek megfelelő elem (a nyers becslés-adattal együtt).
@@ -74,6 +76,8 @@ type EditorState = {
   dateLabel: string;
   /** A becslés bemenete (előzményből: az akkori arculat és fotók is benne vannak). */
   facts?: Partial<ValuationInput>;
+  /** A motor levezetése — ebből épül az „Miért ennyi az ár?" lista. */
+  audit?: OnePagerAudit;
 };
 
 function historyTitle(h: HistoryItem): string {
@@ -225,6 +229,7 @@ export default function ValuationPage() {
               url: null,
               dateLabel: new Date().toLocaleDateString("hu-HU"),
               facts,
+              audit: (data.audit ?? null) as OnePagerAudit,
             });
             setEditorOpen(true);
           }
@@ -270,6 +275,7 @@ export default function ValuationPage() {
       url: h.output_file_url,
       dateLabel: new Date(h.created_at).toLocaleDateString("hu-HU"),
       facts: facts as Partial<ValuationInput>,
+      audit: (h.valuation_audit ?? null) as OnePagerAudit,
     });
     setEditorOpen(true);
   }
@@ -891,6 +897,7 @@ export default function ValuationPage() {
               dateLabel={result.dateLabel}
               // Az egyoldalas laphoz az ingatlan adatai + a választott arculat és fotók.
               facts={result.facts ?? values}
+              audit={result.audit ?? null}
               staff={staff}
               onDirtyChange={setEditorDirty}
               onSaved={(url) => {

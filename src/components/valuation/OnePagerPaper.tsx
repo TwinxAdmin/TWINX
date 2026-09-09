@@ -229,24 +229,20 @@ export default function OnePagerPaper({
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: muted }}>
                 Miért ennyi az ár?
               </div>
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Minden indoklás EGYSOROS: nem tördel, hosszabb szöveg „…"-tal
+                  levágódik. Így a blokk magassága kiszámítható, és semmiképp
+                  nem csúszhat bele az alatta lévő fotósávba. */}
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                 {data.reasons.map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, fontSize: 13.5, lineHeight: 1.55 }}>
+                  <div key={i} style={{ display: "flex", gap: 9, alignItems: "center", fontSize: 12.5, lineHeight: 1.4, height: 20 }}>
                     <span style={{
-                      flexShrink: 0, width: 20, height: 20, borderRadius: 999, marginTop: 1,
-                      background: accent, color: onAccent, fontSize: 11, fontWeight: 700,
+                      flexShrink: 0, width: 19, height: 19, borderRadius: 999,
+                      background: accent, color: onAccent, fontSize: 10.5, fontWeight: 700,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>{i + 1}</span>
-                    <span>{r}</span>
+                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{r}</span>
                   </div>
                 ))}
-                {!data.reasons.length && (
-                  <div style={{ fontSize: 13, color: muted }}>
-                    A becslés a környék elmúlt 12 hónapban eladó és eladott, hasonló méretű és
-                    állapotú ingatlanjainak árából készült, az ingatlan egyedi jellemzőire
-                    korrigálva.
-                  </div>
-                )}
               </div>
             </div>
           </div>

@@ -16,7 +16,7 @@ export async function GET() {
   const [{ data, error }, { data: folders }] = await Promise.all([
     supabase
       .from("usage_history")
-      .select("id, input_data, output_text, output_file_url, created_at, edited_at, valuation_folder_id")
+      .select("id, input_data, output_text, output_file_url, created_at, edited_at, valuation_folder_id, valuation_audit")
       .eq("feature_used", "valuation")
       // FONTOS: az RLS az adminnak MINDEN sort átenged, ezért itt is szűrünk a
       // saját felhasználóra — különben az admin más partnerek riportjait látná.

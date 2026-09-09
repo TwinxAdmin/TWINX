@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReportPaper, { PAPER_WIDTH } from "@/components/valuation/ReportPaper";
 import OnePagerPaper, { ONEPAGER_W } from "@/components/valuation/OnePagerPaper";
 import { paperToPdfBlob, singlePageToPdfBlob, blobToBase64 } from "@/lib/report-pdf-client";
-import { buildOnePager } from "@/lib/valuation-onepager";
+import { buildOnePager, type OnePagerAudit } from "@/lib/valuation-onepager";
 import type { BrandingProfile } from "@/lib/branding";
 import type { ValuationInput } from "@/lib/valuation";
 import {
@@ -36,6 +36,7 @@ export default function ValuationEditor({
   dateLabel,
   initialUrl,
   facts,
+  audit = null,
   staff = false,
   onSaved,
   onDirtyChange,
@@ -46,6 +47,8 @@ export default function ValuationEditor({
   initialUrl?: string | null;
   /** Az űrlap adatai — az egyoldalas laphoz kellenek az ingatlan-jellemzők. */
   facts?: Partial<ValuationInput>;
+  /** A motor levezetése — ebből épülnek az egyoldalas lap indoklásai. */
+  audit?: OnePagerAudit;
   /** Admin/sales: a részletes (belső) riport nézet is elérhető. Partnernek csak az egyoldalas lap. */
   staff?: boolean;
   onSaved?: (url: string) => void;
@@ -102,8 +105,8 @@ export default function ValuationEditor({
 
   const profile = profiles.find((p) => p.id === profileId) ?? null;
   const onePager = useMemo(
-    () => buildOnePager(doc, facts ?? {}, dateLabel),
-    [doc, facts, dateLabel]
+    () => buildOnePager(doc, facts ?? {}, dateLabel, audit),
+    [doc, facts, dateLabel, audit]
   );
 
   // A lap A4 szélességű; a nézetben arányosan kicsinyítjük a rendelkezésre álló helyre.
