@@ -82,23 +82,34 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
             </div>
             <div className="truncate text-xs" style={{ color: "var(--twx-on-dark-muted)" }} title={cur.note}>{cur.note}</div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={() => go(idx - 1)} aria-label="Előző" className="flex h-8 w-8 items-center justify-center rounded-full text-lg transition hover:bg-white/10" style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>‹</button>
-            <div className="flex items-center gap-1.5 px-1" role="tablist" aria-label="Példák">
-              {slides.map((s, i) => (
-                <button
-                  key={s.title}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === idx}
-                  aria-label={s.title}
-                  onClick={() => go(i)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{ width: i === idx ? 22 : 8, background: i === idx ? "var(--twx-coral)" : "rgba(255,255,255,0.28)" }}
-                />
-              ))}
+          {/* Lapozó — kiemelve, hogy látsszon: kézzel is válthatsz. A „Lapozz"
+              felirat a gombok ALATT, középen. */}
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button type="button" onClick={() => go(idx - 1)} aria-label="Előző"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold transition hover:brightness-110"
+                style={{ color: "#1c1005", background: "var(--twx-coral)", boxShadow: "0 4px 14px rgba(239,122,90,0.4)" }}>‹</button>
+              <div className="flex items-center gap-1.5 px-0.5" role="tablist" aria-label="Példák">
+                {slides.map((s, i) => (
+                  <button
+                    key={s.title}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === idx}
+                    aria-label={s.title}
+                    onClick={() => go(i)}
+                    className="h-2 rounded-full transition-all hover:opacity-90"
+                    style={{ width: i === idx ? 26 : 9, background: i === idx ? "var(--twx-coral)" : "rgba(255,255,255,0.4)" }}
+                  />
+                ))}
+              </div>
+              <button type="button" onClick={() => go(idx + 1)} aria-label="Következő"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold transition hover:brightness-110"
+                style={{ color: "#1c1005", background: "var(--twx-coral)", boxShadow: "0 4px 14px rgba(239,122,90,0.4)" }}>›</button>
             </div>
-            <button type="button" onClick={() => go(idx + 1)} aria-label="Következő" className="flex h-8 w-8 items-center justify-center rounded-full text-lg transition hover:bg-white/10" style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>›</button>
+            <span className="text-[11px] font-medium uppercase tracking-[0.16em]" style={{ color: "var(--twx-coral)" }}>
+              Lapozz
+            </span>
           </div>
         </div>
       </div>

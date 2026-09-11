@@ -57,13 +57,15 @@ const BUILD_MS = 2800;
 const DRAW_MS = 320;
 const STEP = (BUILD_MS - DRAW_MS) / (LINES.length - 1);
 const ACCEPT_AT = BUILD_MS + 600;
-const LINE_AT = ACCEPT_AT + 500;
+/** Rövid megállás az elfogadáson, majd a ház MAGA olvad össze egyetlen vonallá. */
+const MORPH_AT = ACCEPT_AT + 340;
+const MORPH_MS = 620;
+/** A vonal a házból indul — ahogy az összecsukódik, a feje már úton van. */
+const LINE_AT = MORPH_AT + 160;
 const LINE_MS = 1100;
 const CAL_AT = LINE_AT + LINE_MS - 150;
 const TICK_AT = CAL_AT + 350;
 const TICK_STEP = 70;
-const DISSOLVE_AT = LINE_AT + 700;
-const DISSOLVE_MS = 1700;
 const DAYS = 30;
 const TICK_END = TICK_AT + DAYS * TICK_STEP;
 const CAL_OUT_AT = TICK_END + 1100;
@@ -121,13 +123,16 @@ export default function SkylineStory({ className = "" }: { className?: string })
 
   // ---- Állapotok ----
   const accepted = t >= ACCEPT_AT;
-  const flash = t >= ACCEPT_AT && t < ACCEPT_AT + 350;
+  const flash = t >= ACCEPT_AT && t < ACCEPT_AT + 420;
+  /** Rövid punch: a ház egy pillanatra megrándul az elfogadáskor. */
+  const punch = clamp01((t - ACCEPT_AT) / 150) * (1 - clamp01((t - ACCEPT_AT - 150) / 260));
+  /** A ház VONALLÁ olvadása: 0 = teljes ház, 1 = a csúcson vékony fénycsíkká préselődött.
+   *  A ház a torony csúcsa (viewBox 80,12) felé csukódik össze — pont oda, ahonnan
+   *  a vonal indul, így a ház MAGA lesz a vonal. */
+  const morph = clamp01((t - MORPH_AT) / MORPH_MS);
+  const gone = morph >= 1;
   const lineP = clamp01((t - LINE_AT) / LINE_MS);
   const lineOn = t >= LINE_AT && t < LINE_AT + LINE_MS + 100;
-  const dis = clamp01((t - DISSOLVE_AT) / DISSOLVE_MS);
-  const ease = 1 - Math.pow(1 - dis, 2);
-  const cloud = dis <= 0 ? 0 : Math.sin(dis * Math.PI);
-  const gone = t >= DISSOLVE_AT + DISSOLVE_MS;
   const calIn = clamp01((t - CAL_AT) / 350);
   const calOut = clamp01((t - CAL_OUT_AT) / CAL_OUT_MS);
   const calOpacity = t < CAL_AT ? 0 : calIn * (1 - calOut);
@@ -158,35 +163,38 @@ export default function SkylineStory({ className = "" }: { className?: string })
 
       {/* ===== Ház — bal szél ===== */}
       <svg viewBox="0 0 160 380" fill="none" className="absolute top-1/2 -translate-y-1/2" style={{ left: EDGE, width: ART_W }}>
-        <defs>
-          <filter id="twx-sky-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7" /></filter>
-        </defs>
-        <g filter="url(#twx-sky-blur)" style={{ opacity: cloud * 0.9 }}>
-          <ellipse cx="60" cy="150" rx="34" ry="18" fill="rgba(244,239,231,0.55)" />
-          <ellipse cx="104" cy="120" rx="30" ry="16" fill="rgba(244,239,231,0.5)" />
-          <ellipse cx="82" cy="190" rx="40" ry="20" fill="rgba(244,239,231,0.45)" />
-          <ellipse cx="78" cy="70" rx="26" ry="14" fill="rgba(249,201,182,0.4)" />
-        </g>
-        <g stroke={accepted ? ACCENT : BASE} strokeWidth="1.3" strokeLinecap="round"
+        {/* A ház drótváza — elfogadáskor korallra vált, majd a torony csúcsa felé
+            csukódik össze egyetlen, ragyogó vonallá (scaleY→0, a felső él marad). */}
+        <g stroke={accepted ? ACCENT : BASE} strokeWidth={1.3 + punch * 0.9} strokeLinecap="round"
           style={{
-            opacity: gone ? 0 : 1 - ease,
-            transform: `translateY(${-28 * ease}px)`,
+            opacity: gone ? 0 : (morph > 0.75 ? 1 - (morph - 0.75) / 0.25 : 1),
+            transform: `scale(${1 + punch * 0.04}) scaleX(${1 - morph * 0.5}) scaleY(${1 - morph * 0.985})`,
+            transformOrigin: "80px 12px",
             filter: flash
-              ? "drop-shadow(0 0 7px rgba(239,122,90,0.95))"
-              : `drop-shadow(0 0 ${accepted ? 3 : 0}px rgba(239,122,90,0.6)) blur(${7 * ease}px)`,
-            transition: accepted && !gone ? "stroke .25s, filter .35s" : "none",
+              ? "drop-shadow(0 0 10px rgba(239,122,90,1)) drop-shadow(0 0 24px rgba(249,201,182,0.85))"
+              : `drop-shadow(0 0 ${accepted ? 3 + morph * 8 : 0}px rgba(239,122,90,${0.6 + morph * 0.4}))`,
+            transition: accepted && !gone ? "stroke .2s" : "none",
           }}>
           {LINES.map((l, i) => {
             const p = clamp01((t - i * STEP) / DRAW_MS);
             return <path key={i} d={l.d} pathLength={1} strokeDasharray="1" strokeDashoffset={1 - p} />;
           })}
         </g>
-        {/* Pipa-jelvény a csúcsnál */}
+
+        {/* A csúcson maradó ragyogó pont: a ház végső, összepréselt vonala — ebből
+            fut ki a keresztirányú fénycsík (folytonos átadás). */}
+        {morph > 0.35 && !gone && (
+          <circle cx="80" cy="12" r={2 + morph * 2.5} fill="rgba(249,201,182,1)"
+            style={{ filter: "drop-shadow(0 0 7px rgba(239,122,90,1))", opacity: morph }} />
+        )}
+
+        {/* Pipa-jelvény a csúcsnál — bepattan az elfogadáskor, majd a morfba olvad */}
         <g style={{
-          opacity: accepted ? Math.max(0, 1 - ease * 1.6) : 0,
-          transform: `translate(112px, ${22 - 28 * ease}px) scale(${accepted ? 1 : 0.6})`,
+          opacity: accepted ? Math.max(0, 1 - morph / 0.6) : 0,
+          transform: `translate(112px, ${22 - morph * 10}px) scale(${accepted ? (1 + punch * 0.4) * (1 - morph * 0.5) : 0.6})`,
           transformOrigin: "0 0",
-          transition: "opacity .25s, transform .35s cubic-bezier(.22,1.4,.36,1)",
+          transition: "opacity .2s, transform .35s cubic-bezier(.22,1.4,.36,1)",
+          filter: flash ? "drop-shadow(0 0 8px rgba(239,122,90,0.9))" : "none",
         }}>
           <circle r="10" fill="var(--twx-coral)" />
           <path d="M-4.5 0.5 L-1.5 3.5 L5 -3.5" stroke="#1c1005" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

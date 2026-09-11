@@ -74,16 +74,27 @@ export default function IngatlanLanding() {
             </p>
 
             {/* Az akció PONTOS menete — ne ígérjünk azonnali kreditet, mert
-                a kód kiadása jóváhagyáshoz kötött. */}
-            <div className="mt-6 rounded-2xl px-5 py-4"
-              style={{ background: "rgba(239,122,90,0.14)", border: "1px solid var(--twx-coral)" }}>
-              <p className="text-sm font-semibold" style={{ color: "var(--twx-coral)" }}>
-                <span aria-hidden>🎁</span> Indulási ajándék — az első 50 ingatlanosnak
-              </p>
-              <ol className="mt-2 space-y-1 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+                a kód kiadása jóváhagyáshoz kötött.
+                KIEMELVE: tömör, sötét kártya (nem áttetsző) + korall fejléc-sáv,
+                erős árnyék és korall derengés, hogy elváljon a hero-képtől. */}
+            <div className="twx-gift-pulse relative mt-6 overflow-hidden rounded-2xl"
+              style={{
+                background: "rgba(18,16,14,0.62)",
+                border: "1.5px solid var(--twx-coral)",
+                backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+              }}>
+              {/* Korall fejléc-sáv — azonnal olvasható, kontrasztos */}
+              <div className="flex items-center gap-2 px-5 py-2.5"
+                style={{ background: "rgba(239,122,90,0.72)", color: "#1c1005" }}>
+                <span aria-hidden className="text-base">🎁</span>
+                <span className="text-sm font-bold sm:text-[15px]">Indulási ajándék — az első 50 ingatlanosnak</span>
+              </div>
+              <ol className="space-y-1.5 px-5 py-4 text-sm sm:text-[15px]" style={{ color: "var(--twx-on-dark)" }}>
                 <li>1. Jelentkezel az alábbi űrlapon (nem regisztráció, nincs kötelezettség).</li>
                 <li>2. Átnézzük, és jóváhagyás után e-mailben küldünk egy ajándékkódot.</li>
-                <li>3. Regisztrálsz, majd belépve beváltod a kódot — <strong style={{ color: "var(--twx-on-dark)" }}>10 ingyenes kredit</strong>.</li>
+                <li>3. Regisztrálsz, majd belépve beváltod a kódot —{" "}
+                  <strong className="rounded px-1.5 py-0.5 font-bold" style={{ background: "rgba(239,122,90,0.22)", color: "var(--twx-coral)" }}>10 ingyenes kredit</strong>
+                </li>
               </ol>
             </div>
 

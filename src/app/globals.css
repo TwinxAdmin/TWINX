@@ -178,6 +178,19 @@ body {
 @keyframes twx-spin-slow { to { transform: rotate(360deg); } }
 .twx-spin-slow { animation: twx-spin-slow 9s linear infinite; will-change: transform; }
 
+/* Indulási-ajándék doboz (/ingatlan): a perem korall dereng, nagyon enyhén
+   „lélegzik" — egyszer fényesebb, egyszer halványabb. A fekete alap-árnyék
+   végig marad, csak a korall glow erőssége változik. */
+@keyframes twx-gift-pulse {
+  0%, 100% {
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(239,122,90,0.18), 0 0 26px rgba(239,122,90,0.14);
+  }
+  50% {
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(239,122,90,0.38), 0 0 46px rgba(239,122,90,0.38);
+  }
+}
+.twx-gift-pulse { animation: twx-gift-pulse 3.6s ease-in-out infinite; }
+
 /* Lüktető hullámforma a videó-jelenet zene-kártyáin és lejátszójában */
 @keyframes twx-wave { 0%, 100% { transform: scaleY(0.45); } 50% { transform: scaleY(1); } }
 .twx-wave { transform-origin: bottom; animation: twx-wave 0.8s ease-in-out infinite; }
