@@ -30,7 +30,7 @@ export const HERO = {
   titleLine2: "egy kattintásra.",
   lead: "Hirdetés, riport, videó, válaszlevél, elemzés — feltöltöd, kattintasz, letöltöd. Havidíj nélkül, kreditalapon.",
   cta: "Kipróbálom ingyen",
-  ctaNote: `${WELCOME_CREDITS} kredit ajándék, bankkártya nélkül`,
+  ctaNote: `${WELCOME_CREDITS} kredit ajándékba`,
   secondary: "Nézd meg működés közben",
 };
 

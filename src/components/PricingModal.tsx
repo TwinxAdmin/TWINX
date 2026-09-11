@@ -359,7 +359,7 @@ export default function PricingModal() {
                           )}
                         </span>
                         {!isSales && (
-                          <span className="text-sm font-semibold">{formatHuf(p.priceHuf)} + áfa</span>
+                          <span className="text-sm font-semibold">{formatHuf(p.priceHuf)}</span>
                         )}
                       </button>
                     );
@@ -399,7 +399,7 @@ export default function PricingModal() {
                         ? "Küldés…"
                         : isSales
                           ? picked ? `Igénylés — ${picked.credits} kredit` : "Igénylés"
-                          : picked ? `Megrendelés — ${formatHuf(picked.priceHuf)} + áfa` : "Megrendelés"}
+                          : picked ? `Megrendelés — ${formatHuf(picked.priceHuf)}` : "Megrendelés"}
                     </button>
                   </>
                 )}
