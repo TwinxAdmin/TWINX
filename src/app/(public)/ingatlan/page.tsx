@@ -11,18 +11,15 @@ import Reveal from "@/components/motion/Reveal";
 import IngatlanHero from "@/components/IngatlanHero";
 import IngatlanServiceTicker from "@/components/IngatlanServiceTicker";
 import IngatlanConsultModal, { IngatlanConsultButton } from "@/components/IngatlanConsultModal";
+import HeroShowcase from "@/components/landing/HeroShowcase";
+import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
+import { SHOWCASE } from "@/lib/landing";
 
 export const metadata: Metadata = {
   title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
   description:
     "Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Értékbecslés, hirdetéskép, videó, látványterv és hirdetésszöveg — havidíj nélkül, használat alapon. Az első 50 jelentkező 10 ajándék kreditet kap.",
 };
-
-const BENEFITS: { icon: string; title: string; desc: string }[] = [
-  { icon: "cost", title: "Nincs havi díj", desc: "Teljesen kreditalapú rendszer — csak a ténylegesen elkészített tartalmak után vonunk le kreditet." },
-  { icon: "branding", title: "Saját arculat", desc: "Minden kimenet a te adataiddal, fotóddal és az irodád színeivel jelenik meg." },
-  { icon: "history", title: "Díjtalan tárolás", desc: "Az elkészült anyagok letölthető és szerkeszthető formában, korlátlan ideig, ingyen elérhetők." },
-];
 
 const APPS: { icon: string; title: string; desc: string }[] = [
   { icon: "valuation", title: "Értékbecslő", desc: "Valós piaci adatokon alapuló, azonnali értékbecslés korrekciókkal (eladási, kínálati és gyorsár). Kiváló árazáshoz és ügyfélszerző kampányokhoz." },
@@ -111,23 +108,32 @@ export default function IngatlanLanding() {
         </div>
       </section>
 
-      {/* ========================= 2) FŐ ELŐNYÖK ========================= */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
-        <Reveal>
-          <h2 className="font-display text-3xl font-semibold sm:text-4xl">Miért a TWINX?</h2>
-        </Reveal>
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          {BENEFITS.map((b, i) => (
-            <Reveal key={b.title} delay={i * 0.08}>
-              <div className="h-full rounded-2xl p-6" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-coral)" }}>
-                  <ModuleIcon name={b.icon} className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 font-display text-xl font-medium">{b.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>{b.desc}</p>
-              </div>
+      {/* ===================== 2) NÉZD MEG MŰKÖDÉS KÖZBEN ===================== */}
+      {/* Ugyanaz a modul-forgó, mint a főoldalon (lib/landing SHOWCASE): képjavító
+          és látványterv előtte/utána csúszka, értékbecslés-jelenet, valódi videó a
+          telefonon, hirdetéskép. A korábbi „Miért a TWINX?" előny-kártyák helyén. */}
+      <section id="mukodes" className="relative overflow-hidden" style={{ background: "var(--twx-dark-2)", color: "var(--twx-on-dark)" }}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px]" aria-hidden
+          style={{ background: "radial-gradient(60% 60% at 50% 0%, rgba(239,122,90,0.16), transparent 70%)" }} />
+        {/* Pontrács + sebességcsíkok a teljes szekción (ShowcaseFrame.tsx) */}
+        <ShowcaseBackdrop />
+        <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-16">
+          <Reveal>
+            <h2 className="font-display mx-auto max-w-2xl text-center text-3xl font-medium sm:text-4xl">
+              Nézd meg működés közben
+            </h2>
+            <p className="mx-auto mt-3 max-w-3xl text-center text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+              Valódi munkák: telefonfotóból hirdetési fotó, adatokból értékbecslés, képekből zenés videó —{" "}
+              <span className="whitespace-nowrap">percek alatt.</span>
+            </p>
+          </Reveal>
+          <div className="mt-12">
+            <Reveal delay={0.1}>
+              <ShowcaseFrame>
+                <HeroShowcase slides={SHOWCASE} />
+              </ShowcaseFrame>
             </Reveal>
-          ))}
+          </div>
         </div>
       </section>
 

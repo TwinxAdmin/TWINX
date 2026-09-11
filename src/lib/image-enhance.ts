@@ -20,6 +20,9 @@ export { MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, validateImageFiles } from "@/lib/
  */
 export const ENHANCE_MAX_IMAGES = 3;
 
+/** Egy feldolgozás ára kreditben (a route jelenleg ugyanezt az 1-et vonja). A főoldal innen olvassa. */
+export const ENHANCE_CREDITS = 1;
+
 // A SORREND a felületen is ez: a Rendrakás áll elöl.
 export const ENHANCE_MODES = [
   {

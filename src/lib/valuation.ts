@@ -30,6 +30,9 @@ export type ValuationInput = {
   pagePhotos?: string[]; // max 2 kép URL-je
 };
 
+/** Egy értékbecslés ára kreditben (a route jelenleg ugyanezt az 1-et vonja). A főoldal innen olvassa. */
+export const VALUATION_CREDITS = 1;
+
 /** Az űrlap szöveges mezői (a megjelenés-beállítások nélkül). */
 export type ValuationFieldKey = Exclude<keyof ValuationInput, "brandingProfileId" | "pagePhotos">;
 

@@ -129,6 +129,63 @@ body {
 .twx-reveal { animation: twx-fade-up 0.8s ease both; }
 .twx-kenburns { animation: twx-kenburns 18s ease-in-out infinite alternate; transform-origin: 70% 40%; }
 
+/* Főoldal modul-forgó: az előtte/utána csúszka magától jár (a maszk és a vonal
+   együtt), a riport-lap pedig alulról úszik be, amikor a dia aktív lesz. */
+/* ELŐSZÖR AZ EREDETI látszik teljes egészében (a csúszka a JOBB szélen áll),
+   majd balra húzva feltárul az elkészült kép, megáll rajta, végül visszatér és
+   a ciklus ISMÉTLŐDIK — aki rajta hagyja az egeret (a forgó ilyenkor áll), az
+   kattintás nélkül újra és újra végignézheti. A forgó a kész kép megállásának
+   végén (80%) vált tovább — lásd HeroShowcase BA_MS, a két érték együtt jár. */
+@keyframes twx-ba-clip {
+  0%, 12%   { clip-path: inset(0 0% 0 0); }
+  45%, 80%  { clip-path: inset(0 100% 0 0); }
+  100%      { clip-path: inset(0 0% 0 0); }
+}
+@keyframes twx-ba-line {
+  0%, 12%   { left: 100%; }
+  45%, 80%  { left: 0%; }
+  100%      { left: 100%; }
+}
+.twx-ba-clip { animation: twx-ba-clip 7s ease-in-out infinite; }
+.twx-ba-line { animation: twx-ba-line 7s ease-in-out infinite; }
+@keyframes twx-doc-rise {
+  from { transform: translateY(14%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.twx-doc-rise { animation: twx-doc-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* „Nézd meg működés közben" — lágy, folyamatos föl-le lebegés a hero alján,
+   hogy a szem odatévedjen. A belépő animáció (twx-reveal) után indul. */
+@keyframes twx-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+.twx-bob { animation: twx-fade-up 0.8s ease both, twx-bob 2.2s ease-in-out 1s infinite; }
+
+/* „Nézd meg működés közben" kerete (ShowcaseFrame):
+   - sebességcsík: vékony korall vonal húz át balról jobbra a szekció hátterén,
+   - körbefutó fény: kúpos színátmenet kering a kártya peremén.
+   Mind lassú és halvány — figyelemfelkeltés, nem zaj. */
+@keyframes twx-speedline {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(520%); opacity: 0; }
+}
+.twx-speedline { animation: twx-speedline 10s linear infinite; will-change: transform; }
+/* A középre igazítás a Tailwind `translate` tulajdonságán megy, a forgatás
+   külön a `transform`-on — a kettő összeadódik, nem üti egymást. */
+@keyframes twx-spin-slow { to { transform: rotate(360deg); } }
+.twx-spin-slow { animation: twx-spin-slow 9s linear infinite; will-change: transform; }
+
+/* Lüktető hullámforma a videó-jelenet zene-kártyáin és lejátszójában */
+@keyframes twx-wave { 0%, 100% { transform: scaleY(0.45); } 50% { transform: scaleY(1); } }
+.twx-wave { transform-origin: bottom; animation: twx-wave 0.8s ease-in-out infinite; }
+
+/* Villogó kurzor az értékbecslés-jelenet gépelt mezőiben */
+@keyframes twx-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.twx-caret { animation: twx-caret 0.9s step-end infinite; }
+
 /* Szándékosan NEM kapcsoljuk le az animációkat reduced-motion esetén: a landing
    élménye mindig fusson, a távoli partner böngésző-/OS-beállításától függetlenül. */
 

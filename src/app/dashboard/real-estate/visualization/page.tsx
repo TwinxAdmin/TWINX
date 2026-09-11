@@ -144,8 +144,15 @@ export default function VisualizationPage() {
     );
   }
 
-  const allReady =
-    items.length > 0 && items.every((it) => isRoomConfigReady(it.config));
+  // A 4 kép-hely csak a MAXIMUM: 1, 2 vagy 3 feltöltött képpel is indulhat a
+  // generálás. Egyetlen feltétel: minden FELTÖLTÖTT képnél legyen helységtípus és
+  // legalább egy módosítás. Az üres helyek nem számítanak.
+  const missing = items
+    .map((it, i) => (isRoomConfigReady(it.config) ? null : i + 1))
+    .filter((n): n is number => n !== null);
+  const allReady = items.length > 0 && missing.length === 0;
+  const missingLabel =
+    missing.length === 1 ? `a(z) ${missing[0]}. képet` : `a ${missing.join(", ")}. képet`;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -160,7 +167,7 @@ export default function VisualizationPage() {
     }
     if (!allReady) {
       setServerError(
-        "Minden képhez adj meg helységtípust és legalább egy módosítást."
+        `Állítsd be ${missingLabel}: helységtípus és legalább egy módosítás. (Az üres helyek nem kellenek — 1 képpel is indulhat.)`
       );
       return;
     }
@@ -412,7 +419,7 @@ export default function VisualizationPage() {
               ? "Tölts fel legalább egy képet"
               : allReady
                 ? `Látványtervek generálása (${items.length} kép · 1 kredit)`
-                : "Állítsd be az összes képet"}
+                : `Állítsd be ${missingLabel} (kattints rá)`}
         </button>
       </form>
 
