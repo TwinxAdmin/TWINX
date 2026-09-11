@@ -32,6 +32,7 @@ export type UserMetric = {
   company: string; // cég, ahol dolgozik (nem kötelező)
   email: string;
   role: string;
+  signupSource: string | null; // honnan regisztrált (pl. "ingatlan-landing")
   createdAt: string | null; // regisztráció (rendezéshez)
   balance: number; // AKTUÁLIS kredit-egyenleg (wallets.balance) — időszaktól független
   uses: number; // összes generálás (usage_history)
@@ -56,8 +57,11 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
     if (meta.full_name) metaNameById.set(u.id, meta.full_name);
   }
 
-  const { data: profiles } = await admin.from("profiles").select("id, role, full_name, company");
+  const { data: profiles } = await admin.from("profiles").select("id, role, full_name, company, signup_source");
   const roleById = new Map<string, string>((profiles ?? []).map((p) => [p.id as string, (p.role as string) ?? "user"]));
+  const sourceById = new Map<string, string | null>(
+    (profiles ?? []).map((p) => [p.id as string, (p.signup_source as string | null) ?? null])
+  );
   const nameById = new Map<string, string>(
     (profiles ?? []).map((p) => [p.id as string, ((p.full_name as string) ?? "").trim()])
   );
@@ -92,6 +96,7 @@ export async function getUserMetrics(sinceIso?: string | null): Promise<{ users:
         company: companyById.get(id) || "",
         email: emailById.get(id) ?? "—",
         role: roleById.get(id) ?? "user",
+        signupSource: sourceById.get(id) ?? null,
         createdAt: createdById.get(id) ?? null,
         balance: balanceById.get(id) ?? 0,
         uses: 0,

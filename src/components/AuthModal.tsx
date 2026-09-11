@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 
+import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
+
 type Mode = "login" | "register";
 
 export default function AuthModal() {
@@ -15,6 +17,8 @@ export default function AuthModal() {
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
+  // Regisztráció forrás-jelölése (pl. az ingatlan landingről) — 10 kezdőkredithez.
+  const [source, setSource] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,8 +44,9 @@ export default function AuthModal() {
   // Nyitás esemény + billentyűk
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { mode?: Mode } | undefined;
+      const detail = (e as CustomEvent).detail as { mode?: Mode; source?: string } | undefined;
       setMode(detail?.mode ?? "login");
+      setSource(detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null);
       reset();
       setName("");
       setEmail("");
@@ -89,7 +94,7 @@ export default function AuthModal() {
         body:
           mode === "login"
             ? JSON.stringify({ email, password })
-            : JSON.stringify({ name, email, password, passwordConfirm }),
+            : JSON.stringify({ name, email, password, passwordConfirm, source }),
       });
       const data = await res.json();
 
@@ -148,6 +153,15 @@ export default function AuthModal() {
             ×
           </button>
         </div>
+
+        {/* Landing-forrás: kiemelt jelzés, hogy azonnal 10 kredittel indul */}
+        {!isLogin && source === LANDING_SIGNUP_SOURCE && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
+            style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+            <span aria-hidden>🎁</span>
+            Regisztrálj, és azonnal {LANDING_WELCOME_CREDITS} kredittel kezdesz.
+          </div>
+        )}
 
         <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
           {!isLogin && (
@@ -217,7 +231,12 @@ export default function AuthModal() {
           <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
         </div>
 
-        <GoogleButton label={isLogin ? "Belépés Google-fiókkal" : "Regisztráció Google-fiókkal"} />
+        {/* Google-regisztrációnál a forrást a callback-en át adjuk tovább (a
+            10 kreditet a /auth/callback írja jóvá landing-forrás esetén). */}
+        <GoogleButton
+          label={isLogin ? "Belépés Google-fiókkal" : "Regisztráció Google-fiókkal"}
+          source={!isLogin && source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : undefined}
+        />
 
         <button
           type="button"

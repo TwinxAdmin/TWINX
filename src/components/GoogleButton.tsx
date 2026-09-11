@@ -10,14 +10,19 @@ import { createClient } from "@/lib/supabase/client";
  * — különben a Google-fiókosok egyből a kezdőlapon találnák magukat.
  */
 export default function GoogleButton({
-  label = "Folytatás Google-lel", next,
-}: { label?: string; next?: string }) {
+  label = "Folytatás Google-lel", next, source,
+}: { label?: string; next?: string; source?: string }) {
   const [loading, setLoading] = useState(false);
 
   async function onClick() {
     setLoading(true);
     const supabase = createClient();
-    const callback = `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+    // A `src` a landing-forrást viszi a callbacknek (ott íródik jóvá a 10 kredit).
+    const params = new URLSearchParams();
+    if (next) params.set("next", next);
+    if (source) params.set("src", source);
+    const qs = params.toString();
+    const callback = `${window.location.origin}/auth/callback${qs ? `?${qs}` : ""}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: callback },

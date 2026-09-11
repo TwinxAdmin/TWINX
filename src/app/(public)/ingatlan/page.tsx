@@ -1,12 +1,17 @@
 // twinx.hu/ingatlan — Értékesítési landing ingatlanközvetítőknek.
-// Kiküldhető link: bemutatja a TWINX AI modulokat, a 10 kredites akciót, és
-// egy jelentkező-űrlappal gyűjti a leadeket. TWINX arculat (sötét-bronz hero →
-// világos editorial szekciók), a főoldallal egységes.
+// Kiküldhető link: bemutatja a TWINX AI modulokat és a 10 kredites indulási
+// ajándékot. A landingről regisztráló partner AZONNAL 10 kredittel kezd (kód és
+// jóváhagyás nélkül) — a signup_source='ingatlan-landing' jelölés viszi át a
+// regisztráción, a DB-trigger adja a keretet (landing-signup-credits.sql).
+//
+// A régi, jóváhagyós/ajándékkódos út (IngatlanLeadForm + invites + admin/meghivok)
+// megmarad a kódban mentve, csak már nem ez a fő folyamat. TWINX arculat
+// (sötét-bronz hero → világos editorial szekciók), a főoldallal egységes.
 import type { Metadata } from "next";
 import Wordmark from "@/components/Wordmark";
 import ModuleIcon from "@/components/ModuleIcon";
-import IngatlanLeadForm from "@/components/IngatlanLeadForm";
-import IngatlanCta from "@/components/IngatlanCta";
+import AuthModal from "@/components/AuthModal";
+import AuthTrigger from "@/components/AuthTrigger";
 import Reveal from "@/components/motion/Reveal";
 import IngatlanHero from "@/components/IngatlanHero";
 import IngatlanServiceTicker from "@/components/IngatlanServiceTicker";
@@ -14,11 +19,12 @@ import IngatlanConsultModal, { IngatlanConsultButton } from "@/components/Ingatl
 import HeroShowcase from "@/components/landing/HeroShowcase";
 import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
 import { SHOWCASE } from "@/lib/landing";
+import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
 
 export const metadata: Metadata = {
   title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
   description:
-    "Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Értékbecslés, hirdetéskép, videó, látványterv és hirdetésszöveg — havidíj nélkül, használat alapon. Az első 50 jelentkező 10 ajándék kreditet kap.",
+    "Ingatlanközvetítők fejlesztették, ingatlanközvetítőknek. Értékbecslés, hirdetéskép, videó, látványterv és hirdetésszöveg — havidíj nélkül, használat alapon. Regisztrálj a landingről, és azonnal 10 kredittel kezdesz.",
 };
 
 const APPS: { icon: string; title: string; desc: string }[] = [
@@ -73,8 +79,8 @@ export default function IngatlanLanding() {
               használatért fizetsz.
             </p>
 
-            {/* Az akció PONTOS menete — ne ígérjünk azonnali kreditet, mert
-                a kód kiadása jóváhagyáshoz kötött.
+            {/* Indulási ajándék — AZONNAL, regisztrációkor. Nincs kód, nincs
+                jóváhagyás: aki innen regisztrál, 10 kredittel kezd.
                 KIEMELVE: tömör, sötét kártya (nem áttetsző) + korall fejléc-sáv,
                 erős árnyék és korall derengés, hogy elváljon a hero-képtől. */}
             <div className="twx-gift-pulse relative mt-6 overflow-hidden rounded-2xl"
@@ -90,22 +96,24 @@ export default function IngatlanLanding() {
                 <span className="text-sm font-bold sm:text-[15px]">Indulási ajándék — az első 50 ingatlanosnak</span>
               </div>
               <ol className="space-y-1.5 px-5 py-4 text-sm sm:text-[15px]" style={{ color: "var(--twx-on-dark)" }}>
-                <li>1. Jelentkezel az alábbi űrlapon (nem regisztráció, nincs kötelezettség).</li>
-                <li>2. Átnézzük, és jóváhagyás után e-mailben küldünk egy ajándékkódot.</li>
-                <li>3. Regisztrálsz, majd belépve beváltod a kódot —{" "}
-                  <strong className="rounded px-1.5 py-0.5 font-bold" style={{ background: "rgba(239,122,90,0.22)", color: "var(--twx-coral)" }}>10 ingyenes kredit</strong>
+                <li>1. Regisztrálj erről az oldalról — pár másodperc, bankkártya nélkül.</li>
+                <li>2. A fiókod{" "}
+                  <strong className="rounded px-1.5 py-0.5 font-bold" style={{ background: "rgba(239,122,90,0.22)", color: "var(--twx-coral)" }}>azonnal {LANDING_WELCOME_CREDITS} kredittel</strong>{" "}
+                  indul — nincs kód, nincs várakozás.
                 </li>
+                <li>3. Kipróbálod, és az első kész anyagod pár perc alatt megvan.</li>
               </ol>
             </div>
 
             <div className="mt-8">
-              <IngatlanCta
-                intent="kreditek"
+              <AuthTrigger
+                mode="register"
+                source={LANDING_SIGNUP_SOURCE}
                 className="rounded-xl px-7 py-4 text-base font-semibold transition-opacity hover:opacity-90"
                 style={{ background: "var(--twx-coral)", color: "#1c1005" }}
               >
-                Kérem az ajándékkódot
-              </IngatlanCta>
+                Regisztrálok — {LANDING_WELCOME_CREDITS} kredit ajándékba
+              </AuthTrigger>
             </div>
           </div>
 
@@ -252,22 +260,29 @@ export default function IngatlanLanding() {
         </Reveal>
       </section>
 
-      {/* ===================== 6) ZÁRÓ ŰRLAP (LEAD) ===================== */}
+      {/* ===================== 6) ZÁRÓ CTA — AZONNALI REGISZTRÁCIÓ ===================== */}
       <section className="px-6 py-16 sm:py-24" style={{ background: "var(--twx-dark)" }}>
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="text-center">
-            <h2 className="font-display text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-on-dark)" }}>
-              Kérem az ajándékkódot
-            </h2>
-            <p className="mt-4 text-base leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
-              Töltsd ki az űrlapot, és ha beleférsz az első 50-be, e-mailben küldjük az
-              ajándékkódot, amit regisztráció után, belépve válthatsz be 10 kreditre.
-              A jelentkezés ingyenes, és semmire nem kötelez.
-            </p>
-          </div>
+        <div className="mx-auto w-full max-w-2xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
+            style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+            <span aria-hidden>🎁</span> Az első 50 ingatlanosnak
+          </span>
+          <h2 className="font-display mt-4 text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-on-dark)" }}>
+            Regisztrálj, és azonnal {LANDING_WELCOME_CREDITS} kredittel kezdesz
+          </h2>
           <div className="mt-8">
-            <IngatlanLeadForm />
+            <AuthTrigger
+              mode="register"
+              source={LANDING_SIGNUP_SOURCE}
+              className="rounded-xl px-8 py-4 text-base font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
+            >
+              Regisztrálok — {LANDING_WELCOME_CREDITS} kredit ajándékba
+            </AuthTrigger>
           </div>
+          <p className="mt-4 text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
+            Inkább kérdeznél előbb? A „Bővebb tájékoztatást kérek” gombbal elérsz minket.
+          </p>
         </div>
       </section>
 
@@ -281,6 +296,8 @@ export default function IngatlanLanding() {
           Vissza a főoldalra →
         </a>
       </footer>
+      {/* A regisztrációs ablak (a CTA-k az open-auth eseménnyel nyitják, source-szal). */}
+      <AuthModal />
       <IngatlanConsultModal />
     </main>
   );

@@ -139,10 +139,6 @@ export default async function LandingPage() {
               >
                 {HERO.cta}
               </AuthTrigger>
-              {/* Ajándék-kredit: keret nélkül, csak korall színnel és félkövérrel kiemelve */}
-              <span className="pl-1 text-sm font-semibold" style={{ color: "var(--twx-coral)" }}>
-                {HERO.ctaNote}
-              </span>
             </div>
           </div>
           {/* Jobb oszlop: szándékosan üres — a hero-kép arca és a szövet ide esik. */}
