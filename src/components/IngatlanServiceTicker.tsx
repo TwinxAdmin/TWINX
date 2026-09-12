@@ -26,7 +26,7 @@ export default function IngatlanServiceTicker({ titles }: Props) {
 
   return (
     <div
-      className="relative z-10 w-full text-center lg:absolute lg:bottom-24 lg:right-8 lg:w-[min(44vw,620px)] lg:text-right xl:right-14"
+      className="relative z-10 w-full text-center lg:absolute lg:inset-y-0 lg:left-1/2 lg:right-0 lg:flex lg:w-auto lg:flex-col lg:items-center lg:justify-center lg:px-8 lg:text-center xl:px-14"
       aria-live="polite"
     >
       {/* Kis üveges címke a felirat mögött — a világos jeleneten enélkül
@@ -49,7 +49,7 @@ export default function IngatlanServiceTicker({ titles }: Props) {
       {/* Színpad: két sornyi minimum-magasság, hogy a váltás ne mozgassa a
           layoutot, de a hosszú címek se vágódjanak le. mode="wait" miatt
           egyszerre csak egy cím van a DOM-ban, ezért nem kell abszolút pozíció. */}
-      <div className="mt-4 flex min-h-[2.4em] items-center justify-center lg:justify-end"
+      <div className="mt-4 flex w-full min-h-[2.4em] items-center justify-center"
         style={{ fontSize: "clamp(2.4rem, 4.4vw, 4rem)" }}>
         <AnimatePresence mode="wait">
           <motion.span
@@ -68,7 +68,7 @@ export default function IngatlanServiceTicker({ titles }: Props) {
       </div>
 
       {/* Haladás-pontok: az aktív korall, a többi halvány. */}
-      <div className="mt-5 flex items-center justify-center gap-2 lg:justify-end" aria-hidden>
+      <div className="mt-5 flex w-full items-center justify-center gap-2" aria-hidden>
         {titles.map((t, k) => (
           <span
             key={t}
