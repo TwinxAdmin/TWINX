@@ -191,6 +191,23 @@ body {
 }
 .twx-gift-pulse { animation: twx-gift-pulse 3.6s ease-in-out infinite; }
 
+/* Lebegő ingatlanos vonalas ikonok a /ingatlan „Három lépés" blokkban —
+   a marketingvideó zárókártyájának stílusa (ház, kulcs, grafikon, kamera,
+   dokumentum, térképjel). Lassú, lágy fel-le lebegés enyhe billenéssel;
+   a --twx-float-* változókkal ikononként eltérő ütem. */
+@keyframes twx-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--twx-float-rot-a, -2deg)); }
+  50%      { transform: translate3d(0, var(--twx-float-y, -14px), 0) rotate(var(--twx-float-rot-b, 3deg)); }
+}
+.twx-float {
+  animation: twx-float var(--twx-float-dur, 6s) ease-in-out infinite;
+  animation-delay: var(--twx-float-delay, 0s);
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .twx-float { animation: none; }
+}
+
 /* Lüktető hullámforma a videó-jelenet zene-kártyáin és lejátszójában */
 @keyframes twx-wave { 0%, 100% { transform: scaleY(0.45); } 50% { transform: scaleY(1); } }
 .twx-wave { transform-origin: bottom; animation: twx-wave 0.8s ease-in-out infinite; }

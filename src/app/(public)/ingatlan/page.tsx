@@ -16,7 +16,9 @@ import Reveal from "@/components/motion/Reveal";
 import IngatlanHero from "@/components/IngatlanHero";
 import IngatlanServiceTicker from "@/components/IngatlanServiceTicker";
 import IngatlanConsultModal, { IngatlanConsultButton } from "@/components/IngatlanConsultModal";
+import EstateIcons from "@/components/landing/EstateIcons";
 import HeroShowcase from "@/components/landing/HeroShowcase";
+import LandingIntroVideo from "@/components/landing/LandingIntroVideo";
 import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
 import { SHOWCASE } from "@/lib/landing";
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
@@ -127,10 +129,95 @@ export default function IngatlanLanding() {
         </div>
       </section>
 
-      {/* ===================== 2) NÉZD MEG MŰKÖDÉS KÖZBEN ===================== */}
+      {/* ===================== 2) HOGYAN MŰKÖDIK (ÁBRA + VIDEÓ) ===================== */}
+      {/* Három zóna: bal oldalt a valódi 9:16 bemutatóvideó (LandingIntroVideo),
+          középen a videóra mutató karakter + buborék, jobbra a három lépés. A
+          „Nézd meg működés közben" referencia-forgó ELÉ került. VILÁGOS (krém)
+          háttér, hogy elkülönüljön a szomszédos sötét blokkoktól. */}
+      <section className="relative overflow-hidden px-6 py-16 sm:py-20" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
+        {/* Lebegő ingatlanos vonalas ikonok (dekoráció, a zárókártya stílusában) */}
+        <EstateIcons />
+        <div className="relative mx-auto w-full max-w-6xl">
+          <Reveal>
+            <h2 className="font-display text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-ink)" }}>
+              Három lépés, és kész
+            </h2>
+            <p className="mt-3 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
+              A feltöltéstől a posztolható anyagig — percek, nem órák.
+              <span className="block">Nézd meg a rövid bemutatóban.</span>
+            </p>
+          </Reveal>
+          {/* Három zóna asztalon: videó (bal) · mutató karakter + buborék (közép) ·
+              lépések (jobb, kisebb). Mobilon a karakter rejtve, csak videó + lépések. */}
+          <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-6">
+            {/* Bal: videó */}
+            <div className="lg:col-span-4">
+              <Reveal>
+                <LandingIntroVideo />
+              </Reveal>
+            </div>
+
+            {/* Közép: a videóban szereplő karakter, a videóra mutatva + szövegbuborék.
+                Dekoratív kísérő — kisebb képernyőn elrejtve. */}
+            <div className="relative hidden lg:col-span-4 lg:flex lg:items-end lg:justify-center">
+              {/* Szövegbuborék — a fejtől JOBBRA-FELFELÉ, a lépés-kártyák fölötti
+                  üres sávban (átnyúlik a jobb oszlop tetejére, ami ott üres).
+                  A csőr a bal alsó sarkából lefelé-balra, a fej felé mutat. */}
+              <div className="absolute z-10 w-[13rem]" style={{ top: "2%", left: "88%" }}>
+                <div className="relative rounded-2xl px-4 py-3 text-left text-sm font-semibold leading-snug"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005", boxShadow: "0 12px 30px rgba(28,24,21,0.22)" }}>
+                  Pár kattintás, és kész — nézd meg élőben!
+                  {/* buborék-csőr: a bal oldal közepén, BALRA az arc felé mutat
+                      (az arc a buborékkal egy magasságban, tőle balra van) */}
+                  <span aria-hidden className="absolute right-full h-0 w-0"
+                    style={{ top: "50%", transform: "translateY(-50%)", borderTop: "9px solid transparent", borderBottom: "9px solid transparent", borderRight: "13px solid var(--twx-coral)" }} />
+                </div>
+              </div>
+              {/* Puha, meleg „színpad-fény" a karakter mögött: nagy, elmosott
+                  korall radial gradient. Nincs CSS filter (Safari-biztos), így
+                  nem rajzol téglalapot; a sziluett élét lágyan a háttérbe olvasztja. */}
+              <div aria-hidden className="pointer-events-none absolute"
+                style={{
+                  left: "-18%", right: "-18%", top: "-4%", bottom: "-2%",
+                  background: "radial-gradient(ellipse 55% 52% at 50% 46%, rgba(239,122,90,0.16) 0%, rgba(239,122,90,0.07) 38%, rgba(239,122,90,0) 70%)",
+                }} />
+              {/* Nincs CSS drop-shadow: Safari az img dobozára téglalap-árnyékot
+                  rajzolt. A lágy talaj-árnyék és a perem-derengés a képbe van égetve. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/marketing/character-light.webp?v=6"
+                alt="TWINX bemutató — a videóra mutató kolléga"
+                className="relative z-[1] h-auto w-full max-w-[350px] select-none"
+                draggable={false}
+              />
+            </div>
+
+            {/* Jobb: a három lépés függőleges listaként (kisebb szöveg) */}
+            <div className="flex flex-col gap-4 lg:col-span-4">
+              {STEPS.map((s, i) => (
+                <Reveal key={s.title} delay={i * 0.1}>
+                  <div className="flex items-start gap-3 rounded-xl p-4"
+                    style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                      <ModuleIcon name={s.icon} className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-sm font-semibold" style={{ color: "var(--twx-ink)" }}>{s.title}</h3>
+                      <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>{s.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== 2b) NÉZD MEG MŰKÖDÉS KÖZBEN ===================== */}
       {/* Ugyanaz a modul-forgó, mint a főoldalon (lib/landing SHOWCASE): képjavító
           és látványterv előtte/utána csúszka, értékbecslés-jelenet, valódi videó a
-          telefonon, hirdetéskép. A korábbi „Miért a TWINX?" előny-kártyák helyén. */}
+          telefonon, hirdetéskép. A „Három lépés, és kész" blokk UTÁN. */}
       <section id="mukodes" className="relative overflow-hidden" style={{ background: "var(--twx-dark-2)", color: "var(--twx-on-dark)" }}>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px]" aria-hidden
           style={{ background: "radial-gradient(60% 60% at 50% 0%, rgba(239,122,90,0.16), transparent 70%)" }} />
@@ -152,35 +239,6 @@ export default function IngatlanLanding() {
                 <HeroShowcase slides={SHOWCASE} />
               </ShowcaseFrame>
             </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== 2b) HOGYAN MŰKÖDIK (ÁBRA) ===================== */}
-      <section className="px-6 py-16 sm:py-20" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
-        <div className="mx-auto w-full max-w-6xl">
-          <Reveal>
-            <h2 className="font-display text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-on-dark)" }}>
-              Három lépés, és kész
-            </h2>
-            <p className="mt-3 max-w-2xl text-base" style={{ color: "var(--twx-on-dark-muted)" }}>
-              A feltöltéstől a posztolható anyagig — percek, nem órák.
-            </p>
-          </Reveal>
-          <div className="relative mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <Reveal key={s.title} delay={i * 0.1}>
-                <div className="relative h-full rounded-2xl p-6 text-center md:text-left"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl md:mx-0"
-                    style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    <ModuleIcon name={s.icon} className="h-7 w-7" />
-                  </div>
-                  <h3 className="mt-4 font-display text-lg font-medium" style={{ color: "var(--twx-on-dark)" }}>{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>{s.desc}</p>
-                </div>
-              </Reveal>
-            ))}
           </div>
         </div>
       </section>

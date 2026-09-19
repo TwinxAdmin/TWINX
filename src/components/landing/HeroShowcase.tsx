@@ -48,14 +48,15 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Üvegkártya */}
+      {/* Üvegkártya — SZÁNDÉKOSAN nincs backdrop-filter: a Safari a
+          backdrop-filter-es ős alatt feketén hagyja a <video>-t (a videó-dia
+          telefonjában). Élő elmosás helyett áttetsző sötét háttér + finom
+          világos keret adja az „üveges" hatást, videó-biztosan. */}
       <div
         className="relative overflow-hidden rounded-3xl"
         style={{
-          background: "rgba(255,255,255,0.05)",
+          background: "linear-gradient(180deg, rgba(24,20,18,0.72), rgba(14,12,11,0.82))",
           border: "1px solid rgba(255,255,255,0.14)",
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
           boxShadow: "0 30px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
         }}
       >

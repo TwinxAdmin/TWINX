@@ -129,8 +129,22 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
     const v = videoRef.current;
     if (!v) return;
     if (playing) {
+      // Safari/Chrome autoplay-szabály: a videónak NÉMÍTOTTNAK kell lennie a
+      // play() pillanatában, és a React a `muted` propot nem írja ki DOM-
+      // attribútumként (ismert React-hiba) — ezért itt kézzel is beállítjuk,
+      // különben a play() csendben elutasítódik, és csak a poszter marad.
+      v.muted = true;
+      v.defaultMuted = true;
+      v.setAttribute("muted", "");
+      v.setAttribute("playsinline", "");
       v.currentTime = 0;
-      v.play().catch(() => { /* autoplay tiltva → a poszter marad */ });
+      const p = v.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          // Ha mégis tiltva: egy próbát még adunk a következő képkockán.
+          requestAnimationFrame(() => { v.play().catch(() => { /* poszter marad */ }); });
+        });
+      }
     } else {
       v.pause();
       v.currentTime = 0;
@@ -289,8 +303,18 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
           style={{ background: "#0c0b0a", boxShadow: "0 30px 80px rgba(0,0,0,0.65), 0 0 0 3px #26221e, 0 0 0 4px rgba(255,255,255,0.12)" }}>
           <div className="absolute left-1/2 top-1.5 z-20 h-[6px] w-12 -translate-x-1/2 rounded-full" style={{ background: "#26221e" }} />
 
-          {/* Kijelző */}
-          <div className="absolute inset-[6px] overflow-hidden rounded-[16px]" style={{ background: "var(--twx-dark)" }}>
+          {/* Kijelző — SAJÁT kompozit-réteg + mask-alapú levágás.
+              Safari a backdrop-filter-es üvegkártya ALATT feketén hagyja a
+              <video>-t; ha a kijelző saját, izolált rétegre kerül (isolate +
+              translateZ) és a lekerekítést -webkit-mask adja (nem overflow),
+              akkor a videó rendesen kirajzolódik. */}
+          <div className="absolute inset-[6px] overflow-hidden rounded-[16px]"
+            style={{
+              background: "var(--twx-dark)",
+              isolation: "isolate",
+              transform: "translateZ(0)",
+              WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+            }}>
             {/* A TWINX-szel készült videó — némán, 3× gyorsítva; a poszter az első képkocka */}
             <video
               ref={videoRef}
@@ -301,6 +325,7 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
               preload="auto"
               disablePictureInPicture
               className="absolute inset-0 h-full w-full object-cover"
+              style={{ transform: "translateZ(0)", WebkitTransform: "translateZ(0)", willChange: "transform" }}
             />
             {/* Finom sötétítés alul, hogy a lejátszó-csík olvasható legyen */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12" style={{ background: "linear-gradient(to top, rgba(12,11,10,0.7), transparent)" }} />
