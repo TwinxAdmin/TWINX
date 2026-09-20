@@ -60,6 +60,15 @@ export default function LandingIntroVideo() {
     }
   }
 
+  // Újraindítás az elejéről — a videó a 0. másodpercre ugrik és megy tovább.
+  function restart() {
+    const v = ref.current;
+    if (!v) return;
+    v.currentTime = 0;
+    v.play().catch(() => {});
+    setPlaying(true);
+  }
+
   // Közös gombstílus: sötét „ink" pirula, krém felirat — a világos blokkon
   // kontrasztos, és a sötét telefonkerettel egy nyelvet beszél.
   const btnBase =
@@ -97,6 +106,26 @@ export default function LandingIntroVideo() {
 
       {/* Vezérlők a keret ALATT — nem takarják a videó feliratait. */}
       <div className="mt-4 flex items-center justify-center gap-2.5">
+        {/* Elölről — csak ikon, felirat nélkül */}
+        <button
+          type="button"
+          onClick={restart}
+          aria-label="Lejátszás elölről"
+          title="Elölről"
+          className="flex h-10 w-10 items-center justify-center rounded-full transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{
+            background: "var(--twx-coral-soft)",
+            color: "#7a2e17",
+            border: "1px solid rgba(239,122,90,0.45)",
+            boxShadow: "0 8px 20px rgba(239,122,90,0.20)",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <path d="M3 4v5h5" />
+          </svg>
+        </button>
+
         <button
           type="button"
           onClick={togglePlay}

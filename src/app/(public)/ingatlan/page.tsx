@@ -137,7 +137,10 @@ export default function IngatlanLanding() {
       <section className="relative overflow-hidden px-6 py-16 sm:py-20" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
         {/* Lebegő ingatlanos vonalas ikonok (dekoráció, a zárókártya stílusában) */}
         <EstateIcons />
-        <div className="relative mx-auto w-full max-w-6xl">
+        {/* Szélesebb konténer (7xl) mint a többi szekció: így a jobb oldali
+            lépés-kártyák nagyobbak lehetnek anélkül, hogy a középső karakter
+            helyéből vennének el. */}
+        <div className="relative mx-auto w-full max-w-7xl">
           <Reveal>
             <h2 className="font-display text-3xl font-semibold sm:text-4xl" style={{ color: "var(--twx-ink)" }}>
               Három lépés, és kész
@@ -147,11 +150,13 @@ export default function IngatlanLanding() {
               <span className="block">Nézd meg a rövid bemutatóban.</span>
             </p>
           </Reveal>
-          {/* Három zóna asztalon: videó (bal) · mutató karakter + buborék (közép) ·
-              lépések (jobb, kisebb). Mobilon a karakter rejtve, csak videó + lépések. */}
+          {/* Három zóna asztalon: videó (3) · mutató karakter + buborék (4) ·
+              lépések (5, nagyobb kártyák). A videó így is megtartja a 300px-es
+              maximumát, a karakter pedig több helyet kap, nem kevesebbet.
+              Mobilon a karakter rejtve, csak videó + lépések. */}
           <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-6">
             {/* Bal: videó */}
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-3">
               <Reveal>
                 <LandingIntroVideo />
               </Reveal>
@@ -166,7 +171,7 @@ export default function IngatlanLanding() {
               <div className="absolute z-10 w-[13rem]" style={{ top: "2%", left: "88%" }}>
                 <div className="relative rounded-2xl px-4 py-3 text-left text-sm font-semibold leading-snug"
                   style={{ background: "var(--twx-coral)", color: "#1c1005", boxShadow: "0 12px 30px rgba(28,24,21,0.22)" }}>
-                  Pár kattintás, és kész — nézd meg élőben!
+                  Pár kattintás, és kész — mutatom!
                   {/* buborék-csőr: a bal oldal közepén, BALRA az arc felé mutat
                       (az arc a buborékkal egy magasságban, tőle balra van) */}
                   <span aria-hidden className="absolute right-full h-0 w-0"
@@ -192,19 +197,19 @@ export default function IngatlanLanding() {
               />
             </div>
 
-            {/* Jobb: a három lépés függőleges listaként (kisebb szöveg) */}
-            <div className="flex flex-col gap-4 lg:col-span-4">
+            {/* Jobb: a három lépés függőleges listaként — nagyobb kártyák */}
+            <div className="flex flex-col gap-5 lg:col-span-5">
               {STEPS.map((s, i) => (
                 <Reveal key={s.title} delay={i * 0.1}>
-                  <div className="flex items-start gap-3 rounded-xl p-4"
-                    style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  <div className="flex items-start gap-4 rounded-2xl p-6"
+                    style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 6px 18px rgba(28,24,21,0.05)" }}>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
                       style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                      <ModuleIcon name={s.icon} className="h-5 w-5" />
+                      <ModuleIcon name={s.icon} className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="font-display text-sm font-semibold" style={{ color: "var(--twx-ink)" }}>{s.title}</h3>
-                      <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>{s.desc}</p>
+                      <h3 className="font-display text-lg font-semibold" style={{ color: "var(--twx-ink)" }}>{s.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>{s.desc}</p>
                     </div>
                   </div>
                 </Reveal>
