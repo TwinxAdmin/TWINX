@@ -14,6 +14,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { gaEvent } from "@/lib/analytics";
 
 const MP4 = "/marketing/landing-intro.mp4?v=2";
 const WEBM = "/marketing/landing-intro.webm?v=2";
@@ -42,6 +43,7 @@ export default function LandingIntroVideo() {
     const next = !muted;
     v.muted = next;
     setMuted(next);
+    gaEvent("intro_video", { action: next ? "sound_off" : "sound_on" });
     if (!next && v.paused) {
       v.play().catch(() => {});
       setPlaying(true);
@@ -54,9 +56,11 @@ export default function LandingIntroVideo() {
     if (v.paused) {
       v.play().catch(() => {});
       setPlaying(true);
+      gaEvent("intro_video", { action: "play" });
     } else {
       v.pause();
       setPlaying(false);
+      gaEvent("intro_video", { action: "pause" });
     }
   }
 
@@ -67,6 +71,7 @@ export default function LandingIntroVideo() {
     v.currentTime = 0;
     v.play().catch(() => {});
     setPlaying(true);
+    gaEvent("intro_video", { action: "restart" });
   }
 
   // Közös gombstílus: sötét „ink" pirula, krém felirat — a világos blokkon

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { gaEvent } from "@/lib/analytics";
 
 /**
  * `next`: hova térjen vissza a Google után. A regisztrációs oldal ezzel kéri
@@ -10,12 +11,17 @@ import { createClient } from "@/lib/supabase/client";
  * — különben a Google-fiókosok egyből a kezdőlapon találnák magukat.
  */
 export default function GoogleButton({
-  label = "Folytatás Google-lel", next, source,
-}: { label?: string; next?: string; source?: string }) {
+  label = "Folytatás Google-lel", next, source, track,
+}: {
+  label?: string; next?: string; source?: string;
+  /** GA-esemény a kattintáskor (pl. regisztráció indítása Google-lel). */
+  track?: { name: string; params?: Record<string, string> };
+}) {
   const [loading, setLoading] = useState(false);
 
   async function onClick() {
     setLoading(true);
+    if (track) gaEvent(track.name, track.params);
     const supabase = createClient();
     // A `src` a landing-forrást viszi a callbacknek (ott íródik jóvá a 10 kredit).
     const params = new URLSearchParams();

@@ -9,6 +9,7 @@ import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import Wordmark from "@/components/Wordmark";
 import { normalizeInviteCode } from "@/lib/invites";
+import { gaEvent } from "@/lib/analytics";
 
 export default function RegisterPage() {
   // A useSearchParams miatt Suspense-be kell tenni (Next követelmény).
@@ -45,7 +46,11 @@ function RegisterForm() {
     if (fromLink) setLinkCode(normalizeInviteCode(fromLink));
     // A Google-fiókos ág innen tér vissza (?siker=1), így ott is látszik
     // a visszajelzés — nem esik be szó nélkül a kezdőlapra.
-    if (params.get("siker")) setDone("session");
+    if (params.get("siker")) {
+      setDone("session");
+      // GA konverzió: Google-fiókkal befejezett regisztráció (ide tér vissza a callback).
+      gaEvent("sign_up", { method: "google", source: "direct" });
+    }
   }, [params]);
 
   /** „Bezárás”: ha az ablakot a rendszer nyitotta, tényleg becsukjuk;
@@ -80,6 +85,7 @@ function RegisterForm() {
         return;
       }
 
+      gaEvent("sign_up", { method: "email", source: "direct" });
       // Mindkét ág a sikerképernyőre visz — a felhasználó maga dönti el,
       // belép-e most, vagy bezárja az ablakot.
       setDone(data.needsConfirmation ? "confirm" : "session");
@@ -276,6 +282,7 @@ function RegisterForm() {
               azonos legyen a jelszavas úttal. A kód-emlékeztetőt is visszük. */}
           <GoogleButton
             label="Regisztráció Google-fiókkal"
+            track={{ name: "sign_up_start", params: { method: "google", source: "direct" } }}
             next={`/register?siker=1${linkCode ? `&kod=${encodeURIComponent(linkCode)}` : ""}`}
           />
 

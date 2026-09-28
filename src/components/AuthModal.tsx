@@ -9,6 +9,7 @@ import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
+import { gaEvent } from "@/lib/analytics";
 
 type Mode = "login" | "register";
 
@@ -48,6 +49,12 @@ export default function AuthModal() {
       const detail = (e as CustomEvent).detail as { mode?: Mode; source?: string } | undefined;
       setMode(detail?.mode ?? "login");
       setSource(detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null);
+      // GA: melyik gomb/oldal nyitotta a belépés/regisztráció ablakot (CTA-kattintás).
+      gaEvent("auth_open", {
+        mode: detail?.mode ?? "login",
+        source: detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : "direct",
+        page: window.location.pathname,
+      });
       reset();
       setName("");
       setPhone("");
@@ -104,6 +111,13 @@ export default function AuthModal() {
         if (data.errors) setErrors(data.errors);
         setServerError(data.error ?? "Hiba történt.");
         return;
+      }
+
+      // GA konverzió: sikeres regisztráció / belépés (személyes adat nélkül).
+      if (mode === "register") {
+        gaEvent("sign_up", { method: "email", source: source ?? "direct" });
+      } else {
+        gaEvent("login", { method: "email" });
       }
 
       if (mode === "register" && data.needsConfirmation) {
@@ -255,6 +269,7 @@ export default function AuthModal() {
         <GoogleButton
           label={isLogin ? "Belépés Google-fiókkal" : "Regisztráció Google-fiókkal"}
           source={!isLogin && source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : undefined}
+          track={isLogin ? undefined : { name: "sign_up_start", params: { method: "google", source: source ?? "direct" } }}
         />
 
         <button

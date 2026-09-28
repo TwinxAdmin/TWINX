@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
+import { gaEvent } from "@/lib/analytics";
 
 const OPEN_EVENT = "open-ingatlan-consult";
 
@@ -57,6 +58,7 @@ export default function IngatlanConsultModal() {
       const data = await res.json();
       if (res.status === 422 && data.errors) { setErrors(data.errors); return; }
       if (!res.ok) throw new Error(data.error || "A küldés nem sikerült.");
+      gaEvent("generate_lead", { form: "ingatlan_konzultacio" });
       setDone(true);
     } catch (err) {
       showToast((err as Error).message, "error");

@@ -3,6 +3,7 @@
 
 import { useState, type FormEvent } from "react";
 import { validateLeadInput } from "@/lib/leads";
+import { gaEvent } from "@/lib/analytics";
 
 export default function B2BForm() {
   const [name, setName] = useState("");
@@ -36,6 +37,7 @@ export default function B2BForm() {
         setServerError(data.error ?? "Hiba történt a küldés során.");
         return;
       }
+      gaEvent("generate_lead", { form: "b2b_egyedi" });
       setDone(true);
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
