@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "@/components/Toast";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className={`${sans.variable} ${display.variable} antialiased`}>
         {children}
         <ToastProvider />
+        <GoogleAnalytics />
       </body>
     </html>
   );

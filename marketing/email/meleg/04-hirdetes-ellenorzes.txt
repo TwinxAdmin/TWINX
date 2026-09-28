@@ -1,0 +1,19 @@
+Szia {{first_name}}!
+
+Az „álomotthon” és a „ne hagyja ki!” már senkit nem győz meg — a vevő adatokat keres: emeletet, rezsit, fűtést, közlekedést. A Hirdetés ellenőrzés egy linkből megmondja:
+
+- Mennyire jó most a hirdetés, százalékban
+- Miben erős és miben gyenge
+- Mit kell javítani — és ad egy átírt, közlésre kész szöveget
+
+Egy ellenőrzés 1 kredit.
+
+Ellenőrzöm a hirdetésem: https://twinx.hu/ingatlan?utm_source=smartlead&utm_medium=email&utm_campaign=twinx-meleg&utm_content=hirdetes-ellenorzes
+
+Márk
+
+Kovács Márk
+TWINX · AI eszköztár ingatlanosoknak
+twinx.hu
+
+%unsubscribe-text%

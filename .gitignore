@@ -43,3 +43,6 @@ next-env.d.ts
 
 # átszínezett videó-overlay-ek munkakönyvtára (npm run video:overlays)
 .cache/
+
+# Levél-előnézet (beágyazott képekkel, generált)
+marketing/email/elonezet.html
