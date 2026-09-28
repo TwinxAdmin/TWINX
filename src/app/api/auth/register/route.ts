@@ -14,9 +14,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
 
-  const { name, company, email, password, passwordConfirm, source } = (body ?? {}) as Record<string, string>;
+  const { name, company, phone, email, password, passwordConfirm, source } = (body ?? {}) as Record<string, string>;
 
-  const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm });
+  const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm, phone });
   if (!valid) {
     return NextResponse.json({ errors }, { status: 422 });
   }
@@ -24,17 +24,19 @@ export async function POST(request: Request) {
   // Forrás-jelölés: CSAK az ismert landing-értéket fogadjuk el, minden mást eldobunk.
   // A DB-trigger (handle_new_user) ebből ad 10 kezdőkreditet a keret erejéig.
   const signupSource = source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null;
+  const phoneTrimmed = (phone ?? "").trim();
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    // A cég nem kötelező; a profiles rekordba a DB trigger írja át (handle_new_user).
-    // A signup_source csak akkor kerül be, ha érvényes landing-forrás.
+    // A cég és a telefon nem kötelező; a profiles rekordba a DB trigger írja át
+    // (handle_new_user). A signup_source csak érvényes landing-forrás esetén kerül be.
     options: {
       data: {
         full_name: name.trim(),
         company: (company ?? "").trim(),
+        ...(phoneTrimmed ? { phone: phoneTrimmed } : {}),
         ...(signupSource ? { signup_source: signupSource } : {}),
       },
     },

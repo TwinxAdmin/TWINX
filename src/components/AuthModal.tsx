@@ -21,6 +21,7 @@ export default function AuthModal() {
   const [source, setSource] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -49,6 +50,7 @@ export default function AuthModal() {
       setSource(detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null);
       reset();
       setName("");
+      setPhone("");
       setEmail("");
       setPassword("");
       setPasswordConfirm("");
@@ -78,7 +80,7 @@ export default function AuthModal() {
     setMessage(null);
 
     if (mode === "register") {
-      const result = validateRegisterInput({ name, email, password, passwordConfirm });
+      const result = validateRegisterInput({ name, email, password, passwordConfirm, phone });
       setErrors(result.errors);
       if (!result.valid) return;
     } else if (!email || !password) {
@@ -94,7 +96,7 @@ export default function AuthModal() {
         body:
           mode === "login"
             ? JSON.stringify({ email, password })
-            : JSON.stringify({ name, email, password, passwordConfirm, source }),
+            : JSON.stringify({ name, phone, email, password, passwordConfirm, source }),
       });
       const data = await res.json();
 
@@ -176,6 +178,23 @@ export default function AuthModal() {
                 placeholder="pl. Nagy Anna"
               />
               {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+            </div>
+          )}
+
+          {!isLogin && (
+            <div>
+              <label className="block text-sm">
+                Telefonszám <span style={{ color: "var(--twx-ink-muted)" }}>(nem kötelező)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="tel"
+                placeholder="pl. +36 30 123 4567"
+              />
+              {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
             </div>
           )}
 

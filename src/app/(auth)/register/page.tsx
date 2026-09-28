@@ -24,6 +24,7 @@ function RegisterForm() {
   const params = useSearchParams();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -59,7 +60,7 @@ function RegisterForm() {
     setServerError(null);
 
     // 1) Kliensoldali validáció
-    const result = validateRegisterInput({ name, email, password, passwordConfirm });
+    const result = validateRegisterInput({ name, email, password, passwordConfirm, phone });
     setErrors(result.errors);
     if (!result.valid) return;
 
@@ -69,7 +70,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, company, email, password, passwordConfirm }),
+        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm }),
       });
       const data = await res.json();
 
@@ -193,6 +194,24 @@ function RegisterForm() {
                 autoComplete="organization"
                 placeholder="pl. Prémium Ingatlanok Kft."
               />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm">
+                Telefonszám <span style={{ color: "var(--twx-ink-muted)" }}>(nem kötelező)</span>
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="twx-input mt-1"
+                autoComplete="tel"
+                placeholder="pl. +36 30 123 4567"
+              />
+              {errors.phone && (
+                <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
+              )}
             </div>
 
             <div>

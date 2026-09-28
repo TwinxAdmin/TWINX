@@ -15,9 +15,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MP4 = "/marketing/landing-intro.mp4";
-const WEBM = "/marketing/landing-intro.webm";
-const POSTER = "/marketing/landing-intro-poster.jpg";
+const MP4 = "/marketing/landing-intro.mp4?v=2";
+const WEBM = "/marketing/landing-intro.webm?v=2";
+const POSTER = "/marketing/landing-intro-poster.jpg?v=2";
 
 export default function LandingIntroVideo() {
   const ref = useRef<HTMLVideoElement>(null);

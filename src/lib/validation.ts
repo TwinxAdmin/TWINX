@@ -18,11 +18,13 @@ export function validateAuthInput({
 }
 
 // Kézi (nem Google) regisztráció: név + email + jelszó + jelszó-megerősítés.
+// A telefonszám OPCIONÁLIS.
 export type RegisterInput = {
   name: string;
   email: string;
   password: string;
   passwordConfirm: string;
+  phone: string;
 };
 
 export function validateRegisterInput({
@@ -30,6 +32,7 @@ export function validateRegisterInput({
   email,
   password,
   passwordConfirm,
+  phone,
 }: Partial<RegisterInput>): { valid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
 
@@ -46,6 +49,14 @@ export function validateRegisterInput({
     errors.passwordConfirm = "Erősítsd meg a jelszót.";
   } else if (password !== passwordConfirm) {
     errors.passwordConfirm = "A két jelszó nem egyezik.";
+  }
+  // Telefon: nem kötelező; ha megadták, enyhén ellenőrizzük (számjegy + a
+  // szokásos elválasztók), legalább 6 számjegy.
+  const p = (phone ?? "").trim();
+  if (p) {
+    if (!/^[+\d][\d\s()/-]{5,}$/.test(p) || (p.replace(/\D/g, "").length < 6)) {
+      errors.phone = "Adj meg érvényes telefonszámot, vagy hagyd üresen.";
+    }
   }
 
   return { valid: Object.keys(errors).length === 0, errors };
