@@ -22,6 +22,7 @@ import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFr
 import { HERO, TRUST, SHOWCASE, STEPS, PRICING_SENTENCE, CREDIT_COSTS } from "@/lib/landing";
 import { CREDIT_PACKAGES } from "@/lib/packages";
 import { formatHuf } from "@/lib/billing";
+import CookieSettingsLink from "@/components/analytics/CookieSettingsLink";
 
 export const runtime = "nodejs";
 // A főoldal futásidőben renderel (Supabase-ből tölti a jóváhagyott ötleteket),
@@ -357,6 +358,7 @@ export default async function LandingPage() {
               <a href="#egyedi" className="hover:text-white">Egyedi fejlesztés</a>
               <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
               <AuthTrigger mode="register" className="hover:text-white">Regisztráció</AuthTrigger>
+              <CookieSettingsLink className="hover:text-white" />
             </div>
             <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
               Profi munka, egy kattintásra.

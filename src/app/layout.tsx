@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "@/components/Toast";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import CookieBanner from "@/components/analytics/CookieBanner";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({
         {children}
         <ToastProvider />
         <GoogleAnalytics />
+        <CookieBanner />
       </body>
     </html>
   );

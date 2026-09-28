@@ -1,6 +1,7 @@
 // Google Analytics 4 betöltése — Consent Mode v2-vel, ALAPBÓL MINDEN TILTVA.
-// Amíg a látogató nem fogad el sütit (a süti-sáv a következő lépés), a GA csak
-// süti nélküli, névtelen jeleket kap; a hozzájárulás után a sáv frissíti az állapotot.
+// Amíg a látogató nem fogad el sütit (CookieBanner), a GA csak süti nélküli, névtelen
+// jeleket kap; elfogadás után a sáv frissíti az állapotot, a korábbi döntést pedig
+// betöltéskor innen állítjuk vissza (localStorage).
 //
 // Csak a publikus oldalakon töltődik be és mér (a dashboard/admin belső felület).
 // Az oldalmegtekintést kézzel küldjük útvonalváltáskor (Next.js kliensoldali navigáció),
@@ -11,6 +12,7 @@ import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { GA_ID, gaPageView, isTrackedPath } from "@/lib/analytics";
+import { CONSENT_KEY } from "@/lib/consent";
 
 function PageViewTracker() {
   const pathname = usePathname();
@@ -57,6 +59,11 @@ export default function GoogleAnalytics() {
             analytics_storage: 'denied',
             wait_for_update: 500
           });
+          try {
+            if (localStorage.getItem('${CONSENT_KEY}') === 'granted') {
+              gtag('consent', 'update', { analytics_storage: 'granted' });
+            }
+          } catch (e) {}
           gtag('js', new Date());
           gtag('config', '${GA_ID}', { send_page_view: false });
         `}

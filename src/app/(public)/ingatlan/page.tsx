@@ -22,6 +22,7 @@ import LandingIntroVideo from "@/components/landing/LandingIntroVideo";
 import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
 import { SHOWCASE } from "@/lib/landing";
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
+import CookieSettingsLink from "@/components/analytics/CookieSettingsLink";
 
 export const metadata: Metadata = {
   title: "TWINX ingatlanközvetítőknek — profi eszközök a gyorsabb, igényesebb munkához",
@@ -358,6 +359,9 @@ export default function IngatlanLanding() {
           style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>
           Vissza a főoldalra →
         </a>
+        <div className="mt-4">
+          <CookieSettingsLink className="text-xs underline-offset-2 hover:underline" style={{ color: "var(--twx-on-dark-muted)" }} />
+        </div>
       </footer>
       {/* A regisztrációs ablak (a CTA-k az open-auth eseménnyel nyitják, source-szal). */}
       <AuthModal />
