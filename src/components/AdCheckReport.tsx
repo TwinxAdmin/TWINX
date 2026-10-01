@@ -73,6 +73,8 @@ export default function AdCheckReport({
   const [draft, setDraft] = useState(result.rewritten ?? "");
   const [pdf, setPdf] = useState<string | null>(pdfUrl);
   const [saving, setSaving] = useState(false);
+  /** Melyik szövegből készült a mostani PDF — ha a vázlat eltér, jelezzük. */
+  const [pdfText, setPdfText] = useState((result.rewritten ?? "").trim());
 
   const copy = (t: string) =>
     void navigator.clipboard.writeText(t).then(
@@ -92,6 +94,7 @@ export default function AdCheckReport({
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || "A PDF elkészítése nem sikerült.");
       setPdf(d.pdf_url as string);
+      setPdfText(draft.trim());
       onSaved?.(d.pdf_url as string);
       showToast("Elfogadva — a PDF elkészült.", "success");
     } catch (e) {
@@ -160,8 +163,20 @@ export default function AdCheckReport({
             style={{ background: "var(--twx-coral)" }}>
             {saving ? "PDF készítése…" : (pdf ? "Újra elfogadom és PDF" : "Szöveg elfogadása és PDF készítése")}
           </button>
-          {pdf && (
-            <span className="text-[11px]" style={{ color: "#2e7d52" }}>A PDF elkészült — fent letöltheted.</span>
+          {/* A letöltés itt is elérhető, a jóváhagyás mellett — nem kell felgörgetni. */}
+          {pdf && !saving && (
+            <a href={toDownloadUrl(pdf)} download
+              className="rounded-xl px-4 py-2 text-sm font-semibold"
+              style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral-deep, #7a2e17)", background: "#fff" }}>
+              PDF letöltése
+            </a>
+          )}
+          {pdf && !saving && (
+            <span className="text-[11px]" style={{ color: draft.trim() === pdfText ? "#2e7d52" : "#c98a1e" }}>
+              {draft.trim() === pdfText
+                ? "A PDF elkészült."
+                : "A szöveg módosult — a friss PDF-hez fogadd el újra."}
+            </span>
           )}
         </div>
       </section>
