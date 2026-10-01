@@ -2,7 +2,7 @@
 // A font fájlt ide kell tenni:  assets/fonts/NotoSans-Regular.ttf
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { PDFDocument, rgb, type PDFPage, type PDFFont } from "pdf-lib";
+import { PDFDocument, rgb, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { CostingResult } from "@/lib/costing";
 import type { SimResult } from "@/lib/simulation";
@@ -11,7 +11,7 @@ import {
   professionLabel, professionsFor,
   type Industry, type ProfessionalQuery, type ProfessionalResult,
 } from "@/lib/professionals";
-import { type AdCheckResult } from "@/lib/adcheck";
+import { cleanAiText, wrapLines } from "@/lib/pdf-kit";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 
@@ -70,35 +70,19 @@ export async function generateValuationPdf(params: {
     y -= gap;
   }
 
-  function wrap(text: string, size: number): string[] {
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let cur = "";
-    for (const w of words) {
-      const test = cur ? `${cur} ${w}` : w;
-      if (font.widthOfTextAtSize(test, size) > maxWidth) {
-        if (cur) lines.push(cur);
-        cur = w;
-      } else {
-        cur = test;
-      }
-    }
-    if (cur) lines.push(cur);
-    return lines;
-  }
-
   // Cím + fejléc
   draw(params.title, 18, 26);
   for (const m of params.meta) draw(m, 10, 14);
   y -= 10;
 
   // Törzs: bekezdésenként tördelve
-  for (const paragraph of params.body.split(/\n/)) {
+  // A tartalék PDF is tisztított szöveget kap (markdown, [1] jelölések nélkül).
+  for (const paragraph of cleanAiText(params.body).split(/\n/)) {
     if (paragraph.trim() === "") {
       y -= lineHeight / 2;
       continue;
     }
-    for (const line of wrap(paragraph, fontSize)) draw(line);
+    for (const line of wrapLines(font, paragraph, fontSize, maxWidth)) draw(line);
   }
 
   return await pdfDoc.save();
@@ -157,21 +141,9 @@ export async function generateCostingPdf(params: {
     while (t.length > 1 && font.widthOfTextAtSize(t + "…", size) > maxW) t = t.slice(0, -1);
     return t + "…";
   };
-  const wrapText = (t: string, size: number, maxW: number): string[] => {
-    const out: string[] = [];
-    for (const raw of t.split(/\n/)) {
-      if (raw.trim() === "") { out.push(""); continue; }
-      const words = raw.split(/\s+/);
-      let cur = "";
-      for (const w of words) {
-        const test = cur ? `${cur} ${w}` : w;
-        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) out.push(cur);
-    }
-    return out;
-  };
+  // Közös tördelő: AI-szöveg tisztítása (markdown, [1], hiányzó jelek) + hosszú szavak törése.
+  const wrapText = (t: string, size: number, maxW: number): string[] =>
+    wrapLines(font, cleanAiText(t), size, maxW);
 
   // --- fejléc-sáv ---
   const drawHeader = () => {
@@ -417,21 +389,9 @@ export async function generateSimulationPdf(params: {
     while (t.length > 1 && font.widthOfTextAtSize(t + "…", size) > maxW) t = t.slice(0, -1);
     return t + "…";
   };
-  const wrapText = (t: string, size: number, maxW: number): string[] => {
-    const out: string[] = [];
-    for (const raw of t.split(/\n/)) {
-      if (raw.trim() === "") { out.push(""); continue; }
-      const words = raw.split(/\s+/);
-      let cur = "";
-      for (const w of words) {
-        const test = cur ? `${cur} ${w}` : w;
-        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) out.push(cur);
-    }
-    return out;
-  };
+  // Közös tördelő: AI-szöveg tisztítása (markdown, [1], hiányzó jelek) + hosszú szavak törése.
+  const wrapText = (t: string, size: number, maxW: number): string[] =>
+    wrapLines(font, cleanAiText(t), size, maxW);
   function newPage() {
     page = pdfDoc.addPage([pageW, pageH]);
     y = pageH - margin;
@@ -614,21 +574,9 @@ export async function generateSuppliersPdf(params: {
   const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink, bold = false) => {
     write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color, bold);
   };
-  const wrapText = (t: string, size: number, maxW: number): string[] => {
-    const out: string[] = [];
-    for (const raw of t.split(/\n/)) {
-      if (raw.trim() === "") { out.push(""); continue; }
-      const words = raw.split(/\s+/);
-      let cur = "";
-      for (const w of words) {
-        const test = cur ? `${cur} ${w}` : w;
-        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) out.push(cur);
-    }
-    return out;
-  };
+  // Közös tördelő: AI-szöveg tisztítása (markdown, [1], hiányzó jelek) + hosszú szavak törése.
+  const wrapText = (t: string, size: number, maxW: number): string[] =>
+    wrapLines(font, cleanAiText(t), size, maxW);
   function newPage() {
     page = pdfDoc.addPage([pageW, pageH]);
     y = pageH - margin;
@@ -809,21 +757,9 @@ export async function generateProfessionalsPdf(params: {
   const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink, bold = false) => {
     write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color, bold);
   };
-  const wrapText = (t: string, size: number, maxW: number): string[] => {
-    const out: string[] = [];
-    for (const raw of t.split(/\n/)) {
-      if (raw.trim() === "") { out.push(""); continue; }
-      const words = raw.split(/\s+/);
-      let cur = "";
-      for (const w of words) {
-        const test = cur ? `${cur} ${w}` : w;
-        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) out.push(cur);
-    }
-    return out;
-  };
+  // Közös tördelő: AI-szöveg tisztítása (markdown, [1], hiányzó jelek) + hosszú szavak törése.
+  const wrapText = (t: string, size: number, maxW: number): string[] =>
+    wrapLines(font, cleanAiText(t), size, maxW);
   function newPage() { page = pdfDoc.addPage([pageW, pageH]); y = pageH - margin; }
   const sectionTitle = (label: string) => {
     if (y < margin + 90) newPage();
@@ -947,111 +883,5 @@ export async function generateProfessionalsPdf(params: {
   return await pdfDoc.save();
 }
 
-// =========================================================================
-// Hirdetés-ellenőrző riport
-// =========================================================================
-export async function generateAdCheckPdf(params: {
-  result: AdCheckResult;
-  sourceUrl: string | null;
-  toneLabel?: string;
-}): Promise<Uint8Array> {
-  const { result, sourceUrl } = params;
-  const pdfDoc = await PDFDocument.create();
-  pdfDoc.registerFontkit(fontkit);
-  const font = await pdfDoc.embedFont(await loadFontBytes());
-
-  const pageW = 595.28, pageH = 841.89;
-  const margin = 48;
-  const contentW = pageW - margin * 2;
-  const dateStr = new Date().toLocaleDateString("hu-HU");
-
-  let page: PDFPage = pdfDoc.addPage([pageW, pageH]);
-  let y = pageH;
-
-  const write = (s: string, x: number, yy: number, size: number, color = C.ink, bold = false) => {
-    page.drawText(s, { x, y: yy, size, font, color });
-    if (bold) page.drawText(s, { x: x + 0.4, y: yy, size, font, color });
-  };
-  const writeRight = (s: string, xRight: number, yy: number, size: number, color = C.ink) => {
-    write(s, xRight - font.widthOfTextAtSize(s, size), yy, size, color);
-  };
-  const wrapText = (t: string, size: number, maxW: number): string[] => {
-    const out: string[] = [];
-    for (const raw of String(t ?? "").split(/\n/)) {
-      if (raw.trim() === "") { out.push(""); continue; }
-      const words = raw.split(/\s+/);
-      let cur = "";
-      for (const w of words) {
-        const test = cur ? `${cur} ${w}` : w;
-        if (font.widthOfTextAtSize(test, size) > maxW) { if (cur) out.push(cur); cur = w; }
-        else cur = test;
-      }
-      if (cur) out.push(cur);
-    }
-    return out;
-  };
-  function newPage() { page = pdfDoc.addPage([pageW, pageH]); y = pageH - margin; }
-  const sectionTitle = (label: string) => {
-    if (y < margin + 90) newPage();
-    y -= 8;
-    write(label, margin, y, 13, C.ink, true);
-    page.drawRectangle({ x: margin, y: y - 6, width: 42, height: 2.5, color: C.coral });
-    y -= 24;
-  };
-  const paragraph = (t: string, size = 9.5, color = C.ink, indent = 0) => {
-    for (const line of wrapText(t, size, contentW - indent)) {
-      if (y - 14 < margin + 24) newPage();
-      if (line === "") { y -= 7; continue; }
-      write(line, margin + indent, y - 10, size, color);
-      y -= 14;
-    }
-  };
-
-  // Fejléc-sáv
-  const bandH = 84;
-  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: bandH, color: C.coral });
-  page.drawRectangle({ x: 0, y: pageH - bandH, width: pageW, height: 4, color: C.coralDeep });
-  write("Hirdetés-ellenőrzés", margin, pageH - 40, 20, C.white, true);
-  write("TWINX · hirdetésszöveg audit", margin, pageH - 60, 10, C.softWhite);
-  writeRight(dateStr, pageW - margin, pageH - 40, 10, C.white);
-  y = pageH - bandH - 26;
-
-  // Az ingatlan felismerhető főcíme (nem a nyers link).
-  if (result.title) {
-    for (const line of wrapText(result.title, 13, contentW)) {
-      write(line, margin, y, 13, C.ink, true);
-      y -= 17;
-    }
-    y -= 4;
-  }
-  if (sourceUrl) {
-    paragraph(sourceUrl, 8, C.muted);
-    y -= 6;
-  }
-
-  // Megfelelőség (összpontszám)
-  const boxH = 60;
-  page.drawRectangle({ x: margin, y: y - boxH, width: contentW, height: boxH, color: C.soft, borderColor: C.coral, borderWidth: 1 });
-  write("Megfelelőség", margin + 16, y - 24, 11, C.muted);
-  write(`${result.score}%`, margin + 16, y - 48, 28, C.coralDeep, true);
-  y -= boxH + 20;
-
-  // Három tömör szakasz.
-  const bulletSection = (label: string, items: string[]) => {
-    if (!items.length) return;
-    sectionTitle(label);
-    for (const t of items) paragraph(`•  ${t}`, 10, C.ink, 0);
-    y -= 6;
-  };
-  bulletSection("Miben jó", result.good);
-  bulletSection("Miben rossz", result.bad);
-  bulletSection("Mit kell javítani", result.fixes);
-
-  // Javított, közlésre kész hirdetésszöveg (az elfogadott/szerkesztett változat).
-  if (result.rewritten) {
-    sectionTitle("Javított hirdetésszöveg");
-    paragraph(result.rewritten, 9.5, C.ink);
-  }
-
-  return pdfDoc.save();
-}
+// Hirdetés-ellenőrző riport: saját, arculatos sablon → lásd pdf-adcheck.ts
+export { generateAdCheckPdf } from "@/lib/pdf-adcheck";
