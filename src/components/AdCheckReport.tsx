@@ -137,6 +137,12 @@ export default function AdCheckReport({
       <VerdictList title="Miben jó" items={result.good} dot="#2e7d52" bg="#f2f9f5" border="#bfe0cd" />
       <VerdictList title="Miben rossz" items={result.bad} dot="#c0392b" bg="#fdf3f2" border="#e6bdb8" />
       <VerdictList title="Mit kell javítani" items={result.fixes} dot="#7a2e17" bg="var(--twx-coral-soft)" border="var(--twx-coral)" />
+      {[...result.good, ...result.bad, ...result.fixes].some((t) => /\bCTA\b/i.test(t)) && (
+        <p className="px-1 text-[11px] leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+          <strong>CTA</strong> (call to action) = cselekvésre ösztönzés: a hirdetés zárása, amely megmondja
+          az érdeklődőnek, mit tegyen — hívjon, írjon vagy foglaljon időpontot megtekintésre.
+        </p>
+      )}
 
       {/* --- JAVÍTOTT, SZERKESZTHETŐ HIRDETÉSSZÖVEG --- */}
       <section className="rounded-xl p-4" style={{ border: "1px solid var(--twx-line)" }}>

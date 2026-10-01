@@ -264,18 +264,32 @@ export async function generateAdCheckPdf(params: {
   const rewritten = String(result.rewritten ?? "").replace(/\r\n?/g, "\n").trim();
 
   // ---- „A riportról" doboz az 1. oldal alján (ha marad hely) ----
+  // Ha az elemzés szakszót használ (CTA), itt egy mondatban megmagyarázzuk.
+  const usesCta = [...result.good, ...result.bad, ...result.fixes].some((t) => /\bCTA\b/i.test(t));
+  const ctaNote = "CTA (call to action) = cselekvésre ösztönzés: a hirdetés zárása, amely megmondja az érdeklődőnek, mit tegyen — hívjon, írjon vagy foglaljon időpontot megtekintésre.";
   {
     const about = rewritten
       ? "Az elemzést a TWINX hirdetés-ellenőrzője készítette a megadott hirdetés alapján. A javaslatok szerint átírt, közlésre kész szöveg a következő oldalon található — közzététel előtt ellenőrizd az adatokat."
       : "Az elemzést a TWINX hirdetés-ellenőrzője készítette a megadott hirdetés alapján. Közzététel előtt ellenőrizd az adatokat.";
     const lines = wrapLines(F.body, about, 9, CW - 36);
-    const h = 30 + lines.length * 12.5;
+    const noteLines = usesCta ? wrapLines(F.body, ctaNote, 9, CW - 36) : [];
+    const h = 30 + lines.length * 12.5 + (noteLines.length ? 8 + noteLines.length * 12.5 : 0);
     const top = FOOT + 8 + h;
     if (page === pdf.getPages()[0] && y - 16 > top) {
       box(M, top, CW, h, K.cream, undefined, 10);
       tracked("A riportról", M + 18, top - 18, F.headMed, 7.5, K.muted);
       let ay = top - 32;
       for (const l of lines) { text(l, M + 18, ay, F.body, 9, K.body); ay -= 12.5; }
+      if (noteLines.length) {
+        ay -= 8;
+        for (const l of noteLines) { text(l, M + 18, ay, F.body, 9, K.muted); ay -= 12.5; }
+      }
+    } else if (noteLines.length) {
+      // Nincs hely a dobozra az 1. oldalon → a magyarázat az elemzés végére kerül.
+      ensure(noteLines.length * 12.5 + 10);
+      y -= 4;
+      for (const l of noteLines) { text(l, M, y, F.body, 9, K.muted); y -= 12.5; }
+      y -= 10;
     }
   }
 
