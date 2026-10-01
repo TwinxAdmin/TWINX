@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import OnePagerPaper, { ONEPAGER_W } from "@/components/valuation/OnePagerPaper";
 import { singlePageToPdfBlob, blobToBase64 } from "@/lib/report-pdf-client";
-import { buildOnePager, type OnePagerAudit } from "@/lib/valuation-onepager";
+import { buildOnePager, tidyTitle, type OnePagerAudit } from "@/lib/valuation-onepager";
 import type { BrandingProfile } from "@/lib/branding";
 import type { ValuationInput } from "@/lib/valuation";
 import { serializeReportDoc, type ReportDoc } from "@/lib/valuation-report";
@@ -116,7 +116,7 @@ export default function ValuationEditor({
       if (document.fonts?.ready) await document.fonts.ready;
       const node = paperForPdfRef.current?.querySelector("[data-onepager]") as HTMLElement | null;
       if (!node) throw new Error("A lap nem renderelhető.");
-      return await singlePageToPdfBlob(node);
+      return await singlePageToPdfBlob(node, { title: tidyTitle(docRef.current.title) || "Értékbecslés" });
     } finally {
       setPdfMode(false);
     }
@@ -158,8 +158,11 @@ export default function ValuationEditor({
       });
       const data = await res.json().catch(() => ({}) as { url?: string });
       if (res.ok && data.url) onSaved?.(data.url);
-    } catch {
-      // A háttérmentés hibája ne zavarja a partnert — a letöltés így is működik.
+      else console.warn("[valuation] háttérmentés sikertelen:", res.status, data);
+    } catch (e) {
+      // A háttérmentés hibája ne zavarja a partnert — a letöltés így is működik,
+      // de a konzolban nyoma marad (eddig némán elnyelődött).
+      console.warn("[valuation] háttérmentés hiba:", e);
     }
   }, [historyId, buildPdf, onSaved]);
 

@@ -180,7 +180,8 @@ export async function paperToPdfBlob(
     const html2canvas = (await import("html2canvas")).default;
     const { jsPDF } = await import("jspdf");
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
+    // Pontban, valódi A4 — lásd az A4_PT_W megjegyzését (jsPDF px-hiba).
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
 
     for (let i = 0; i < pages.length; i += 1) {
       const canvas = await withHtml2CanvasFix(() => html2canvas(pages[i], {
@@ -192,8 +193,8 @@ export async function paperToPdfBlob(
         windowWidth: A4_W,
         windowHeight: A4_H,
       }));
-      if (i > 0) pdf.addPage([A4_W, A4_H], "portrait");
-      pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_W, A4_H);
+      if (i > 0) pdf.addPage("a4", "portrait");
+      pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_PT_W, A4_PT_H);
     }
 
     return pdf.output("blob") as Blob;
@@ -203,34 +204,73 @@ export async function paperToPdfBlob(
 }
 
 /**
+ * Valódi A4 lap pontban (595,28 × 841,89 pt). FIGYELEM: a jsPDF 2.x `unit: "px"`
+ * módja hotfix nélkül 96/72-vel szoroz, így a 794 px-es „A4" valójában kb.
+ * 37 × 53 cm-es lap lett — ezért pontban adjuk meg a lapot, a képet pedig
+ * erre a méretre feszítjük.
+ */
+const A4_PT_W = 595.28;
+const A4_PT_H = 841.89;
+
+/** Az értékbecslés mentési végpontja 3 MB-ot fogad — ez alatt maradunk, tartalékkal. */
+export const ONEPAGER_MAX_BYTES = Math.floor(2.8 * 1024 * 1024);
+
+/**
  * EGYOLDALAS PDF: a forrás elem MÁR pontosan A4 méretű (OnePagerPaper), ezért
  * nincs tördelés — egy képként kerül a lapra. Így garantáltan egy oldal lesz.
+ *
+ * Méretkeret: ha a PDF nagyobb a `maxBytes`-nál (pl. két nagy fotóval), előbb a
+ * JPEG-minőséget, majd a felbontást csökkentjük — így a háttérmentés sem bukik el.
  */
 export async function singlePageToPdfBlob(
   source: HTMLElement,
-  opts: { scale?: number; quality?: number } = {}
+  opts: { maxBytes?: number; title?: string } = {}
 ): Promise<Blob> {
-  const scale = opts.scale ?? 2;
-  const quality = opts.quality ?? 0.95;
+  const maxBytes = opts.maxBytes ?? ONEPAGER_MAX_BYTES;
 
   if (document.fonts?.ready) await document.fonts.ready;
 
   const html2canvas = (await import("html2canvas")).default;
   const { jsPDF } = await import("jspdf");
 
-  const canvas = await withHtml2CanvasFix(() => html2canvas(source, {
-    backgroundColor: "#ffffff",
-    scale,
-    useCORS: true,
-    width: A4_W,
-    height: A4_H,
-    windowWidth: A4_W,
-    windowHeight: A4_H,
-  }));
+  const capture = (scale: number) =>
+    withHtml2CanvasFix(() => html2canvas(source, {
+      backgroundColor: "#ffffff",
+      scale,
+      useCORS: true,
+      width: A4_W,
+      height: A4_H,
+      windowWidth: A4_W,
+      windowHeight: A4_H,
+    }));
 
-  const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
-  pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_W, A4_H);
-  return pdf.output("blob") as Blob;
+  const toPdf = (canvas: HTMLCanvasElement, quality: number): Blob => {
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    if (opts.title) pdf.setProperties({ title: opts.title, creator: "TWINX AI Portál" });
+    pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_PT_W, A4_PT_H);
+    return pdf.output("blob") as Blob;
+  };
+
+  // Fokozatok: éles szöveg az elsődleges; csak akkor engedünk, ha nem fér a keretbe.
+  const steps: { scale: number; quality: number }[] = [
+    { scale: 2, quality: 0.92 },
+    { scale: 2, quality: 0.82 },
+    { scale: 1.6, quality: 0.8 },
+    { scale: 1.3, quality: 0.75 },
+  ];
+
+  let canvas: HTMLCanvasElement | null = null;
+  let canvasScale = 0;
+  let blob: Blob | null = null;
+  for (const s of steps) {
+    if (s.scale !== canvasScale) {
+      canvas = await capture(s.scale);
+      canvasScale = s.scale;
+    }
+    blob = toPdf(canvas!, s.quality);
+    if (blob.size <= maxBytes) return blob;
+  }
+  return blob!; // a legkisebb változat — a szerver dönti el, elfogadja-e
 }
 
 /** Blob -> base64 (data-prefix nélkül), a szerverre küldéshez. */
