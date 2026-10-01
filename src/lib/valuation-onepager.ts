@@ -71,6 +71,51 @@ function looksLikeMoney(text: string): boolean {
   return /\d[\d\s.]{3,}/.test(t) || /\d+([.,]\d+)?\s*m\s*ft/i.test(t);
 }
 
+// =====================================================================
+// MEGJELENÍTÉSI TISZTÍTÁS — a partner által beírt adatok egységes formára.
+// =====================================================================
+
+/** „46" / „46 nm" / „46m2" → „46 m²". Ami nem tiszta szám, változatlan marad. */
+export function withM2(value: string | undefined): string {
+  const v = String(value ?? "").trim();
+  const m = /^(\d+(?:[.,]\d+)?)\s*(?:m2|m²|nm|négyzetméter)?$/i.exec(v);
+  return m ? `${m[1].replace(".", ",")} m²` : v;
+}
+
+/** „14.kerület" → „14. kerület", „XIV.ker" → „XIV. kerület", dupla szóközök ki. */
+function tidyPlace(s: string): string {
+  return s
+    .replace(/\b([0-9]{1,2}|[IVX]{1,5})\.\s*ker(?:ület|\.)?(?=\s|,|$)/gi, "$1. kerület")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Cím-sor: ha a második rész (utca) ugyanazzal a településsel kezdődik, mint
+ * az első, az első rész felesleges ismétlés („Budapest 14. kerület, Budapest
+ * XIV. kerület Füredi park…" → „Budapest XIV. kerület Füredi park…").
+ */
+export function tidyTitle(title: string): string {
+  const parts = String(title ?? "").split(",").map((p) => tidyPlace(p)).filter(Boolean);
+  if (parts.length >= 2) {
+    const city = parts[0].split(" ")[0].toLowerCase();
+    if (city && parts[1].toLowerCase().startsWith(city)) parts.shift();
+  }
+  return parts.join(", ");
+}
+
+/** Alcím („Panellakás · 46 · 2 szoba") — az alapterület-szegmenshez m² kerül
+ *  (csak ahhoz, ami egyezik a megadott mérettel — a szobaszám ne kapjon m²-t). */
+export function tidySubtitle(subtitle: string, meret?: string): string {
+  const size = String(meret ?? "").trim();
+  return String(subtitle ?? "")
+    .split("·")
+    .map((p) => tidyPlace(p))
+    .map((p) => (size && p === size ? withM2(p) : p))
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** 92 000 000 → „92 000 000 Ft" */
 function huf(n: number): string {
   return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
@@ -363,7 +408,7 @@ export function buildOnePager(
     if (v) rows.push({ label, value: v });
   };
   add("Típus", input.tipus);
-  add("Alapterület", input.meret);
+  add("Alapterület", withM2(input.meret));
   add("Szobák", input.szobak);
   add("Fürdő / WC", input.furdok);
   add("Emelet", input.emelet);
@@ -371,15 +416,16 @@ export function buildOnePager(
   add("Állapot", input.allapot);
   add("Fűtés", input.futes);
   if (input.erkely === "igen") {
-    add("Erkély / terasz", input.erkelyMeret ? `${input.erkelyMeret} nm` : "van");
+    add("Erkély / terasz", input.erkelyMeret ? withM2(input.erkelyMeret) : "van");
   }
   add("Lift", input.lift === "igen" ? "van" : "");
 
   const shownFacts = rows.slice(0, 9);
 
   return {
-    title: doc.title,
-    subtitle: doc.subtitle,
+    // A tárolt (régi) riportoknál is tiszta legyen a cím → itt, megjelenítéskor tisztítunk.
+    title: tidyTitle(doc.title),
+    subtitle: tidySubtitle(doc.subtitle, input.meret),
     price,
     range,
     rangeLow: low,
@@ -388,6 +434,7 @@ export function buildOnePager(
     pricePerM2,
     facts: shownFacts,
     reasons: buildReasons(audit, input, priceNum, shownFacts),
-    dateLabel,
+    // „2026. 10. 01." — a lábléc maga teszi ki a mondatvégi pontot, így nem lesz „..".
+    dateLabel: String(dateLabel ?? "").trim().replace(/\.+$/, ""),
   };
 }

@@ -12,6 +12,27 @@ export const A4_W = 794; // px @96dpi
 export const A4_H = 1123;
 const PAD = 56; // meg kell egyeznie a ReportPaper PAPER_PAD értékével
 
+/**
+ * html2canvas + Tailwind ismert hibája: a html2canvas a szövegek alapvonalát egy
+ * rejtett, testre fűzött <img>-vel méri; a Tailwind alap-stílusa viszont minden
+ * képet `display:block`-ká tesz, emiatt a mérés elcsúszik, és MINDEN szöveg
+ * pár pixellel lejjebb kerül a PDF-ben (levágott sorok, „lecsúszott" számok).
+ * A rögzítés idejére csak a html2canvas mérő-tárolójára visszaállítjuk a
+ * soron belüli képet — a látható oldalt ez nem érinti.
+ */
+async function withHtml2CanvasFix<T>(run: () => Promise<T>): Promise<T> {
+  const style = document.createElement("style");
+  style.setAttribute("data-h2c-fix", "1");
+  style.textContent =
+    'body > div[style*="visibility: hidden"] img{display:inline !important;max-width:none !important;}';
+  document.head.appendChild(style);
+  try {
+    return await run();
+  } finally {
+    style.remove();
+  }
+}
+
 function makePage(): HTMLDivElement {
   const page = document.createElement("div");
   page.style.width = `${A4_W}px`;
@@ -162,7 +183,7 @@ export async function paperToPdfBlob(
     const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
 
     for (let i = 0; i < pages.length; i += 1) {
-      const canvas = await html2canvas(pages[i], {
+      const canvas = await withHtml2CanvasFix(() => html2canvas(pages[i], {
         backgroundColor: "#ffffff",
         scale,
         useCORS: true,
@@ -170,7 +191,7 @@ export async function paperToPdfBlob(
         height: A4_H,
         windowWidth: A4_W,
         windowHeight: A4_H,
-      });
+      }));
       if (i > 0) pdf.addPage([A4_W, A4_H], "portrait");
       pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_W, A4_H);
     }
@@ -197,7 +218,7 @@ export async function singlePageToPdfBlob(
   const html2canvas = (await import("html2canvas")).default;
   const { jsPDF } = await import("jspdf");
 
-  const canvas = await html2canvas(source, {
+  const canvas = await withHtml2CanvasFix(() => html2canvas(source, {
     backgroundColor: "#ffffff",
     scale,
     useCORS: true,
@@ -205,7 +226,7 @@ export async function singlePageToPdfBlob(
     height: A4_H,
     windowWidth: A4_W,
     windowHeight: A4_H,
-  });
+  }));
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_W, A4_H] });
   pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, A4_W, A4_H);

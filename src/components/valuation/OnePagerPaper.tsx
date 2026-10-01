@@ -203,7 +203,7 @@ export default function OnePagerPaper({
           )}
 
           {/* ---------- KÉT OSZLOP: adatok + indoklás ---------- */}
-          <div style={{ display: "flex", gap: 28, marginTop: 26, flex: pics.length ? "0 0 auto" : 1 }}>
+          <div style={{ display: "flex", gap: 28, marginTop: 26, flex: "0 0 auto" }}>
             {/* Az ingatlan adatai */}
             <div style={{ width: 300 }}>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: muted }}>
@@ -212,12 +212,12 @@ export default function OnePagerPaper({
               <div style={{ marginTop: 10, border: `1px solid ${line}`, borderRadius: 12, overflow: "hidden" }}>
                 {data.facts.map((f, i) => (
                   <div key={f.label} style={{
-                    display: "flex", justifyContent: "space-between", gap: 12,
-                    padding: "9px 14px", fontSize: 13,
+                    display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12,
+                    padding: "9px 14px", fontSize: 13, lineHeight: "18px",
                     background: i % 2 ? "#faf8f5" : "#ffffff",
                     borderTop: i ? `1px solid ${line}` : "none",
                   }}>
-                    <span style={{ color: muted }}>{f.label}</span>
+                    <span style={{ color: muted, flexShrink: 0 }}>{f.label}</span>
                     <span style={{ fontWeight: 600, textAlign: "right", maxWidth: 190 }}>{f.value}</span>
                   </div>
                 ))}
@@ -229,18 +229,19 @@ export default function OnePagerPaper({
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: muted }}>
                 Miért ennyi az ár?
               </div>
-              {/* Minden indoklás EGYSOROS: nem tördel, hosszabb szöveg „…"-tal
-                  levágódik. Így a blokk magassága kiszámítható, és semmiképp
-                  nem csúszhat bele az alatta lévő fotósávba. */}
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* Fix px sormagasság + a szám-kör sormagassága = a kör magassága:
+                  így a html2canvas is pontosan középre teszi a számot, és a
+                  szöveg nem vágódik le (nincs fix magasságú, rejtett túlcsordulás).
+                  A szövegek a buildReasons-ben már egysorosra vannak rövidítve. */}
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 9 }}>
                 {data.reasons.map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 9, alignItems: "center", fontSize: 12.5, lineHeight: 1.4, height: 20 }}>
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12.5, lineHeight: "20px" }}>
                     <span style={{
-                      flexShrink: 0, width: 19, height: 19, borderRadius: 999,
+                      flexShrink: 0, display: "block", width: 20, height: 20, borderRadius: 999,
                       background: accent, color: onAccent, fontSize: 10.5, fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center",
+                      lineHeight: "20px", textAlign: "center",
                     }}>{i + 1}</span>
-                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{r}</span>
+                    <span style={{ minWidth: 0 }}>{r}</span>
                   </div>
                 ))}
               </div>
@@ -267,6 +268,38 @@ export default function OnePagerPaper({
               ))}
             </div>
           )}
+
+          {/* ---------- FOTÓK NÉLKÜL: kapcsolat-kártya a lap alján ----------
+              Hogy ne maradjon üres a lap alsó harmada: a következő lépés
+              (személyes egyeztetés) és az elérhetőség, a lap aljára tolva. */}
+          {pics.length === 0 && (
+            <div style={{
+              marginTop: "auto", marginBottom: 22, borderRadius: 16,
+              background: "#faf8f5", border: `1px solid ${line}`,
+              padding: "22px 26px", display: "flex", alignItems: "center", gap: 24,
+            }}>
+              <div style={{ width: 6, alignSelf: "stretch", borderRadius: 999, background: accent, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, lineHeight: "22px" }}>
+                  Pontosítsuk az árat egy személyes bejárással
+                </div>
+                <div style={{ fontSize: 12.5, color: muted, lineHeight: "19px", marginTop: 4 }}>
+                  A helyszínen látott állapot, kilátás és elrendezés alapján véglegesítjük
+                  a meghirdetési árat és az értékesítési stratégiát.
+                </div>
+              </div>
+              {(profile?.display_name || contactRows.length > 0) && (
+                <div style={{ flexShrink: 0, borderLeft: `1px solid ${line}`, paddingLeft: 22, fontSize: 12.5, lineHeight: "19px" }}>
+                  {profile?.display_name && (
+                    <div style={{ fontWeight: 700, fontSize: 14, lineHeight: "20px" }}>{profile.display_name}</div>
+                  )}
+                  {contactRows.filter((r) => r.key !== "web").map((r) => (
+                    <div key={r.key} style={{ color: ink, whiteSpace: "nowrap" }}>{r.text}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ---------- LÁBLÉC ---------- */}
@@ -277,9 +310,11 @@ export default function OnePagerPaper({
               hitelbiztosítéki értékelésnek. Készült: {data.dateLabel}.
               {/* A TWINX jelzés MINDIG rajta van — arculatos lapon is, visszafogottan. */}
               <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                {/* Fix magasság + azonos sormagasság: a PDF-ben sem vágódik le a felirat. */}
                 <span style={{
-                  display: "inline-block", padding: "2px 7px", borderRadius: 4,
+                  display: "block", height: 16, lineHeight: "16px", padding: "0 7px", borderRadius: 4,
                   background: "#12100e", color: "#ffffff", fontSize: 9, fontWeight: 800, letterSpacing: 1.2,
+                  flexShrink: 0,
                 }}>TWINX</span>
                 <span>Az értékbecslés a TWINX AI Portál piaci adatelemző motorjával készült · twinx.hu</span>
               </div>
