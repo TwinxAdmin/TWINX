@@ -23,11 +23,18 @@ import type { TemplateJson } from "@/lib/video-merge";
  */
 export const COLOR_VARIANTS_ENABLED = false;
 
+/**
+ * Egyenként élesített variánsok (2026-10): az új, háromtónusú átfestéssel
+ * készült színek. Ezek a COLOR_VARIANTS_ENABLED kapcsolótól függetlenül
+ * választhatók, ha az átfestett grafikáik fel vannak töltve.
+ */
+export const ENABLED_VARIANTS: VideoColorId[] = ["ejkek"];
+
 /** A sablonban eredetileg használt színek — ezeket cseréljük. */
 export const TEMPLATE_ACCENT = "#f0c20c";
 export const TEMPLATE_TEXT = "#ffffff";
 
-export type VideoColorId = "sarga" | "korall" | "krem";
+export type VideoColorId = "sarga" | "korall" | "krem" | "ejkek";
 
 export type VideoColorVariant = {
   id: VideoColorId;
@@ -65,6 +72,16 @@ export type VideoColorVariant = {
    * grafika árnyalatai és élsimítása megmarad.
    */
   overlayFilter: string | null;
+  /**
+   * TÓNUSONKÉNTI ÁTFESTÉS (2026-10, ez a jó módszer): az áttűnés-grafikák négy
+   * alaptónusból állnak — tiszta fekete (shadow), mély indigó alap (base), meleg
+   * borostyán fény (glow), semleges szürke fény (neutral). Minden képpont e négy
+   * keverékeként ismerhető fel, és ugyanilyen arányban kapja meg az itt megadott
+   * új tónusokat. A mozgás, az alfa és a
+   * fények átmenete változatlan. Ha meg van adva, az előkészítő script ezt használja
+   * (az `overlayFilter`/`deepTint` helyett).
+   */
+  palette?: { shadow: string; base: string; glow: string; neutral: string };
 };
 
 export const VIDEO_COLOR_VARIANTS: VideoColorVariant[] = [
@@ -113,6 +130,22 @@ export const VIDEO_COLOR_VARIANTS: VideoColorVariant[] = [
     // leheletnyi meleg árnyalattal, hogy ne legyen rideg.
     overlayFilter: "hue=s=0.10,eq=brightness=0.06",
   },
+  {
+    // Ugyanaz a sablon, mint az Aurora — éjkék alap, pezsgőarany kiemeléssel.
+    id: "ejkek",
+    name: "Éjkék",
+    title: "TWINX Nocturne",
+    accent: "#c99a5e",            // pezsgőarany: ár-pecsét, feliratsáv kiemelése
+    text: TEMPLATE_TEXT,
+    heading: "#dcb985",           // a sablon kiemelt (eredetileg sárga) szövegei — világos pezsgőarany
+    panel: "rgba(8,20,44,0.94)",  // a nyitókép ferde panelje — az áttűnések éjkék alapja
+    surface: "#060f22",
+    deepTint: null,
+    swatch: { bg: "#08142c", accent: "#c99a5e" },
+    overlayFilter: null,
+    // Próbán kiválasztva: a fekete mély éjkékre, a borostyán meleg pezsgőaranyra vált.
+    palette: { shadow: "#040a18", base: "#08142c", glow: "#c99a5e", neutral: "#565a68" },
+  },
 ];
 
 export function getColorVariant(id: string): VideoColorVariant {
@@ -130,7 +163,7 @@ const overlayColors = overlayColorsRaw as OverlayColors;
  */
 export function colorVariantReady(id: VideoColorId): boolean {
   if (id === "sarga") return true;
-  if (!COLOR_VARIANTS_ENABLED) return false;
+  if (!COLOR_VARIANTS_ENABLED && !ENABLED_VARIANTS.includes(id)) return false;
   return Object.keys(overlayColors[id] ?? {}).length > 0;
 }
 

@@ -38,6 +38,17 @@ const BUCKET = "video-assets";
 /** A sablon eredeti kiemelő színe (ezt cseréljük). */
 const TEMPLATE_ACCENT = [240, 194, 12]; // #f0c20c
 
+/**
+ * Az áttűnés-grafikák három alaptónusa (mérve az eredeti fájlokon, 2026-10):
+ *   base    — mély indigó alap (a nyíl alakú törlőelem, részben félig átlátszó)
+ *   glow    — meleg borostyán fény (bal alsó izzás)
+ *   neutral — semleges szürke fény (a záró kártya közepén)
+ *   shadow  — tiszta fekete (a záró kártya sötét része) — enélkül a fekete
+ *             „kilógna" a palettából, és zöldes/kékes árnyalatot kapna
+ * A háromtónusú átfestés ezeket képezi le a variáns `palette` színeire.
+ */
+const SOURCE_PALETTE = { shadow: [0, 0, 0], base: [17, 4, 32], glow: [161, 122, 62], neutral: [88, 88, 90] };
+
 // --- Segédek ----------------------------------------------------------------
 const sh = (cmd, args) => execFileSync(cmd, args, { encoding: "utf8", maxBuffer: 1 << 28 });
 const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -61,15 +72,30 @@ async function resolveBin(name, pkg) {
 const FFMPEG = await resolveBin("ffmpeg", "ffmpeg-static");
 const FFPROBE = await resolveBin("ffprobe", "ffprobe-static");
 
-/** A variánsok (id + accent + deepTint) a video-color.ts-ből — hogy ne csússzon szét a két hely. */
+/**
+ * A variánsok (id + accent + deepTint + palette) a video-color.ts-ből — hogy ne
+ * csússzon szét a két hely. `--only=ejkek,masik` → csak ezeket gyártja le
+ * (a többi variáns már feltöltött grafikája érintetlen marad a térképben).
+ */
 function readVariants() {
   const src = fs.readFileSync(path.join(ROOT, "src", "lib", "video-color.ts"), "utf8");
+  const onlyArg = process.argv.find((a) => a.startsWith("--only="));
+  const only = onlyArg ? onlyArg.slice(7).split(",").map((x) => x.trim()).filter(Boolean) : null;
   const out = [];
   for (const m of src.matchAll(/id:\s*"([a-z]+)"[\s\S]{0,400}?accent:\s*"(#[0-9a-fA-F]{6})"/g)) {
     if (m[1] === "sarga") continue; // az eredeti sablon — hozzá NEM nyúlunk
-    const block = src.slice(m.index, m.index + 900);
+    if (only && !only.includes(m[1])) continue;
+    // A variáns blokkja a következő „id:"-ig tart.
+    const rest = src.slice(m.index + 3);
+    const next = rest.search(/\n\s*(\/\/[^\n]*\n\s*)*id:\s*"/);
+    const block = src.slice(m.index, next > 0 ? m.index + 3 + next : m.index + 1600);
     const tint = block.match(/deepTint:\s*"(#[0-9a-fA-F]{6})"/);
-    out.push({ id: m[1], accent: m[2], deepTint: tint ? tint[1] : null });
+    const hexOf = (key) => block.match(new RegExp(`palette:[^}]*${key}:\\s*"(#[0-9a-fA-F]{6})"`))?.[1];
+    const pal = ["shadow", "base", "glow", "neutral"].map(hexOf);
+    out.push({
+      id: m[1], accent: m[2], deepTint: tint ? tint[1] : null,
+      palette: pal.every(Boolean) ? { shadow: pal[0], base: pal[1], glow: pal[2], neutral: pal[3] } : null,
+    });
   }
   if (!out.length) { console.error("✗ Nem találtam szín-variánst a video-color.ts-ben."); process.exit(1); }
   return out;
@@ -195,6 +221,52 @@ function recolorFilter(mode, accentHex, deepTintHex) {
   return `[0:v]format=rgba,split[a][b];[b]alphaextract[al];[a]hue=h=${delta.toFixed(1)}:s=${sat.toFixed(2)}[c];[c][al]alphamerge`;
 }
 
+// --- Háromtónusú átfestés (affin RGB-leképezés) ---------------------------------
+const sub = (a, b) => a.map((x, i) => x - b[i]);
+/** 3×3 mátrix oszlopokból → inverz. */
+function inv3(m) {
+  const [[a, b, c], [d, e, f], [g, h, i]] = m;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  if (Math.abs(det) < 1e-9) throw new Error("A forrás-paletta tónusai egy síkba esnek.");
+  return [
+    [A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+    [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+    [C / det, -(a * h - b * g) / det, (a * e - b * d) / det],
+  ];
+}
+const cols = (u, v, w) => [[u[0], v[0], w[0]], [u[1], v[1], w[1]], [u[2], v[2], w[2]]];
+const mul = (A, B) => A.map((row) => [0, 1, 2].map((j) => row[0] * B[0][j] + row[1] * B[1][j] + row[2] * B[2][j]));
+
+/**
+ * Affin leképezés NÉGY alaptónus alapján (fekete, alap, fény, szürke): a négy
+ * pont pontosan meghatározza a c' = M·c + o transzformációt, így minden köztes
+ * árnyalat (átmenetek, izzás, élsimítás) arányosan követi az új palettát.
+ */
+export function paletteAffine(src, dst) {
+  const [k, b, g, n] = [src.shadow, src.base, src.glow, src.neutral];
+  const [K, B, G, N] = [dst.shadow, dst.base, dst.glow, dst.neutral];
+  const S = cols(sub(b, k), sub(g, k), sub(n, k));
+  const T = cols(sub(B, K), sub(G, K), sub(N, K));
+  const M = mul(T, inv3(S));
+  const Mk = M.map((row) => row[0] * k[0] + row[1] * k[1] + row[2] * k[2]);
+  const o = [0, 1, 2].map((i) => K[i] - Mk[i]);
+  return { M, o };
+}
+
+function paletteFilter(palette) {
+  const dst = {
+    shadow: hexToRgb(palette.shadow), base: hexToRgb(palette.base),
+    glow: hexToRgb(palette.glow), neutral: hexToRgb(palette.neutral),
+  };
+  const { M, o } = paletteAffine(SOURCE_PALETTE, dst);
+  const f = (x) => x.toFixed(5);
+  const ch = (k) => `clip(${f(M[k][0])}*r(X,Y)+${f(M[k][1])}*g(X,Y)+${f(M[k][2])}*b(X,Y)+${f(o[k])},0,255)`;
+  // Az alfa külön ágon megy, érintetlenül; csak az RGB-t festjük át.
+  return "[0:v]format=rgba,split[a][b];[b]alphaextract[al];" +
+    `[a]format=gbrp,geq=r='${ch(0)}':g='${ch(1)}':b='${ch(2)}',format=rgba[c];[c][al]alphamerge`;
+}
+
 /** Kódolás alfával: VP9 → VP8 → ProRes 4444 (.mov). A Shotstack mindhármat eszi. */
 function encode(input, filter, outBase) {
   const attempts = [
@@ -239,7 +311,9 @@ if (!buckets?.some((b) => b.name === BUCKET)) {
   console.log(`• Létrehozva a "${BUCKET}" bucket`);
 }
 
-const map = {};
+// A meglévő térképet MEGTARTJUK, csak a most gyártott variánsokat írjuk felül.
+let map = {};
+try { map = JSON.parse(fs.readFileSync(MAP_FILE, "utf8")); } catch { map = {}; }
 for (const v of variants) map[v.id] = {};
 
 for (const url of urls) {
@@ -265,7 +339,9 @@ for (const url of urls) {
 
   for (const v of variants) {
     const outBase = path.join(CACHE, `${name}-${v.id}`);
-    const out = encode(orig, recolorFilter(mode, v.accent, v.deepTint), outBase);
+    // Ha a variánsnak van palettája → háromtónusú átfestés (a pontos módszer).
+    const filter = v.palette ? paletteFilter(v.palette) : recolorFilter(mode, v.accent, v.deepTint);
+    const out = encode(orig, filter, outBase);
     // Előnézeti képkocka szürke háttéren, hogy látszódjon az átlátszóság is.
     // A grafika közepéről vágunk képet, mert az elején még üres lehet.
     const at = (probe(out).duration || 3) * 0.5;
