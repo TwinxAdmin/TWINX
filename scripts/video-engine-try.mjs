@@ -24,7 +24,7 @@ const require = createRequire(import.meta.url);
 
 // --- 1) Fordítás CommonJS-re, az importok átírásával ---
 fs.mkdirSync(BUILD, { recursive: true });
-const files = ["template-schema.ts", "transitions.ts", "layers.ts", "render-node.ts", "templates/aurora.ts"];
+const files = ["template-schema.ts", "transitions.ts", "layers.ts", "render-node.ts", "templates/aurora.ts", "templates/skandi.ts", "templates/index.ts"];
 const OG = require.resolve("next/dist/compiled/@vercel/og/index.node.js");
 for (const f of files) {
   let js = ts.transpileModule(fs.readFileSync(path.join(SRC, f), "utf8"), {
@@ -42,12 +42,14 @@ for (const f of files) {
 const { renderVideo } = require(path.join(BUILD, "render-node.cjs"));
 const { validateTemplate, applyVariant } = require(path.join(BUILD, "template-schema.cjs"));
 const { AURORA, AURORA_VARIANTS } = require(path.join(BUILD, "templates", "aurora.cjs"));
+const { resolveEngineTemplate } = require(path.join(BUILD, "templates", "index.cjs"));
 
 // --- 2) Paraméterek ---
 const aspect = process.argv[2] === "1:1" ? "1:1" : "9:16";
+// 2. paraméter: sablon vagy színváltozat (aurora | nocturne | skandi | skandi-zsalya …)
 const variantId = process.argv[3] || "aurora";
-const variant = AURORA_VARIANTS.find((v) => v.id === variantId) ?? null;
-const tpl = applyVariant(AURORA, variant);
+void AURORA; void AURORA_VARIANTS; void applyVariant;
+const tpl = resolveEngineTemplate(variantId);
 const errors = validateTemplate(tpl);
 if (errors.length) { console.error("✗ Sablonhiba:\n  " + errors.join("\n  ")); process.exit(1); }
 
@@ -71,31 +73,65 @@ const data = {
   "agent.name": "Kovács Márk",
   "agent.phone": "+36 30 123 4567",
   "agent.email": "info@twinx.hu",
+  // Fotónkénti feliratok (a mostani logika szerint: cím/emelet, méret/szobák, fürdő, település/ár).
+  "caption.2": "Visegrádi utca 212.\n1. emelet",
+  "caption.3": "40 m²\n1 szoba",
+  "caption.4": "1 fürdőszoba + külön WC",
+  "caption.5": "Székesfehérvár\nIrányár: 70 M Ft",
 };
+// Hosszú szövegek próbája: TWINX_LONG=1 (a kilógás ellenőrzéséhez).
+if (process.env.TWINX_LONG) {
+  Object.assign(data, {
+    "property.title": "Budapest XIII. kerület, Újlipótváros, Pozsonyi út 54.",
+    "property.type": "Felújított polgári lakás erkéllyel",
+    "property.specs": "3 szoba + hálófülke + gardrób\n2 fürdőszoba, külön WC\n112 m² + 8 m² erkély",
+    "property.price": "149 900 000 Ft",
+    "caption.2": "Tágas, világos nappali nagy panorámaablakokkal, beépített szekrényekkel. Napfény.", // 80 karakter = a Skandi felső határa
+    "caption.3": "Teljesen felszerelt, új konyha",
+    "caption.4": "Hálószoba a csendes belső udvarra néző ablakokkal\nGardróbbal",
+    "caption.5": "Fürdőszoba",
+    "agent.email": "kovacs.mark.ingatlan@twinxportal-ingatlanirodak.hu",
+  });
+}
 // Próbához: ügynökfotó és irodalogó adat-URL-ként (élesben az arculati profilból jön).
 const asDataUrl = (f, mime) => `data:${mime};base64,${fs.readFileSync(f).toString("base64")}`;
 const agentPhoto = path.join(ROOT, "public", "marketing", "character.png");
 const agencyLogo = path.join(ROOT, "public", "design", "logo-2-tile.svg");
-if (fs.existsSync(agentPhoto)) data["agent.photo"] = asDataUrl(agentPhoto, "image/png");
+// TWINX_NOPHOTO=1: ingatlanos-fotó nélküli próba (a zárókép így is rendezett-e).
+if (process.env.TWINX_NOPHOTO !== "1" && fs.existsSync(agentPhoto)) data["agent.photo"] = asDataUrl(agentPhoto, "image/png");
 if (fs.existsSync(agencyLogo)) data["agent.logo"] = asDataUrl(agencyLogo, "image/svg+xml");
 
 // Betűk: a sablon Manrope-ot kér. Próbához, ha nincs Manrope-fájl, a projekt
 // arculati betűi (Poppins + Lato) állnak be „Manrope" néven — élesben a valódi jön.
 const BRAND = path.join(ROOT, "assets", "fonts", "brand");
 const VIDEO_FONTS = path.join(ROOT, "assets", "fonts", "video");
-const fontFile = (w) => {
-  const own = { 800: "Manrope-ExtraBold.ttf", 700: "Manrope-Bold.ttf", 400: "Manrope-Regular.ttf", 300: "Manrope-Light.ttf" }[w];
-  if (fs.existsSync(path.join(VIDEO_FONTS, own))) return path.join(VIDEO_FONTS, own);
-  return path.join(BRAND, w >= 700 ? (w === 800 ? "Poppins-Bold.ttf" : "Poppins-Medium.ttf") : "Lato-Regular.ttf");
-};
-const fonts = [800, 700, 400, 300].map((weight) => {
-  const b = fs.readFileSync(fontFile(weight));
-  return { name: "Manrope", weight, style: "normal", data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) };
+// A sablon saját betűi, ha le vannak téve (assets/fonts/video/), különben helyettesítők
+// a sablon betűcsaládjának nevén (élesben a Google Fonts-ról jön a valódi).
+void VIDEO_FONTS;
+const fallbackFile = (w) => path.join(BRAND, w >= 700 ? "Poppins-Bold.ttf" : w >= 500 ? "Poppins-Medium.ttf" : "Lato-Regular.ttf");
+const fonts = tpl.fonts.map((f) => {
+  const own = path.join(ROOT, f.file);
+  const b = fs.readFileSync(fs.existsSync(own) ? own : fallbackFile(f.weight));
+  return { name: f.family, weight: f.weight, style: "normal", data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) };
 });
+
+// Zene: TWINX_MUSIC="zene.mp3" — különben egy rövid, generált próbahang (csak a lánc teszteléséhez).
+let music = process.env.TWINX_MUSIC ? path.resolve(ROOT, process.env.TWINX_MUSIC) : null;
+if (!music) {
+  music = path.join(WORK, "proba-zene.m4a");
+  if (!fs.existsSync(music)) {
+    fs.mkdirSync(WORK, { recursive: true });
+    const { execFileSync } = await import("node:child_process");
+    // Lágy akkord (A-dúr), lassan lüktetve — csak a hangsáv működésének ellenőrzésére.
+    execFileSync(ffmpegPath, ["-v", "error", "-y", "-f", "lavfi", "-i",
+      "sine=f=220:d=12,volume=0.25[a];sine=f=277.18:d=12,volume=0.18[b];sine=f=329.63:d=12,volume=0.18[c];[a][b][c]amix=inputs=3,tremolo=f=0.5:d=0.4",
+      "-c:a", "aac", music]);
+  }
+}
 
 console.log(`• ${tpl.name} · ${aspect} · ${photos.length} fotó · ffmpeg: ${ffmpegPath}`);
 const res = await renderVideo({
-  template: tpl, aspect, photos, data, fonts, workDir: WORK, ffmpegPath,
+  template: tpl, aspect, photos, data, fonts, music, workDir: WORK, ffmpegPath,
   outName: `twinx-${variantId}-${aspect.replace(":", "x")}.mp4`,
   log: (m) => console.log("  " + m),
 });

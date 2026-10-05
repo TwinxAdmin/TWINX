@@ -89,7 +89,8 @@ export type TransitionType =
   | "cut"           // vágás, nincs áttűnés
   | "fade"          // áttűnés (keresztúsztatás)
   | "chevronWipe"   // nyíl alakú törlőelem izzással (az Aurora jellegzetes áttűnése)
-  | "panelReveal";  // átlós panelek nyílnak fel (az Aurora zárókártyája)
+  | "panelReveal"   // átlós panelek nyílnak fel (az Aurora zárókártyája)
+  | "softDip";      // lágy átúsztatás egy világos színen át (a Skandi áttűnése)
 
 export type Transition = {
   type: TransitionType;
@@ -161,11 +162,12 @@ export type ShapeLayer = LayerBase & ShapeProps & ByAspect<ShapeProps & { box: B
 /**
  * Kész, újrahasználható elem (a motor rajzolja, a sablon csak paraméterezi):
  *  • "captionBar"  — a fotónkénti alsó feliratsáv (két sor, kiemelő csík)
+ *  • "captionCard" — kártyás fotófelirat világos alapon (a Skandi felirata)
  *  • "priceSeal"   — ár-pecsét a nyitóképen
  */
 export type ComponentLayer = LayerBase & {
   kind: "component";
-  component: "captionBar" | "priceSeal";
+  component: "captionBar" | "captionCard" | "priceSeal";
   bind?: BindKey;
   props?: Record<string, string | number | boolean>;
 };
@@ -228,6 +230,9 @@ export type TwinxTemplate = {
   palette: Palette;
   /** Hány fotó kell (a varázsló ezt kéri be). */
   photos: { min: number; max: number };
+  /** Fotónkénti felirat max. hossza ennél a sablonnál (alap: a régi 30 karakter).
+   *  Akkora, hogy a leghosszabb megengedett szöveg pont kitöltse a feliratdobozt. */
+  captionMaxChars?: number;
   scenes: Scene[];
   audio: { volume: number; fadeIn: number; fadeOut: number };
 };

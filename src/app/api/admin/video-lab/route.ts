@@ -21,8 +21,8 @@ import { getStaffRole } from "@/lib/staff";
 import { isValidMusicStyle, splitCaption, type VideoCaptionFacts } from "@/lib/video";
 import { formatPrice, formatSize } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
-import { applyVariant, validateTemplate, type AspectId } from "@/lib/video-engine/template-schema";
-import { AURORA, AURORA_VARIANTS } from "@/lib/video-engine/templates/aurora";
+import { validateTemplate, type AspectId } from "@/lib/video-engine/template-schema";
+import { resolveEngineTemplate } from "@/lib/video-engine/templates/index";
 import { renderVideo, imageInfo, classifyPhoto } from "@/lib/video-engine/render-node";
 import { ASPECT_SIZES } from "@/lib/video-engine/template-schema";
 import { loadEngineFonts } from "@/lib/video-engine/fonts-node";
@@ -98,23 +98,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
   const files = form.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length < AURORA.photos.min || files.length > AURORA.photos.max) {
-    return NextResponse.json({ error: `${AURORA.photos.min}–${AURORA.photos.max} fotó kell.` }, { status: 422 });
+  if (files.length < 4 || files.length > 5) {
+    return NextResponse.json({ error: "4–5 fotó kell." }, { status: 422 });
   }
   for (const f of files) {
     if (!ALLOWED.includes(f.type)) return NextResponse.json({ error: `Nem támogatott fájl: ${f.name}` }, { status: 422 });
     if (f.size > MAX_PHOTO_BYTES) return NextResponse.json({ error: `Túl nagy fájl (max 15 MB): ${f.name}` }, { status: 422 });
   }
   const aspect: AspectId = form.get("aspect") === "1:1" ? "1:1" : "9:16";
-  // A varázsló színválasztója → a saját motor színváltozata.
+  // Sablon: a labor sablonválasztója (engineTemplate) — ha nincs, a varázsló
+  // színválasztója dönt az Aurora változatai között (sárga → Aurora, éjkék → Nocturne).
   const colorId = str(form.get("colorVariant"), 20);
-  const variantId = colorId === "ejkek" ? "nocturne" : "aurora";
-  const variant = AURORA_VARIANTS.find((v) => v.id === variantId) ?? null;
+  const engineChoice = str(form.get("engineTemplate"), 40);
+  const variantId = engineChoice || (colorId === "ejkek" ? "nocturne" : "aurora");
   const musicStyle = str(form.get("musicStyle"), 30);
   if (musicStyle && musicStyle !== "none" && !isValidMusicStyle(musicStyle)) {
     return NextResponse.json({ error: "Érvénytelen zenei stílus." }, { status: 422 });
   }
-  const tpl = applyVariant(AURORA, variant);
+  const tpl = resolveEngineTemplate(variantId);
   const tplErrors = validateTemplate(tpl);
   if (tplErrors.length) return NextResponse.json({ error: "Sablonhiba", details: tplErrors }, { status: 500 });
 
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
   const size = formatSize(facts.size);
 
   // Fotónkénti szabad feliratok + helyük (lent / középen), a képek sorrendjében.
-  const captions = parse<unknown[]>("captions", []).map((c) => clip(c, 80));
+  const captions = parse<unknown[]>("captions", []).map((c) => clip(c, 200));
   const positions = parse<unknown[]>("captionPositions", []).map((p) => (p === "center" ? "center" : "bottom"));
 
   // Elérhetőség + ügynökfotó + logó: a varázsló „profile" mezőjéből (kézzel vagy arculatból).
@@ -153,8 +154,15 @@ export async function POST(request: Request) {
   };
   // Az 1. fotó a nyitókép (azon az adatpanel ül) — felirat a 2. fotótól jár, mint az élőben.
   for (let i = 1; i < files.length; i++) {
-    const c = splitCaption(captions[i] ?? "");
-    const text = [c.line1, c.line2].filter(Boolean).join("\n");
+    // Hosszú-feliratos sablon (pl. Skandi): a teljes szöveg megy, a sablon tördeli.
+    // A régi sablonok (Aurora): két kiegyensúlyozott sorra bontva, mint eddig.
+    let text: string;
+    if (tpl.captionMaxChars) {
+      text = (captions[i] ?? "").replace(/\s+/g, " ").trim().slice(0, tpl.captionMaxChars);
+    } else {
+      const c = splitCaption(captions[i] ?? "");
+      text = [c.line1, c.line2].filter(Boolean).join("\n");
+    }
     if (text) data[`caption.${i + 1}`] = text;
     data[`captionpos.${i + 1}`] = positions[i] ?? "bottom";
   }
@@ -199,6 +207,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true, url,
+      template: tpl.name.replace(/^TWINX\s+/, ""),
       storage: up.url ? "supabase" : "local",
       uploadError: up.error,
       seconds: result.seconds,

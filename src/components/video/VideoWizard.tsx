@@ -25,6 +25,7 @@ import {
 } from "@/lib/video-templates";
 import { PROPERTY_TYPE_OPTIONS } from "@/lib/valuation";
 import { readyColorVariants, getColorVariant, type VideoColorId } from "@/lib/video-color";
+import { engineGallery, type EngineGalleryItem } from "@/lib/video-engine/templates/index";
 
 /** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
 type VideoDebug = {
@@ -51,7 +52,15 @@ type JobState = { status: string; output_url: string | null; error: string | nul
  * motorhoz megy (`endpoint`), kredit és partner-előzmény nélkül. A válasz
  * (videó-URL + mérések) az `onResult`-ba érkezik.
  */
-export type VideoWizardLab = { endpoint: string; onResult: (data: Record<string, unknown>) => void };
+export type VideoWizardLab = {
+  endpoint: string;
+  onResult: (data: Record<string, unknown>) => void;
+  /** További mezők a kéréshez. */
+  extraFields?: Record<string, string>;
+};
+
+/** A saját motor sablonjai — a labor-módban ezek közül választ a „partner". */
+const ENGINE_GALLERY = engineGallery();
 
 export default function VideoWizard({
   profiles, onClose, onDone, lab,
@@ -68,6 +77,22 @@ export default function VideoWizard({
   // (feltöltött grafikájú) színek jelennek meg.
   const colorChoices = readyColorVariants();
   const [colorId, setColorId] = useState<VideoColorId>("sarga");
+
+  // Labor-mód: a saját motor sablonja (Aurora, Nocturne, Skandi …) — ugyanúgy
+  // csempéken választható, mint a partnernél; a méretet a sablon köti.
+  const [engineId, setEngineId] = useState<string>(ENGINE_GALLERY[0]?.id ?? "aurora");
+  const engineItem = ENGINE_GALLERY.find((e) => e.id === engineId) ?? ENGINE_GALLERY[0];
+  const aspectsOffered: VideoAspect[] = lab
+    ? design.aspects.filter((a) => (engineItem?.aspects as string[] | undefined)?.includes(a) ?? true)
+    : design.aspects;
+  const templateLabel = lab ? engineItem?.name ?? design.name : design.name;
+  // Fotónkénti felirat hossza: az új sablonoknál annyi, ami kitölti a feliratdobozt.
+  const captionMax = lab ? engineItem?.captionMaxChars ?? MAX_PHOTO_CAPTION : MAX_PHOTO_CAPTION;
+  function pickEngine(id: string) {
+    const e = ENGINE_GALLERY.find((x) => x.id === id);
+    setEngineId(id);
+    if (e && !(e.aspects as string[]).includes(aspect)) setAspect(e.aspects[0] as VideoAspect);
+  }
 
   // Dizájnváltáskor a méret a dizájn első elérhető arányára ugrik.
   function pickDesign(id: string) {
@@ -193,6 +218,8 @@ export default function VideoWizard({
       fd.append("aspect", aspect);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
+      if (lab) fd.append("engineTemplate", engineId);
+      Object.entries(lab?.extraFields ?? {}).forEach(([k, v]) => fd.append(k, v));
       const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -332,11 +359,18 @@ export default function VideoWizard({
           {step === 0 && (
             <div className="space-y-4">
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                Válaszd ki a <strong>sablont</strong>, majd a <strong>méretet</strong>. A sablonok
-                felépítése azonos — a kiemelő szín különbözteti meg őket.
+                Válaszd ki a <strong>sablont</strong>, majd a <strong>méretet</strong>.{" "}
+                {lab ? "Minden sablonnak saját stílusa, áttűnése és színvilága van." : "A sablonok felépítése azonos — a kiemelő szín különbözteti meg őket."}
               </p>
               {/* SABLON-CSEMPÉK: a valódi nyitókép kompozícióját mutató előnézet */}
               {/* Sűrű rács: 5-10 sablon is elférjen görgetés nélkül, első ránézésre */}
+              {lab ? (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                  {ENGINE_GALLERY.map((e) => (
+                    <EngineTile key={e.id} item={e} on={e.id === engineId} photo={design.previewPhoto} onPick={() => pickEngine(e.id)} />
+                  ))}
+                </div>
+              ) : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
                 {VIDEO_DESIGNS.flatMap((d) =>
                   (d.kind === "json" ? colorChoices : [getColorVariant("sarga")]).map((v) => {
@@ -404,6 +438,7 @@ export default function VideoWizard({
                   })
                 )}
               </div>
+              )}
               {/* MÉRET — a választott sablon elérhető arányai */}
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
@@ -411,7 +446,7 @@ export default function VideoWizard({
                 </p>
                 {/* Egymás alatt, kompakt rádió-sorok: arány-ikon + címke + súgó. */}
                 <div className="mt-1.5 inline-flex flex-col gap-1">
-                  {design.aspects.map((a) => {
+                  {aspectsOffered.map((a) => {
                     const active = a === aspect;
                     const portrait = a === "9:16";
                     return (
@@ -461,7 +496,7 @@ export default function VideoWizard({
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                <strong>{design.name} · {aspect}</strong>: {imageCountLabel(design, aspect).toLowerCase()} szükséges
+                <strong>{templateLabel} · {aspect}</strong>: {imageCountLabel(design, aspect).toLowerCase()} szükséges
                 {" "}(most {shots.length}). Az <strong>első kép a nyitókép</strong> — ezzel indul a videó, és ezen jelennek
                 meg az ingatlan fő adatai. A többi képhez opcionálisan írhatsz feliratot. A záróképre (fotó nélkül) az
                 adatok és az elérhetőséged kerülnek.
@@ -525,10 +560,26 @@ export default function VideoWizard({
                             <span className="absolute -left-1.5 -top-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold shadow" style={{ background: "var(--twx-ink)", color: "#fff" }}>{i + 1}</span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <input type="text" value={s.caption} maxLength={MAX_PHOTO_CAPTION} onChange={(e) => setCaption(i, e.target.value)}
+                            {captionMax > MAX_PHOTO_CAPTION ? (
+                              // Hosszú-feliratos sablon: kétsoros mező + karakterszámláló — a
+                              // megengedett hossz pont kitölti a videó feliratdobozát.
+                              <div className="relative">
+                                <textarea value={s.caption} maxLength={captionMax} rows={2}
+                                  onChange={(e) => setCaption(i, e.target.value.replace(/\n/g, " "))}
+                                  placeholder="Felirat ehhez a képhez (nem kötelező)"
+                                  className="w-full resize-none rounded-lg px-3 py-2 pr-14 text-sm font-medium outline-none"
+                                  style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }} />
+                                <span className="pointer-events-none absolute bottom-2 right-2.5 text-[10px] font-semibold"
+                                  style={{ color: s.caption.length >= captionMax ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                                  {s.caption.length}/{captionMax}
+                                </span>
+                              </div>
+                            ) : (
+                            <input type="text" value={s.caption} maxLength={captionMax} onChange={(e) => setCaption(i, e.target.value)}
                               placeholder="Felirat ehhez a képhez (nem kötelező)"
                               className="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none"
                               style={{ border: "1.5px solid var(--twx-line)", background: "var(--twx-cream)", color: "var(--twx-ink)" }} />
+                            )}
                             {/* Felirat helye a képen — kis, elegáns kapcsoló */}
                             <div className="mt-1.5 flex items-center gap-2">
                               <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
@@ -623,7 +674,7 @@ export default function VideoWizard({
                 <div className="mt-2 flex items-center gap-2 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
                   <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{format}</span>
                   <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    A <strong>{design.name}</strong> dizájn <strong>{ASPECT_LABEL[aspect]}</strong> mérete. Módosításhoz válts az első lépésben.
+                    A <strong>{templateLabel}</strong> dizájn <strong>{ASPECT_LABEL[aspect]}</strong> mérete. Módosításhoz válts az első lépésben.
                   </span>
                 </div>
               </div>
@@ -813,5 +864,55 @@ function Combo({ label, value, onChange, options, placeholder }: {
       <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>{label}</label>
       <ComboField className="mt-1 w-full" value={value} onChange={onChange} options={options} placeholder={placeholder} />
     </div>
+  );
+}
+
+/**
+ * Saját-motoros sablon csempéje: a sablon nyitóképének kompozíciója a sablon
+ * VALÓDI palettájával — Aurora-család: sötét ferde panel; Skandi: krém kártya alul.
+ */
+function EngineTile({ item, on, photo, onPick }: { item: EngineGalleryItem; on: boolean; photo?: string; onPick: () => void }) {
+  const p = item.palette;
+  const skandi = item.templateId === "skandi";
+  return (
+    <button type="button" onClick={onPick} aria-pressed={on}
+      className="overflow-hidden rounded-xl text-left transition"
+      style={{
+        border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
+        boxShadow: on ? "0 8px 22px rgba(239,122,90,0.20)" : "0 1px 2px rgba(0,0,0,0.04)",
+        background: "#fff",
+      }}>
+      <div className="relative aspect-[3/4] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.base}, ${p.shadow})` }}>
+        {photo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        )}
+        {skandi ? (
+          <>
+            <span className="absolute inset-x-0 bottom-0" style={{ top: "58%", background: p.base, opacity: 0.96 }} />
+            <span className="absolute inset-x-0" style={{ top: "58%", height: 2, background: p.accent }} />
+            <div className="absolute inset-x-0 bottom-0 flex flex-col justify-center px-2" style={{ top: "58%" }}>
+              <span className="text-[5.5px] font-semibold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
+              <span className="mt-0.5 text-[9px] font-medium leading-tight" style={{ color: p.text }}>Sas utca 22.</span>
+              <span className="text-[6.5px] font-light leading-tight" style={{ color: p.muted }}>Budapest II. kerület</span>
+              <span className="mt-1 text-[10px] font-medium leading-none" style={{ color: p.text }}>60 M Ft</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="absolute" style={{ left: "-26%", top: "-14%", width: "92%", height: "128%", background: p.base, opacity: 0.94, transform: "skewX(-9deg)" }} />
+            <span className="absolute" style={{ left: "64%", top: "-14%", width: 4, height: "128%", background: p.accent, transform: "skewX(-9deg)" }} />
+            <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
+              <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: p.accent }} />
+              <span className="text-[10px] font-bold leading-tight" style={{ color: p.accent }}>Sas utca 22.</span>
+              <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>Budapest II. kerület</span>
+              <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
+              <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: p.accent }}>60 M Ft</span>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="truncate px-2 py-1.5 text-[11px] font-semibold leading-tight" style={{ color: "var(--twx-ink)" }}>{item.name}</div>
+    </button>
   );
 }

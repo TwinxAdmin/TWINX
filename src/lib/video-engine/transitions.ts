@@ -172,3 +172,19 @@ export function panelRevealFrame(
     ),
   );
 }
+
+// =========================================================================
+// LÁGY ÁTÚSZTATÁS (softDip) — a Skandi áttűnése
+//
+// A kép lágyan „kifehéredik" egy világos (krém) tónusba, majd az új kép ugyanígy
+// előtűnik belőle. A vágás a teljes takarás pillanatában (a közepén) történik.
+// =========================================================================
+export const DIP_CUT = 0.5;
+
+export function softDipFrame(progress: number, W: number, H: number, color: Rgb): SatoriNode {
+  const p = Math.min(1, Math.max(0, progress));
+  // Háromszög-görbe lágyítva: 0 → 1 (közép) → 0; a közepén rövid ideig teljes takarás.
+  const tri = 1 - Math.abs(2 * p - 1);
+  const o = Math.min(1, easeInOutCubic(Math.min(1, tri * 1.15)));
+  return h("div", { style: { width: W, height: H, display: "flex", background: color, opacity: Number(o.toFixed(3)) } });
+}

@@ -23,7 +23,7 @@ import {
   ASPECT_SIZES, resolveColor, sceneStarts, totalDuration,
   type Appear, type AspectId, type Layer, type Motion, type TwinxTemplate,
 } from "./template-schema";
-import { chevronCutProgress, chevronWipeFrame, panelRevealFrame, PANEL_CUT, type SatoriNode } from "./transitions";
+import { chevronCutProgress, chevronWipeFrame, panelRevealFrame, softDipFrame, PANEL_CUT, DIP_CUT, type SatoriNode } from "./transitions";
 import { layersFrame, type BindData } from "./layers";
 
 export type EngineFont = { name: string; data: ArrayBuffer; weight: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900; style: "normal" };
@@ -162,7 +162,7 @@ export function classifyPhoto(info: ImageInfo | null, W: number, H: number): Pho
 // ---------------------------------------------------------------------------
 const TRANSITION_VERSION = 2;
 async function transitionFrames(opts: {
-  kind: "chevronWipe" | "panelReveal";
+  kind: "chevronWipe" | "panelReveal" | "softDip";
   direction: "right" | "left" | "up" | "down";
   dir: string; W: number; H: number; fps: number; duration: number; fill: string; glow: string;
 }): Promise<{ pattern: string; frames: number }> {
@@ -179,7 +179,9 @@ async function transitionFrames(opts: {
     const pr = i / (frames - 1);
     const el = opts.kind === "panelReveal"
       ? panelRevealFrame(pr, w, hh, { fill: opts.fill, band: opts.glow })
-      : chevronWipeFrame(pr, w, hh, { fill: opts.fill, glow: opts.glow }, opts.direction);
+      : opts.kind === "softDip"
+        ? softDipFrame(pr, w, hh, opts.fill)
+        : chevronWipeFrame(pr, w, hh, { fill: opts.fill, glow: opts.glow }, opts.direction);
     fs.writeFileSync(path.join(dir, `f${String(i).padStart(4, "0")}.png`), await png(el, w, hh, undefined));
   }
   return { pattern, frames };
@@ -237,12 +239,26 @@ function backgroundChain(
     return `[${input}:v]${rot}scale=${W2}:-2,crop=${W2}:${H2}:x=0:y='${along("(ih-oh)")}',scale=${W}:${H}${tail}`;
   }
   // Egyező arány: lassú be- (páros jelenet) vagy kizoomolás (páratlan), középre.
+  //
+  // REMEGÉSMENTES ZOOM: a zoompan a kivágás helyét és méretét EGÉSZ pixelre
+  // kerekíti — kis felbontáson ez képkockáról képkockára 1 px-es „rángatás".
+  // Ezért a fotót EGYSZER 4× felbontásra nagyítjuk (a bemenet itt NEM ismétlődő
+  // kép, hanem egyetlen képkocka — lásd `photoLoops`), és a zoompan ebből gyárt
+  // `frames` darab kimeneti képkockát (d=frames). Így a kerekítés a kimeneten
+  // ¼ pixel alá esik, a mozgás sima.
+  const W4 = W * 4, H4 = H * 4;
   const p = `(on/${Math.max(1, frames - 1)})`;
   const e = `(${p}*${p}*(3-2*${p}))`;
   const z = reverse ? `${1 + ZOOM_AMOUNT}-${ZOOM_AMOUNT}*${e}` : `1+${ZOOM_AMOUNT}*${e}`;
-  return `[${input}:v]${rot}scale=${W2}:${H2}:force_original_aspect_ratio=increase,crop=${W2}:${H2},setsar=1,` +
-    `zoompan=z='${z}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${W}x${H}:fps=${fps},` +
-    `trim=end_frame=${frames},setpts=PTS-STARTPTS`;
+  return `[${input}:v]${rot}scale=${W4}:${H4}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W4}:${H4},setsar=1,` +
+    `zoompan=z='${z}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:s=${W}x${H}:fps=${fps},` +
+    `setsar=1,trim=end_frame=${frames},setpts=PTS-STARTPTS`;
+}
+
+/** Kell-e a fotót ismétlődő képként (-loop 1) beadni? A zoomos (egyező arányú)
+ *  fotó egyetlen képkocka — abból a zoompan maga gyártja a jelenet összes kockáját. */
+function photoLoops(file: string, W: number, H: number): boolean {
+  return classifyPhoto(imageInfo(file), W, H) !== "matching";
 }
 
 /** Be-/kizoomolás mértéke az egyező arányú fotóknál (0.12 = 12%). */
@@ -292,7 +308,7 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
   const placed: Placed[] = [];
   for (let i = 1; i < tpl.scenes.length; i++) {
     const tr = tpl.scenes[i].transitionIn;
-    if (!tr || (tr.type !== "chevronWipe" && tr.type !== "panelReveal")) continue; // fade/cut: nincs grafika
+    if (!tr || (tr.type !== "chevronWipe" && tr.type !== "panelReveal" && tr.type !== "softDip")) continue; // fade/cut: nincs grafika
     const fill = resolveColor(tr.colors?.fill ?? "@shadow", tpl.palette);
     // Felnyíló paneleknél a második szín a világosabb sáv (shadow-szerep = @base).
     const glow = resolveColor((tr.type === "panelReveal" ? tr.colors?.shadow : tr.colors?.glow) ?? "@glow", tpl.palette);
@@ -300,7 +316,7 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     const seq = await transitionFrames({ kind: tr.type, direction, dir: path.join(input.workDir, "transitions"), W, H, fps, duration: tr.duration, fill, glow });
     // A takarás pillanata a haladási hosszon múlik (függőleges iránynál a magasság).
     const along = direction === "up" || direction === "down" ? H / 2 : W / 2;
-    const cut = tr.type === "panelReveal" ? PANEL_CUT : chevronCutProgress(along);
+    const cut = tr.type === "panelReveal" ? PANEL_CUT : tr.type === "softDip" ? DIP_CUT : chevronCutProgress(along);
     placed.push({ pattern: seq.pattern, start: starts[i] - cut * tr.duration });
   }
   timings.transitions = (Date.now() - t0) / 1000;
@@ -342,7 +358,8 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     if (bg.type === "photo") {
       const n = Number(bg.bind.split(".")[1]);
       const file = input.photos[n - 1] ?? input.photos[0];
-      args.push("-loop", "1", "-framerate", String(fps), "-t", String(sc.length + 1), "-i", file);
+      if (photoLoops(file, W, H)) args.push("-loop", "1", "-framerate", String(fps), "-t", String(sc.length + 1), "-i", file);
+      else args.push("-i", file);
       filters.push(
         backgroundChain(idx, file, bg.motion, frames, W, H, fps, i) + ",format=yuv420p" +
         (i === 0 && sc.transitionIn?.type === "fade" ? `,fade=t=in:st=0:d=${sc.transitionIn.duration}` : "") +

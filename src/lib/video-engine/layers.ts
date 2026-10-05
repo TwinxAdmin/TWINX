@@ -44,12 +44,18 @@ function valueOf(bind: BindKey | undefined, text: string | undefined, data: Bind
  * Betűméret-csökkentés, ha a szöveg nem fér el a megengedett sorszámban
  * (becslés: átlagos betűszélesség ≈ 0,56 em). Nem vágunk le szöveget.
  */
-function fitSize(text: string, px: number, boxW: number, maxLines: number | undefined): number {
+function fitSize(
+  text: string, px: number, boxW: number, maxLines: number | undefined,
+  opts: { uppercase?: boolean; letterSpacingPx?: number } = {},
+): number {
   if (!maxLines) return px;
+  // Nagybetűs szöveg szélesebb (≈0,68 em), a betűköz karakterenként hozzáadódik.
+  const em = opts.uppercase ? 0.68 : 0.54;
+  const ls = opts.letterSpacingPx ?? 0;
   let size = px;
-  const longest = (s: number) =>
-    text.split("\n").reduce((acc, line) => acc + Math.max(1, Math.ceil((line.length * s * 0.5) / boxW)), 0);
-  while (size > px * 0.55 && longest(size) > maxLines) size *= 0.93;
+  const lines = (s: number) =>
+    text.split("\n").reduce((acc, line) => acc + Math.max(1, Math.ceil((line.length * (s * em + ls)) / boxW)), 0);
+  while (size > px * 0.5 && lines(size) > maxLines) size *= 0.93;
   return Math.round(size);
 }
 
@@ -62,7 +68,7 @@ function textBlock(
   // Egysoros helyen a többsoros adat (pl. „1 szoba / 40 m²") egy sorba fűződik.
   const joined = o.maxLines === 1 ? value.split("\n").map((x) => x.trim()).filter(Boolean).join("  ·  ") : value;
   const shown = o.uppercase ? joined.toUpperCase() : joined;
-  const px = fitSize(shown, o.font.size * S, boxW, o.maxLines);
+  const px = fitSize(shown, o.font.size * S, boxW, o.maxLines, { uppercase: o.uppercase, letterSpacingPx: (o.letterSpacing ?? 0) * S });
   const lines = shown.split("\n").filter((x) => x.trim());
   return h("div", {
     display: "flex", flexDirection: "column",
@@ -185,6 +191,7 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
     }
     case "component":
       if (l.component === "captionBar") return captionBar(l, ctx, family);
+      if (l.component === "captionCard") return captionCard(l, ctx, family);
       return null; // ár-pecsét — később
 
     default:
@@ -258,6 +265,88 @@ function captionBar(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fam
       marginBottom: Math.round(22 * u),
     }), ...texts]),
   ]);
+}
+
+/**
+ * KÁRTYÁS FOTÓFELIRAT (Skandi): világos, enyhén áttetsző kártya sötét betűkkel —
+ * bármilyen fotón olvasható, mert a szöveg nem a képen, hanem a kártyán ül.
+ *  • fent apró sorszám („02") és vékony kiemelő vonal;
+ *  • 1. sor: a fő felirat (közepesen vastag), 2. sor: kiegészítés (vékony, halványabb);
+ *  • a kártya legfeljebb a vászon 84%-áig szélesedik; a hosszú szöveg TÖRDEL, és ha
+ *    soronként kettőnél több kellene, a betű kisebb lesz — így SOHA nem lóg ki.
+ * Hely: `captionpos.N` adat vagy `props.position` — "bottom" (bal alsó) / "center".
+ * Betűsúlyok: props.weightMain (alap 500), props.weightSub (alap 300).
+ */
+function captionCard(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, family: string): SatoriNode | null {
+  const raw = valueOf(l.bind, undefined, ctx.data);
+  if (!raw) return null;
+  const [line1 = "", line2 = ""] = raw.split("\n").map((x) => x.trim());
+  if (!line1 && !line2) return null;
+  const W = ctx.W, H = ctx.H, S = Math.min(W, H);
+  const square = ctx.aspect === "1:1";
+  const n = Number(String(l.bind ?? "").split(".")[1]) || 0;
+  const position = (n && ctx.data[`captionpos.${n}`]) || String(l.props?.position ?? "bottom");
+  const pal = ctx.palette;
+  const maxW = Math.round(W * 0.84);
+  const padX = Math.round(S * (square ? 0.032 : 0.036));
+  const padY = Math.round(S * (square ? 0.026 : 0.03));
+  const innerW = maxW - padX * 2;
+  const wMain = Number(l.props?.weightMain ?? 500);
+  const wSub = Number(l.props?.weightSub ?? 300);
+  const sizeMain = square ? 0.04 : 0.046;
+  const sizeSub = square ? 0.028 : 0.032;
+
+  const label = h("div", { display: "flex", alignItems: "center", marginBottom: Math.round(S * 0.014) }, [
+    h("div", {
+      display: "flex", fontFamily: family, fontWeight: wMain, fontSize: Math.round(S * 0.02),
+      letterSpacing: Math.round(S * 0.004), color: resolveColor("@accent", pal),
+    }, String(n).padStart(2, "0")),
+    h("div", { display: "flex", width: Math.round(S * 0.05), height: Math.max(2, Math.round(S * 0.0025)), background: resolveColor("@accent", pal), marginLeft: Math.round(S * 0.014) }),
+  ]);
+  // Egységes mód (props.uniform): a teljes felirat EGY szövegtömb, EGY betűmérettel
+  // és vastagsággal — nincs külön „fő" és „al" sor. Legfeljebb 3 sor; ha a
+  // szöveg ennél többet kívánna, a betű arányosan kisebb lesz (nem lóg ki).
+  if (l.props?.uniform) {
+    const all = [line1, line2].filter(Boolean).join(" ");
+    const block = textBlock(all, { font: { weight: wMain, size: sizeMain }, color: "@text", lineHeight: 1.2, maxLines: 3 }, ctx, family, innerW);
+    const ucard = h("div", {
+      display: "flex", flexDirection: "column", maxWidth: maxW,
+      paddingLeft: padX, paddingRight: padX, paddingTop: padY, paddingBottom: padY,
+      background: rgba(resolveColor("@base", pal), 0.94),
+      borderRadius: Math.round(S * 0.02),
+      boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+    }, [label, block].filter(Boolean));
+    const ufull = { position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex" };
+    if (position === "center") return h("div", { ...ufull, alignItems: "center", justifyContent: "center" }, ucard);
+    return h("div", {
+      ...ufull, alignItems: "flex-end", justifyContent: "flex-start",
+      paddingLeft: Math.round(W * 0.06), paddingBottom: Math.round(H * (square ? 0.06 : 0.075)),
+    }, ucard);
+  }
+  const main = line1
+    ? textBlock(line1, { font: { weight: wMain, size: sizeMain }, color: "@text", lineHeight: 1.18, maxLines: 2 }, ctx, family, innerW)
+    : null;
+  const sub = line2
+    ? textBlock(line2, { font: { weight: wSub, size: sizeSub }, color: (l.props?.colorSub as ColorRef | undefined) ?? "@muted", lineHeight: 1.25, maxLines: 2 }, ctx, family, innerW,
+        { marginTop: Math.round(S * 0.008) })
+    : null;
+
+  const card = h("div", {
+    display: "flex", flexDirection: "column", maxWidth: maxW,
+    paddingLeft: padX, paddingRight: padX, paddingTop: padY, paddingBottom: padY,
+    background: rgba(resolveColor("@base", pal), 0.94),
+    borderRadius: Math.round(S * 0.02),
+    boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+  }, [label, main, sub].filter(Boolean));
+
+  const full = { position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex" };
+  if (position === "center") {
+    return h("div", { ...full, alignItems: "center", justifyContent: "center" }, card);
+  }
+  return h("div", {
+    ...full, alignItems: "flex-end", justifyContent: "flex-start",
+    paddingLeft: Math.round(W * 0.06), paddingBottom: Math.round(H * (square ? 0.06 : 0.075)),
+  }, card);
 }
 
 /** Több réteg egy teljes vászonméretű, átlátszó képre. */
