@@ -47,7 +47,7 @@ export const AURORA: TwinxTemplate = {
       id: "nyito",
       role: "intro",
       length: 6,
-      background: { type: "photo", bind: "photo.1", motion: { type: "zoomIn", amount: 0.1, easing: "linear" } },
+      background: { type: "photo", bind: "photo.1", motion: { type: "slideLeft" } }, // pásztázás, nagyítás nélkül
       transitionIn: { type: "fade", duration: 1 },
       layers: [
         // Túlméretezett, ferde (−9°) panel a bal oldalon — a szöveg mögött.
@@ -78,7 +78,7 @@ export const AURORA: TwinxTemplate = {
             { type: "text", bind: "property.title", font: { family: MANROPE, weight: 800, size: 0.085 }, color: "@accent", lineHeight: 1.03, maxLines: 3, gapBefore: 0.022 },
             { type: "text", bind: "property.city", font: { family: MANROPE, weight: 400, size: 0.034 }, color: "@text", gapBefore: 0.014 },
             { type: "text", bind: "property.type", font: { family: MANROPE, weight: 800, size: 0.031 }, color: "@accent", uppercase: true, letterSpacing: 0.002, gapBefore: 0.022 },
-            { type: "text", bind: "property.specs", font: { family: MANROPE, weight: 700, size: 0.043 }, color: "@text", lineHeight: 1.15, maxLines: 3, gapBefore: 0.155 },
+            { type: "text", bind: "property.specs", font: { family: MANROPE, weight: 700, size: 0.043 }, color: "@text", lineHeight: 1.55, maxLines: 5, gapBefore: 0.14 },
             { type: "text", bind: "property.price", font: { family: MANROPE, weight: 800, size: 0.081 }, color: "@accent", lineHeight: 1, gapBefore: 0.155 },
           ],
         },
@@ -86,18 +86,21 @@ export const AURORA: TwinxTemplate = {
     },
 
     // ------------------------------------------------------------------ 6–30 mp
+    // VÁLTOZATOSSÁG: a nyíl-áttűnés minden váltásnál más irányból jön (jobbra,
+    // fel, balra, le), és a fotó a nyíl haladásával egy irányba úszik tovább — így
+    // a mozgás folyamatos, de két egymás utáni váltás sosem egyforma.
     ...([
-      ["foto-2", 2, "slideLeft"],
-      ["foto-3", 3, "slideRight"],
-      ["foto-4", 4, "slideUp"],
-      ["foto-5", 5, "slideLeft"],
-    ] as const).map(([id, n, motion]) => ({
+      ["foto-2", 2, "slideRight", "right"],
+      ["foto-3", 3, "slideUp", "up"],
+      ["foto-4", 4, "slideLeft", "left"],
+      ["foto-5", 5, "slideDown", "down"],
+    ] as const).map(([id, n, motion, wipe]) => ({
       id,
       role: "photo" as const,
       length: 6,
       background: { type: "photo" as const, bind: `photo.${n}` as const, motion: { type: motion, amount: 0.08, easing: "linear" as const } },
       // Nyíl alakú törlő a váltásnál — 3 mp, a határ közepén (ahogy a Shotstack-sablonban).
-      transitionIn: { type: "chevronWipe" as const, duration: 3, direction: "right" as const, colors: { fill: "@shadow" as const, glow: "@glow" as const } },
+      transitionIn: { type: "chevronWipe" as const, duration: 3, direction: wipe, colors: { fill: "@shadow" as const, glow: "@glow" as const } },
       layers: [
         {
           id: "felirat", kind: "component" as const, component: "captionBar" as const,
@@ -114,44 +117,66 @@ export const AURORA: TwinxTemplate = {
       id: "zaro",
       role: "closing",
       length: 6,
-      // A zárókártya alatt halványan az 1. fotó látszik (mint a Shotstack-változatban).
-      background: { type: "photo", bind: "photo.1", motion: { type: "zoomIn", amount: 0.06 } },
+      // ZÁRÓKÁRTYA (az élő Shotstack-videó alapján elemezve):
+      //  • háttér: az 1. fotó, ÁLLÓ képként (nagyítás nélkül) — halványan átdereng;
+      //  • felső rész: áttetsző, mély tónusú fátyol a fotón (a szöveg ezen ül);
+      //  • alsó panel: tömör, mély alapszín enyhén csúcsos (tető alakú) felső éllel,
+      //    a bal alsó sarokból meleg izzással; az ügynök fotója a két rész határán ül;
+      //  • rajta: cím, település, TÍPUS, ár, adatok · ügynök fotója · NÉV, telefon,
+      //    e-mail · az iroda logója körben (ha az arculatban fel van töltve).
+      background: { type: "photo", bind: "photo.1", motion: { type: "none" } },
       // Felnyíló átlós panelek: 1 mp-cel a határ előtt indul (29 mp), 2 mp hosszú.
       transitionIn: { type: "panelReveal", duration: 2, colors: { fill: "@shadow", glow: "@glow", shadow: "@base" } },
       layers: [
-        // A panelek végállapota: felül sötét felület halvány szürke fénnyel…
+        // Áttetsző fátyol a teljes képen — a fotó halványan átlátszik.
         {
-          id: "panel-felso", kind: "shape", shape: "rect",
+          id: "fatyol", kind: "shape", shape: "rect",
           box: { x: 0, y: 0, w: 1, h: 1 },
-          fill: { gradient: "radial", stops: [[0, "#ffffff", 0.22], [0.55, "@shadow", 0.92], [1, "@shadow", 0.96]] },
+          fill: "@shadow", opacity: 0.62,
         },
-        // …alul csúcsos tetejű panel, borostyánból mély alapszínbe.
+        // Világosabb, keskeny „perem" az alsó panel fölött (mélységérzet).
+        {
+          id: "panel-perem", kind: "shape", shape: "polygon",
+          box: { x: 0, y: 0.5, w: 1, h: 0.5 },
+          points: [[0, 0.06], [0.55, 0], [1, 0.024], [1, 1], [0, 1]],
+          fill: "@base", opacity: 0.55,
+        },
+        // Az alsó, tömör panel enyhén csúcsos tetővel.
         {
           id: "panel-also", kind: "shape", shape: "polygon",
-          box: { x: 0, y: 0.6, w: 1, h: 0.4 },
-          points: [[0, 0.12], [0.55, 0], [1, 0.1], [1, 1], [0, 1]],
-          fill: { gradient: "linear", angle: 60, stops: [[0, "@glow", 0.95], [0.55, "@shadow", 0.95], [1, "@shadow", 0.95]] },
+          box: { x: 0, y: 0.5, w: 1, h: 0.5 },
+          points: [[0, 0.094], [0.55, 0.022], [1, 0.04], [1, 1], [0, 1]],
+          fill: "@shadow", opacity: 0.94,
+        },
+        // Meleg izzás a bal alsó sarokból, ugyanazon a formán.
+        {
+          id: "panel-izzas", kind: "shape", shape: "polygon",
+          box: { x: 0, y: 0.5, w: 1, h: 0.5 },
+          points: [[0, 0.094], [0.55, 0.022], [1, 0.04], [1, 1], [0, 1]],
+          fill: { gradient: "radial", stops: [[0, "@glow", 0.6], [0.75, "@glow", 0]] },
         },
         // Szövegek — a Shotstack-sablon pontos helyein (függőleges közép, magasság).
         text("cim", "property.title", 0.080, 0.1016, 800, 0.0676, "@accent", { cy: 0.060, h: 0.1444, size: 0.0509 }, 2),
         text("hely", "property.city", 0.150, 0.0406, 300, 0.0407, "@text", { cy: 0.145, h: 0.0602, size: 0.0315 }),
-        text("tipus", "property.type", 0.210, 0.0339, 800, 0.0389, "@accent", { cy: 0.210, h: 0.0537, size: 0.0287 }),
+        text("tipus", "property.type", 0.210, 0.0339, 800, 0.0389, "@accent", { cy: 0.210, h: 0.0537, size: 0.0287 }, 1, true),
         text("ar", "property.price", 0.285, 0.0406, 800, 0.0528, "@accent", { cy: 0.295, h: 0.0667, size: 0.0407 }),
         text("adatok", "property.specs", 0.365, 0.0339, 300, 0.0361, "@text", { cy: 0.370, h: 0.0537, size: 0.0269 }),
         {
           id: "ugynok-foto", kind: "image", bind: "agent.photo", mask: "circle", fit: "cover",
+          border: { width: 0.006, color: "#ffffff" },
           box: { x: 0.398, y: 0.463, w: 0.204, h: 0.1146 },
           byAspect: { "1:1": { box: { x: 0.4305, y: 0.4806, w: 0.139, h: 0.1389 } } },
-          appear: { type: "fade", delay: 0.2, duration: 0.6 },
+          appear: { type: "fade", delay: 0.25, duration: 0.8 },
         },
-        text("nev", "agent.name", 0.685, 0.0406, 800, 0.0528, "@accent", { cy: 0.675, h: 0.0574, size: 0.0389 }),
+        text("nev", "agent.name", 0.685, 0.0406, 800, 0.0528, "@accent", { cy: 0.675, h: 0.0574, size: 0.0389 }, 1, true),
         text("telefon", "agent.phone", 0.765, 0.0375, 800, 0.0435, "@text", { cy: 0.750, h: 0.0509, size: 0.0287 }),
         text("email", "agent.email", 0.835, 0.0375, 300, 0.0361, "@text", { cy: 0.810, h: 0.0481, size: 0.0241 }),
         {
-          id: "logo", kind: "image", bind: "agent.logo", fit: "contain",
+          id: "logo", kind: "image", bind: "agent.logo", fit: "contain", mask: "circle",
+          border: { width: 0.004, color: "@accent" },
           box: { x: 0.4445, y: 0.8888, w: 0.111, h: 0.0625 },
           byAspect: { "1:1": { box: { x: 0.4605, y: 0.8557, w: 0.079, h: 0.0787 } } },
-          appear: { type: "fade", delay: 0.2, duration: 0.6 },
+          appear: { type: "fade", delay: 0.25, duration: 0.8 },
         },
       ],
     },
@@ -169,14 +194,15 @@ function text(
   color: "@accent" | "@text",
   square: { cy: number; h: number; size: number },
   maxLines = 1,
+  uppercase = false,
 ) {
   return {
     id, kind: "text" as const, bind,
     box: { x: 0.04, y: cy - h / 2, w: 0.92, h },
     font: { family: MANROPE, weight, size },
     color, align: "center" as const, valign: "middle" as const,
-    lineHeight: weight === 800 ? 1.1 : 1.2, maxLines,
-    appear: { type: "fade" as const, delay: 0.2, duration: 0.6 },
+    lineHeight: weight === 800 ? 1.1 : 1.2, maxLines, uppercase,
+    appear: { type: "fade" as const, delay: 0.25, duration: 0.8 },
     byAspect: {
       "1:1": {
         box: { x: 0.04, y: square.cy - square.h / 2, w: 0.92, h: square.h },
