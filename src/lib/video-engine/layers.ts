@@ -182,9 +182,78 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
         // Portrénál az arc a kép felső részén van → a kivágás felülre igazodik.
         { type: "img", props: { src, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" ? "center" : "center top" } } });
     }
+    case "component":
+      if (l.component === "captionBar") return captionBar(l, ctx, family);
+      return null; // ár-pecsét — később
+
     default:
-      return null; // kész elemek (feliratsáv, ár-pecsét) — következő lépés
+      return null;
   }
+}
+
+/**
+ * FOTÓNKÉNTI FELIRATSÁV (a mostani Aurora-feliratsáv pontos mása):
+ *  • alul: lágy, alulról sötétedő sáv a fotón (a felirat mindig olvasható);
+ *  • két sor, középre igazítva, félkövér fehér betű árnyékkal — a betűméret a
+ *    szöveg hosszához igazodik, így nem lóg ki;
+ *  • a szöveg fölött rövid kiemelő csík a paletta színével.
+ * Adat: `caption.N` = "1. sor\n2. sor" (a 2. sor elhagyható). Üres adat → nincs sáv.
+ * `props.position = "center"`: középre igazított változat (fent-lent áttűnő sávval).
+ */
+function captionBar(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, family: string): SatoriNode | null {
+  const raw = valueOf(l.bind, undefined, ctx.data);
+  if (!raw) return null;
+  const [line1 = "", line2 = ""] = raw.split("\n").map((x) => x.trim());
+  if (!line1 && !line2) return null;
+  const W = ctx.W, H = ctx.H, u = W / 1080;
+  const accent = resolveColor("@accent", ctx.palette);
+  const has2 = Boolean(line2);
+  const fs1 = Math.round((line1.length > 30 ? 54 : line1.length > 22 ? 66 : 80) * u);
+  const fs2 = Math.round((line2.length > 30 ? 50 : line2.length > 22 ? 58 : 68) * u);
+  const shadow = "0 3px 18px rgba(0,0,0,0.9)";
+  const lineStyle = (size: number, mt = 0) => ({
+    display: "flex", fontFamily: family, fontSize: size, fontWeight: 700, color: "#ffffff",
+    lineHeight: 1.12, letterSpacing: Math.round(1 * u), textShadow: shadow, textAlign: "center", marginTop: mt,
+  });
+  const rule = (mt = 0) => h("div", {
+    display: "flex", width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)), background: accent, opacity: 0.95, marginTop: mt,
+  });
+  const texts = [
+    line1 ? h("div", lineStyle(fs1), line1) : null,
+    has2 ? h("div", lineStyle(fs2, Math.round(10 * u)), line2) : null,
+  ].filter(Boolean);
+  const full = { position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex" };
+
+  if (l.props?.position === "center") {
+    const bandH = Math.round((has2 ? 500 : 430) * u);
+    return h("div", full, [
+      h("div", {
+        position: "absolute", left: 0, top: Math.round((H - bandH) / 2), width: W, height: bandH, display: "flex",
+        backgroundImage: "linear-gradient(180deg, rgba(12,14,16,0) 0%, rgba(12,14,16,0.58) 26%, rgba(12,14,16,0.64) 74%, rgba(12,14,16,0) 100%)",
+      }),
+      h("div", {
+        position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u),
+      }, [rule(), ...texts.map((t, i) => (i === 0 ? { ...t, props: { ...t!.props, style: { ...(t!.props.style as object), marginTop: Math.round(26 * u) } } } : t)), rule(Math.round(26 * u))]),
+    ]);
+  }
+
+  const zoneH = Math.round((has2 ? 430 : 360) * u);
+  return h("div", full, [
+    h("div", {
+      position: "absolute", left: 0, bottom: 0, width: W, height: zoneH, display: "flex",
+      backgroundImage: "linear-gradient(0deg, rgba(12,14,16,0.74) 0%, rgba(12,14,16,0.36) 55%, rgba(12,14,16,0) 100%)",
+    }),
+    // A kiemelő csík a szövegblokk része (fölötte, fix réssel) — így hosszú vagy
+    // nagy betűs első sornál sem csúszhat bele a szövegbe.
+    h("div", {
+      position: "absolute", left: 0, bottom: Math.round(66 * u), width: W, display: "flex", flexDirection: "column",
+      alignItems: "center", paddingLeft: Math.round(48 * u), paddingRight: Math.round(48 * u),
+    }, [h("div", {
+      display: "flex", width: Math.round(100 * u), height: Math.max(3, Math.round(4 * u)), background: accent, opacity: 0.95,
+      marginBottom: Math.round(22 * u),
+    }), ...texts]),
+  ]);
 }
 
 /** Több réteg egy teljes vászonméretű, átlátszó képre. */

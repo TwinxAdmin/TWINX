@@ -42,6 +42,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/prompts", label: "AI promptok" },
       { href: "/admin/valuation-engine", label: "Értékbecslő motor" },
       { href: "/admin/rejections", label: "Nem elfogadott képek" },
+      { href: "/admin/video-lab", label: "Videólabor", hint: "saját TWINX videómotor próbapadja (localhost)" },
     ],
   },
 ];

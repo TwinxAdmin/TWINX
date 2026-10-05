@@ -37,6 +37,8 @@ export type RenderInput = {
   data?: BindData;
   /** A sablon betűi (a hívó tölti be: helyi fájl vagy Google Fonts). */
   fonts?: EngineFont[];
+  /** Zene (helyi fájl). Hiányában néma videó készül. */
+  music?: string | null;
   workDir: string;
   ffmpegPath: string;
   outName?: string;
@@ -379,9 +381,24 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     last = `v${k}`;
   });
 
+  // --- Zene: a videó hosszára vágva, a sablon szerinti hangerővel és úsztatással ---
+  const audioMap: string[] = [];
+  if (input.music && fs.existsSync(input.music)) {
+    const idx = inputIdx++;
+    args.push("-stream_loop", "-1", "-i", input.music); // rövid zene esetén ismétlődik
+    const a = tpl.audio;
+    const fades = [
+      a.fadeIn > 0 ? `afade=t=in:st=0:d=${a.fadeIn}` : "",
+      a.fadeOut > 0 ? `afade=t=out:st=${Math.max(0, total - a.fadeOut).toFixed(2)}:d=${a.fadeOut}` : "",
+    ].filter(Boolean).join(",");
+    filters.push(`[${idx}:a]atrim=0:${total},asetpts=PTS-STARTPTS,volume=${a.volume}${fades ? "," + fades : ""}[aout]`);
+    audioMap.push("-map", "[aout]", "-c:a", "aac", "-b:a", "192k");
+  }
+
   args.push(
     "-filter_complex", filters.join(";"),
     "-map", `[${last}]`,
+    ...audioMap,
     "-t", String(total), "-r", String(fps),
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
     "-movflags", "+faststart", out,
