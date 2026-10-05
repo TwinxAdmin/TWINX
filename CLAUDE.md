@@ -2,6 +2,7 @@
 
 Ez a fájl irányítja az AI-asszisztált fejlesztést ebben a repóban. Minden változtatás
 az itt rögzített szabályok szerint készül. A részletes feladatlistát lásd: [TODO.md](./TODO.md).
+A saját videómotor aktuális állapota és a folytatás: [docs/video-motor-allapot.md](./docs/video-motor-allapot.md).
 
 ## Technológiai stack
 
