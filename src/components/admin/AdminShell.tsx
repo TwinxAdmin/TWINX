@@ -46,6 +46,41 @@ const SECTIONS: Section[] = [
   },
 ];
 
+type EngineInfo = {
+  configured: "shotstack" | "twinx";
+  effective: "shotstack" | "twinx";
+  engineReady: boolean;
+  shotstackEnv: string;
+  local: boolean;
+};
+
+/**
+ * Videómotor-jelzés: melyik rendszer készíti MOST a partnerek videóit.
+ * Zöld = saját TWINX motor; szürke = Shotstack. Ha a beállítás már a saját
+ * motort kéri, de az még nincs kész, sárga figyelmeztetés jelzi a zárat.
+ */
+function EngineBadge({ info }: { info: EngineInfo }) {
+  const own = info.effective === "twinx";
+  const blocked = info.configured === "twinx" && !own;
+  const color = own ? "#2e7d52" : blocked ? "#b7791f" : "#6f675f";
+  const label = own ? "Saját TWINX motor" : "Shotstack";
+  const detail = own
+    ? "a partnerek videói a saját motorral készülnek"
+    : blocked
+      ? "a saját motor még nincs élesítve — a Shotstack fut"
+      : `külső szolgáltatás · ${info.shotstackEnv === "v1" ? "éles" : "teszt (vízjeles)"} környezet`;
+  return (
+    <div className="flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
+      title={detail}
+      style={{ background: "#fff", border: `1px solid ${color}55` }}>
+      <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: color }} />
+      <span style={{ color: "var(--twx-ink-muted)" }}>Videómotor{info.local ? " (localhost)" : ""}:</span>
+      <strong style={{ color }}>{label}</strong>
+      <span className="hidden sm:inline" style={{ color: "var(--twx-ink-muted)" }}>· {detail}</span>
+    </div>
+  );
+}
+
 /** Egy szekció akkor aktív, ha a saját vagy valamelyik aloldala van megnyitva. */
 function isActive(s: Section, pathname: string): boolean {
   if (s.href) return pathname === s.href;
@@ -90,6 +125,18 @@ export default function AdminShell({
   // Oldalváltáskor csukódjon be.
   useEffect(() => { setOpen(null); }, [pathname]);
 
+  // Melyik videómotor fut (Shotstack / saját TWINX) — jelzés a fejlécben, csak adminnak.
+  const [engine, setEngine] = useState<EngineInfo | null>(null);
+  useEffect(() => {
+    if (variant !== "admin") return;
+    let alive = true;
+    fetch("/api/admin/video-engine")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.effective) setEngine(d as EngineInfo); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [variant]);
+
   // Elintézetlen megkeresések száma a Megkeresések menü mellé.
   useEffect(() => {
     let alive = true;
@@ -114,9 +161,12 @@ export default function AdminShell({
               <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{subtitle}</p>
             )}
           </div>
-          <Link href="/dashboard" className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-            ← Vissza a Dashboardra
-          </Link>
+          <div className="flex flex-col items-end gap-2">
+            {engine && <EngineBadge info={engine} />}
+            <Link href="/dashboard" className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              ← Vissza a Dashboardra
+            </Link>
+          </div>
         </header>
 
         {/* Főmenü — 5 elem, a többszintűek kattintásra nyílnak */}

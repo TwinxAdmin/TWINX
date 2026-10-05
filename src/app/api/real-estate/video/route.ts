@@ -17,6 +17,7 @@ import {
   VIDEO_DESIGNS, type VideoAspect,
 } from "@/lib/video-templates";
 import { applyColorVariant, getColorVariant, colorVariantReady } from "@/lib/video-color";
+import { activeRenderer } from "@/lib/video-renderer";
 import { pickMusic } from "@/lib/music";
 import { submitVideoRender, submitTemplateRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
 import { buildMergeRenderBody, contentImageWindows } from "@/lib/video-merge";
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
         credits_charged: charge && !charge.bypassed ? credits : 0,
         package: pkg,
         title: propertyAddress, // a könyvtárban ez a videó neve
-        meta: { title },
+        meta: { title, renderer: activeRenderer() }, // melyik motor készítette
       })
       .select("id")
       .single();
@@ -283,7 +284,7 @@ export async function POST(request: Request) {
         music_url: musicUrl,
         poster_url: photoUrls[0], // előkép: az első fotó
         meta: {
-          title, template: design.id, aspect, render_id: renderId, color: colorVariant.id,
+          title, template: design.id, aspect, render_id: renderId, color: colorVariant.id, renderer: activeRenderer(),
           captions: freeCaptions, captionPositions, closing: closingBgUrl ? { caption: closingCaption } : null,
         },
       }).eq("id", jobId);
@@ -358,7 +359,7 @@ export async function POST(request: Request) {
         music_url: musicUrl,
         poster_url: frameUrls["open.png"], // előkép: a nyitókártya
         meta: {
-          title, frames: frameUrls, captions,
+          title, frames: frameUrls, captions, renderer: activeRenderer(),
           ai_clips: photoUrls.map(() => ({ requestId: "", statusUrl: null, responseUrl: null })),
         },
       }).eq("id", jobId);
@@ -427,7 +428,7 @@ export async function POST(request: Request) {
       source_images: photoUrls,
       music_url: musicUrl,
       poster_url: frameUrls["open.png"], // előkép: a nyitókártya
-      meta: { title, frames: frameUrls, captions, render_id: renderId },
+      meta: { title, frames: frameUrls, captions, render_id: renderId, renderer: activeRenderer() },
     }).eq("id", jobId);
 
     if (service) {
