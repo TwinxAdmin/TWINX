@@ -50,7 +50,10 @@ export async function GET(
 
   // BIZTONSÁGI IDŐKORLÁT: ha ennyi perc után sincs kész, felszabadítjuk a kreditet,
   // hogy a partner ne maradjon se videó, se egyenleg nélkül.
-  const TIMEOUT_MIN = Number(process.env.VIDEO_TIMEOUT_MINUTES || 25);
+  // A saját motor a szerveren, néhány perc alatt végez — ha 12 perc után sincs kész,
+  // a háttérmunka megszakadt (nem fog már elkészülni), ezért hamarabb zárunk.
+  const ownEngine = (meta as { renderer?: string }).renderer === "twinx";
+  const TIMEOUT_MIN = ownEngine ? Number(process.env.VIDEO_ENGINE_TIMEOUT_MINUTES || 12) : Number(process.env.VIDEO_TIMEOUT_MINUTES || 25);
   if (status !== "done" && status !== "failed" && ageMinutes > TIMEOUT_MIN) {
     jobError = `A videó ${Math.round(ageMinutes)} perc alatt sem készült el (időtúllépés).`;
     status = "failed";
@@ -114,7 +117,9 @@ export async function GET(
 
   // 2) Tartalék lekérdezés a renderre, ha a Shotstack-webhook nem futott le.
   // A render_id-t frissen olvassuk, mert az 1) lépés épp most írhatta be.
-  if (status === "rendering") {
+  // (A saját motor jobjainál nincs külső szolgáltatás — a háttérmunka maga zárja le a jobot.)
+  if (status === "rendering" && ownEngine) debug.engine = "Saját TWINX motor — a videó készül.";
+  if (status === "rendering" && !ownEngine) {
     try {
       const admin0 = createAdminClient();
       const { data: fresh } = await admin0.from("video_jobs").select("meta").eq("id", job.id).single();

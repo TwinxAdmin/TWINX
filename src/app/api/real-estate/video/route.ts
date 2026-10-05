@@ -1,9 +1,20 @@
-// POST /api/real-estate/video — Videó 2.0 indítása (hibrid pipeline).
+// POST /api/real-estate/video — videó indítása.
+//
+// KÉT MOTOR (a Videólaborban kapcsolható, lásd lib/video-renderer.ts):
+//  • "twinx" (alap): a SAJÁT TWINX motor — kredit → job → a válasz után, a háttérben
+//    (after) elkészül a videó, és a Storage-ba kerül. A kliens a státusz-végpontot kérdezi.
+//  • "shotstack" (tartalék, vészhelyzetre): az alábbi, változatlan Shotstack-lánc.
+//
+// SHOTSTACK-LÁNC (tartalék):
 // 1) kredit levonás (admin/sales bypass) → 2) Satori képkockák (nyitó/záró kártya +
 // fotó-keretek felirat-sávval) a Storage-ba → 3) Alap: Shotstack render (Ken Burns +
 // zene + webhook); PRO: előbb fal.ai AI-klip az 1. fotóból (webhook), majd a
 // fal-webhook indítja a Shotstack rendert. Hibánál automatikus kredit-visszatérítés.
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { runEngineJob } from "@/lib/video-engine/job-node";
+import type { AspectId } from "@/lib/video-engine/template-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit } from "@/lib/credits";
@@ -29,7 +40,8 @@ import type { FlyerProfileData } from "@/lib/flyer-template";
 import { formatPrice, formatSize } from "@/lib/flyer-poster";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// A saját motor a válasz UTÁN renderel (after) — ez az idő a háttérmunkára is vonatkozik.
+export const maxDuration = 300;
 
 const SERVICE_SLUG = "real-estate";
 const BUCKET = "reports";
@@ -49,6 +61,10 @@ export async function POST(request: Request) {
 
   let form: FormData;
   try { form = await request.formData(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
+
+  // A Videólabor kapcsolója dönt: saját motor (alap) vagy a Shotstack-tartalék.
+  const renderer = await activeRenderer();
+  if (renderer === "twinx") return postWithEngine(form, user.id);
 
   // A dizájn + méret köti a formátumot és a képszámot. Visszafelé kompatibilis.
   const design = getDesign(String(form.get("designId") ?? "")) ?? VIDEO_DESIGNS[0];
@@ -160,7 +176,7 @@ export async function POST(request: Request) {
         credits_charged: charge && !charge.bypassed ? credits : 0,
         package: pkg,
         title: propertyAddress, // a könyvtárban ez a videó neve
-        meta: { title, renderer: activeRenderer() }, // melyik motor készítette
+        meta: { title, renderer: "shotstack" }, // melyik motor készítette
       })
       .select("id")
       .single();
@@ -284,7 +300,7 @@ export async function POST(request: Request) {
         music_url: musicUrl,
         poster_url: photoUrls[0], // előkép: az első fotó
         meta: {
-          title, template: design.id, aspect, render_id: renderId, color: colorVariant.id, renderer: activeRenderer(),
+          title, template: design.id, aspect, render_id: renderId, color: colorVariant.id, renderer: "shotstack",
           captions: freeCaptions, captionPositions, closing: closingBgUrl ? { caption: closingCaption } : null,
         },
       }).eq("id", jobId);
@@ -359,7 +375,7 @@ export async function POST(request: Request) {
         music_url: musicUrl,
         poster_url: frameUrls["open.png"], // előkép: a nyitókártya
         meta: {
-          title, frames: frameUrls, captions, renderer: activeRenderer(),
+          title, frames: frameUrls, captions, renderer: "shotstack",
           ai_clips: photoUrls.map(() => ({ requestId: "", statusUrl: null, responseUrl: null })),
         },
       }).eq("id", jobId);
@@ -428,7 +444,7 @@ export async function POST(request: Request) {
       source_images: photoUrls,
       music_url: musicUrl,
       poster_url: frameUrls["open.png"], // előkép: a nyitókártya
-      meta: { title, frames: frameUrls, captions, render_id: renderId, renderer: activeRenderer() },
+      meta: { title, frames: frameUrls, captions, render_id: renderId, renderer: "shotstack" },
     }).eq("id", jobId);
 
     if (service) {
@@ -443,4 +459,130 @@ export async function POST(request: Request) {
     await refund((err as Error).message);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
+}
+
+// =============================================================================
+// SAJÁT TWINX MOTOR
+// =============================================================================
+const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
+
+async function postWithEngine(form: FormData, userId: string) {
+  // 1) Validáció (kredit előtt) — ugyanazok a mezők, mint a Videólaborban.
+  const aspect: AspectId = String(form.get("aspect") ?? "") === "1:1" ? "1:1" : "9:16";
+  const format = getFormat(aspect);
+  if (!format) return NextResponse.json({ error: "Érvénytelen méret." }, { status: 422 });
+  const musicStyle = String(form.get("musicStyle") ?? "");
+  if (musicStyle && musicStyle !== "none" && !isValidMusicStyle(musicStyle)) {
+    return NextResponse.json({ error: "Érvénytelen zenei stílus." }, { status: 422 });
+  }
+  const files = form.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
+  if (files.length < 4 || files.length > 5) {
+    return NextResponse.json({ error: "4–5 fotó szükséges." }, { status: 422 });
+  }
+  if (files.some((f) => !ALLOWED.includes(f.type))) {
+    return NextResponse.json({ error: "Csak JPG, PNG vagy WEBP használható." }, { status: 422 });
+  }
+  if (files.some((f) => f.size > MAX_PHOTO_BYTES)) {
+    return NextResponse.json({ error: "Egy fotó legfeljebb 15 MB lehet." }, { status: 422 });
+  }
+  const parse = <T,>(key: string, fallback: T): T => {
+    try { return JSON.parse(String(form.get(key) ?? "")) as T; } catch { return fallback; }
+  };
+  const facts = parse<Partial<VideoCaptionFacts> & { propertyType?: string }>("facts", {});
+  const profile = parse<Partial<FlyerProfileData>>("profile", {});
+  const captions = parse<unknown[]>("captions", []).map((c) => String(c ?? "").slice(0, 200));
+  const captionPositions = parse<unknown[]>("captionPositions", []).map((p) => (p === "center" ? "center" as const : "bottom" as const));
+  const engineTemplate = String(form.get("engineTemplate") ?? "").trim().slice(0, 40);
+  const colorVariant = String(form.get("colorVariant") ?? "").trim().slice(0, 20);
+  const title = String(form.get("title") ?? "").trim() || "Eladó ingatlan";
+  const propertyAddress = String(form.get("propertyAddress") ?? "").trim() || title;
+  // A fotók bájtjai MOST kellenek — a háttérmunka idején a kérés már lezárult.
+  const photos = await Promise.all(files.map(async (f) => ({ bytes: new Uint8Array(await f.arrayBuffer()), type: f.type })));
+
+  const admin = createAdminClient();
+  const { data: service } = await admin.from("services").select("id").eq("slug", SERVICE_SLUG).single();
+
+  // 2) Kredit (admin/sales bypass). A saját motornak nincs PRO csomagja.
+  const credits = creditsForPackage("alap");
+  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits }) : null;
+  if (charge && !charge.ok) {
+    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+  }
+  const charged = charge && !charge.bypassed ? credits : 0;
+
+  // 3) Job + forrásfotók (az előzmény előképéhez és a visszakereshetőséghez).
+  let jobId: string;
+  try {
+    const { data: job, error: jobErr } = await admin.from("video_jobs").insert({
+      user_id: userId,
+      service_id: service?.id ?? null,
+      status: "rendering",
+      format: format.value,
+      music_style: musicStyle || "none",
+      image_count: files.length,
+      credits_charged: charged,
+      package: "alap",
+      title: propertyAddress,
+      meta: { title, renderer: "twinx", template: engineTemplate || colorVariant || "aurora", aspect, captions, captionPositions },
+    }).select("id").single();
+    if (jobErr || !job) throw new Error("A videó-job létrehozása nem sikerült.");
+    jobId = job.id as string;
+  } catch (err) {
+    if (charged) await admin.rpc("wallet_add", { p_user_id: userId, p_amount: charged });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+
+  try {
+    const photoUrls: string[] = [];
+    for (let i = 0; i < photos.length; i++) {
+      const path = `video-src/${userId}/${jobId}/${i}.jpg`;
+      const { error } = await admin.storage.from(BUCKET).upload(path, photos[i].bytes, { contentType: photos[i].type, upsert: true });
+      if (error) throw new Error(`Fotó mentés hiba: ${error.message}`);
+      photoUrls.push(admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+    }
+    await admin.from("video_jobs").update({ source_images: photoUrls, poster_url: photoUrls[0] }).eq("id", jobId);
+  } catch (err) {
+    await failJobOnce(jobId, userId, charged, (err as Error).message);
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
+
+  // 4) A videó a HÁTTÉRBEN készül — a partner azonnal választ kap, a szerkesztő a
+  //    státusz-végpontot kérdezi, amíg kész nem lesz.
+  after(async () => {
+    let jobDir: string | null = null;
+    try {
+      const result = await runEngineJob({
+        id: `${jobId}-${randomUUID().slice(0, 8)}`,
+        engineTemplate, colorVariant, aspect, musicStyle, photos, facts, captions, captionPositions, profile,
+      });
+      jobDir = result.jobDir;
+      const path = `video/${userId}/${jobId}.mp4`;
+      const { error: upErr } = await createAdminClient().storage.from(BUCKET)
+        .upload(path, fs.readFileSync(result.file), { contentType: "video/mp4", upsert: true });
+      if (upErr) throw new Error(`A kész videó mentése nem sikerült: ${upErr.message}`);
+      const db = createAdminClient(); // friss kapcsolat a hosszú render után
+      const outputUrl = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      // Feltételes lezárás: csak akkor, ha közben nem bukott el (pl. időtúllépés).
+      const { data: closed } = await db.from("video_jobs")
+        .update({ status: "done", output_url: outputUrl, error: null, music_url: result.music })
+        .eq("id", jobId).eq("status", "rendering").select("id");
+      if (closed?.length) {
+        await db.from("usage_history").insert({
+          user_id: userId,
+          service_id: service?.id ?? null,
+          feature_used: "video",
+          input_data: { title, package: "alap", renderer: "twinx", template: result.templateName },
+          output_file_url: outputUrl,
+          credits_charged: charged,
+        });
+      }
+    } catch (err) {
+      console.error("[video/twinx]", jobId, err);
+      await failJobOnce(jobId, userId, charged, `A videó elkészítése nem sikerült: ${(err as Error).message}`.slice(0, 500));
+    } finally {
+      if (jobDir) fs.rmSync(jobDir, { recursive: true, force: true });
+    }
+  });
+
+  return NextResponse.json({ ok: true, jobId, status: "rendering" });
 }

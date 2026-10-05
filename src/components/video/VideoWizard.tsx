@@ -25,11 +25,13 @@ import {
 } from "@/lib/video-templates";
 import { PROPERTY_TYPE_OPTIONS } from "@/lib/valuation";
 import { readyColorVariants, getColorVariant, type VideoColorId } from "@/lib/video-color";
-import { engineGallery, type EngineGalleryItem } from "@/lib/video-engine/templates/index";
+import { engineGallery, engineFamilies, type EngineFamily, type EngineGalleryItem } from "@/lib/video-engine/templates/index";
 
 /** A státusz-végpont diagnosztikája — elakadásnál ez mondja meg, hol tart a lánc. */
 type VideoDebug = {
   phase?: string;
+  /** Saját motor: rövid állapotszöveg. */
+  engine?: string;
   ageMinutes?: number;
   clips?: string[];
   falDetail?: string;
@@ -61,10 +63,17 @@ export type VideoWizardLab = {
 
 /** A saját motor sablonjai — a labor-módban ezek közül választ a „partner". */
 const ENGINE_GALLERY = engineGallery();
+const ENGINE_FAMILIES = engineFamilies();
 
 export default function VideoWizard({
-  profiles, onClose, onDone, lab,
-}: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void; lab?: VideoWizardLab }) {
+  profiles, onClose, onDone, lab, engineMode,
+}: {
+  profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void; lab?: VideoWizardLab;
+  /** A SAJÁT TWINX motor fut → a saját sablonok (Aurora, Skandi …) közül lehet választani. */
+  engineMode?: boolean;
+}) {
+  // Saját-motoros sablonválasztó: a Videólaborban mindig, a partnereknél ha a motor „twinx".
+  const engine = Boolean(lab) || Boolean(engineMode);
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,12 +91,18 @@ export default function VideoWizard({
   // csempéken választható, mint a partnernél; a méretet a sablon köti.
   const [engineId, setEngineId] = useState<string>(ENGINE_GALLERY[0]?.id ?? "aurora");
   const engineItem = ENGINE_GALLERY.find((e) => e.id === engineId) ?? ENGINE_GALLERY[0];
-  const aspectsOffered: VideoAspect[] = lab
+  const aspectsOffered: VideoAspect[] = engine
     ? design.aspects.filter((a) => (engineItem?.aspects as string[] | undefined)?.includes(a) ?? true)
     : design.aspects;
-  const templateLabel = lab ? engineItem?.name ?? design.name : design.name;
+  const engineFamily = ENGINE_FAMILIES.find((f) => f.colors.some((c) => c.id === engineId));
+  const engineColor = engineFamily?.colors.find((c) => c.id === engineId);
+  const templateLabel = engine
+    ? engineFamily && engineColor ? `${engineFamily.name} · ${engineColor.colorName}` : engineItem?.name ?? design.name
+    : design.name;
+  // Családonként megjegyezzük a választott színt — kártyaváltáskor az marad.
+  const [familyColor, setFamilyColor] = useState<Record<string, string>>({});
   // Fotónkénti felirat hossza: az új sablonoknál annyi, ami kitölti a feliratdobozt.
-  const captionMax = lab ? engineItem?.captionMaxChars ?? MAX_PHOTO_CAPTION : MAX_PHOTO_CAPTION;
+  const captionMax = engine ? engineItem?.captionMaxChars ?? MAX_PHOTO_CAPTION : MAX_PHOTO_CAPTION;
   function pickEngine(id: string) {
     const e = ENGINE_GALLERY.find((x) => x.id === id);
     setEngineId(id);
@@ -218,7 +233,7 @@ export default function VideoWizard({
       fd.append("aspect", aspect);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
-      if (lab) fd.append("engineTemplate", engineId);
+      if (engine) fd.append("engineTemplate", engineId);
       Object.entries(lab?.extraFields ?? {}).forEach(([k, v]) => fd.append(k, v));
       const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
       const data = await res.json();
@@ -247,6 +262,7 @@ export default function VideoWizard({
   // Emberi nyelvű állapot a diagnosztikából — hogy egy elakadásnál lássuk, hol tart.
   function describeProgress(d: VideoDebug): string {
     const parts: string[] = [];
+    if (d.engine) parts.push(d.engine);
     if (Array.isArray(d.clips)) {
       const done = d.clips.filter((c) => c.includes("kész")).length;
       parts.push(`AI-snittek: ${done}/${d.clips.length} kész`);
@@ -360,15 +376,20 @@ export default function VideoWizard({
             <div className="space-y-4">
               <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Válaszd ki a <strong>sablont</strong>, majd a <strong>méretet</strong>.{" "}
-                {lab ? "Minden sablonnak saját stílusa, áttűnése és színvilága van." : "A sablonok felépítése azonos — a kiemelő szín különbözteti meg őket."}
+                {engine ? "Minden sablonnak saját stílusa, áttűnése és színvilága van." : "A sablonok felépítése azonos — a kiemelő szín különbözteti meg őket."}
               </p>
               {/* SABLON-CSEMPÉK: a valódi nyitókép kompozícióját mutató előnézet */}
               {/* Sűrű rács: 5-10 sablon is elférjen görgetés nélkül, első ránézésre */}
-              {lab ? (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-                  {ENGINE_GALLERY.map((e) => (
-                    <EngineTile key={e.id} item={e} on={e.id === engineId} photo={design.previewPhoto} onPick={() => pickEngine(e.id)} />
-                  ))}
+              {engine ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {ENGINE_FAMILIES.map((f) => {
+                    const colorId = familyColor[f.templateId] ?? f.colors[0]?.id;
+                    return (
+                      <EngineFamilyCard key={f.templateId} family={f} colorId={colorId}
+                        on={engineFamily?.templateId === f.templateId} photo={design.previewPhoto}
+                        onPick={(id) => { setFamilyColor((m) => ({ ...m, [f.templateId]: id })); pickEngine(id); }} />
+                    );
+                  })}
                 </div>
               ) : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
@@ -868,51 +889,105 @@ function Combo({ label, value, onChange, options, placeholder }: {
 }
 
 /**
- * Saját-motoros sablon csempéje: a sablon nyitóképének kompozíciója a sablon
- * VALÓDI palettájával — Aurora-család: sötét ferde panel; Skandi: krém kártya alul.
+ * Saját-motoros SABLONKÁRTYA: bal oldalt az előnézet (a sablon nyitóképének
+ * kompozíciója a kiválasztott szín VALÓDI palettájával), jobb oldalt a név és a
+ * kör alakú színválasztó gombok. Színváltáskor az előnézet azonnal átszíneződik.
+ *   Aurora-család: sötét ferde panel · Skandi-család: krém „háztető" panel alul.
  */
-function EngineTile({ item, on, photo, onPick }: { item: EngineGalleryItem; on: boolean; photo?: string; onPick: () => void }) {
-  const p = item.palette;
-  const skandi = item.templateId === "skandi";
+function EngineFamilyCard({ family, colorId, on, photo, onPick }: {
+  family: EngineFamily; colorId: string; on: boolean; photo?: string; onPick: (id: string) => void;
+}) {
+  const color = family.colors.find((c) => c.id === colorId) ?? family.colors[0];
+  if (!color) return null;
+  // Bal oldalt NAGY előnézet (a kártya 42%-a — jól látszik a sablon), jobb oldalt a
+  // név és a KIEMELT színvilág-választó (kétszínű kör + a szín neve, „pirula" gombként).
   return (
-    <button type="button" onClick={onPick} aria-pressed={on}
-      className="overflow-hidden rounded-xl text-left transition"
+    <div className="flex items-stretch overflow-hidden rounded-xl transition"
       style={{
-        border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
-        boxShadow: on ? "0 8px 22px rgba(239,122,90,0.20)" : "0 1px 2px rgba(0,0,0,0.04)",
+        // A keret vastagsága MINDIG 2 px (csak a színe vált) — így kijelöléskor nem
+        // szűkül a belső tér, és a színgombok nem ugranak át új sorba.
+        border: `2px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`,
+        boxShadow: on ? "0 6px 18px rgba(239,122,90,0.18)" : "0 1px 2px rgba(0,0,0,0.04)",
         background: "#fff",
       }}>
-      <div className="relative aspect-[3/4] w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.base}, ${p.shadow})` }}>
-        {photo && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        )}
-        {skandi ? (
-          <>
-            <span className="absolute inset-x-0 bottom-0" style={{ top: "58%", background: p.base, opacity: 0.96 }} />
-            <span className="absolute inset-x-0" style={{ top: "58%", height: 2, background: p.accent }} />
-            <div className="absolute inset-x-0 bottom-0 flex flex-col justify-center px-2" style={{ top: "58%" }}>
-              <span className="text-[5.5px] font-semibold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
-              <span className="mt-0.5 text-[9px] font-medium leading-tight" style={{ color: p.text }}>Sas utca 22.</span>
-              <span className="text-[6.5px] font-light leading-tight" style={{ color: p.muted }}>Budapest II. kerület</span>
-              <span className="mt-1 text-[10px] font-medium leading-none" style={{ color: p.text }}>60 M Ft</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <span className="absolute" style={{ left: "-26%", top: "-14%", width: "92%", height: "128%", background: p.base, opacity: 0.94, transform: "skewX(-9deg)" }} />
-            <span className="absolute" style={{ left: "64%", top: "-14%", width: 4, height: "128%", background: p.accent, transform: "skewX(-9deg)" }} />
-            <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
-              <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: p.accent }} />
-              <span className="text-[10px] font-bold leading-tight" style={{ color: p.accent }}>Sas utca 22.</span>
-              <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>Budapest II. kerület</span>
-              <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
-              <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: p.accent }}>60 M Ft</span>
-            </div>
-          </>
-        )}
+      <button type="button" onClick={() => onPick(color.id)} aria-pressed={on} className="w-[42%] shrink-0" aria-label={`${family.name} sablon`}>
+        <EnginePreview item={color} photo={photo} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
+        <button type="button" onClick={() => onPick(color.id)} className="min-w-0 text-left">
+          <p className="text-sm font-semibold leading-tight" style={{ color: "var(--twx-ink)" }}>{family.name}</p>
+          <p className="mt-0.5 text-[11px] leading-snug" title={family.tagline} style={{ color: "var(--twx-ink-muted)" }}>{family.tagline}</p>
+        </button>
+        {/* FIX elrendezés: a színgombok mindig EGYMÁS ALATT, teljes szélességben — így a
+            színvilág neve mindig kiolvasható, és kijelöléskor sem mozdul semmi. */}
+        <div role="radiogroup" aria-label={`${family.name} színvilága`} className="flex flex-col gap-1.5">
+          {family.colors.map((c) => {
+            const active = c.id === color.id;
+            return (
+              <button key={c.id} type="button" role="radio" aria-checked={active}
+                onClick={() => onPick(c.id)} title={`Színvilág: ${c.colorName}`}
+                className="flex min-w-0 items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-[11px] font-semibold transition"
+                style={{
+                  border: `1.5px solid ${active ? c.palette.accent : "var(--twx-line)"}`,
+                  background: active ? "var(--twx-coral-soft)" : "#fff",
+                  color: active ? "var(--twx-ink)" : "var(--twx-ink-muted)",
+                }}>
+                {/* Kétszínű kör: alapszín + kiemelő szín — a színvilág egy pillantásra */}
+                <span className="relative block h-5 w-5 shrink-0 overflow-hidden rounded-full"
+                  style={{ background: c.palette.base, boxShadow: active ? `0 0 0 2px #fff, 0 0 0 3.5px ${c.palette.accent}` : "inset 0 0 0 1px rgba(0,0,0,0.12)" }}>
+                  <span className="absolute inset-y-0 right-0 w-1/2" style={{ background: c.palette.accent }} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-left">{c.colorName}</span>
+                <span aria-hidden className="w-2.5 shrink-0 text-center" style={{ color: "var(--twx-coral)", visibility: active ? "visible" : "hidden" }}>✓</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="truncate px-2 py-1.5 text-[11px] font-semibold leading-tight" style={{ color: "var(--twx-ink)" }}>{item.name}</div>
-    </button>
+    </div>
+  );
+}
+
+/** A sablon nyitóképének kicsinyített előnézete a megadott palettával. */
+function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: string }) {
+  const p = item.palette;
+  const skandi = item.templateId === "skandi";
+  // Skandi „háztető": a kiemelő-színű él és a krém panel — ugyanaz a forma, mint a videóban
+  // (csúcs középen ~54%-nál, oldalak ~63%-nál), a csúcson kis gyűrűvel.
+  const roofEdge = "polygon(0% 62%, 50% 53%, 100% 62%, 100% 100%, 0% 100%)";
+  const roofPanel = "polygon(0% 63.2%, 50% 54.2%, 100% 63.2%, 100% 100%, 0% 100%)";
+  return (
+    <div className="relative aspect-[3/4] h-full w-full overflow-hidden" style={{ background: `linear-gradient(150deg, ${p.base}, ${p.shadow})` }}>
+      {photo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      )}
+      {skandi ? (
+        <>
+          <span className="absolute inset-0" style={{ background: p.accent, clipPath: roofEdge }} />
+          <span className="absolute inset-0" style={{ background: p.base, opacity: 0.97, clipPath: roofPanel }} />
+          <span className="absolute rounded-full" style={{ left: "calc(50% - 5px)", top: "calc(54.2% - 5px)", width: 10, height: 10, background: p.accent }} />
+          <span className="absolute rounded-full" style={{ left: "calc(50% - 2.5px)", top: "calc(54.2% - 2.5px)", width: 5, height: 5, background: p.base }} />
+          <div className="absolute inset-x-0 bottom-0 flex flex-col justify-center px-2.5" style={{ top: "64%" }}>
+            <span className="text-[5.5px] font-semibold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
+            <span className="mt-0.5 text-[10px] font-medium leading-tight" style={{ color: p.text }}>Sas utca 22.</span>
+            <span className="text-[7px] leading-tight" style={{ color: p.muted }}>Budapest II. kerület</span>
+            <span className="mt-1 text-[11px] font-medium leading-none" style={{ color: p.text }}>60 M Ft</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <span className="absolute" style={{ left: "-26%", top: "-14%", width: "92%", height: "128%", background: p.base, opacity: 0.94, transform: "skewX(-9deg)" }} />
+          <span className="absolute" style={{ left: "64%", top: "-14%", width: 4, height: "128%", background: p.accent, transform: "skewX(-9deg)" }} />
+          <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
+            <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: p.accent }} />
+            <span className="text-[10px] font-bold leading-tight" style={{ color: p.accent }}>Sas utca 22.</span>
+            <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>Budapest II. kerület</span>
+            <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
+            <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: p.accent }}>60 M Ft</span>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

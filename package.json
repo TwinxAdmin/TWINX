@@ -17,6 +17,7 @@
     "@sparticuz/chromium-min": "132.0.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "ffmpeg-static": "^5.3.0",
     "framer-motion": "^11.18.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
@@ -37,7 +38,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.6",
-    "ffmpeg-static": "^5.3.0",
     "ffprobe-static": "^3.1.0",
     "tailwindcss": "^4",
     "typescript": "^5"

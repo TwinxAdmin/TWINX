@@ -16,13 +16,17 @@ export default function VideoPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  // Melyik motor fut: a saját TWINX motor (alap) vagy a Shotstack-tartalék.
+  const [engineMode, setEngineMode] = useState(true);
 
   async function load() {
     try {
-      const [pRes, vRes] = await Promise.all([
+      const [pRes, vRes, eRes] = await Promise.all([
         fetch("/api/branding"),
         fetch("/api/real-estate/video/list"),
+        fetch("/api/real-estate/video/engine", { cache: "no-store" }),
       ]);
+      if (eRes.ok) setEngineMode((await eRes.json()).renderer !== "shotstack");
       const p = await pRes.json();
       if (pRes.ok) setProfiles(p.profiles ?? []);
       if (vRes.ok) {
@@ -98,7 +102,7 @@ export default function VideoPage() {
         )}
       </section>
 
-      {open && <VideoWizard profiles={profiles} onClose={() => { setOpen(false); void load(); }} onDone={() => void load()} />}
+      {open && <VideoWizard profiles={profiles} engineMode={engineMode} onClose={() => { setOpen(false); void load(); }} onDone={() => void load()} />}
     </main>
   );
 }

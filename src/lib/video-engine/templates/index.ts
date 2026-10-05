@@ -32,6 +32,33 @@ export function engineGallery(): EngineGalleryItem[] {
   });
 }
 
+/**
+ * SABLONCSALÁDOK a szerkesztőhöz: egy sablon = egy kártya, a színváltozatai
+ * kör alakú színválasztó gombok. A család neve és a színek nevei itt állnak —
+ * új színváltozatnál csak egy sor kell a COLOR_NAMES-be.
+ */
+const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
+  aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
+  skandi: { name: "Skandi", tagline: "Világos, letisztult — lágy átúsztatás, háztető-panel" },
+};
+const COLOR_NAMES: Record<string, string> = {
+  aurora: "Borostyán",
+  nocturne: "Éjkék",
+  skandi: "Homok",
+  "skandi-zsalya": "Zsálya",
+};
+export type EngineColor = EngineGalleryItem & { colorName: string };
+export type EngineFamily = { templateId: string; name: string; tagline: string; colors: EngineColor[] };
+export function engineFamilies(): EngineFamily[] {
+  const all = engineGallery();
+  return ENGINE_TEMPLATES.map((t) => ({
+    templateId: t.id,
+    name: FAMILY_NAMES[t.id]?.name ?? t.name.replace(/^TWINX\s+/, ""),
+    tagline: FAMILY_NAMES[t.id]?.tagline ?? "",
+    colors: all.filter((g) => g.templateId === t.id).map((g) => ({ ...g, colorName: COLOR_NAMES[g.id] ?? g.name })),
+  }));
+}
+
 /** Sablon (és ha kell, színváltozat) azonosító alapján; ismeretlen → Aurora. */
 export function resolveEngineTemplate(id: string): TwinxTemplate {
   const base = ENGINE_TEMPLATES.find((t) => t.id === id);

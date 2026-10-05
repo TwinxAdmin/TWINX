@@ -18,11 +18,11 @@ const JOST = "Jost";
 
 /** A nyitókártya és a zárópanel tartalma — egy helyen, hogy a két méret egyezzen. */
 function introItems(square: boolean) {
-  const k = square ? 0.78 : 1; // 1:1-ben arányosan kisebb betűk
+  const k = square ? 0.9 : 1.15; // nagyobb, jól olvasható adatok (1:1-ben arányosan kisebb)
   return [
-    { type: "text" as const, bind: "property.type" as const, font: { family: JOST, weight: 500, size: 0.024 * k }, color: "@accent" as const, uppercase: true, letterSpacing: 0.004, maxLines: 1 },
-    { type: "text" as const, bind: "property.title" as const, font: { family: JOST, weight: 500, size: 0.062 * k }, color: "@text" as const, lineHeight: 1.08, maxLines: 2, gapBefore: 0.014 * k },
-    { type: "text" as const, bind: "property.city" as const, font: { family: JOST, weight: 300, size: 0.032 * k }, color: "@muted" as const, maxLines: 1, gapBefore: 0.008 * k },
+    { type: "text" as const, bind: "property.type" as const, font: { family: JOST, weight: 500, size: 0.024 * k }, color: "@accent" as const, uppercase: true, letterSpacing: 0.004, maxLines: square ? 2 : 1 },
+    { type: "text" as const, bind: "property.title" as const, font: { family: JOST, weight: 500, size: 0.062 * k }, color: "@text" as const, lineHeight: 1.08, maxLines: square ? 3 : 2, gapBefore: 0.014 * k },
+    { type: "text" as const, bind: "property.city" as const, font: { family: JOST, weight: 400, size: 0.032 * k }, color: "@muted" as const, maxLines: 1, gapBefore: 0.008 * k },
     { type: "rule" as const, width: 0.07, height: 0.003, color: "@accent" as const, gapBefore: 0.026 * k },
     { type: "text" as const, bind: "property.specs" as const, font: { family: JOST, weight: 400, size: 0.03 * k }, color: "@text" as const, lineHeight: 1.35, maxLines: 3, gapBefore: 0.022 * k },
     { type: "text" as const, bind: "property.price" as const, font: { family: JOST, weight: 500, size: 0.056 * k }, color: "@text" as const, lineHeight: 1, maxLines: 1, gapBefore: 0.024 * k },
@@ -31,11 +31,11 @@ function introItems(square: boolean) {
 
 /** A zárópanel ingatlanos-része. */
 function agentItems(square: boolean) {
-  const k = square ? 0.8 : 1;
+  const k = square ? 0.9 : 1.15;
   return [
     { type: "text" as const, bind: "agent.name" as const, font: { family: JOST, weight: 500, size: 0.042 * k }, color: "@text" as const, maxLines: 1 },
     { type: "text" as const, bind: "agent.phone" as const, font: { family: JOST, weight: 400, size: 0.04 * k }, color: "@accent" as const, maxLines: 1, gapBefore: 0.01 * k },
-    { type: "text" as const, bind: "agent.email" as const, font: { family: JOST, weight: 300, size: 0.03 * k }, color: "@muted" as const, maxLines: 1, gapBefore: 0.008 * k },
+    { type: "text" as const, bind: "agent.email" as const, font: { family: JOST, weight: 400, size: 0.03 * k }, color: "@muted" as const, maxLines: 1, gapBefore: 0.008 * k },
   ];
 }
 
@@ -68,7 +68,7 @@ const introCard: Layer[] = [
     box: { x: 0, y: 0.53, w: 1, h: 0.47 },
     points: [[0, 0.1915], [0.5, 0], [1, 0.1915], [1, 1], [0, 1]],
     fill: "@accent",
-    byAspect: { "1:1": { box: { x: 0, y: 0, w: 0.58, h: 1 }, points: [[0, 0], [0.86, 0], [1, 0.5], [0.86, 1], [0, 1]] } },
+    byAspect: { "1:1": { box: { x: 0, y: 0, w: 0.62, h: 1 }, points: [[0, 0], [0.87, 0], [1, 0.5], [0.87, 1], [0, 1]] } },
     appear: { type: "slideUp", duration: 0.9, easing: "easeOut" },
   },
   {
@@ -76,21 +76,21 @@ const introCard: Layer[] = [
     box: { x: 0, y: 0.53, w: 1, h: 0.47 },
     points: [[0, 0.2043], [0.5, 0.0128], [1, 0.2043], [1, 1], [0, 1]],
     fill: "@base", opacity: 0.97,
-    byAspect: { "1:1": { box: { x: 0, y: 0, w: 0.58, h: 1 }, points: [[0, 0], [0.8497, 0], [0.9897, 0.5], [0.8497, 1], [0, 1]] } },
+    byAspect: { "1:1": { box: { x: 0, y: 0, w: 0.62, h: 1 }, points: [[0, 0], [0.8603, 0], [0.9903, 0.5], [0.8603, 1], [0, 1]] } },
     appear: { type: "slideUp", duration: 0.9, easing: "easeOut" },
   },
   {
     id: "nyito-gyuru", kind: "shape", shape: "circle",
     box: { x: 0.482, y: 0.5259, w: 0.036, h: 0.02025 },
     fill: "@accent",
-    byAspect: { "1:1": { box: { x: 0.556, y: 0.482, w: 0.036, h: 0.036 } } },
+    byAspect: { "1:1": { box: { x: 0.596, y: 0.482, w: 0.036, h: 0.036 } } },
     appear: { type: "fade", delay: 0.6, duration: 0.6 },
   },
   {
     id: "nyito-pont", kind: "shape", shape: "circle",
     box: { x: 0.491, y: 0.53096, w: 0.018, h: 0.010125 },
     fill: "@base",
-    byAspect: { "1:1": { box: { x: 0.565, y: 0.491, w: 0.018, h: 0.018 } } },
+    byAspect: { "1:1": { box: { x: 0.605, y: 0.491, w: 0.018, h: 0.018 } } },
     appear: { type: "fade", delay: 0.6, duration: 0.6 },
   },
   {
@@ -102,8 +102,8 @@ const introCard: Layer[] = [
     items: introItems(false),
     byAspect: {
       "1:1": {
-        box: { x: 0, y: 0, w: 0.5, h: 1 },
-        padding: { left: 0.06, right: 0.05, top: 0.04, bottom: 0.04 },
+        box: { x: 0, y: 0, w: 0.56, h: 1 },
+        padding: { left: 0.06, right: 0.03, top: 0.04, bottom: 0.04 },
         items: introItems(true),
       },
     },
@@ -199,24 +199,24 @@ export const SKANDI: TwinxTemplate = {
         // Ingatlan-összegzés (középre igazítva)
         {
           id: "ingatlan", kind: "stack",
-          box: { x: 0.1, y: 0.585, w: 0.8, h: 0.19 },
+          box: { x: 0.08, y: 0.58, w: 0.84, h: 0.2 },
           align: "center", valign: "middle",
           appear: { type: "fade", delay: 0.4, duration: 0.8 },
           items: [
-            { type: "text", bind: "property.type", font: { family: JOST, weight: 500, size: 0.022 }, color: "@accent", uppercase: true, letterSpacing: 0.004, maxLines: 1, align: "center" },
-            { type: "text", bind: "property.title", font: { family: JOST, weight: 500, size: 0.05 }, color: "@text", lineHeight: 1.1, maxLines: 2, gapBefore: 0.012, align: "center" },
-            { type: "text", bind: "property.city", font: { family: JOST, weight: 300, size: 0.03 }, color: "@muted", maxLines: 1, gapBefore: 0.006, align: "center" },
-            { type: "text", bind: "property.price", font: { family: JOST, weight: 500, size: 0.046 }, color: "@text", maxLines: 1, gapBefore: 0.018, align: "center" },
+            { type: "text", bind: "property.type", font: { family: JOST, weight: 500, size: 0.025 }, color: "@accent", uppercase: true, letterSpacing: 0.004, maxLines: 1, align: "center" },
+            { type: "text", bind: "property.title", font: { family: JOST, weight: 500, size: 0.058 }, color: "@text", lineHeight: 1.1, maxLines: 2, gapBefore: 0.012, align: "center" },
+            { type: "text", bind: "property.city", font: { family: JOST, weight: 400, size: 0.035 }, color: "@muted", maxLines: 1, gapBefore: 0.006, align: "center" },
+            { type: "text", bind: "property.price", font: { family: JOST, weight: 500, size: 0.054 }, color: "@text", maxLines: 1, gapBefore: 0.018, align: "center" },
           ],
           byAspect: {
             "1:1": {
               box: { x: 0.05, y: 0.565, w: 0.58, h: 0.415 },
               align: "left",
               items: [
-                { type: "text", bind: "property.type", font: { family: JOST, weight: 500, size: 0.019 }, color: "@accent", uppercase: true, letterSpacing: 0.004, maxLines: 1 },
-                { type: "text", bind: "property.title", font: { family: JOST, weight: 500, size: 0.038 }, color: "@text", lineHeight: 1.1, maxLines: 2, gapBefore: 0.008 },
-                { type: "text", bind: "property.city", font: { family: JOST, weight: 300, size: 0.024 }, color: "@muted", maxLines: 1, gapBefore: 0.005 },
-                { type: "text", bind: "property.price", font: { family: JOST, weight: 500, size: 0.036 }, color: "@text", maxLines: 1, gapBefore: 0.012 },
+                { type: "text", bind: "property.type", font: { family: JOST, weight: 500, size: 0.021 }, color: "@accent", uppercase: true, letterSpacing: 0.004, maxLines: 1 },
+                { type: "text", bind: "property.title", font: { family: JOST, weight: 500, size: 0.043 }, color: "@text", lineHeight: 1.1, maxLines: 2, gapBefore: 0.008 },
+                { type: "text", bind: "property.city", font: { family: JOST, weight: 400, size: 0.027 }, color: "@muted", maxLines: 1, gapBefore: 0.005 },
+                { type: "text", bind: "property.price", font: { family: JOST, weight: 500, size: 0.04 }, color: "@text", maxLines: 1, gapBefore: 0.012 },
                 { type: "rule", width: 0.06, height: 0.003, color: "@accent", gapBefore: 0.02 },
                 ...agentItems(true).map((it, i) => ({ ...it, gapBefore: i === 0 ? 0.016 : it.gapBefore })),
               ],
@@ -226,7 +226,7 @@ export const SKANDI: TwinxTemplate = {
         // Ingatlanos (9:16-ban külön blokk; 1:1-ben a fenti blokk része)
         {
           id: "ugynok", kind: "stack",
-          box: { x: 0.06, y: 0.775, w: 0.88, h: 0.125 },
+          box: { x: 0.06, y: 0.775, w: 0.88, h: 0.13 },
           align: "center", valign: "middle",
           appear: { type: "fade", delay: 0.6, duration: 0.8 },
           items: agentItems(false).map((it) => ({ ...it, align: "center" as const })),

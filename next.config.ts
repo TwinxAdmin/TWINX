@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   // A PDF-ekhez futásidőben olvasott betűfájlok biztosan kerüljenek fel a Vercelre.
   outputFileTracingIncludes: {
     "/api/**": ["./assets/fonts/**/*"],
+    // SAJÁT VIDEÓMOTOR: az ffmpeg futtatható fájl (a csomag csak az útvonalát adja
+    // vissza, ezért a Next nem találná meg magától). Csak a videót gyártó útvonalakhoz.
+    "/api/real-estate/video": ["./node_modules/ffmpeg-static/ffmpeg"],
+    "/api/admin/video-lab": ["./node_modules/ffmpeg-static/ffmpeg"],
   },
   // A build ne bukjon el ESLint stílus-szabályokon (a "funkcionális UI a 7. fázisig" elv miatt).
   // A TypeScript típusellenőrzés így is fut és megfog minden valódi hibát.

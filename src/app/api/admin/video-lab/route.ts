@@ -1,33 +1,25 @@
 // POST /api/admin/video-lab — VIDEÓLABOR: próbavideó a SAJÁT TWINX motorral.
 //
-// CSAK admin, és CSAK localhoston (vagy ha VIDEO_LAB_ENABLED=1). Kreditet nem von,
+// CSAK admin (élesben is). Kreditet nem von,
 // partner-előzményt nem ír — ez a fejlesztői próbapad, ahol a saját motort a
 // Shotstack-videóval összevetjük, mielőtt élesbe kerülne.
 //
 // Lépések (CLAUDE.md: validáció → API → mentés):
-//  1) jogosultság + labor-kapcsoló
+//  1) jogosultság (admin)
 //  2) űrlap-validáció (fotók, méret, változat, zene, adatok)
 //  3) render: fotók helyi fájlba → betűk → zene → renderVideo()
 //  4) a kész MP4 a Storage-ba (reports/video-lab/…), válaszban az URL + mérések
 import { NextResponse } from "next/server";
-import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import ffmpegStatic from "ffmpeg-static";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffRole } from "@/lib/staff";
-import { isValidMusicStyle, splitCaption, type VideoCaptionFacts } from "@/lib/video";
-import { formatPrice, formatSize } from "@/lib/flyer-poster";
+import { isValidMusicStyle, type VideoCaptionFacts } from "@/lib/video";
 import type { FlyerProfileData } from "@/lib/flyer-template";
-import { validateTemplate, type AspectId } from "@/lib/video-engine/template-schema";
-import { resolveEngineTemplate } from "@/lib/video-engine/templates/index";
-import { renderVideo, imageInfo, classifyPhoto } from "@/lib/video-engine/render-node";
-import { ASPECT_SIZES } from "@/lib/video-engine/template-schema";
-import { loadEngineFonts } from "@/lib/video-engine/fonts-node";
-import { resolveMusic } from "@/lib/video-engine/music-node";
-import type { BindData } from "@/lib/video-engine/layers";
+import type { AspectId } from "@/lib/video-engine/template-schema";
+import { runEngineJob, ENGINE_WORK_DIR } from "@/lib/video-engine/job-node";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -35,11 +27,8 @@ export const maxDuration = 300;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 const BUCKET = "reports";
-
-/** A labor csak fejlesztői környezetben fut, hacsak külön be nem kapcsolják. */
-function labEnabled(): boolean {
-  return process.env.NODE_ENV !== "production" || process.env.VIDEO_LAB_ENABLED === "1";
-}
+/** A labor félretett videói (ha a Storage-feltöltés nem sikerül). */
+const LAB_DIR = path.join(ENGINE_WORK_DIR, "lab");
 
 const str = (v: FormDataEntryValue | null, max: number) => String(v ?? "").trim().slice(0, max);
 
@@ -69,12 +58,12 @@ async function uploadWithRetry(key: string, body: Buffer): Promise<{ url: string
 export async function GET(request: Request) {
   const supabase = await createClient();
   const staff = await getStaffRole(supabase);
-  if (!staff || staff.role !== "admin" || !labEnabled()) {
+  if (!staff || staff.role !== "admin") {
     return NextResponse.json({ error: "Nincs jogosultság." }, { status: 403 });
   }
   const id = new URL(request.url).searchParams.get("id") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Hibás azonosító." }, { status: 400 });
-  const file = path.join(os.tmpdir(), "twinx-video-lab", "out", `${id}.mp4`);
+  const file = path.join(LAB_DIR, "out", `${id}.mp4`);
   if (!fs.existsSync(file)) return NextResponse.json({ error: "Nem található." }, { status: 404 });
   return new NextResponse(fs.readFileSync(file), {
     headers: { "Content-Type": "video/mp4", "Cache-Control": "no-store" },
@@ -87,9 +76,6 @@ export async function POST(request: Request) {
   const staff = await getStaffRole(supabase);
   if (!staff || staff.role !== "admin") {
     return NextResponse.json({ error: "Nincs jogosultság." }, { status: 403 });
-  }
-  if (!labEnabled()) {
-    return NextResponse.json({ error: "A Videólabor csak localhoston érhető el." }, { status: 403 });
   }
 
   // --- 2) Validáció — UGYANAZOK a mezők, mint az élő videó-varázslóban ---
@@ -106,96 +92,33 @@ export async function POST(request: Request) {
     if (f.size > MAX_PHOTO_BYTES) return NextResponse.json({ error: `Túl nagy fájl (max 15 MB): ${f.name}` }, { status: 422 });
   }
   const aspect: AspectId = form.get("aspect") === "1:1" ? "1:1" : "9:16";
-  // Sablon: a labor sablonválasztója (engineTemplate) — ha nincs, a varázsló
-  // színválasztója dönt az Aurora változatai között (sárga → Aurora, éjkék → Nocturne).
-  const colorId = str(form.get("colorVariant"), 20);
-  const engineChoice = str(form.get("engineTemplate"), 40);
-  const variantId = engineChoice || (colorId === "ejkek" ? "nocturne" : "aurora");
   const musicStyle = str(form.get("musicStyle"), 30);
   if (musicStyle && musicStyle !== "none" && !isValidMusicStyle(musicStyle)) {
     return NextResponse.json({ error: "Érvénytelen zenei stílus." }, { status: 422 });
   }
-  const tpl = resolveEngineTemplate(variantId);
-  const tplErrors = validateTemplate(tpl);
-  if (tplErrors.length) return NextResponse.json({ error: "Sablonhiba", details: tplErrors }, { status: 500 });
-
   const parse = <T,>(key: string, fallback: T): T => {
     try { return JSON.parse(String(form.get(key) ?? "")) as T; } catch { return fallback; }
   };
-  const rawFacts = parse<Partial<VideoCaptionFacts> & { propertyType?: string }>("facts", {});
-  const clip = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
-  const facts: VideoCaptionFacts = {
-    location: clip(rawFacts.location, 80), address: clip(rawFacts.address, 80), price: clip(rawFacts.price, 40),
-    size: clip(rawFacts.size, 20), rooms: clip(rawFacts.rooms, 40), bathrooms: clip(rawFacts.bathrooms, 60),
-    floor: clip(rawFacts.floor, 40),
-  };
-  const type = clip(rawFacts.propertyType, 60);
-  const price = formatPrice(facts.price);
-  const size = formatSize(facts.size);
 
-  // Fotónkénti szabad feliratok + helyük (lent / középen), a képek sorrendjében.
-  const captions = parse<unknown[]>("captions", []).map((c) => clip(c, 200));
-  const positions = parse<unknown[]>("captionPositions", []).map((p) => (p === "center" ? "center" : "bottom"));
-
-  // Elérhetőség + ügynökfotó + logó: a varázsló „profile" mezőjéből (kézzel vagy arculatból).
-  const profile = parse<Partial<FlyerProfileData>>("profile", {});
-
-  const data: BindData = {
-    "property.title": facts.address || facts.location,
-    "property.city": facts.address ? facts.location : "",
-    "property.type": type,
-    "property.price": price,
-    "property.specs": [facts.rooms, facts.bathrooms, size].filter(Boolean).join("\n"),
-    "agent.name": clip(profile.display_name, 80),
-    "agent.phone": clip(profile.phone, 40),
-    "agent.email": clip(profile.email, 80),
-    "agent.photo": clip(profile.agent_photo_url, 500),
-    "agent.logo": clip(profile.logo_url, 500),
-  };
-  // Az 1. fotó a nyitókép (azon az adatpanel ül) — felirat a 2. fotótól jár, mint az élőben.
-  for (let i = 1; i < files.length; i++) {
-    // Hosszú-feliratos sablon (pl. Skandi): a teljes szöveg megy, a sablon tördeli.
-    // A régi sablonok (Aurora): két kiegyensúlyozott sorra bontva, mint eddig.
-    let text: string;
-    if (tpl.captionMaxChars) {
-      text = (captions[i] ?? "").replace(/\s+/g, " ").trim().slice(0, tpl.captionMaxChars);
-    } else {
-      const c = splitCaption(captions[i] ?? "");
-      text = [c.line1, c.line2].filter(Boolean).join("\n");
-    }
-    if (text) data[`caption.${i + 1}`] = text;
-    data[`captionpos.${i + 1}`] = positions[i] ?? "bottom";
-  }
-
-  // --- 3) Render ---
+  // --- 3) Render — UGYANAZ a közös motor-futtatás, mint a partnereknél ---
   const id = randomUUID();
-  const workDir = path.join(os.tmpdir(), "twinx-video-lab");   // közös: az áttűnések gyorsítótára
-  const jobDir = path.join(workDir, "jobs", id);
-  fs.mkdirSync(jobDir, { recursive: true });
-
+  let jobDir: string | null = null;
   try {
-    const photos: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const ext = files[i].type === "image/png" ? "png" : files[i].type === "image/webp" ? "webp" : "jpg";
-      const p = path.join(jobDir, `foto-${i + 1}.${ext}`);
-      fs.writeFileSync(p, Buffer.from(await files[i].arrayBuffer()));
-      photos.push(p);
-    }
-    const { width: W, height: H } = ASPECT_SIZES[aspect];
-    const photoKinds = photos.map((p) => classifyPhoto(imageInfo(p), W, H));
-
-    const { fonts, source: fontSource } = await loadEngineFonts(tpl, Object.values(data).filter((v): v is string => Boolean(v)));
-    const music = musicStyle && musicStyle !== "none" ? await resolveMusic(musicStyle, workDir) : null;
-
-    const ffmpegPath = process.env.FFMPEG_PATH || (ffmpegStatic as unknown as string) || "ffmpeg";
-    const result = await renderVideo({
-      template: tpl, aspect, photos, data, fonts, music: music?.file ?? null,
-      workDir, ffmpegPath, outName: `jobs/${id}/twinx-${variantId}-${aspect.replace(":", "x")}.mp4`,
+    const result = await runEngineJob({
+      id, aspect, musicStyle,
+      engineTemplate: str(form.get("engineTemplate"), 40),
+      colorVariant: str(form.get("colorVariant"), 20),
+      photos: await Promise.all(files.map(async (f) => ({ bytes: new Uint8Array(await f.arrayBuffer()), type: f.type }))),
+      facts: parse<Partial<VideoCaptionFacts> & { propertyType?: string }>("facts", {}),
+      captions: parse<unknown[]>("captions", []).map((c) => String(c ?? "").slice(0, 200)),
+      captionPositions: parse<unknown[]>("captionPositions", []).map((p) => (p === "center" ? "center" : "bottom")),
+      profile: parse<Partial<FlyerProfileData>>("profile", {}),
     });
+    jobDir = result.jobDir;
 
     // A kész videót a labor saját mappájába is félretesszük — ha a Storage-feltöltés
     // nem sikerül, innen játsszuk le (GET ?id=…), így a próba nem vész el.
-    const keepDir = path.join(workDir, "out");
+    const keepDir = path.join(LAB_DIR, "out");
     fs.mkdirSync(keepDir, { recursive: true });
     const kept = path.join(keepDir, `${id}.mp4`);
     fs.copyFileSync(result.file, kept);
@@ -207,18 +130,18 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true, url,
-      template: tpl.name.replace(/^TWINX\s+/, ""),
+      template: result.templateName,
       storage: up.url ? "supabase" : "local",
       uploadError: up.error,
       seconds: result.seconds,
       timings: result.timings,
-      photoKinds,
-      fontSource,
-      music: music ? decodeURIComponent(music.url.split("/").pop() ?? "") : null,
+      photoKinds: result.photoKinds,
+      fontSource: result.fontSource,
+      music: result.music,
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message.slice(0, 1500) }, { status: 500 });
   } finally {
-    fs.rmSync(jobDir, { recursive: true, force: true });
+    if (jobDir) fs.rmSync(jobDir, { recursive: true, force: true });
   }
 }
