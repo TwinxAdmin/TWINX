@@ -18,7 +18,9 @@ import ffmpegStatic from "ffmpeg-static";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffRole } from "@/lib/staff";
-import { captionForPhoto, isValidMusicStyle, type VideoCaptionFacts } from "@/lib/video";
+import { isValidMusicStyle, splitCaption, type VideoCaptionFacts } from "@/lib/video";
+import { formatPrice, formatSize } from "@/lib/flyer-poster";
+import type { FlyerProfileData } from "@/lib/flyer-template";
 import { applyVariant, validateTemplate, type AspectId } from "@/lib/video-engine/template-schema";
 import { AURORA, AURORA_VARIANTS } from "@/lib/video-engine/templates/aurora";
 import { renderVideo, imageInfo, classifyPhoto } from "@/lib/video-engine/render-node";
@@ -90,12 +92,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A Videólabor csak localhoston érhető el." }, { status: 403 });
   }
 
-  // --- 2) Validáció ---
+  // --- 2) Validáció — UGYANAZOK a mezők, mint az élő videó-varázslóban ---
   let form: FormData;
   try { form = await request.formData(); } catch {
     return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 });
   }
-  const files = form.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  const files = form.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length < AURORA.photos.min || files.length > AURORA.photos.max) {
     return NextResponse.json({ error: `${AURORA.photos.min}–${AURORA.photos.max} fotó kell.` }, { status: 422 });
   }
@@ -104,7 +106,9 @@ export async function POST(request: Request) {
     if (f.size > MAX_PHOTO_BYTES) return NextResponse.json({ error: `Túl nagy fájl (max 15 MB): ${f.name}` }, { status: 422 });
   }
   const aspect: AspectId = form.get("aspect") === "1:1" ? "1:1" : "9:16";
-  const variantId = str(form.get("variant"), 20) || "aurora";
+  // A varázsló színválasztója → a saját motor színváltozata.
+  const colorId = str(form.get("colorVariant"), 20);
+  const variantId = colorId === "ejkek" ? "nocturne" : "aurora";
   const variant = AURORA_VARIANTS.find((v) => v.id === variantId) ?? null;
   const musicStyle = str(form.get("musicStyle"), 30);
   if (musicStyle && musicStyle !== "none" && !isValidMusicStyle(musicStyle)) {
@@ -114,54 +118,46 @@ export async function POST(request: Request) {
   const tplErrors = validateTemplate(tpl);
   if (tplErrors.length) return NextResponse.json({ error: "Sablonhiba", details: tplErrors }, { status: 500 });
 
+  const parse = <T,>(key: string, fallback: T): T => {
+    try { return JSON.parse(String(form.get(key) ?? "")) as T; } catch { return fallback; }
+  };
+  const rawFacts = parse<Partial<VideoCaptionFacts> & { propertyType?: string }>("facts", {});
+  const clip = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
   const facts: VideoCaptionFacts = {
-    location: str(form.get("location"), 80),
-    address: str(form.get("address"), 80),
-    price: str(form.get("price"), 40),
-    size: str(form.get("size"), 20),
-    rooms: str(form.get("rooms"), 40),
-    bathrooms: str(form.get("bathrooms"), 60),
-    floor: str(form.get("floor"), 40),
+    location: clip(rawFacts.location, 80), address: clip(rawFacts.address, 80), price: clip(rawFacts.price, 40),
+    size: clip(rawFacts.size, 20), rooms: clip(rawFacts.rooms, 40), bathrooms: clip(rawFacts.bathrooms, 60),
+    floor: clip(rawFacts.floor, 40),
   };
-  const type = str(form.get("type"), 60);
-  const sizeText = /^\d+([.,]\d+)?$/.test(facts.size) ? `${facts.size} m²` : facts.size;
+  const type = clip(rawFacts.propertyType, 60);
+  const price = formatPrice(facts.price);
+  const size = formatSize(facts.size);
 
-  // Ügynök adatai: a kiválasztott arculati profilból (csak a sajátja).
-  const admin = createAdminClient();
-  const profileId = str(form.get("profileId"), 60);
-  let agent = { name: "", phone: "", email: "", photo: "", logo: "" };
-  if (profileId) {
-    const { data: p } = await admin.from("branding_profiles")
-      .select("user_id, display_name, phone, email, agent_photo_url, logo_url")
-      .eq("id", profileId).maybeSingle();
-    if (p && p.user_id === staff.userId) {
-      agent = {
-        name: p.display_name ?? "", phone: p.phone ?? "", email: p.email ?? "",
-        photo: p.agent_photo_url ?? "", logo: p.logo_url ?? "",
-      };
-    }
-  }
+  // Fotónkénti szabad feliratok + helyük (lent / középen), a képek sorrendjében.
+  const captions = parse<unknown[]>("captions", []).map((c) => clip(c, 80));
+  const positions = parse<unknown[]>("captionPositions", []).map((p) => (p === "center" ? "center" : "bottom"));
 
-  const caption = (i: number) => {
-    const c = captionForPhoto(i, facts);
-    return [c.line1, c.line2].filter(Boolean).join("\n");
-  };
+  // Elérhetőség + ügynökfotó + logó: a varázsló „profile" mezőjéből (kézzel vagy arculatból).
+  const profile = parse<Partial<FlyerProfileData>>("profile", {});
+
   const data: BindData = {
     "property.title": facts.address || facts.location,
     "property.city": facts.address ? facts.location : "",
     "property.type": type,
-    "property.price": facts.price,
-    "property.specs": [facts.rooms, facts.bathrooms, sizeText].filter(Boolean).join("\n"),
-    "agent.name": agent.name,
-    "agent.phone": agent.phone,
-    "agent.email": agent.email,
-    "agent.photo": agent.photo,
-    "agent.logo": agent.logo,
-    "caption.2": caption(1),
-    "caption.3": caption(2),
-    "caption.4": caption(3),
-    "caption.5": caption(4),
+    "property.price": price,
+    "property.specs": [facts.rooms, facts.bathrooms, size].filter(Boolean).join("\n"),
+    "agent.name": clip(profile.display_name, 80),
+    "agent.phone": clip(profile.phone, 40),
+    "agent.email": clip(profile.email, 80),
+    "agent.photo": clip(profile.agent_photo_url, 500),
+    "agent.logo": clip(profile.logo_url, 500),
   };
+  // Az 1. fotó a nyitókép (azon az adatpanel ül) — felirat a 2. fotótól jár, mint az élőben.
+  for (let i = 1; i < files.length; i++) {
+    const c = splitCaption(captions[i] ?? "");
+    const text = [c.line1, c.line2].filter(Boolean).join("\n");
+    if (text) data[`caption.${i + 1}`] = text;
+    data[`captionpos.${i + 1}`] = positions[i] ?? "bottom";
+  }
 
   // --- 3) Render ---
   const id = randomUUID();

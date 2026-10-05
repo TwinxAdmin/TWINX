@@ -46,9 +46,16 @@ const STEPS = ["Sablon", "Képek", "Beállítás", "Generálás"] as const;
 
 type JobState = { status: string; output_url: string | null; error: string | null };
 
+/**
+ * Videólabor-mód (admin): UGYANEZ a szerkesztő, de a kész anyag a saját TWINX
+ * motorhoz megy (`endpoint`), kredit és partner-előzmény nélkül. A válasz
+ * (videó-URL + mérések) az `onResult`-ba érkezik.
+ */
+export type VideoWizardLab = { endpoint: string; onResult: (data: Record<string, unknown>) => void };
+
 export default function VideoWizard({
-  profiles, onClose, onDone,
-}: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void }) {
+  profiles, onClose, onDone, lab,
+}: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void; lab?: VideoWizardLab }) {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -186,9 +193,16 @@ export default function VideoWizard({
       fd.append("aspect", aspect);
       fd.append("musicStyle", musicStyle);
       fd.append("package", pkg);
-      const res = await fetch("/api/real-estate/video", { method: "POST", body: fd });
+      const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (lab) {
+        // A labor szinkron fut: a válaszban már a kész videó van — nincs állapot-lekérdezés.
+        setJobId("lab");
+        setJob({ status: "done", output_url: data.url as string, error: null });
+        lab.onResult(data as Record<string, unknown>);
+        return;
+      }
       // Sikeres indításkor jegyezzük meg a beírt szabadszöveges értékeket.
       titleMem.remember(title.trim());
       locationMem.remember(facts.location.trim());
@@ -294,7 +308,7 @@ export default function VideoWizard({
         {/* Fejléc + lépésjelző */}
         <div className="border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">Új videó</h2>
+            <h2 className="font-display text-lg font-semibold">{lab ? "Videólabor — saját TWINX motor" : "Új videó"}</h2>
             <button onClick={requestClose} disabled={busy} className="rounded-lg px-2 text-xl disabled:opacity-40" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
           </div>
           <div className="mt-3 flex items-center gap-1.5">
@@ -645,7 +659,14 @@ export default function VideoWizard({
           {/* 5) GENERÁLÁS */}
           {step === 3 && (
             <div className="space-y-4 text-center">
-              {!jobId ? (
+              {!jobId && lab && submitting ? (
+                <div className="py-10">
+                  <p className="text-sm font-medium">A saját TWINX motor készíti a videót…</p>
+                  <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    Ez 1–3 perc (az első próbánál tovább, mert ekkor készülnek az áttűnések). Ne zárd be az ablakot.
+                  </p>
+                </div>
+              ) : !jobId ? (
                 <div className="py-8">
                   <p className="text-sm font-medium">Minden készen áll.</p>
                   <p className="mx-auto mt-2 max-w-md text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -657,7 +678,9 @@ export default function VideoWizard({
               ) : job?.status === "done" && job.output_url ? (
                 <>
                   <video src={job.output_url} controls className="mx-auto max-h-[50vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-                  <p className="text-sm text-green-700">Kész! A videó elmentve a Korábbi videóim közé.</p>
+                  <p className="text-sm text-green-700">
+                    {lab ? "Kész! (Videólabor — nem kerül a partner-előzmények közé; a mérések az oldalon.)" : "Kész! A videó elmentve a Korábbi videóim közé."}
+                  </p>
                 </>
               ) : job?.status === "failed" ? (
                 <div className="py-8">
@@ -708,7 +731,7 @@ export default function VideoWizard({
           ) : (
             <button type="button" onClick={generate} disabled={busy}
               className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-              {busy ? "Generálás folyamatban…" : `Videó generálása (${VIDEO_CREDITS_ALAP} kredit)`}
+              {busy ? "Generálás folyamatban…" : lab ? "Próbavideó a saját motorral" : `Videó generálása (${VIDEO_CREDITS_ALAP} kredit)`}
             </button>
           )}
         </div>

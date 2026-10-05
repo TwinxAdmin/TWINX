@@ -7,7 +7,8 @@ import {
 } from "./template-schema";
 import type { SatoriNode } from "./transitions";
 
-export type BindData = Partial<Record<BindKey, string>>;
+/** Adatok a rétegekhez. `captionpos.N` = a N. fotó feliratának helye ("bottom" | "center"). */
+export type BindData = Partial<Record<BindKey | `captionpos.${number}`, string>>;
 
 export type LayerCtx = {
   W: number;
@@ -224,7 +225,10 @@ function captionBar(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fam
   ].filter(Boolean);
   const full = { position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex" };
 
-  if (l.props?.position === "center") {
+  // A felirat helye: a partner fotónkénti választása (adat) > a sablon alapértéke.
+  const n = String(l.bind ?? "").split(".")[1];
+  const position = (n && ctx.data[`captionpos.${Number(n)}`]) || String(l.props?.position ?? "bottom");
+  if (position === "center") {
     const bandH = Math.round((has2 ? 500 : 430) * u);
     return h("div", full, [
       h("div", {
