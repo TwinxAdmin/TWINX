@@ -72,7 +72,23 @@ export const AURORA: TwinxTemplate = {
           align: "left", valign: "top",
           padding: { top: 0.213 /* = a magasság 12%-a 9:16-ban */, left: 0.07, right: 0.044 },
           appear: { type: "slideRight", delay: 0.15, duration: 0.8, easing: "easeOut" },
-          byAspect: { "1:1": { valign: "middle", padding: { top: 0, left: 0.07, right: 0.044 } } },
+          // 1:1-ben a vászon fele olyan magas → saját, levegősebb elrendezés: kisebb
+          // betűk, kisebb térközök, függőlegesen középre igazítva.
+          byAspect: {
+            "1:1": {
+              box: { x: 0, y: 0, w: 0.56, h: 1 },
+              valign: "middle",
+              padding: { top: 0, left: 0.068, right: 0.05 },
+              items: [
+                { type: "rule", width: 0.06, height: 0.005, color: "@accent" },
+                { type: "text", bind: "property.title", font: { family: MANROPE, weight: 800, size: 0.056 }, color: "@accent", lineHeight: 1.06, maxLines: 2, gapBefore: 0.018 },
+                { type: "text", bind: "property.city", font: { family: MANROPE, weight: 400, size: 0.026 }, color: "@text", gapBefore: 0.01 },
+                { type: "text", bind: "property.type", font: { family: MANROPE, weight: 800, size: 0.022 }, color: "@accent", uppercase: true, letterSpacing: 0.0015, gapBefore: 0.016 },
+                { type: "text", bind: "property.specs", font: { family: MANROPE, weight: 700, size: 0.027 }, color: "@text", lineHeight: 1.45, maxLines: 4, gapBefore: 0.05 },
+                { type: "text", bind: "property.price", font: { family: MANROPE, weight: 800, size: 0.05 }, color: "@accent", lineHeight: 1, gapBefore: 0.045 },
+              ],
+            },
+          },
           items: [
             { type: "rule", width: 0.078, height: 0.0065, color: "@accent" },
             { type: "text", bind: "property.title", font: { family: MANROPE, weight: 800, size: 0.085 }, color: "@accent", lineHeight: 1.03, maxLines: 3, gapBefore: 0.022 },
