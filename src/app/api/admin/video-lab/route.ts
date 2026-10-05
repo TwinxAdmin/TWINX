@@ -41,6 +41,44 @@ function labEnabled(): boolean {
 
 const str = (v: FormDataEntryValue | null, max: number) => String(v ?? "").trim().slice(0, max);
 
+/**
+ * Feltöltés újrapróbálással, MINDIG friss klienssel.
+ * Miért: a render 1–3 percig tart; közben a korábban nyitott (keep-alive) kapcsolatot
+ * a szerver lezárja, és az újrahasznosításakor a Node „fetch failed" hibát ad.
+ */
+async function uploadWithRetry(key: string, body: Buffer): Promise<{ url: string | null; error: string | null }> {
+  let last = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const client = createAdminClient();
+      const { error } = await client.storage.from(BUCKET).upload(key, body, { contentType: "video/mp4", upsert: true });
+      if (!error) return { url: client.storage.from(BUCKET).getPublicUrl(key).data.publicUrl, error: null };
+      last = error.message;
+    } catch (e) {
+      const err = e as Error & { cause?: { message?: string; code?: string } };
+      last = `${err.message}${err.cause ? ` (${err.cause.code ?? ""} ${err.cause.message ?? ""})` : ""}`;
+    }
+    await new Promise((r) => setTimeout(r, 1500 * attempt));
+  }
+  return { url: null, error: last || "ismeretlen hiba" };
+}
+
+/** GET ?id=… — a helyben félretett laborvideó lejátszása (ha a Storage-feltöltés nem ment). */
+export async function GET(request: Request) {
+  const supabase = await createClient();
+  const staff = await getStaffRole(supabase);
+  if (!staff || staff.role !== "admin" || !labEnabled()) {
+    return NextResponse.json({ error: "Nincs jogosultság." }, { status: 403 });
+  }
+  const id = new URL(request.url).searchParams.get("id") ?? "";
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "Hibás azonosító." }, { status: 400 });
+  const file = path.join(os.tmpdir(), "twinx-video-lab", "out", `${id}.mp4`);
+  if (!fs.existsSync(file)) return NextResponse.json({ error: "Nem található." }, { status: 404 });
+  return new NextResponse(fs.readFileSync(file), {
+    headers: { "Content-Type": "video/mp4", "Cache-Control": "no-store" },
+  });
+}
+
 export async function POST(request: Request) {
   // --- 1) Jogosultság ---
   const supabase = await createClient();
@@ -151,15 +189,22 @@ export async function POST(request: Request) {
       workDir, ffmpegPath, outName: `jobs/${id}/twinx-${variantId}-${aspect.replace(":", "x")}.mp4`,
     });
 
+    // A kész videót a labor saját mappájába is félretesszük — ha a Storage-feltöltés
+    // nem sikerül, innen játsszuk le (GET ?id=…), így a próba nem vész el.
+    const keepDir = path.join(workDir, "out");
+    fs.mkdirSync(keepDir, { recursive: true });
+    const kept = path.join(keepDir, `${id}.mp4`);
+    fs.copyFileSync(result.file, kept);
+
     // --- 4) Mentés a Storage-ba (csak a labor mappájába) ---
     const key = `video-lab/${staff.userId}/${id}.mp4`;
-    const { error: upErr } = await admin.storage.from(BUCKET)
-      .upload(key, fs.readFileSync(result.file), { contentType: "video/mp4", upsert: false });
-    if (upErr) throw new Error(`Feltöltés: ${upErr.message}`);
-    const url = admin.storage.from(BUCKET).getPublicUrl(key).data.publicUrl;
+    const up = await uploadWithRetry(key, fs.readFileSync(kept));
+    const url = up.url ?? `/api/admin/video-lab?id=${id}`;
 
     return NextResponse.json({
       ok: true, url,
+      storage: up.url ? "supabase" : "local",
+      uploadError: up.error,
       seconds: result.seconds,
       timings: result.timings,
       photoKinds,

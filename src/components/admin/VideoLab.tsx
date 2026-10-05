@@ -17,6 +17,8 @@ type Result = {
   photoKinds: ("wide" | "matching" | "tall")[];
   fontSource: "local" | "google" | "none";
   music: string | null;
+  storage?: "supabase" | "local";
+  uploadError?: string | null;
 };
 
 const KIND_LABEL = { wide: "széles → pásztázás", matching: "egyező arány → be/ki zoom", tall: "magas → függőleges pásztázás" };
@@ -147,6 +149,12 @@ export default function VideoLab({ variants, musicStyles, profiles }: Props) {
       {result && (
         <section className="space-y-4 rounded-2xl p-5" style={card}>
           <h2 className="text-base font-semibold">Eredmény</h2>
+          {result.storage === "local" && (
+            <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "#fdf3e2", color: "#8a5a12" }}>
+              A videó elkészült, de a Supabase-feltöltés nem sikerült ({result.uploadError}). A labor a gépeden félretett
+              példányt játssza le — a próbához ez is megfelel.
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-semibold" style={{ color: "#2e7d52" }}>● Saját TWINX motor</p>
