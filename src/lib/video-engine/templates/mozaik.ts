@@ -9,7 +9,7 @@
 // GALÉRIA (2. fotótól): nagy kép + kis képek oszlopa, „csere" áttűnés, papírcsík-felirat.
 //
 // IDŐVONAL (5 fotó, 34,4 mp): 0–6 nyitó · 6–28,4 galéria (4 × 5,6 mp) · 28,4–34,4 zárókép
-import type { TwinxTemplate, Layer, StackItem, AspectId, Box } from "@/lib/video-engine/template-schema";
+import type { TwinxTemplate, Layer, StackItem, AspectId, Box, TemplateVariant } from "@/lib/video-engine/template-schema";
 
 const HEAD = "Outfit";
 const NOTE = "Shantell Sans";
@@ -22,22 +22,24 @@ function dbox(d: D, aspect: AspectId) {
   return { x: d.cx - d.r, y: (d.cy - d.r) * k, w: 2 * d.r, h: 2 * d.r * k };
 }
 
-// A rombuszok egymáshoz képest ~0,035 W fehér réssel (a referencia sűrű mozaikja).
+// A rombuszok egymáshoz képest ~0,05 W fehér réssel (a referencia sűrű mozaikja).
+// MIND a vásznon belül marad (min. 3% margó) — így a fehér keret körben, végig látszik
+// (korábban a bal oldali kis rombuszok kilógtak, és a keretük félbe vágódott).
 const LAYOUT: Record<AspectId, { main: D; small: D[] }> = {
   "1:1": {
-    main: { cx: 0.33, cy: 0.42, r: 0.3 },
+    main: { cx: 0.36, cy: 0.42, r: 0.25 },
     small: [
-      { cx: 0.08, cy: 0.15, r: 0.17 }, // bal felső (kilóg a szélen)
-      { cx: 0.08, cy: 0.73, r: 0.21 }, // bal alsó
-      { cx: 0.47, cy: 0.8, r: 0.17 },  // lent középen
+      { cx: 0.16, cy: 0.17, r: 0.13 }, // bal felső
+      { cx: 0.19, cy: 0.76, r: 0.16 }, // bal alsó
+      { cx: 0.5, cy: 0.83, r: 0.13 },  // lent középen
     ],
   },
   "9:16": {
-    main: { cx: 0.56, cy: 0.48, r: 0.38 },
+    main: { cx: 0.62, cy: 0.46, r: 0.33 },
     small: [
-      { cx: 0.14, cy: 0.25, r: 0.22 }, // bal felső
-      { cx: 0.12, cy: 0.73, r: 0.26 }, // bal alsó
-      { cx: 0.8, cy: 0.87, r: 0.2 },   // jobb alsó
+      { cx: 0.21, cy: 0.3, r: 0.17 },  // bal felső
+      { cx: 0.24, cy: 0.74, r: 0.2 },  // bal alsó
+      { cx: 0.78, cy: 0.93, r: 0.16 }, // jobb alsó
     ],
   },
 };
@@ -265,3 +267,11 @@ function buildMozaik(count: number): TwinxTemplate {
 }
 
 export const MOZAIK: TwinxTemplate = buildMozaik(5);
+
+/** Második színvilág: SMARAGD MÁRVÁNY + ARANY (sötétzöld márvány háttér, arany cím és ár, krém szöveg). */
+export const MOZAIK_VARIANTS: TemplateVariant[] = [
+  {
+    id: "mozaik-smaragd", templateId: "mozaik", name: "TWINX Mozaik — Smaragd + arany",
+    palette: { shadow: "#0b1c17", base: "#173229", glow: "#24463b", accent: "#d4b06a", text: "#f3ece0", muted: "#9fb6a9" },
+  },
+];

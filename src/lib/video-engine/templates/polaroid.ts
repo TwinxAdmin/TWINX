@@ -1,4 +1,4 @@
-// TWINX PAKLI — „fotópakli” sablon (FEJLESZTÉS ALATT: csak localhoston — devOnly).
+// TWINX POLAROID (korábbi munkanév: Pakli) — „fotópakli” sablon (FEJLESZTÉS ALATT: csak localhoston — devOnly).
 //
 // A referencia: telt színű háttéren (bíborpiros / drámai kék) egy pakli előhívott fotó.
 // • A FŐ INFORMÁCIÓK végig FENT állnak; a nyitóképen lendületesen, egymás után úsznak be
@@ -142,7 +142,7 @@ function caption(n: number): Layer {
   };
 }
 
-function buildPakli(count: number): TwinxTemplate {
+function buildPolaroid(count: number): TwinxTemplate {
   const n = count >= 5 ? 5 : 4;
   const photoScenes: TwinxTemplate["scenes"] = [];
   for (let m = 2; m <= n; m++) {
@@ -168,8 +168,8 @@ function buildPakli(count: number): TwinxTemplate {
     appear: { type: "rise", delay, duration: 0.5 },
   });
   return {
-    id: "pakli",
-    name: "TWINX Pakli",
+    id: "polaroid",
+    name: "TWINX Polaroid",
     devOnly: true, // FEJLESZTÉS ALATT — élesben nem jelenik meg
     version: 1,
     fps: 25,
@@ -191,7 +191,7 @@ function buildPakli(count: number): TwinxTemplate {
     audio: { volume: 1, fadeIn: 0.6, fadeOut: 2.2 },
     // „Régi fotó / old film” hangulat: szemcse, sötétedő szélek, fakó-meleg tónus, enyhe vibrálás.
     look: { grain: 16, vignette: 0.4, fade: 0.6, warm: 0.6, flicker: 0.5 },
-    forPhotoCount: (k: number) => buildPakli(k),
+    forPhotoCount: (k: number) => buildPolaroid(k),
     scenes: [
       {
         id: "nyito", role: "intro", length: INTRO,
@@ -231,12 +231,12 @@ function buildPakli(count: number): TwinxTemplate {
   };
 }
 
-export const PAKLI: TwinxTemplate = buildPakli(5);
+export const POLAROID: TwinxTemplate = buildPolaroid(5);
 
 /** Második színvilág: DRÁMAI KÉK (a fehér betű jól olvasható rajta). */
-export const PAKLI_VARIANTS: TemplateVariant[] = [
+export const POLAROID_VARIANTS: TemplateVariant[] = [
   {
-    id: "pakli-kek", templateId: "pakli", name: "TWINX Pakli — Drámai kék",
+    id: "polaroid-kek", templateId: "polaroid", name: "TWINX Polaroid — Drámai kék",
     palette: { shadow: "#06143a", base: "#11307f", glow: "#1d45a6", muted: "#cfdcf5" },
   },
 ];

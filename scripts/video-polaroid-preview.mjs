@@ -1,5 +1,5 @@
-// A Pakli szerkesztő-előnézetei (public/video-previews/pakli*-9x16.jpg) — a valódi motor rétegeiből,
-// lakás-ábrával (mint a többi kártyán). Futtatás: node scripts/video-pakli-preview.mjs (előtte: FFMPEG_PATH=/bin/false node scripts/video-engine-try.mjs 9:16 pakli — ez fordítja le a motort).
+// A Polaroid szerkesztő-előnézetei (public/video-previews/polaroid*-9x16.jpg) — a valódi motor rétegeiből,
+// lakás-ábrával (mint a többi kártyán). Futtatás: node scripts/video-polaroid-preview.mjs (előtte: FFMPEG_PATH=/bin/false node scripts/video-engine-try.mjs 9:16 polaroid — ez fordítja le a motort).
 import fs from "node:fs"; import path from "node:path"; import { createRequire } from "node:module"; import { execFileSync } from "node:child_process";
 const ROOT = process.cwd(); const require = createRequire(ROOT + "/package.json");
 const B = ROOT + "/.cache/video-engine-build/";
@@ -9,7 +9,7 @@ const { filmLookChain } = require(B + "render-node.cjs");
 const { ImageResponse } = require(require.resolve("next/dist/compiled/@vercel/og/index.node.js"));
 const ill = "data:image/jpeg;base64," + fs.readFileSync(path.join(ROOT, "public/video-samples/aurora-hero.jpg")).toString("base64");
 const data = { "photo.1": ill, "property.title": "Sas utca 22.", "property.city": "Budapest V. kerület", "property.type": "Új építésű lakás", "property.price": "60 M Ft" };
-for (const id of ["pakli", "pakli-kek"]) {
+for (const id of ["polaroid", "polaroid-kek"]) {
   const tpl = resolveEngineTemplate(id);
   const fonts = tpl.fonts.map((x) => { const b = fs.readFileSync(path.join(ROOT, x.file)); return { name: x.family, weight: x.weight, style: "normal", data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) }; });
   const W = 1080, H = 1920;

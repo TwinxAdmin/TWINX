@@ -422,6 +422,11 @@ function marble(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx): Satori
   const base = resolveColor("@base", ctx.palette);
   const vein = resolveColor((l.props?.vein as ColorRef | undefined) ?? "@muted", ctx.palette);
   const seed = Number(l.props?.seed ?? 7);
+  // Sötét alapnál (pl. smaragd) a fehér „fényfolt” csak halvány, különben tejes lesz a márvány.
+  const n = parseInt(base.slice(1), 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  const sheen = lum < 0.45 ? "0.12" : "0.55";
+  const veinOp = lum < 0.45 ? 0.16 : 0.2;
   return {
     type: "div",
     props: {
@@ -441,12 +446,12 @@ function marble(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx): Satori
                 { type: "feGaussianBlur", props: { in: "v", stdDeviation: "0.6" } },
               ] } },
               { type: "linearGradient", props: { id: "mg", x1: "0", y1: "0", x2: "1", y2: "1", children: [
-                { type: "stop", props: { offset: "0", "stop-color": "#ffffff", "stop-opacity": "0.55" } },
+                { type: "stop", props: { offset: "0", "stop-color": "#ffffff", "stop-opacity": sheen } },
                 { type: "stop", props: { offset: "1", "stop-color": "#ffffff", "stop-opacity": "0" } },
               ] } },
             ] } },
             { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: base } },
-            { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: vein, opacity: 0.2, filter: "url(#mv)" } },
+            { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: vein, opacity: veinOp, filter: "url(#mv)" } },
             { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: "url(#mg)" } },
           ],
         },

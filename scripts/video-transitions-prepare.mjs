@@ -33,7 +33,7 @@ if (!ffmpeg) { try { ffmpeg = require("ffmpeg-static"); } catch { ffmpeg = "ffmp
 // --- A motor fordítása CommonJS-re (mint a próba-scriptben) ---
 fs.mkdirSync(BUILD, { recursive: true });
 const files = ["template-schema.ts", "transitions.ts", "layers.ts", "png-bbox.ts", "render-node.ts",
-  "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/mozaik.ts", "templates/pakli.ts", "templates/index.ts"];
+  "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/mozaik.ts", "templates/polaroid.ts", "templates/index.ts"];
 const OG = require.resolve("next/dist/compiled/@vercel/og/index.node.js");
 for (const f of files) {
   let js = ts.transpileModule(fs.readFileSync(path.join(SRC, f), "utf8"), {

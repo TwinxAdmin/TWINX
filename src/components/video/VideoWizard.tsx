@@ -156,6 +156,14 @@ export default function VideoWizard({
     }
   }
   const visibleFamilies = favOnly ? ENGINE_FAMILIES.filter((f) => favorites.has(f.templateId)) : ENGINE_FAMILIES;
+  // A sablonlista magassága az „Összes sablon” nézetben — a Kedvencekre váltva is ennyi marad,
+  // így a szerkesztő ablaka nem ugrik össze, ha kevés (vagy nincs) kedvenc.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [listH, setListH] = useState<number | null>(null);
+  function pickFilter(fav: boolean) {
+    if (fav && !favOnly && listRef.current) setListH(listRef.current.getBoundingClientRect().height);
+    setFavOnly(fav);
+  }
 
   // 1) Képek (5, az első a NYITÓKÉP). Minden fotóhoz saját, szabad felirat tartozik.
   type CaptionPos = "bottom" | "center";
@@ -449,7 +457,8 @@ export default function VideoWizard({
                 {engine ? "Minden sablonnak saját stílusa, áttűnése és színvilága van." : "A sablonok felépítése azonos — a kiemelő szín különbözteti meg őket."}
               </p>
               {/* SABLONLISTA — GÖRGETHETŐ (több sablonnál ez a rész gördül, a méret-sáv alatta fix) */}
-              <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+              <div ref={listRef} className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1"
+                style={favOnly && listH ? { minHeight: listH, flexBasis: listH } : undefined}>
                 {engine ? (
                   visibleFamilies.length === 0 ? (
                     <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
@@ -597,7 +606,7 @@ export default function VideoWizard({
                         ].map((t) => {
                           const active = favOnly === t.id;
                           return (
-                            <button key={String(t.id)} type="button" role="tab" aria-selected={active} onClick={() => setFavOnly(t.id)}
+                            <button key={String(t.id)} type="button" role="tab" aria-selected={active} onClick={() => pickFilter(t.id)}
                               className="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-3 text-left transition"
                               style={{ background: active ? "var(--twx-coral-soft)" : "transparent" }}>
                               <span className="flex h-7 w-7 items-center justify-center rounded-md text-[13px]"
@@ -1118,9 +1127,9 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
       )}
-      {item.templateId === "pakli" ? (
-        // Pakli: a VALÓDI motor nyitóképe a választott színvilággal (piros / kék) — lakás-ábrával.
-        // Újragyártás: node scripts/video-pakli-preview.mjs → public/video-previews/pakli*-9x16.jpg
+      {item.templateId === "polaroid" ? (
+        // Polaroid: a VALÓDI motor nyitóképe a választott színvilággal (piros / kék) — lakás-ábrával.
+        // Újragyártás: node scripts/video-polaroid-preview.mjs → public/video-previews/polaroid*-9x16.jpg
         <span className="absolute inset-0 flex justify-center" style={{ background: p.base }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/video-previews/${item.id}-9x16.jpg`} alt="" className="h-full w-auto max-w-none object-contain" />
@@ -1130,7 +1139,7 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
         // Újragyártás sablonváltozáskor: public/video-previews/mozaik-9x16.jpg (docs/video-motor-allapot.md).
         <span className="absolute inset-0 flex justify-center" style={{ background: p.base }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/video-previews/mozaik-9x16.jpg" alt="" className="h-full w-auto max-w-none object-contain" />
+          <img src={`/video-previews/${item.id}-9x16.jpg`} alt="" className="h-full w-auto max-w-none object-contain" />
         </span>
       ) : item.templateId === "prestige" ? (
         <>

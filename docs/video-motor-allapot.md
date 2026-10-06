@@ -81,8 +81,8 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - Kedvencek: csillag a kártya bal felső sarkában → `video_template_favorites` tábla (`video-favorites.sql`),
   API: `src/app/api/real-estate/video/favorites/route.ts`. Ha a tábla hiányzik, a szerkesztő kedvencek nélkül működik.
 
-## **Pakli** (5. sablon) — FEJLESZTÉS ALATT (`devOnly`, csak localhost)
-- Fájl: `templates/pakli.ts`. Telt háttér: Bíborpiros (alap) / Drámai kék (`pakli-kek`).
+## **Polaroid** (5. sablon; korábbi munkanév: Pakli) — FEJLESZTÉS ALATT (`devOnly`, csak localhost)
+- Fájl: `templates/polaroid.ts` (id: `polaroid`). Telt háttér: Bíborpiros (alap) / Drámai kék (`polaroid-kek`).
 - Betű: Liberation Sans (OFL, a repóban: `assets/fonts/video/`) — Helvetica-jellegű, szoros betűköz (a referencia betűképe).
 - Fent végig a fő infó: kis típus-felirat · nagy félkövér cím (balra) · település jobbra zárva · ár kiemelő sávval.
   A nyitón egymás után, lendületesen úsznak be (`appear: "rise"`), a sáv balról kihúzódik (`appear: "wipe"`,
@@ -90,7 +90,7 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - (Az írógépes `typeStack` / `typewriter` a motorban megmaradt, a Pakli már nem használja — lassú volt.)
 - Képváltás: a pakli tetejéről a szél LEFÚJJA a legfelső képet (`blow` a rétegen → forgás + gyorsuló sodródás, `kind: "blow"`).
 - Zárókép: a legalsó lap üres papír, rajta gépelve az elérhetőség (sötét tinta), alatta a logó.
-- Előnézet: `scripts/video-pakli-preview.mjs` → `public/video-previews/pakli*-9x16.jpg`.
+- Előnézet: `scripts/video-polaroid-preview.mjs` → `public/video-previews/polaroid*-9x16.jpg`.
 - „Régi film” hatás: `look` a sablonon (render-node.ts → `filmLookChain`): fakó-meleg tónus (görbék),
   enyhe fényvibrálás, sötétedő szélek, mozgó filmszemcse (csak fényességen). Az előnézet is ezt kapja.
 - Render (5 fotó): 9:16 ~45 mp, 1:1 ~26 mp (a szemcse miatt lassabb a kódolás; Vercelen ~1,5–2×).
@@ -99,3 +99,8 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
   `sparkle` komponens (badge | star4 | asterisk) — abszolút időt követnek, jelenetváltáskor nem ugranak.
 - VILLANÁS-JAVÍTÁS (motor, minden sablon): az overlay-ablakok 2 ms-mal korábban kezdődnek (`ew()` a render-node-ban).
   A 14.8 / 19.6 mp-es jelenethatár képkockaideje lebegőpontosan 14.7999… volt → egy képkockára minden réteg eltűnt.
+
+### Mozaik — második színvilág (2026-10-06)
+- `mozaik-smaragd` (Smaragd + arany): sötétzöld márvány háttér, arany cím/ár, krém szöveg (`MOZAIK_VARIANTS`).
+  A márvány sötét alapon halványabb fényfoltot és erezetet kap (layers.ts `marble`). Áttűnések előgyártva.
+- Előnézetek: `scripts/video-mozaik-preview.mjs` → `public/video-previews/mozaik*-9x16.jpg` (a kártya a színvilág képét mutatja).
