@@ -23,7 +23,10 @@ import {
   ASPECT_SIZES, resolveColor, sceneStarts, totalDuration,
   type Appear, type AspectId, type Layer, type Motion, type TwinxTemplate,
 } from "./template-schema";
-import { chevronCutProgress, chevronWipeFrame, panelRevealFrame, softDipFrame, PANEL_CUT, DIP_CUT, type SatoriNode } from "./transitions";
+import {
+  chevronCutProgress, chevronWipeFrame, panelRevealFrame, softDipFrame, symbolZoomFrame, symbolMaskFrame,
+  PANEL_CUT, DIP_CUT, SYMBOL_CUT, type SatoriNode, type EstateSymbol,
+} from "./transitions";
 import { layersFrame, type BindData } from "./layers";
 
 export type EngineFont = { name: string; data: ArrayBuffer; weight: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900; style: "normal" };
@@ -187,6 +190,57 @@ async function transitionFrames(opts: {
   return { pattern, frames };
 }
 
+/**
+ * SZIMBÓLUM-ZOOM képkockái (fél felbontáson, gyorsítótárazva):
+ *  • a LÁTHATÓ réteg (arany vonalak) a teljes áttűnésre;
+ *  • a MASZK (fehér szimbólum-belső fekete alapon) csak a vágás előtti szakaszra —
+ *    ezen át látszik már a következő jelenet („átlépés a következő szobába").
+ */
+async function symbolFrames(opts: {
+  symbol: EstateSymbol; origin: { x: number; y: number; size: number };
+  dir: string; W: number; H: number; fps: number; duration: number; stroke: string;
+}): Promise<{ pattern: string; frames: number; maskPattern: string; maskFrames: number }> {
+  const { W, H, fps, duration } = opts;
+  const frames = Math.max(2, Math.round(duration * fps));
+  const maskFrames = Math.max(1, Math.round(frames * SYMBOL_CUT));
+  const w = Math.round(W / 2), hh = Math.round(H / 2);
+  const o = opts.origin;
+  const key = `symbolZoom-${opts.symbol}-v${TRANSITION_VERSION}-${w}x${hh}-${frames}-${opts.stroke.slice(1)}-${o.x}-${o.y}-${o.size}`;
+  const dir = path.join(opts.dir, key);
+  const pattern = path.join(dir, "f%04d.png");
+  const maskPattern = path.join(dir, "m%04d.png");
+  const zo = {
+    symbol: opts.symbol,
+    // Az origó a vászon SZÉLESSÉGÉNEK arányában van megadva (így 9:16-ban és 1:1-ben ugyanott ül).
+    origin: { x: o.x * w, y: o.y * w, size: o.size * w },
+    colors: { fill: "none", stroke: opts.stroke },
+  };
+  if (fs.existsSync(path.join(dir, `f${String(frames - 1).padStart(4, "0")}.png`))) return { pattern, frames, maskPattern, maskFrames };
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 0; i < frames; i++) {
+    const pr = i / (frames - 1);
+    fs.writeFileSync(path.join(dir, `f${String(i).padStart(4, "0")}.png`), await png(symbolZoomFrame(pr, w, hh, zo), w, hh, undefined));
+    if (i < maskFrames) {
+      fs.writeFileSync(path.join(dir, `m${String(i).padStart(4, "0")}.png`), await png(symbolMaskFrame(pr, w, hh, zo), w, hh, undefined));
+    }
+  }
+  return { pattern, frames, maskPattern, maskFrames };
+}
+
+/**
+ * VIDEÓ-EFFEKT KLIPEK (előkészítve: scripts/video-fx-prepare.mjs).
+ * Méretenként kivágott, 25 kép/mp-es klip HANGGAL. „Screen" keveréssel kerül a
+ * videóra: a fekete része láthatatlan, a világos része „beég" a képbe.
+ * `cut`: a klip legvilágosabb pillanata (mp) — ide esik a jelenetváltás, így a
+ * vágás a fehér villanásban láthatatlan.
+ */
+const FX_CLIPS: Record<string, { cut: number; duration: number }> = {
+  filmburn6: { cut: 0.52, duration: 1.168 },
+};
+function fxClipFile(fx: string, aspect: AspectId): string {
+  return path.join(process.cwd(), "assets", "video-fx", `${fx}-${aspect.replace(":", "x")}.mp4`);
+}
+
 // ---------------------------------------------------------------------------
 // 3) Kameramozgás
 // ---------------------------------------------------------------------------
@@ -280,6 +334,12 @@ function appearExpr(a: Appear | undefined, start: number, W: number, H: number) 
     case "slideUp": return { x: "0", y: `${Math.round(H * 0.06)}*(1-${k})`, fade: { st, d } };
     case "slideDown": return { x: "0", y: `-${Math.round(H * 0.06)}*(1-${k})`, fade: { st, d } };
     case "fade": case "pop": return { x: "0", y: "0", fade: { st, d } };
+    // Lebegés: lassú, végtelen fel-le ringás (a periódus a `duration`), lágy beúszással.
+    case "float": {
+      const amp = Math.round(H * (a.amount ?? 0.006));
+      const period = Math.max(1, a.duration ?? 6);
+      return { x: "0", y: `${amp}*sin(2*PI*(t-${st.toFixed(3)})/${period})`, fade: { st, d: 0.8 } };
+    }
     default: return { x: "0", y: "0", fade: null };
   }
 }
@@ -306,8 +366,38 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
   // --- 1) Áttűnések ---
   type Placed = { pattern: string; start: number };
   const placed: Placed[] = [];
+  // „Átlépés a következő szobába": a vágás ELŐTT a következő jelenet első képkockája
+  // látszik a szimbólum belsejében (maszkon át).
+  type Reveal = { scene: number; maskPattern: string; maskFrames: number; start: number };
+  const reveals: Reveal[] = [];
+  // Filmes effekt-klipek (Screen-keverés + hang), a jelenetváltás köré igazítva.
+  type FxPlaced = { file: string; start: number; volume: number };
+  const fxPlaced: FxPlaced[] = [];
   for (let i = 1; i < tpl.scenes.length; i++) {
     const tr = tpl.scenes[i].transitionIn;
+    if (tr?.type === "filmBurn") {
+      const id = tr.fx ?? "filmburn6";
+      const meta = FX_CLIPS[id];
+      const file = fxClipFile(id, aspect);
+      if (meta && fs.existsSync(file)) {
+        fxPlaced.push({ file, start: Math.max(0, starts[i] - meta.cut), volume: tr.fxVolume ?? 0.5 });
+      } else {
+        log(`⚠ hiányzó effekt-klip: ${file} — sima vágás lesz helyette`);
+      }
+      continue;
+    }
+    if (tr?.type === "symbolZoom") {
+      const seq = await symbolFrames({
+        symbol: tr.symbol ?? "house",
+        origin: tr.origin ?? { x: 0.47, y: 0.05, size: 0.06 },
+        dir: path.join(input.workDir, "transitions"), W, H, fps, duration: tr.duration,
+        stroke: resolveColor(tr.colors?.glow ?? "@accent", tpl.palette),
+      });
+      const start = starts[i] - SYMBOL_CUT * tr.duration;
+      placed.push({ pattern: seq.pattern, start });
+      reveals.push({ scene: i, maskPattern: seq.maskPattern, maskFrames: seq.maskFrames, start });
+      continue;
+    }
     if (!tr || (tr.type !== "chevronWipe" && tr.type !== "panelReveal" && tr.type !== "softDip")) continue; // fade/cut: nincs grafika
     const fill = resolveColor(tr.colors?.fill ?? "@shadow", tpl.palette);
     // Felnyíló paneleknél a második szín a világosabb sáv (shadow-szerep = @base).
@@ -370,6 +460,12 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
       args.push("-f", "lavfi", "-t", String(sc.length), "-i", `color=c=${color}:s=${W}x${H}:r=${fps}`);
       filters.push(`[${idx}:v]format=yuv420p,setsar=1[s${i}]`);
     }
+    // A „belátáshoz" a jelenet képét kettéágaztatjuk: egyik a sorba, másik a maszkhoz.
+    if (reveals.some((r) => r.scene === i)) {
+      const lastF = filters.length - 1;
+      filters[lastF] = filters[lastF].slice(0, -`[s${i}]`.length) + `[s${i}pre]`;
+      filters.push(`[s${i}pre]split=2[s${i}][rv${i}]`);
+    }
     sceneLabels.push(`[s${i}]`);
   });
   filters.push(`${sceneLabels.join("")}concat=n=${sceneLabels.length}:v=1:a=0[base]`);
@@ -388,6 +484,23 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     last = `o${k}`;
   });
 
+  // „Belátás a következő szobába": a következő jelenet ELSŐ képkockája (kimerevítve)
+  // a szimbólum-maszkon át, a vágás előtti szakaszban. A rétegek (feliratok) FÖLÉ
+  // kerül, hogy a szimbólum belsejében már csak az új szoba látsszon.
+  reveals.forEach((r, k) => {
+    const idx = inputIdx++;
+    const n = r.maskFrames;
+    args.push("-framerate", String(fps), "-i", r.maskPattern);
+    const st = r.start.toFixed(3);
+    filters.push(
+      `[rv${r.scene}]trim=end_frame=1,loop=loop=${n - 1}:size=1:start=0,setpts=N/${fps}/TB+${st}/TB,format=yuva420p[rvb${k}]`,
+      `[${idx}:v]scale=${W}:${H},format=gray,setpts=N/${fps}/TB+${st}/TB[rvm${k}]`,
+      `[rvb${k}][rvm${k}]alphamerge[rva${k}]`,
+      `[${last}][rva${k}]overlay=eof_action=pass[r${k}]`,
+    );
+    last = `r${k}`;
+  });
+
   placed.forEach((tr, k) => {
     const idx = inputIdx++;
     args.push("-framerate", String(fps), "-i", tr.pattern);
@@ -398,17 +511,53 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     last = `v${k}`;
   });
 
-  // --- Zene: a videó hosszára vágva, a sablon szerinti hangerővel és úsztatással ---
+  // --- Filmes effekt-klipek: „Screen" keverés a kész kép FÖLÉ (minden réteg fölött) ---
+  // Egy fekete „effekt-sávra" rakjuk a klipeket a helyükre, és a sávot egyszerre
+  // keverjük rá a videóra. Screen: fekete = nincs hatás, fehér = teljes beégés.
+  const fxAudio: string[] = [];
+  if (fxPlaced.length) {
+    filters.push(`color=c=black:s=${W}x${H}:r=${fps}:d=${total}[fxt0]`);
+    fxPlaced.forEach((f, k) => {
+      const idx = inputIdx++;
+      args.push("-i", f.file);
+      filters.push(
+        `[${idx}:v]setpts=PTS-STARTPTS+${f.start.toFixed(3)}/TB[fxv${k}]`,
+        `[fxt${k}][fxv${k}]overlay=eof_action=pass[fxt${k + 1}]`,
+        // A klip hangja a megadott hangerővel (alap: fele), pontosan a képhez időzítve.
+        `[${idx}:a]volume=${f.volume},adelay=${Math.round(f.start * 1000)}:all=1[fxa${k}]`,
+      );
+      fxAudio.push(`[fxa${k}]`);
+    });
+    const on = fxPlaced.map((f) => `between(t,${f.start.toFixed(3)},${(f.start + 1.3).toFixed(3)})`).join("+");
+    filters.push(
+      `[${last}]format=gbrp[fxbg]`,
+      `[fxt${fxPlaced.length}]format=gbrp[fxfg]`,
+      `[fxbg][fxfg]blend=all_mode=screen:shortest=1:enable='${on}',format=yuv420p[fxout]`,
+    );
+    last = "fxout";
+  }
+
+  // --- Hang: zene (a videó hosszára vágva, úsztatással) + az effekt-klipek hangja ---
   const audioMap: string[] = [];
-  if (input.music && fs.existsSync(input.music)) {
+  const hasMusic = Boolean(input.music && fs.existsSync(input.music));
+  if (hasMusic) {
     const idx = inputIdx++;
-    args.push("-stream_loop", "-1", "-i", input.music); // rövid zene esetén ismétlődik
+    args.push("-stream_loop", "-1", "-i", input.music as string); // rövid zene esetén ismétlődik
     const a = tpl.audio;
     const fades = [
       a.fadeIn > 0 ? `afade=t=in:st=0:d=${a.fadeIn}` : "",
       a.fadeOut > 0 ? `afade=t=out:st=${Math.max(0, total - a.fadeOut).toFixed(2)}:d=${a.fadeOut}` : "",
     ].filter(Boolean).join(",");
-    filters.push(`[${idx}:a]atrim=0:${total},asetpts=PTS-STARTPTS,volume=${a.volume}${fades ? "," + fades : ""}[aout]`);
+    filters.push(`[${idx}:a]atrim=0:${total},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,volume=${a.volume}${fades ? "," + fades : ""}[amusic]`);
+  }
+  if (hasMusic || fxAudio.length) {
+    if (!fxAudio.length) {
+      filters.push(`[amusic]anull[aout]`);
+    } else {
+      // A zene (vagy csend) adja a teljes hosszt; az effektek hangja ráül, NEM nyomja el.
+      if (!hasMusic) filters.push(`anullsrc=r=48000:cl=stereo,atrim=0:${total}[amusic]`);
+      filters.push(`[amusic]${fxAudio.join("")}amix=inputs=${fxAudio.length + 1}:normalize=0:duration=first[aout]`);
+    }
     audioMap.push("-map", "[aout]", "-c:a", "aac", "-b:a", "192k");
   }
 

@@ -46,3 +46,10 @@ next-env.d.ts
 
 # Levél-előnézet (beágyazott képekkel, generált)
 marketing/email/elonezet.html
+
+# Átadási ZIP-ek (generált)
+marketing/email/atadas-smartlead/
+marketing/email/atadas-brevo/
+
+# Videó-effektek nagy forrásfájljai (a kész klipek a gitben vannak)
+assets/video-fx/source/

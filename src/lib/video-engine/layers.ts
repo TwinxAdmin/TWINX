@@ -5,7 +5,7 @@ import {
   resolveColor,
   type AspectId, type BindKey, type Box, type ColorRef, type Layer, type Palette, type StackItem,
 } from "./template-schema";
-import type { SatoriNode } from "./transitions";
+import { symbolSvg, type SatoriNode } from "./transitions";
 
 /** Adatok a rétegekhez. `captionpos.N` = a N. fotó feliratának helye ("bottom" | "center"). */
 export type BindData = Partial<Record<BindKey | `captionpos.${number}`, string>>;
@@ -188,6 +188,15 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
       },
         // Portrénál az arc a kép felső részén van → a kivágás felülre igazodik.
         { type: "img", props: { src, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" ? "center" : "center top" } } });
+    }
+    case "symbol": {
+      // Vonalas ingatlanos ikon (ugyanaz a rajz, mint a Prestige szimbólum-áttűnéséé).
+      const size = Math.round(l.box.w * ctx.W);
+      return h("div", { ...base, width: size, height: size },
+        symbolSvg(l.symbol, size, {
+          fill: l.fill ? resolveColor(l.fill, ctx.palette) : "none",
+          stroke: resolveColor(l.stroke, ctx.palette),
+        }));
     }
     case "component":
       if (l.component === "captionBar") return captionBar(l, ctx, family);

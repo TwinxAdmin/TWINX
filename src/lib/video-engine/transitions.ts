@@ -188,3 +188,149 @@ export function softDipFrame(progress: number, W: number, H: number, color: Rgb)
   const o = Math.min(1, easeInOutCubic(Math.min(1, tri * 1.15)));
   return h("div", { style: { width: W, height: H, display: "flex", background: color, opacity: Number(o.toFixed(3)) } });
 }
+
+// =========================================================================
+// SZIMBÓLUM-ZOOM (symbolZoom) — a Prestige jellegzetes áttűnése
+//
+// Egy kis, vonalas ingatlanos szimbólum (ház, kulcs, térképjel, épület, tábla)
+// a helyéről GYORSULVA a kamera felé repül: egyre nagyobb lesz, mi pedig „berepülünk"
+// a belsejébe (a ház ajtaján, a kulcs karikáján…), míg a tömör belseje az egész
+// vásznat kitölti. Ekkor történik a képváltás. Utána a szimbólum visszaszalad a
+// helyére — de körülötte már az ÚJ fotó látszik.
+//
+// A szimbólum rajza ugyanaz, mint a jelenetek kis jelvénye (`symbolSvg`), így a
+// visszaérkezés után a jelvény pontosan a helyén marad.
+// =========================================================================
+
+export type EstateSymbol = "house" | "key" | "pin" | "building" | "sold";
+
+type SymbolDef = {
+  /** Tömör sziluett (a háttérszínnel kitöltve) — ez takarja a vásznat a vágáskor. */
+  fill: string;
+  /** Vonalas rajz (kiemelő szín) — a landing ikonjainak stílusa. */
+  strokes: string[];
+  /** A „berepülés" pontja és a körülötte biztosan a sziluetten belül eső téglalap fél-mérete (egységben). */
+  focus: [number, number];
+  safe: [number, number];
+};
+
+/** 24×24-es rácson rajzolt szimbólumok (a /ingatlan oldal EstateIcons ikonjai). */
+export const ESTATE_SYMBOLS: Record<EstateSymbol, SymbolDef> = {
+  // Berepülés az AJTÓN át.
+  house: {
+    fill: "M12 4 21 11.5V20H3V11.5Z",
+    strokes: ["M3 11.5 12 4l9 7.5", "M5 10.5V20h14v-9.5", "M10 20v-5h4v5"],
+    focus: [12, 15.2], safe: [5.5, 4.2],
+  },
+  // Berepülés a kulcs KARIKÁJÁN át.
+  key: {
+    fill: "M7.5 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7Z",
+    strokes: ["M7.5 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7Z", "M11 12h10M18 12v3M15 12v2.5"],
+    focus: [7.5, 12], safe: [1.65, 2.95],
+  },
+  // Berepülés a térképjel FEJÉBE.
+  pin: {
+    fill: "M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z",
+    strokes: ["M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z", "M12 7.6a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8Z"],
+    focus: [12, 9.6], safe: [2.6, 4.4],
+  },
+  // Berepülés a TORONYHÁZ falába.
+  building: {
+    fill: "M4 21V6.5L12 3v6.5h8V21Z",
+    strokes: ["M4 21V6.5L12 3v18", "M12 9.5h8V21", "M7 9h2M7 12.5h2M7 16h2M15 13h2M15 16.5h2", "M3 21h18"],
+    focus: [8, 14], safe: [3.6, 6.6],
+  },
+  // Berepülés az „ELADÓ" TÁBLÁBA.
+  sold: {
+    fill: "M4.6 4h10.8a1.6 1.6 0 0 1 1.6 1.6v6.3a1.6 1.6 0 0 1-1.6 1.6H4.6A1.6 1.6 0 0 1 3 11.9V5.6A1.6 1.6 0 0 1 4.6 4Z",
+    strokes: ["M4.6 4h10.8a1.6 1.6 0 0 1 1.6 1.6v6.3a1.6 1.6 0 0 1-1.6 1.6H4.6A1.6 1.6 0 0 1 3 11.9V5.6A1.6 1.6 0 0 1 4.6 4Z", "M10 13.5V21M7 21h6", "M6.5 8.5h7"],
+    focus: [10, 8.75], safe: [6.6, 4.4],
+  },
+};
+
+const STROKE_UNITS = 1.6;
+
+/** A szimbólum SVG-csoportja adott helyen és léptékben (a fókuszpont kerül a (cx, cy) pontra). */
+function symbolGroup(sym: EstateSymbol, cx: number, cy: number, unit: number, unit0: number, colors: { fill: Rgb; stroke: Rgb }): SatoriNode {
+  const d = ESTATE_SYMBOLS[sym];
+  // A vonal képernyőn mért vastagsága csak lassan nő a nagyítással (különben a
+  // nagy léptéknél vaskos sávvá hízna) — így végig elegáns, vékony vonal marad.
+  const strokePx = STROKE_UNITS * unit0 * Math.pow(unit / unit0, 0.32);
+  const sw = strokePx / unit;
+  return h("g", { transform: `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) scale(${unit.toFixed(4)}) translate(${-d.focus[0]} ${-d.focus[1]})` },
+    h("path", { d: d.fill, fill: colors.fill }),
+    ...d.strokes.map((s) => h("path", {
+      d: s, fill: "none", stroke: colors.stroke, "stroke-width": sw.toFixed(4),
+      "stroke-linecap": "round", "stroke-linejoin": "round",
+    })),
+  );
+}
+
+/** A jelenetek kis jelvénye: a szimbólum a (cx, cy) fókuszponttal, `sizePx` méretű rácsdobozban. */
+export function symbolSvg(sym: EstateSymbol, sizePx: number, colors: { fill: Rgb; stroke: Rgb }): SatoriNode {
+  const unit = sizePx / 24;
+  const d = ESTATE_SYMBOLS[sym];
+  return h("svg", { width: sizePx, height: sizePx, viewBox: `0 0 ${sizePx} ${sizePx}` },
+    symbolGroup(sym, d.focus[0] * unit, d.focus[1] * unit, unit, unit, colors));
+}
+
+/** A vágás pillanata (ekkor a szimbólum belseje teljesen takarja a vásznat). */
+export const SYMBOL_CUT = 0.5;
+
+export type SymbolZoomOptions = {
+  symbol: EstateSymbol;
+  /** A jelvény helye: a rácsdoboz bal felső sarka (px) és mérete (px). */
+  origin: { x: number; y: number; size: number };
+  colors: { fill: Rgb; stroke: Rgb };
+};
+
+/**
+ * Egy képkocka a szimbólum-zoomból. 0 → SYMBOL_CUT: a szimbólum gyorsulva a kamera
+ * felé jön és a fókuszpontja a vászon közepére úszik; SYMBOL_CUT-nál teljes takarás;
+ * utána ugyanez visszafelé, lassulva, egészen a jelvény helyéig.
+ */
+function symbolZoomGeometry(progress: number, W: number, H: number, o: SymbolZoomOptions) {
+  const p = Math.min(1, Math.max(0, progress));
+  const d = ESTATE_SYMBOLS[o.symbol];
+  const unit0 = o.origin.size / 24;
+  const fx0 = o.origin.x + d.focus[0] * unit0;
+  const fy0 = o.origin.y + d.focus[1] * unit0;
+  // A teljes takaráshoz szükséges lépték: a biztos téglalap fedje a vásznat (+12% ráhagyás).
+  const unitMax = Math.max(W / 2 / d.safe[0], H / 2 / d.safe[1]) * 1.12;
+  // Oda: gyorsuló (a végén szinte „becsapódik"); vissza: lassuló (puhán érkezik a helyére).
+  // t: 0 a jelvény helyén, 1 a vágásnál. k = t^2,2 → oda gyorsul, vissza a vágás
+  // után gyorsan indul és puhán, lassulva érkezik a helyére.
+  const t = p <= SYMBOL_CUT ? p / SYMBOL_CUT : (1 - p) / (1 - SYMBOL_CUT);
+  const k = Math.min(1, Math.max(0, Math.pow(t, 2.2)));
+  // Léptékek mértani (exponenciális) közelítése — a kamera felé repülés így érződik egyenletesnek.
+  const unit = unit0 * Math.pow(unitMax / unit0, k);
+  // A fókuszpont a jelvény helyéről a vászon közepére úszik (a lépték növekedésével együtt).
+  const m = easeInOutCubic(Math.min(1, k * 1.25));
+  const cx = fx0 + (W / 2 - fx0) * m;
+  const cy = fy0 + (H / 2 - fy0) * m;
+  return { cx, cy, unit, unit0 };
+}
+
+/**
+ * A látható réteg: a szimbólum vonalai (és ha `colors.fill` nem "none", a tömör belseje).
+ * „Átlépés a következő szobába" módban a belső ÁTLÁTSZÓ — ott a maszk mutatja az új fotót.
+ */
+export function symbolZoomFrame(progress: number, W: number, H: number, o: SymbolZoomOptions): SatoriNode {
+  const g = symbolZoomGeometry(progress, W, H, o);
+  return h("div", { style: { width: W, height: H, display: "flex" } },
+    h("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` },
+      symbolGroup(o.symbol, g.cx, g.cy, g.unit, g.unit0, o.colors)));
+}
+
+/**
+ * MASZK a vágás előtti szakaszhoz: fekete háttér, FEHÉR szimbólum-belső. Ahol fehér,
+ * ott már a következő jelenet látszik („átlátunk a következő szobába").
+ */
+export function symbolMaskFrame(progress: number, W: number, H: number, o: SymbolZoomOptions): SatoriNode {
+  const g = symbolZoomGeometry(progress, W, H, o);
+  const d = ESTATE_SYMBOLS[o.symbol];
+  return h("div", { style: { width: W, height: H, display: "flex", background: "#000000" } },
+    h("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` },
+      h("g", { transform: `translate(${g.cx.toFixed(2)} ${g.cy.toFixed(2)}) scale(${g.unit.toFixed(4)}) translate(${-d.focus[0]} ${-d.focus[1]})` },
+        h("path", { d: d.fill, fill: "#ffffff" }))));
+}

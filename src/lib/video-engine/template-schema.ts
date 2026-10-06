@@ -90,7 +90,9 @@ export type TransitionType =
   | "fade"          // áttűnés (keresztúsztatás)
   | "chevronWipe"   // nyíl alakú törlőelem izzással (az Aurora jellegzetes áttűnése)
   | "panelReveal"   // átlós panelek nyílnak fel (az Aurora zárókártyája)
-  | "softDip";      // lágy átúsztatás egy világos színen át (a Skandi áttűnése)
+  | "softDip"       // lágy átúsztatás egy világos színen át (a Skandi áttűnése)
+  | "symbolZoom"    // ingatlanos szimbólum a kamera felé repül, belsejében a következő fotó
+  | "filmBurn";     // valódi filmes „beégés" klip Screen-keveréssel + hanggal (a Prestige áttűnése)
 
 export type Transition = {
   type: TransitionType;
@@ -100,6 +102,13 @@ export type Transition = {
   easing?: Easing;
   /** Színek a palettából — alapból @base + @glow. */
   colors?: { fill?: ColorRef; glow?: ColorRef; shadow?: ColorRef };
+  /** symbolZoom: melyik szimbólum repül (house | key | pin | building | sold). */
+  symbol?: "house" | "key" | "pin" | "building" | "sold";
+  /** symbolZoom: a szimbólum helye (rácsdoboz bal felső sarka + mérete) a vászon SZÉLESSÉGÉNEK arányában. */
+  origin?: { x: number; y: number; size: number };
+  /** filmBurn: melyik effekt-klip (assets/video-fx/<fx>-<méret>.mp4), és a hangja mekkora hangerővel szóljon (0–1). */
+  fx?: "filmburn6";
+  fxVolume?: number;
 };
 
 // =========================================================================
@@ -108,7 +117,9 @@ export type Transition = {
 
 /** Megjelenés-animáció egy rétegre (a jeleneten belüli időben). */
 export type Appear = {
-  type: "none" | "fade" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "pop";
+  type: "none" | "fade" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "pop" | "float";
+  /** float: a lebegés kitérése (a vászon magasságának arányában); a periódus a `duration`. */
+  amount?: number;
   /** Késleltetés a jelenet elejétől, mp. */
   delay?: number;
   duration?: number;
@@ -190,7 +201,19 @@ type StackProps = {
 };
 export type StackLayer = LayerBase & StackProps & ByAspect<StackProps & { box: Box }> & { kind: "stack" };
 
-export type Layer = TextLayer | ImageLayer | ShapeLayer | ComponentLayer | StackLayer;
+/**
+ * INGATLANOS SZIMBÓLUM (vonalas ikon a landingről): ház, kulcs, térképjel, épület, tábla.
+ * A doboz szélessége adja a méretét (négyzetes rajz, a doboz bal felső sarkához igazítva).
+ */
+type SymbolProps = {
+  symbol: "house" | "key" | "pin" | "building" | "sold";
+  stroke: ColorRef;
+  /** Belső kitöltés; alapból nincs (csak vonal). */
+  fill?: ColorRef;
+};
+export type SymbolLayer = LayerBase & SymbolProps & ByAspect<SymbolProps & { box: Box }> & { kind: "symbol" };
+
+export type Layer = TextLayer | ImageLayer | ShapeLayer | ComponentLayer | StackLayer | SymbolLayer;
 
 // =========================================================================
 // Jelenetek
@@ -222,6 +245,8 @@ export type TwinxTemplate = {
   /** Gépi azonosító, pl. "aurora". Kiadás után NE nevezd át (videók hivatkoznak rá). */
   id: string;
   name: string;
+  /** Fejlesztés alatt: csak localhoston választható (élesben rejtve). */
+  devOnly?: boolean;
   version: number;
   fps: 25 | 30;
   aspects: AspectId[];
