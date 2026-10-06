@@ -53,7 +53,9 @@ export async function GET(
   // A saját motor a szerveren, néhány perc alatt végez — ha 12 perc után sincs kész,
   // a háttérmunka megszakadt (nem fog már elkészülni), ezért hamarabb zárunk.
   const ownEngine = (meta as { renderer?: string }).renderer === "twinx";
-  const TIMEOUT_MIN = ownEngine ? Number(process.env.VIDEO_ENGINE_TIMEOUT_MINUTES || 12) : Number(process.env.VIDEO_TIMEOUT_MINUTES || 25);
+  // A szerver a háttérmunkát legfeljebb 5 percig engedi (maxDuration 300) — ha 7 perc után
+  // sincs kész, már nem is lesz: zárjuk és visszajár a kredit.
+  const TIMEOUT_MIN = ownEngine ? Number(process.env.VIDEO_ENGINE_TIMEOUT_MINUTES || 7) : Number(process.env.VIDEO_TIMEOUT_MINUTES || 25);
   if (status !== "done" && status !== "failed" && ageMinutes > TIMEOUT_MIN) {
     jobError = `A videó ${Math.round(ageMinutes)} perc alatt sem készült el (időtúllépés).`;
     status = "failed";

@@ -30,6 +30,20 @@ Ez a jegyzet a következő munkamenet kiindulópontja. Git-ág: `twinx-video-mot
 - A szimbólumos „átlépés a következő szobába” áttűnés (`symbolZoom`) a motorban megmaradt, jelenleg nem használt.
 - Figyelni: a Prestige renderje a leglassabb (sok réteg + Screen-keverés). Ha élesben időtúllépés van, gyorsítani kell.
 
+## Teljesítmény (élesítési felülvizsgálat, 2026-10-06)
+Vercel: 1 vCPU, 2 GB, legfeljebb 300 mp/videó. Mérés egy maggal, hideg gyorsítótárral, 9:16:
+Aurora 121 → 29 mp, Zsálya 133 → 31 mp, Prestige >170 (és memóriahiány) → 45 mp; csúcsmemória ~0,7 GB.
+- Rétegek: egyszer beolvasva, a tartalmuk dobozára vágva (`png-bbox.ts`) + `loop` szűrő.
+- Háttérfotók: egyszer betöltve + `loop`; zoom 4×-es belső felbontás (remegésmentes, olcsó).
+- Áttűnések: ELŐRE GYÁRTVA `assets/video-transitions/*.apng` (`scripts/video-transitions-prepare.mjs`).
+  **Ha sablon/szín/áttűnés változik vagy új sablon jön: futtasd újra a scriptet** (a hiányzót rajzolja meg).
+- Filmburn: 2 menet — fő videó kulcskockákkal, majd csak az effekt-ablakok pontos Screen-keverése,
+  a köztes részek átkódolás nélkül fűzve (`applyFxWindows`).
+- Ingatlanos fotó/logó: szerveren letöltve + PNG-re alakítva (`prepareImage`, sharp); hiba esetén kimarad.
+- Betűk: családonként Google (8 mp időkorlát) → tartalék a projekt saját betűiből.
+- Diagnosztika: kész videónál `video_jobs.meta.engine` (időzítések); szerver-napló `[video/twinx <job>]`.
+- Időtúllépés: 7 perc után a job hibás, a kredit visszajár.
+
 ## Próba-script
 `node scripts/video-engine-try.mjs <9:16|1:1> <aurora|nocturne|skandi|skandi-zsalya|prestige>`
 (`TWINX_LONG=1` hosszú szövegek, `TWINX_NOPHOTO=1` ingatlanos-fotó nélkül, `FFMPEG_PATH` saját ffmpeg).

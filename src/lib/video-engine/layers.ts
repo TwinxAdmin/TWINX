@@ -187,7 +187,9 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
         ...(l.fit === "contain" ? { background: "#ffffff", padding: Math.round(d * 0.12) } : {}),
       },
         // Portrénál az arc a kép felső részén van → a kivágás felülre igazodik.
-        { type: "img", props: { src, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" ? "center" : "center top" } } });
+        // A méret attribútumként is megvan: a Satori így sosem próbálja letölteni a képet
+        // a méretéért (élesben ez okozott „Image size cannot be determined" hibát).
+        { type: "img", props: { src, width: circle ? d : bw, height: circle ? d : bh, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" ? "center" : "center top" } } });
     }
     case "symbol": {
       // Vonalas ingatlanos ikon (ugyanaz a rajz, mint a Prestige szimbólum-áttűnéséé).

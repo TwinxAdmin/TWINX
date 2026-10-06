@@ -549,11 +549,13 @@ async function postWithEngine(form: FormData, userId: string) {
   // 4) A videó a HÁTTÉRBEN készül — a partner azonnal választ kap, a szerkesztő a
   //    státusz-végpontot kérdezi, amíg kész nem lesz.
   after(async () => {
+    const startedAt = Date.now();
     let jobDir: string | null = null;
     try {
       const result = await runEngineJob({
         id: `${jobId}-${randomUUID().slice(0, 8)}`,
         engineTemplate, colorVariant, aspect, musicStyle, photos, facts, captions, captionPositions, profile,
+        log: (m) => console.log(`[video/twinx ${jobId}] ${m}`),
       });
       jobDir = result.jobDir;
       const path = `video/${userId}/${jobId}.mp4`;
@@ -562,9 +564,18 @@ async function postWithEngine(form: FormData, userId: string) {
       if (upErr) throw new Error(`A kész videó mentése nem sikerült: ${upErr.message}`);
       const db = createAdminClient(); // friss kapcsolat a hosszú render után
       const outputUrl = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      // Mérések a job adatai közé (élesben is látszik, mi mennyi ideig tartott).
+      const { data: cur } = await db.from("video_jobs").select("meta").eq("id", jobId).single();
+      const meta = {
+        ...((cur?.meta as Record<string, unknown>) ?? {}),
+        engine: {
+          template: result.templateName, timings: result.timings, fonts: result.fontSource,
+          photoKinds: result.photoKinds, totalSeconds: Math.round((Date.now() - startedAt) / 100) / 10,
+        },
+      };
       // Feltételes lezárás: csak akkor, ha közben nem bukott el (pl. időtúllépés).
       const { data: closed } = await db.from("video_jobs")
-        .update({ status: "done", output_url: outputUrl, error: null, music_url: result.music })
+        .update({ status: "done", output_url: outputUrl, error: null, music_url: result.music, meta })
         .eq("id", jobId).eq("status", "rendering").select("id");
       if (closed?.length) {
         await db.from("usage_history").insert({

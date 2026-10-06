@@ -96,6 +96,44 @@ export function buildEngineData(tpl: TwinxTemplate, input: Omit<EngineJobInput, 
   return data;
 }
 
+/**
+ * Az ingatlanos fotója / a logó előkészítése a videóhoz: letöltés (időkorláttal),
+ * átalakítás PNG-re (WebP, HEIC, SVG, nagy JPEG is mehet), méretcsökkentés.
+ * Data-URL-t ad vissza, amit a rajzoló letöltés nélkül, biztosan be tud tölteni.
+ * Ha bármi nem sikerül → `null`: a videó a kép nélkül készül el (nem bukik el miatta).
+ */
+async function prepareImage(src: string, log?: (m: string) => void): Promise<string | null> {
+  if (!src) return null;
+  try {
+    let buf: Buffer;
+    if (src.startsWith("data:")) {
+      const m = src.match(/^data:[^;,]*(;base64)?,([\s\S]*)$/);
+      if (!m) return null;
+      buf = m[1] ? Buffer.from(m[2], "base64") : Buffer.from(decodeURIComponent(m[2]));
+    } else {
+      const res = await fetch(src, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      buf = Buffer.from(await res.arrayBuffer());
+    }
+    if (buf.length > 20 * 1024 * 1024) throw new Error("túl nagy kép");
+    try {
+      const sharp = (await import("sharp")).default;
+      const png = await sharp(buf, { failOn: "none" }).rotate()
+        .resize(900, 900, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
+      return `data:image/png;base64,${png.toString("base64")}`;
+    } catch {
+      // sharp nélkül: a JPEG/PNG közvetlenül is megy.
+      const isPng = buf.readUInt32BE(0) === 0x89504e47;
+      const isJpg = buf[0] === 0xff && buf[1] === 0xd8;
+      if (isPng || isJpg) return `data:image/${isPng ? "png" : "jpeg"};base64,${buf.toString("base64")}`;
+      throw new Error("nem támogatott képformátum");
+    }
+  } catch (e) {
+    log?.(`⚠ kép kihagyva (${(e as Error).message}): ${src.slice(0, 80)}`);
+    return null;
+  }
+}
+
 /** A videó elkészítése. Hibánál kivételt dob (a hívó dönt a visszatérítésről). */
 export async function runEngineJob(input: EngineJobInput): Promise<EngineJobResult> {
   const { id: templateId, tpl } = pickEngineTemplate(input.engineTemplate, input.colorVariant);
@@ -118,8 +156,16 @@ export async function runEngineJob(input: EngineJobInput): Promise<EngineJobResu
   const { width: W, height: H } = ASPECT_SIZES[input.aspect];
   const photoKinds = photos.map((p) => classifyPhoto(imageInfo(p), W, H));
   const data = buildEngineData(tpl, input, photos.length);
+  // Ingatlanos fotó + logó: biztonságosan előkészítve (párhuzamosan).
+  const [agentPhoto, agentLogo] = await Promise.all([
+    prepareImage(String(data["agent.photo"] ?? ""), input.log),
+    prepareImage(String(data["agent.logo"] ?? ""), input.log),
+  ]);
+  data["agent.photo"] = agentPhoto ?? "";
+  data["agent.logo"] = agentLogo ?? "";
 
-  const { fonts, source: fontSource } = await loadEngineFonts(tpl, Object.values(data).filter((v): v is string => Boolean(v)));
+  const texts = Object.entries(data).filter(([k, v]) => v && !k.startsWith("agent.photo") && !k.startsWith("agent.logo")).map(([, v]) => String(v));
+  const { fonts, source: fontSource } = await loadEngineFonts(tpl, texts);
   const style = input.musicStyle && input.musicStyle !== "none" ? input.musicStyle : "";
   const music = style ? await resolveMusic(style, ENGINE_WORK_DIR) : null;
 

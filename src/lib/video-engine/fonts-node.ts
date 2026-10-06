@@ -23,7 +23,7 @@ async function fromGoogle(family: string, weights: number[], text: string): Prom
   const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weights.join(";")}` +
     `&text=${encodeURIComponent(text)}`;
   // Böngésző User-Agent NÉLKÜL a Google TTF-et ad (a Satori woff2-t nem olvas).
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`Betű-CSS hiba (${res.status}): ${family}`);
   const css = await res.text();
   const out: EngineFont[] = [];
@@ -31,41 +31,56 @@ async function fromGoogle(family: string, weights: number[], text: string): Prom
     const w = Number(block.match(/font-weight:\s*(\d+)/)?.[1] ?? 400) as Weight;
     const src = block.match(/src:\s*url\((https:[^)]+)\)\s*format\('(?:truetype|opentype)'\)/)?.[1];
     if (!src) continue;
-    const f = await fetch(src);
+    const f = await fetch(src, { signal: AbortSignal.timeout(8000) });
     if (f.ok) out.push({ name: family, weight: w, style: "normal", data: await f.arrayBuffer() });
   }
   if (!out.length) throw new Error(`Nem találtam betűfájlt: ${family}`);
   return out;
 }
 
+/** Tartalék: a projekt saját betűi (assets/fonts/brand), a sablon családnevén regisztrálva. */
+function brandFallback(family: string, weight: number): EngineFont | null {
+  const file = weight >= 600 ? "Poppins-Bold.ttf" : weight >= 500 ? "Poppins-Medium.ttf" : "Lato-Regular.ttf";
+  const p = path.join(process.cwd(), "assets", "fonts", "brand", file);
+  if (!fs.existsSync(p)) return null;
+  const b = fs.readFileSync(p);
+  return { name: family, weight: weight as Weight, style: "normal", data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer };
+}
+
 /**
  * A sablon betűi. `texts` = a videóban megjelenő szövegek (a karakterkészlethez).
- * Hiba esetén üres listát ad — a Satori ilyenkor a beépített betűjével rajzol, a
- * videó elkészül (a laborban ez figyelmeztetésként látszik).
+ * Sorrend családonként: helyi fájl → Google Fonts (8 mp időkorláttal) → a projekt
+ * saját betűi tartalékként. Így a videó MINDIG elkészül, egy lassú/hibás betűszolgáltatás
+ * miatt sem akad el.
  */
 export async function loadEngineFonts(tpl: TwinxTemplate, texts: string[]): Promise<{ fonts: EngineFont[]; source: "local" | "google" | "none" }> {
   const local: EngineFont[] = [];
+  const missing: typeof tpl.fonts = [];
   for (const f of tpl.fonts) {
     const p = path.join(process.cwd(), f.file);
     if (fs.existsSync(p)) {
       const b = fs.readFileSync(p);
       local.push({ name: f.family, weight: f.weight as Weight, style: "normal", data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer });
-    }
+    } else missing.push(f);
   }
-  if (local.length === tpl.fonts.length) return { fonts: local, source: "local" };
+  if (!missing.length) return { fonts: local, source: "local" };
 
   const chars = Array.from(new Set((BASE_CHARS + texts.join(" ") + texts.join(" ").toUpperCase()).split(""))).join("");
   const byFamily = new Map<string, number[]>();
-  for (const f of tpl.fonts) byFamily.set(f.family, [...(byFamily.get(f.family) ?? []), f.weight]);
-  try {
-    const all: EngineFont[] = [];
-    for (const [family, weights] of byFamily) {
-      const key = `${family}|${weights.join(",")}|${chars}`;
-      if (!cache.has(key)) cache.set(key, fromGoogle(family, [...new Set(weights)].sort((a, b) => a - b), chars).catch((e) => { cache.delete(key); throw e; }));
+  for (const f of missing) byFamily.set(f.family, [...(byFamily.get(f.family) ?? []), f.weight]);
+  const all: EngineFont[] = [...local];
+  let fromGoogleOk = false, usedFallback = false;
+  // Családonként külön (párhuzamosan): ha az egyik nem jön le, a többi attól még a valódi.
+  await Promise.all([...byFamily].map(async ([family, weights]) => {
+    const ws = [...new Set(weights)].sort((a, b) => a - b);
+    const key = `${family}|${ws.join(",")}|${chars}`;
+    try {
+      if (!cache.has(key)) cache.set(key, fromGoogle(family, ws, chars).catch((e) => { cache.delete(key); throw e; }));
       all.push(...(await cache.get(key)!));
+      fromGoogleOk = true;
+    } catch {
+      for (const w of ws) { const fb = brandFallback(family, w); if (fb) { all.push(fb); usedFallback = true; } }
     }
-    return { fonts: all, source: "google" };
-  } catch {
-    return { fonts: local, source: local.length ? "local" : "none" };
-  }
+  }));
+  return { fonts: all, source: fromGoogleOk ? "google" : all.length && !usedFallback ? "local" : usedFallback ? "local" : "none" };
 }
