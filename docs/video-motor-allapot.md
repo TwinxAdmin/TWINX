@@ -71,3 +71,12 @@ Aurora 121 → 29 mp, Zsálya 133 → 31 mp, Prestige >170 (és memóriahiány) 
 ### Mozaik szerkesztő-előnézet
 A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik-9x16.jpg`
 (a motor nyitóképe a többi kártyával egyező lakás-ábrával — public/video-samples/aurora-hero.jpg — minden rombuszban, minta-adatokkal; 432×768). Ha a nyitókép változik, ezt újra kell gyártani.
+
+## Szerkesztő — sablonválasztó ablak (2026-10-06)
+- A sablonlista görgethető, alatta FIX sáv: méret (egy vagy KÉT méret is kijelölhető), szűrő
+  (Összes sablon / ★ Kedvencek), kredit-tájékoztató (méretenként `VIDEO_CREDITS_ALAP` = 3 kredit; 2 méret = 6).
+- Két méretnél a kliens méretenként külön jobot indít ugyanazokkal a fotókkal (két külön kreditlevonás,
+  két külön videó az előzményekben); a Generálás lépés méretenként mutatja az állapotot, a sikertelen
+  méret külön újraindítható.
+- Kedvencek: csillag a kártya bal felső sarkában → `video_template_favorites` tábla (`video-favorites.sql`),
+  API: `src/app/api/real-estate/video/favorites/route.ts`. Ha a tábla hiányzik, a szerkesztő kedvencek nélkül működik.

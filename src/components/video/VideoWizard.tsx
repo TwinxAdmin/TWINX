@@ -47,7 +47,6 @@ import type { FlyerProfileData } from "@/lib/flyer-template";
 
 const STEPS = ["Sablon", "Képek", "Beállítás", "Generálás"] as const;
 
-type JobState = { status: string; output_url: string | null; error: string | null };
 
 /**
  * Videólabor-mód (admin): UGYANEZ a szerkesztő, de a kész anyag a saját TWINX
@@ -80,7 +79,10 @@ export default function VideoWizard({
   // 0) Sablon (dizájn) + méret — ez köti a formátumot és a képszámot.
   const [designId, setDesignId] = useState<string>(VIDEO_DESIGNS[0].id);
   const design: VideoDesign = getDesign(designId) ?? VIDEO_DESIGNS[0];
-  const [aspect, setAspect] = useState<VideoAspect>(design.aspects[0]);
+  // MÉRET: egy vagy KÉT méret is kijelölhető — ugyanazokból a fotókból mindegyikben
+  // elkészül a videó (méretenként külön kredit). Az első kijelölt az „elsődleges”.
+  const [aspects, setAspects] = useState<VideoAspect[]>([design.aspects[0]]);
+  const aspect: VideoAspect = aspects[0];
 
   // Szín-variáns: ugyanaz a sablon, csak más kiemelő színnel. Csak az élesített
   // (feltöltött grafikájú) színek jelennek meg.
@@ -106,15 +108,54 @@ export default function VideoWizard({
   function pickEngine(id: string) {
     const e = ENGINE_GALLERY.find((x) => x.id === id);
     setEngineId(id);
-    if (e && !(e.aspects as string[]).includes(aspect)) setAspect(e.aspects[0] as VideoAspect);
+    if (e) setAspects((cur) => {
+      const ok = cur.filter((a) => (e.aspects as string[]).includes(a));
+      return ok.length ? ok : [e.aspects[0] as VideoAspect];
+    });
   }
 
   // Dizájnváltáskor a méret a dizájn első elérhető arányára ugrik.
   function pickDesign(id: string) {
     const d = getDesign(id) ?? VIDEO_DESIGNS[0];
     setDesignId(id);
-    setAspect(d.aspects.includes(aspect) ? aspect : d.aspects[0]);
+    setAspects((cur) => {
+      const ok = cur.filter((a) => d.aspects.includes(a));
+      return ok.length ? ok : [d.aspects[0]];
+    });
   }
+
+  /** Kredit: méretenként egy videó ára. */
+  const totalCredits = VIDEO_CREDITS_ALAP * aspects.length;
+
+  // KEDVENC SABLONOK (csillag a kártyán) + szűrő: Összes sablon / Kedvencek.
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [favOnly, setFavOnly] = useState(false);
+  useEffect(() => {
+    if (!engine) return;
+    let alive = true;
+    fetch("/api/real-estate/video/favorites")
+      .then((r) => (r.ok ? r.json() : { favorites: [] }))
+      .then((d: { favorites?: string[] }) => { if (alive) setFavorites(new Set(d.favorites ?? [])); })
+      .catch(() => { /* kedvencek nélkül is működik */ });
+    return () => { alive = false; };
+  }, [engine]);
+  async function toggleFavorite(templateId: string) {
+    const on = !favorites.has(templateId);
+    const nextSet = new Set(favorites);
+    if (on) nextSet.add(templateId); else nextSet.delete(templateId);
+    setFavorites(nextSet); // azonnal látszik; hiba esetén visszaállítjuk
+    try {
+      const res = await fetch("/api/real-estate/video/favorites", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId, favorite: on }),
+      });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error);
+    } catch (e) {
+      setFavorites((cur) => { const r = new Set(cur); if (on) r.delete(templateId); else r.add(templateId); return r; });
+      showToast((e as Error).message || "Nem sikerült menteni a kedvencet.", "error");
+    }
+  }
+  const visibleFamilies = favOnly ? ENGINE_FAMILIES.filter((f) => favorites.has(f.templateId)) : ENGINE_FAMILIES;
 
   // 1) Képek (5, az első a NYITÓKÉP). Minden fotóhoz saját, szabad felirat tartozik.
   type CaptionPos = "bottom" | "center";
@@ -130,7 +171,6 @@ export default function VideoWizard({
   const [profileId, setProfileId] = useState<string>("");
 
   // Az ingatlan adatai — EGYSZER megadva, a nyitó- és a záróképen is megjelennek.
-  const [debug, setDebug] = useState<VideoDebug | null>(null);
   const [title] = useState("");
   const [facts, setFacts] = useState<VideoCaptionFacts & { propertyType: string }>({
     ...EMPTY_VIDEO_FACTS, propertyType: "",
@@ -144,7 +184,6 @@ export default function VideoWizard({
   const sizeMem = useFieldMemory("video:size", { min: 2 });
 
   // 4) Beállítás — a formátumot a dizájn+méret köti; a zene és a csomag választható.
-  const format = aspect; // a választott méret
   const [musicStyle, setMusicStyle] = useState<string>(VIDEO_DESIGNS[0].defaultMusic);
   const pkg: "alap" | "pro" = "alap";
 
@@ -155,10 +194,18 @@ export default function VideoWizard({
   }, [designId]);
 
   // 5) Generálás
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [job, setJob] = useState<JobState | null>(null);
+  // Méretenként egy-egy generálás („run”): saját job, állapot, kész videó.
+  type Run = { aspect: VideoAspect; jobId: string | null; status: string; output_url: string | null; error: string | null; debug: VideoDebug | null };
+  const [runs, setRuns] = useState<Run[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const started = runs.length > 0;
+  const isFinished = (r: Run) => r.status === "done" || r.status === "failed";
+  const allFinished = started && runs.every(isFinished);
+  // Indítási hiba miatt el sem indult méretek (pl. kevés kredit a másodikhoz).
+  const missing = started ? aspects.filter((a) => !runs.some((r) => r.aspect === a)) : [];
+  const upsertRun = (rs: Run[], r: Run) =>
+    [...rs.filter((x) => x.aspect !== r.aspect), r].sort((a, b) => aspects.indexOf(a.aspect) - aspects.indexOf(b.aspect));
 
   // Az elérhetőség a záróképre kerül. A kézzel megadott érték az elsődleges;
   // a kiválasztott korábbi arculatból a logó/fotó/szín/betű egészíti ki.
@@ -207,53 +254,67 @@ export default function VideoWizard({
   const setCaptionPos = (i: number, pos: CaptionPos) =>
     setShots((prev) => prev.map((s, j) => (j === i ? { ...s, captionPos: pos } : s)));
 
-  // --- Generálás indítása ---
-  async function generate() {
+  // --- Generálás indítása (minden kijelölt méretre külön job, ugyanazokkal a fotókkal) ---
+  async function generate(only?: VideoAspect[]) {
+    const targets = only ?? aspects;
     setSubmitting(true); setError(null);
     try {
-      const fd = new FormData();
+      // A fotók EGYSZER készülnek elő — minden méret ugyanazokat kapja.
+      const images: File[] = [];
       for (const s of shots) {
         const b = await (await fetch(s.url)).blob();
         const f = new File([b], "kep.jpg", { type: b.type || "image/jpeg" });
-        fd.append("images", await compressImage(f, 2000, 0.9));
+        images.push(await compressImage(f, 2000, 0.9));
       }
-      // Fotónkénti szabad feliratok — a képek sorrendjéhez igazítva.
-      // (Az 1. kép a nyitókép; ahhoz nem felirat, hanem az összefoglaló adatok tartoznak.)
-      fd.append("captions", JSON.stringify(shots.map((s) => s.caption.trim())));
-      // Képenkénti felirat-pozíció: lent vagy középen (középen vonal fölötte és alatta).
-      fd.append("captionPositions", JSON.stringify(shots.map((s) => s.captionPos)));
-      fd.append("colorVariant", colorId);
-      fd.append("profile", JSON.stringify(profileData));
-      fd.append("facts", JSON.stringify(facts));
-      fd.append("title", title.trim() || defaultTitle());
-      // A videó neve a könyvtárban: az ingatlan címe (település + utca).
-      fd.append("propertyAddress", [facts.location, facts.address].map((s) => s.trim()).filter(Boolean).join(", "));
-      fd.append("format", format);
-      fd.append("designId", designId);
-      fd.append("aspect", aspect);
-      fd.append("musicStyle", musicStyle);
-      fd.append("package", pkg);
-      if (engine) fd.append("engineTemplate", engineId);
-      Object.entries(lab?.extraFields ?? {}).forEach(([k, v]) => fd.append(k, v));
-      const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      if (lab) {
-        // A labor szinkron fut: a válaszban már a kész videó van — nincs állapot-lekérdezés.
-        setJobId("lab");
-        setJob({ status: "done", output_url: data.url as string, error: null });
-        lab.onResult(data as Record<string, unknown>);
-        return;
+      const failures: string[] = [];
+      let okCount = 0;
+      for (const asp of targets) {
+        const fd = new FormData();
+        for (const im of images) fd.append("images", im);
+        // Fotónkénti szabad feliratok — a képek sorrendjéhez igazítva.
+        // (Az 1. kép a nyitókép; ahhoz nem felirat, hanem az összefoglaló adatok tartoznak.)
+        fd.append("captions", JSON.stringify(shots.map((s) => s.caption.trim())));
+        // Képenkénti felirat-pozíció: lent vagy középen (középen vonal fölötte és alatta).
+        fd.append("captionPositions", JSON.stringify(shots.map((s) => s.captionPos)));
+        fd.append("colorVariant", colorId);
+        fd.append("profile", JSON.stringify(profileData));
+        fd.append("facts", JSON.stringify(facts));
+        fd.append("title", title.trim() || defaultTitle());
+        // A videó neve a könyvtárban: az ingatlan címe (település + utca).
+        fd.append("propertyAddress", [facts.location, facts.address].map((s) => s.trim()).filter(Boolean).join(", "));
+        fd.append("format", asp);
+        fd.append("designId", designId);
+        fd.append("aspect", asp);
+        fd.append("musicStyle", musicStyle);
+        fd.append("package", pkg);
+        if (engine) fd.append("engineTemplate", engineId);
+        Object.entries(lab?.extraFields ?? {}).forEach(([k, v]) => fd.append(k, v));
+        try {
+          const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          okCount++;
+          if (lab) {
+            // A labor szinkron fut: a válaszban már a kész videó van — nincs állapot-lekérdezés.
+            setRuns((rs) => upsertRun(rs, { aspect: asp, jobId: "lab", status: "done", output_url: data.url as string, error: null, debug: null }));
+            lab.onResult(data as Record<string, unknown>);
+          } else {
+            setRuns((rs) => upsertRun(rs, { aspect: asp, jobId: data.jobId as string, status: data.status as string, output_url: null, error: null, debug: null }));
+          }
+        } catch (e) {
+          failures.push(`${ASPECT_LABEL[asp]}: ${(e as Error).message || "nem sikerült elindítani."}`);
+        }
       }
-      // Sikeres indításkor jegyezzük meg a beírt szabadszöveges értékeket.
-      titleMem.remember(title.trim());
-      locationMem.remember(facts.location.trim());
-      addressMem.remember(facts.address.trim());
-      priceMem.remember(facts.price.trim());
-      sizeMem.remember(facts.size.trim());
-      setJobId(data.jobId as string);
-      setJob({ status: data.status as string, output_url: null, error: null });
-      setElapsed(0);
+      if (okCount > 0 && !lab) {
+        // Sikeres indításkor jegyezzük meg a beírt szabadszöveges értékeket.
+        titleMem.remember(title.trim());
+        locationMem.remember(facts.location.trim());
+        addressMem.remember(facts.address.trim());
+        priceMem.remember(facts.price.trim());
+        sizeMem.remember(facts.size.trim());
+        setElapsed(0);
+      }
+      if (failures.length) setError(failures.join(" · "));
     } catch (e) {
       setError((e as Error).message || "Nem sikerült elindítani a generálást.");
     } finally { setSubmitting(false); }
@@ -286,30 +347,38 @@ export default function VideoWizard({
     return t;
   }
 
-  // Polling a job státuszára (3 mp-enként), amíg kész/hibás nem lesz.
+  // Polling: minden még futó méret státusza 3 mp-enként, amíg kész/hibás nem lesz.
+  const pendingKey = runs.filter((r) => !isFinished(r) && r.jobId && r.jobId !== "lab").map((r) => `${r.jobId}|${r.aspect}`).join(",");
   useEffect(() => {
-    if (!jobId || job?.status === "done" || job?.status === "failed") return;
+    if (!pendingKey) return;
+    const pending = pendingKey.split(",").map((x) => { const [id, asp] = x.split("|"); return { id, asp: asp as VideoAspect }; });
     const t = setInterval(async () => {
       setElapsed((s) => s + 3);
-      try {
-        const res = await fetch(`/api/real-estate/video/${jobId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setJob({ status: data.status, output_url: data.output_url ?? null, error: data.error ?? null });
-        setDebug(data.debug ?? null);
-        if (data.status === "done") { onDone?.(); showToast("A videó elkészült és mentve!", "success"); }
-        if (data.status === "failed") showToast("A videó nem készült el — a kredit visszajárt.", "error");
-      } catch { /* következő kör */ }
+      for (const { id, asp } of pending) {
+        try {
+          const res = await fetch(`/api/real-estate/video/${id}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          setRuns((rs) => rs.map((r) => (r.jobId === id
+            ? { ...r, status: data.status, output_url: data.output_url ?? null, error: data.error ?? null, debug: data.debug ?? null }
+            : r)));
+          const label = pending.length > 1 || aspects.length > 1 ? ` (${ASPECT_LABEL[asp]})` : "";
+          if (data.status === "done") { onDone?.(); showToast(`A videó${label} elkészült és mentve!`, "success"); }
+          if (data.status === "failed") showToast(`A videó${label} nem készült el — a kredit visszajárt.`, "error");
+        } catch { /* következő kör */ }
+      }
     }, 3000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, job?.status]);
+  }, [pendingKey]);
 
   function next() {
     // 1) Képek — a dizájn+méret KÖTÖTTSÉGE szerint (nyitókép + további képek).
     if (step === 1) {
-      if (!imageCountOk(design, aspect, shots.length)) {
-        setError(`Ehhez a mérethez ${imageCountLabel(design, aspect).toLowerCase()} szükséges (most ${shots.length}).`);
+      // Minden kijelölt méretnek meg kell felelnie (a sablonok képszáma méretenként azonos lehet vagy eltérhet).
+      const bad = aspects.find((a) => !imageCountOk(design, a, shots.length));
+      if (bad) {
+        setError(`${aspects.length > 1 ? `A(z) ${ASPECT_LABEL[bad]} mérethez` : "Ehhez a mérethez"} ${imageCountLabel(design, bad).toLowerCase()} szükséges (most ${shots.length}).`);
         return;
       }
     }
@@ -318,7 +387,7 @@ export default function VideoWizard({
   }
 
   const setF = <K extends keyof typeof facts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
-  const busy = submitting || (!!jobId && job?.status !== "done" && job?.status !== "failed");
+  const busy = submitting || runs.some((r) => !isFinished(r));
   const lengthSec = Math.round(videoLengthSeconds(shots.length || imageRange(design, aspect).min, false));
 
   // --- Bezárás-védelem: egy véletlen kattintás ne törölje a megkezdett munkát ---
@@ -327,7 +396,7 @@ export default function VideoWizard({
 
   function requestClose() {
     if (busy) return;
-    if (hasWork && !jobId) { setConfirmClose(true); return; }
+    if (hasWork && !started) { setConfirmClose(true); return; }
     onClose();
   }
 
@@ -340,7 +409,7 @@ export default function VideoWizard({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmClose, hasWork, busy, jobId]);
+  }, [confirmClose, hasWork, busy, started]);
 
   return (
     // A háttérre kattintás NEM zár be — véletlen mellékattintással elveszne a munka.
@@ -357,7 +426,7 @@ export default function VideoWizard({
           <div className="mt-3 flex items-center gap-1.5">
             {STEPS.map((s, i) => (
               <div key={s} className="flex flex-1 items-center gap-1.5">
-                <button type="button" onClick={() => i < step && !jobId && setStep(i)} className="flex items-center gap-1.5 text-[11px] font-semibold"
+                <button type="button" onClick={() => i < step && !started && setStep(i)} className="flex items-center gap-1.5 text-[11px] font-semibold"
                   style={{ color: i === step ? "var(--twx-coral)" : i < step ? "var(--twx-ink)" : "var(--twx-ink-muted)" }}>
                   <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px]"
                     style={i <= step ? { background: "var(--twx-coral)", color: "#1c1005" } : { border: "1px solid var(--twx-line)" }}>{i + 1}</span>
@@ -370,145 +439,179 @@ export default function VideoWizard({
         </div>
 
         {/* Tartalom */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+        {/* Az 1. lépésnél a sablonlista görög, a méret-sáv FIX marad alul. */}
+        <div className={step === 0 ? "flex min-h-0 flex-1 flex-col p-5 sm:p-6" : "flex-1 overflow-y-auto p-5 sm:p-6"}>
           {/* 0) SABLON — dizájn + méret választás */}
           {step === 0 && (
-            <div className="space-y-4">
-              <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <p className="shrink-0 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Válaszd ki a <strong>sablont</strong>, majd a <strong>méretet</strong>.{" "}
                 {engine ? "Minden sablonnak saját stílusa, áttűnése és színvilága van." : "A sablonok felépítése azonos — a kiemelő szín különbözteti meg őket."}
               </p>
-              {/* SABLON-CSEMPÉK: a valódi nyitókép kompozícióját mutató előnézet */}
-              {/* Sűrű rács: 5-10 sablon is elférjen görgetés nélkül, első ránézésre */}
-              {engine ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {ENGINE_FAMILIES.map((f) => {
-                    const colorId = familyColor[f.templateId] ?? f.colors[0]?.id;
-                    return (
-                      <EngineFamilyCard key={f.templateId} family={f} colorId={colorId}
-                        on={engineFamily?.templateId === f.templateId} photo={design.previewPhoto}
-                        onPick={(id) => { setFamilyColor((m) => ({ ...m, [f.templateId]: id })); pickEngine(id); }} />
-                    );
-                  })}
-                </div>
-              ) : (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-                {VIDEO_DESIGNS.flatMap((d) =>
-                  (d.kind === "json" ? colorChoices : [getColorVariant("sarga")]).map((v) => {
-                    const on = d.id === designId && (d.kind !== "json" || v.id === colorId);
-                    // Több szín esetén a szín adja a nevet, egyébként a sablon neve.
-                    const label = d.kind === "json" && colorChoices.length > 1 ? v.title : d.name;
-                    return (
-                      <button
-                        key={`${d.id}-${v.id}`}
-                        type="button"
-                        onClick={() => { pickDesign(d.id); setColorId(v.id); }}
-                        aria-pressed={on}
-                        className="overflow-hidden rounded-xl text-left transition"
-                        style={{
-                          border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
-                          boxShadow: on ? "0 8px 22px rgba(239,122,90,0.20)" : "0 1px 2px rgba(0,0,0,0.04)",
-                          background: "#fff",
-                        }}
-                      >
-                        {/* Előnézet: fotó + ferde arculati panel + a videó tipográfiája */}
-                        <div className="relative aspect-[3/4] w-full overflow-hidden"
-                          style={{ background: `linear-gradient(150deg, ${d.preview.from}, ${d.preview.to})` }}>
-                          {d.previewPhoto && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={d.previewPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                          )}
-                          {/* Ferde panel — mint a videó nyitóképén */}
-                          <span className="absolute" style={{
-                            left: "-26%", top: "-14%", width: "92%", height: "128%",
-                            background: d.preview.from, opacity: 0.94, transform: "skewX(-9deg)",
-                          }} />
-                          {/* Vékony arculati él a panel szélén */}
-                          <span className="absolute" style={{
-                            left: "64%", top: "-14%", width: 4, height: "128%",
-                            background: v.swatch.accent, transform: "skewX(-9deg)",
-                          }} />
-                          {/* Tipográfia: kis vonal, cím, lokáció, adatok, ár */}
-                          <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
-                            <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: v.swatch.accent }} />
-                            <span className="text-[10px] font-bold leading-tight" style={{ color: v.swatch.accent }}>
-                              Sas utca 22.
-                            </span>
-                            <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>
-                              Budapest II. kerület
-                            </span>
-                            <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: v.swatch.accent }}>
-                              ÚJ ÉPÍTÉSŰ LAKÁS
-                            </span>
-                            <span className="mt-1.5 text-[7px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.88)" }}>
-                              50 m² · 1 + 1 fél szoba
-                            </span>
-                            <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: v.swatch.accent }}>
-                              60 M Ft
-                            </span>
+              {/* SABLONLISTA — GÖRGETHETŐ (több sablonnál ez a rész gördül, a méret-sáv alatta fix) */}
+              <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+                {engine ? (
+                  visibleFamilies.length === 0 ? (
+                    <div className="rounded-xl px-4 py-8 text-center text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+                      Még nincs kedvenc sablonod. A kártyák bal felső sarkában lévő <span style={{ color: "#e0a82e" }}>☆</span> csillaggal jelölheted meg őket.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {visibleFamilies.map((f) => {
+                        const colorId = familyColor[f.templateId] ?? f.colors[0]?.id;
+                        return (
+                          <EngineFamilyCard key={f.templateId} family={f} colorId={colorId}
+                            on={engineFamily?.templateId === f.templateId} photo={design.previewPhoto}
+                            favorite={favorites.has(f.templateId)} onToggleFavorite={() => toggleFavorite(f.templateId)}
+                            onPick={(id) => { setFamilyColor((m) => ({ ...m, [f.templateId]: id })); pickEngine(id); }} />
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                  {VIDEO_DESIGNS.flatMap((d) =>
+                    (d.kind === "json" ? colorChoices : [getColorVariant("sarga")]).map((v) => {
+                      const on = d.id === designId && (d.kind !== "json" || v.id === colorId);
+                      // Több szín esetén a szín adja a nevet, egyébként a sablon neve.
+                      const label = d.kind === "json" && colorChoices.length > 1 ? v.title : d.name;
+                      return (
+                        <button
+                          key={`${d.id}-${v.id}`}
+                          type="button"
+                          onClick={() => { pickDesign(d.id); setColorId(v.id); }}
+                          aria-pressed={on}
+                          className="overflow-hidden rounded-xl text-left transition"
+                          style={{
+                            border: on ? "2px solid var(--twx-coral)" : "1px solid var(--twx-line)",
+                            boxShadow: on ? "0 8px 22px rgba(239,122,90,0.20)" : "0 1px 2px rgba(0,0,0,0.04)",
+                            background: "#fff",
+                          }}
+                        >
+                          {/* Előnézet: fotó + ferde arculati panel + a videó tipográfiája */}
+                          <div className="relative aspect-[3/4] w-full overflow-hidden"
+                            style={{ background: `linear-gradient(150deg, ${d.preview.from}, ${d.preview.to})` }}>
+                            {d.previewPhoto && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={d.previewPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                            )}
+                            {/* Ferde panel — mint a videó nyitóképén */}
+                            <span className="absolute" style={{
+                              left: "-26%", top: "-14%", width: "92%", height: "128%",
+                              background: d.preview.from, opacity: 0.94, transform: "skewX(-9deg)",
+                            }} />
+                            {/* Vékony arculati él a panel szélén */}
+                            <span className="absolute" style={{
+                              left: "64%", top: "-14%", width: 4, height: "128%",
+                              background: v.swatch.accent, transform: "skewX(-9deg)",
+                            }} />
+                            {/* Tipográfia: kis vonal, cím, lokáció, adatok, ár */}
+                            <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
+                              <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: v.swatch.accent }} />
+                              <span className="text-[10px] font-bold leading-tight" style={{ color: v.swatch.accent }}>
+                                Sas utca 22.
+                              </span>
+                              <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>
+                                Budapest V. kerület
+                              </span>
+                              <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: v.swatch.accent }}>
+                                ÚJ ÉPÍTÉSŰ LAKÁS
+                              </span>
+                              <span className="mt-1.5 text-[7px] font-semibold leading-tight" style={{ color: "rgba(255,255,255,0.88)" }}>
+                                50 m² · 1 + 1 fél szoba
+                              </span>
+                              <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: v.swatch.accent }}>
+                                60 M Ft
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        {/* Csak a név — a leírás tooltipben, hogy sok sablon is elférjen */}
-                        <div className="truncate px-2 py-1.5 text-[11px] font-semibold leading-tight"
-                          title={d.tagline}
-                          style={{ color: "var(--twx-ink)" }}>
-                          {label}
-                        </div>
-                      </button>
-                    );
-                  })
+                          {/* Csak a név — a leírás tooltipben, hogy sok sablon is elférjen */}
+                          <div className="truncate px-2 py-1.5 text-[11px] font-semibold leading-tight"
+                            title={d.tagline}
+                            style={{ color: "var(--twx-ink)" }}>
+                            {label}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
                 )}
               </div>
-              )}
-              {/* MÉRET — a választott sablon elérhető arányai */}
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
-                  Méret
-                </p>
-                {/* Egymás alatt, kompakt rádió-sorok: arány-ikon + címke + súgó. */}
-                <div className="mt-1.5 inline-flex flex-col gap-1">
-                  {aspectsOffered.map((a) => {
-                    const active = a === aspect;
-                    const portrait = a === "9:16";
-                    return (
-                      <button
-                        key={a}
-                        type="button"
-                        onClick={() => setAspect(a)}
-                        aria-pressed={active}
-                        className="group flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-3 text-left transition"
-                        style={{ background: active ? "var(--twx-coral-soft)" : "transparent" }}
-                      >
-                        {/* Kis arány-ikon: álló téglalap vagy négyzet — ránézésre értelmezhető. */}
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md"
-                          style={{ background: active ? "var(--twx-coral)" : "#fff", border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
-                          <span className="block rounded-[2px]"
-                            style={{
-                              width: portrait ? 9 : 14, height: portrait ? 16 : 14,
-                              background: active ? "#1c1005" : "var(--twx-ink-muted)", opacity: active ? 0.9 : 0.55,
-                            }} />
+
+              {/* FIX SÁV — balra a méret (egymás alatt + „Mindkettő”), jobbra a sablon-szűrő */}
+              <div className="shrink-0 rounded-xl p-3" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>Méret</p>
+                    {/* Egymás alatt, kompakt sorok: arány-ikon + címke + súgó. Kattintásra ez az EGY méret. */}
+                    <div className="mt-1.5 inline-flex flex-col gap-1">
+                      {aspectsOffered.map((a) => {
+                        const active = aspects.includes(a);
+                        const portrait = a === "9:16";
+                        return (
+                          <button key={a} type="button" onClick={() => setAspects([a])} aria-pressed={active}
+                            className="group flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-3 text-left transition"
+                            style={{ background: active ? "var(--twx-coral-soft)" : "transparent" }}>
+                            {/* Kis arány-ikon: álló téglalap vagy négyzet — ránézésre értelmezhető. */}
+                            <span className="flex h-7 w-7 items-center justify-center rounded-md"
+                              style={{ background: active ? "var(--twx-coral)" : "#fff", border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}` }}>
+                              <span className="block rounded-[2px]"
+                                style={{ width: portrait ? 9 : 14, height: portrait ? 16 : 14, background: active ? "#1c1005" : "var(--twx-ink-muted)", opacity: active ? 0.9 : 0.55 }} />
+                            </span>
+                            <span className="text-[13px] font-semibold" style={{ color: active ? "#7a2e17" : "var(--twx-ink)" }}>{ASPECT_LABEL[a]}</span>
+                            <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>· {ASPECT_HINT[a]}</span>
+                          </button>
+                        );
+                      })}
+                      {/* Mindkettő: kipipálva mindkét méretben elkészül a videó. */}
+                      {aspectsOffered.length > 1 && (() => {
+                        const both = aspectsOffered.every((a) => aspects.includes(a));
+                        return (
+                          <label className="mt-0.5 flex cursor-pointer select-none items-center gap-2.5 rounded-lg py-1 pl-1 pr-3"
+                            style={{ background: both ? "var(--twx-coral-soft)" : "transparent" }}>
+                            <input type="checkbox" checked={both}
+                              onChange={(e) => setAspects(e.target.checked ? [...aspectsOffered] : [aspectsOffered[0]])}
+                              className="h-4 w-4 accent-[var(--twx-coral)]" style={{ marginLeft: 6, marginRight: 6 }} />
+                            <span className="text-[13px] font-semibold" style={{ color: both ? "#7a2e17" : "var(--twx-ink)" }}>Mindkettő</span>
+                          </label>
+                        );
+                      })()}
+                    </div>
+                    {!lab && (
+                      <p className="mt-2">
+                        <span className="rounded-md px-2 py-0.5 text-[13px] font-bold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
+                          Összesen: {totalCredits} kredit
                         </span>
-                        <span className="text-[13px] font-semibold" style={{ color: active ? "#7a2e17" : "var(--twx-ink)" }}>
-                          {ASPECT_LABEL[a]}
-                        </span>
-                        <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                          · {ASPECT_HINT[a]}
-                        </span>
-                      </button>
-                    );
-                  })}
+                      </p>
+                    )}
+                  </div>
+                  {engine && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>Sablonok</p>
+                      {/* Egymás alatt, mint a méretek: alapból az összes, a csillagozottakra szűkíthető. */}
+                      <div className="mt-1.5 inline-flex flex-col gap-1" role="tablist">
+                        {[
+                          { id: false, icon: "▦", label: "Összes sablon" },
+                          { id: true, icon: "★", label: `Kedvencek${favorites.size ? ` (${favorites.size})` : ""}` },
+                        ].map((t) => {
+                          const active = favOnly === t.id;
+                          return (
+                            <button key={String(t.id)} type="button" role="tab" aria-selected={active} onClick={() => setFavOnly(t.id)}
+                              className="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-3 text-left transition"
+                              style={{ background: active ? "var(--twx-coral-soft)" : "transparent" }}>
+                              <span className="flex h-7 w-7 items-center justify-center rounded-md text-[13px]"
+                                style={{ background: active ? "var(--twx-coral)" : "#fff", border: `1px solid ${active ? "var(--twx-coral)" : "var(--twx-line)"}`, color: active ? "#1c1005" : t.id ? "#e0a82e" : "var(--twx-ink-muted)" }}>
+                                {t.icon}
+                              </span>
+                              <span className="text-[13px] font-semibold" style={{ color: active ? "#7a2e17" : "var(--twx-ink)" }}>{t.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {imageCountLabel(design, aspect)}. A képek lépésnél pontosan ennyit kérünk.
-              </p>
-              {/* Pici, elegáns jelzés: a sablonkínálat hamarosan bővül. */}
-              <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-center"
-                style={{ background: "var(--twx-cream)", border: "1px dashed var(--twx-line)" }}>
-                <span aria-hidden style={{ color: "var(--twx-coral)" }}>✦</span>
-                <span className="text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>
-                  Hamarosan bővül a sablonkínálat — új dizájnok érkeznek.
-                </span>
               </div>
             </div>
           )}
@@ -691,11 +794,14 @@ export default function VideoWizard({
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <p className="text-sm font-semibold">Méret</p>
-                <div className="mt-2 flex items-center gap-2 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
-                  <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{format}</span>
+                <p className="text-sm font-semibold">{aspects.length > 1 ? "Méretek" : "Méret"}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
+                  {aspects.map((a) => (
+                    <span key={a} className="rounded-md px-2 py-1 text-xs font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>{a}</span>
+                  ))}
                   <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    A <strong>{templateLabel}</strong> dizájn <strong>{ASPECT_LABEL[aspect]}</strong> mérete. Módosításhoz válts az első lépésben.
+                    A <strong>{templateLabel}</strong> sablon {aspects.map((a) => <strong key={a}>{ASPECT_LABEL[a]}</strong>).reduce<React.ReactNode[]>((acc, el, k) => (k ? [...acc, " és ", el] : [el]), [])}
+                    {" "}{aspects.length > 1 ? "méretben — mindkettő elkészül." : "mérete."} Módosításhoz válts az első lépésben.
                   </span>
                 </div>
               </div>
@@ -717,7 +823,9 @@ export default function VideoWizard({
                 <p className="text-sm font-semibold">Csomag</p>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   <div className="rounded-xl p-3 text-left" style={{ border: "1px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
-                    <span className="block text-sm font-semibold" style={{ color: "#7a2e17" }}>Standard · {VIDEO_CREDITS_ALAP} kredit</span>
+                    <span className="block text-sm font-semibold" style={{ color: "#7a2e17" }}>
+                      Standard · {VIDEO_CREDITS_ALAP} kredit / méret{aspects.length > 1 ? ` · összesen ${totalCredits} kredit` : ""}
+                    </span>
                     <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Finom kameramozgás (Ken Burns) minden fotón</span>
                   </div>
                 </div>
@@ -728,51 +836,71 @@ export default function VideoWizard({
             </div>
           )}
 
-          {/* 5) GENERÁLÁS */}
+          {/* 5) GENERÁLÁS — méretenként egy-egy videó */}
           {step === 3 && (
             <div className="space-y-4 text-center">
-              {!jobId && lab && submitting ? (
+              {!started && lab && submitting ? (
                 <div className="py-10">
-                  <p className="text-sm font-medium">A saját TWINX motor készíti a videót…</p>
+                  <p className="text-sm font-medium">A saját TWINX motor készíti a {aspects.length > 1 ? "videókat" : "videót"}…</p>
                   <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Ez 1–3 perc (az első próbánál tovább, mert ekkor készülnek az áttűnések). Ne zárd be az ablakot.
+                    Ez méretenként 1–3 perc. Ne zárd be az ablakot.
                   </p>
                 </div>
-              ) : !jobId ? (
+              ) : !started ? (
                 <div className="py-8">
                   <p className="text-sm font-medium">Minden készen áll.</p>
                   <p className="mx-auto mt-2 max-w-md text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {aspects.length > 1 && (
+                      <><strong>{aspects.map((a) => ASPECT_LABEL[a]).join(" és ")}</strong> méretben készül — ugyanazokból a fotókból
+                        {lab ? "." : `, méretenként ${VIDEO_CREDITS_ALAP} kredit (összesen ${totalCredits}).`}{" "}</>
+                    )}
                     A videó generálása 1–3 percig tart. A kész videó azonnal mentésre kerül a
                     Korábbi videóim közé — akkor sem vész el, ha közben bezárod az oldalt.
                     Ha a generálás nem sikerül, a kredit automatikusan visszajár.
                   </p>
                 </div>
-              ) : job?.status === "done" && job.output_url ? (
-                <>
-                  <video src={job.output_url} controls className="mx-auto max-h-[50vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
-                  <p className="text-sm text-green-700">
-                    {lab ? "Kész! (Videólabor — nem kerül a partner-előzmények közé; a mérések az oldalon.)" : "Kész! A videó elmentve a Korábbi videóim közé."}
-                  </p>
-                </>
-              ) : job?.status === "failed" ? (
-                <div className="py-8">
-                  <p className="text-sm font-semibold text-red-600">A videó nem készült el.</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {job.error || "Ismeretlen hiba."} A kredit automatikusan visszajárt — próbáld újra.
-                  </p>
-                </div>
               ) : (
-                <div className="py-10">
-                  <p className="text-sm font-medium">
-                    {job?.status === "animating" ? "AI-snittek készülnek minden fotóból — ez több percig is tarthat…" : "A videó renderelése folyik…"}
-                    {debug ? <span className="mt-1 block text-[11px] opacity-70">{describeProgress(debug)}</span> : null}
-                  </p>
-                  <div className="mx-auto mt-4 h-2 w-64 overflow-hidden rounded-full" style={{ background: "var(--twx-line)" }}>
-                    <div className="h-full rounded-full transition-all" style={{ background: "var(--twx-coral)", width: `${Math.min(95, Math.round((elapsed / 150) * 100))}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    ~1–3 perc · nyugodtan itt hagyhatod, a kész videó az előzményekbe kerül
-                  </p>
+                <div className={`grid gap-4 ${runs.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                  {runs.map((r) => (
+                    <div key={r.aspect} className="rounded-xl p-3" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+                      {runs.length > 1 && (
+                        <p className="mb-2 text-xs font-semibold" style={{ color: "var(--twx-ink-muted)" }}>{ASPECT_LABEL[r.aspect]} · {r.aspect}</p>
+                      )}
+                      {r.status === "done" && r.output_url ? (
+                        <>
+                          <video src={r.output_url} controls className="mx-auto max-h-[46vh] rounded-xl" style={{ border: "1px solid var(--twx-line)" }} />
+                          <p className="mt-2 text-sm text-green-700">
+                            {lab ? "Kész! (Videólabor — nem kerül a partner-előzmények közé.)" : "Kész! Elmentve a Korábbi videóim közé."}
+                          </p>
+                          {runs.length > 1 && (
+                            <a href={toDownloadUrl(r.output_url)} className="mt-2 inline-block rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                              Letöltés ({r.aspect})
+                            </a>
+                          )}
+                        </>
+                      ) : r.status === "failed" ? (
+                        <div className="py-6">
+                          <p className="text-sm font-semibold text-red-600">A videó nem készült el.</p>
+                          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                            {r.error || "Ismeretlen hiba."} A kredit automatikusan visszajárt — próbáld újra.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="py-8">
+                          <p className="text-sm font-medium">
+                            {r.status === "animating" ? "AI-snittek készülnek minden fotóból — ez több percig is tarthat…" : "A videó renderelése folyik…"}
+                            {r.debug ? <span className="mt-1 block text-[11px] opacity-70">{describeProgress(r.debug)}</span> : null}
+                          </p>
+                          <div className="mx-auto mt-4 h-2 w-full max-w-64 overflow-hidden rounded-full" style={{ background: "var(--twx-line)" }}>
+                            <div className="h-full rounded-full transition-all" style={{ background: "var(--twx-coral)", width: `${Math.min(95, Math.round((elapsed / 150) * 100))}%` }} />
+                          </div>
+                          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                            ~1–3 perc · nyugodtan itt hagyhatod, a kész videó az előzményekbe kerül
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -783,7 +911,7 @@ export default function VideoWizard({
 
         {/* Lábléc */}
         <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || busy || !!jobId}
+          <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || busy || started}
             className="rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-40" style={{ border: "1px solid var(--twx-line)" }}>
             Vissza
           </button>
@@ -791,19 +919,35 @@ export default function VideoWizard({
             <button type="button" onClick={next} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
               Tovább
             </button>
-          ) : job?.status === "done" && job.output_url ? (
+          ) : allFinished ? (
             <div className="flex gap-2">
-              <a href={toDownloadUrl(job.output_url)} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Letöltés</a>
-              <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>
+              {/* Sikertelen (vagy el sem indult) méret: csak azt indítjuk újra. */}
+              {(runs.some((r) => r.status === "failed") || missing.length > 0) && (
+                <button type="button" disabled={busy}
+                  onClick={() => {
+                    const retry = [...runs.filter((r) => r.status === "failed").map((r) => r.aspect), ...missing];
+                    setRuns((rs) => rs.filter((r) => r.status !== "failed"));
+                    void generate(retry);
+                  }}
+                  className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
+                  Újrapróbálom{aspects.length > 1 ? " (a sikertelen méretet)" : ""}
+                </button>
+              )}
+              {runs.length === 1 && runs[0].status === "done" && runs[0].output_url && !missing.length && (
+                <a href={toDownloadUrl(runs[0].output_url)} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Letöltés</a>
+              )}
+              {runs.some((r) => r.status === "done") && (
+                <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>
+              )}
             </div>
-          ) : job?.status === "failed" ? (
-            <button type="button" onClick={() => { setJobId(null); setJob(null); }} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
-              Újrapróbálom
-            </button>
           ) : (
-            <button type="button" onClick={generate} disabled={busy}
+            <button type="button" onClick={() => void generate()} disabled={busy || started}
               className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-              {busy ? "Generálás folyamatban…" : lab ? "Próbavideó a saját motorral" : `Videó generálása (${VIDEO_CREDITS_ALAP} kredit)`}
+              {busy || started
+                ? "Generálás folyamatban…"
+                : lab
+                  ? (aspects.length > 1 ? "Próbavideók (2 méret) a saját motorral" : "Próbavideó a saját motorral")
+                  : `${aspects.length > 1 ? `Videók generálása (${aspects.length} méret` : "Videó generálása ("} · ${totalCredits} kredit)`}
             </button>
           )}
         </div>
@@ -894,15 +1038,17 @@ function Combo({ label, value, onChange, options, placeholder }: {
  * kör alakú színválasztó gombok. Színváltáskor az előnézet azonnal átszíneződik.
  *   Aurora-család: sötét ferde panel · Skandi-család: krém „háztető" panel alul.
  */
-function EngineFamilyCard({ family, colorId, on, photo, onPick }: {
+function EngineFamilyCard({ family, colorId, on, photo, onPick, favorite, onToggleFavorite }: {
   family: EngineFamily; colorId: string; on: boolean; photo?: string; onPick: (id: string) => void;
+  /** Kedvenc-e (csillag a bal felső sarokban); onToggleFavorite nélkül nincs csillag. */
+  favorite?: boolean; onToggleFavorite?: () => void;
 }) {
   const color = family.colors.find((c) => c.id === colorId) ?? family.colors[0];
   if (!color) return null;
   // Bal oldalt NAGY előnézet (a kártya 42%-a — jól látszik a sablon), jobb oldalt a
   // név és a KIEMELT színvilág-választó (kétszínű kör + a szín neve, „pirula" gombként).
   return (
-    <div className="flex items-stretch overflow-hidden rounded-xl transition"
+    <div className="relative flex items-stretch overflow-hidden rounded-xl transition"
       style={{
         // A keret vastagsága MINDIG 2 px (csak a színe vált) — így kijelöléskor nem
         // szűkül a belső tér, és a színgombok nem ugranak át új sorba.
@@ -910,6 +1056,16 @@ function EngineFamilyCard({ family, colorId, on, photo, onPick }: {
         boxShadow: on ? "0 6px 18px rgba(239,122,90,0.18)" : "0 1px 2px rgba(0,0,0,0.04)",
         background: "#fff",
       }}>
+      {/* KEDVENC: pici csillag a kártya bal felső sarkában */}
+      {onToggleFavorite && (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+          aria-pressed={favorite} aria-label={favorite ? `${family.name}: eltávolítás a kedvencekből` : `${family.name}: hozzáadás a kedvencekhez`}
+          title={favorite ? "Kedvenc — kattints az eltávolításhoz" : "Hozzáadás a kedvencekhez"}
+          className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full text-[14px] leading-none shadow-sm transition hover:scale-110"
+          style={{ background: "rgba(255,255,255,0.94)", color: favorite ? "#e0a82e" : "#9a8f85" }}>
+          {favorite ? "★" : "☆"}
+        </button>
+      )}
       <button type="button" onClick={() => onPick(color.id)} aria-pressed={on} className="w-[42%] shrink-0" aria-label={`${family.name} sablon`}>
         <EnginePreview item={color} photo={photo} />
       </button>
@@ -992,7 +1148,7 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
           <div className="absolute inset-x-0 bottom-0 flex flex-col justify-center px-2.5" style={{ top: "64%" }}>
             <span className="text-[5.5px] font-semibold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
             <span className="mt-0.5 text-[10px] font-medium leading-tight" style={{ color: p.text }}>Sas utca 22.</span>
-            <span className="text-[7px] leading-tight" style={{ color: p.muted }}>Budapest II. kerület</span>
+            <span className="text-[7px] leading-tight" style={{ color: p.muted }}>Budapest V. kerület</span>
             <span className="mt-1 text-[11px] font-medium leading-none" style={{ color: p.text }}>60 M Ft</span>
           </div>
         </>
@@ -1003,7 +1159,7 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
           <div className="absolute inset-y-0 left-0 flex w-[64%] flex-col justify-center px-2">
             <span className="mb-1 block h-[2px] w-4 rounded-sm" style={{ background: p.accent }} />
             <span className="text-[10px] font-bold leading-tight" style={{ color: p.accent }}>Sas utca 22.</span>
-            <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>Budapest II. kerület</span>
+            <span className="mt-0.5 text-[7px] font-medium leading-tight" style={{ color: "rgba(255,255,255,0.92)" }}>Budapest V. kerület</span>
             <span className="mt-1.5 text-[6px] font-bold tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
             <span className="mt-1.5 text-[11px] font-extrabold leading-none" style={{ color: p.accent }}>60 M Ft</span>
           </div>

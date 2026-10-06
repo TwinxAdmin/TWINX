@@ -5,7 +5,6 @@ TWINX — Smartlead levélsorozatok (HTML + sima szöveg) generátora.
 Futtatás (a repó gyökeréből):   python3 marketing/email/build.py
 Kimenet:
   marketing/email/meleg/NN-*.html + .txt   — meglévő partnereknek (képes, gazdagabb)
-  marketing/email/hideg/NN-*.html + .txt   — hideg listának (könnyű, szöveg-központú)
   marketing/email/elonezet.html            — egy oldalon az összes levél (csak belső átnézésre)
 
 A szövegeket a content.py-ban lehet szerkeszteni; ez a fájl csak a formát adja.
@@ -18,7 +17,7 @@ sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
-from content import SITE, IMG_BASE, WARM, COLD, SENDER, utm  # noqa: E402
+from content import SITE, IMG_BASE, WARM, SENDER, utm  # noqa: E402
 
 # ---- TWINX színek -----------------------------------------------------------
 CREAM = "#F7F3EC"; CARD = "#FDFBF6"; INK = "#1C1815"; MUTED = "#6E655C"
@@ -173,6 +172,24 @@ def plain(mail: dict, kind: str) -> str:
     return "\n".join(lines)
 
 
+# ---- BREVO-változat: ugyanaz a levél, Brevo-változókkal és -leiratkozással ----
+BREVO_GREETING = "Szia{% if contact.FIRSTNAME %} {{ contact.FIRSTNAME }}{% endif %}!"
+
+
+def to_brevo(text: str, is_html: bool) -> str:
+    """Smartlead-kimenet → Brevo: keresztnév, leiratkozás, UTM-forrás."""
+    t = text.replace("Szia {{first_name}}!", BREVO_GREETING)
+    t = t.replace("{{first_name}}", "{{ contact.FIRSTNAME }}")
+    t = t.replace("utm_source=smartlead", "utm_source=brevo")
+    if is_html:
+        t = t.replace("%unsubscribe-text%",
+                      "Azért kapod ezt a levelet, mert a TWINX partnere vagy. "
+                      f'<a href="{{{{ unsubscribe }}}}" style="color:{MUTED};text-decoration:underline;">Leiratkozás</a>')
+    else:
+        t = t.replace("%unsubscribe-text%", "Leiratkozás: {{ unsubscribe }}")
+    return t
+
+
 def data_uri(path: str) -> str:
     # csak az előnézethez: a képet beágyazzuk, hogy élesítés (git push) nélkül is látszódjon
     from PIL import Image
@@ -185,7 +202,7 @@ def main():
     img_dir = os.path.join(ROOT, "public", "marketing", "email")
     preview = []
     report = []
-    for kind, seq in (("meleg", WARM), ("hideg", COLD)):
+    for kind, seq in (("meleg", WARM),):
         out = os.path.join(HERE, kind); os.makedirs(out, exist_ok=True)
         for i, m in enumerate(seq, 1):
             name = f"{i:02d}-{m['slug']}"
@@ -219,7 +236,7 @@ def main():
 
     # ---- sorozat-áttekintő (tárgyak, előnézeti szöveg, időzítés) a Smartlead-beállításhoz
     md = ["# TWINX levélsorozatok — áttekintő (generált, ne kézzel szerkeszd)", ""]
-    for kind, seq, label in (("meleg", WARM, "Meglévő partnerek"), ("hideg", COLD, "Hideg lista")):
+    for kind, seq, label in (("meleg", WARM, "Meglévő partnerek"),):
         md += [f"## {label} (`{kind}/`)", "", "| # | Időzítés | Tárgy (A) | Tárgy (B) | Előnézeti szöveg | Fájl |",
                "|---|---|---|---|---|---|"]
         for i, m in enumerate(seq, 1):
@@ -228,8 +245,147 @@ def main():
         md.append("")
     with open(os.path.join(HERE, "SEQUENCE.md"), "w", encoding="utf-8") as f: f.write("\n".join(md))
 
+    try:  # közös kiküldési útmutató PDF (Smartlead + Brevo) — a közös ZIP-ekbe is bekerül
+        import utmutato_pdf
+        utmutato_pdf.build()
+    except Exception as e:  # reportlab/fontok hiányában a levelek attól még elkészülnek
+        print("Útmutató PDF kihagyva:", e)
+    export_handoff(img_dir)
+    export_handoff(img_dir, "brevo")
+
     for kind, name, size in report:
         print(f"{kind:6s} {name:34s} {size/1024:5.1f} KB")
+
+
+# ---- ÁTADÁSI CSOMAG: levelenként egy mappa + egy ZIP, amit külön-külön tovább lehet adni ----
+GUIDE = """TWINX hírlevél — átadási csomag (SMARTLEAD)
+============================================
+
+Ebben a csomagban egy darab kész hírlevél van, a Smartleadbe való beillesztéshez.
+
+A MAPPA TARTALMA
+  • {name}.html    → ezt kell a Smartleadbe beilleszteni (HTML / forráskód nézetben)
+  • {name}.txt     → ugyanaz a levél sima szövegként (ha a Smartlead kér szöveges változatot)
+  • ADATLAP.txt    → tárgysor (A/B), előnézeti szöveg, időzítés, link — innen kell kimásolni
+  • kep.jpg        → a levélben szereplő kép (tájékoztatásul; a levél a twinx.hu-ról tölti be)
+
+HOGYAN NÉZD MEG?
+  Kattints duplán a {name}.html fájlra → megnyílik a böngészőben, pont úgy, ahogy a címzett látni fogja.
+
+BEÁLLÍTÁS A SMARTLEADBEN (lépésenként)
+  1. A kampányban nyisd meg a sorozat {num}. lépését (Sequence → {num}. step).
+  2. Tárgy (Subject): másold ki az ADATLAP.txt-ből az „A” tárgyat.
+     Ha A/B tesztet futtatsz, a „B” tárgy menjen a második változatba.
+  3. A levél szövegmezőjében válts HTML / forráskód nézetre („</>” ikon),
+     töröld ki, ami benne van, és illeszd be a {name}.html TELJES tartalmát
+     (a fájlt szövegszerkesztőben megnyitva: Cmd+A, Cmd+C).
+  4. Visszaváltva ellenőrizd, hogy látszik-e a kép, a narancs gomb és az aláírás.
+  5. Időzítés: {delay}.
+  6. Küldj tesztlevelet magadnak, és nyisd meg telefonon is.
+
+KAMPÁNYSZINTŰ BEÁLLÍTÁSOK (egyszer kell, az egész sorozatra)
+  • „Optimize Email Delivery” legyen KIKAPCSOLVA — különben a Smartlead kiveszi a HTML-t és a képet.
+    Ez a kampány indulása után már nem módosítható!
+  • A levél alján lévő %unsubscribe-text% helyére a Smartlead teszi a leiratkozó linket.
+    Ne töröld ki! (Tesztlevélben nem jelenik meg, csak éles küldésben.)
+  • {{{{first_name}}}} = a címzett keresztneve a listából. Ahol hiányzik a név, adj meg alapértéket,
+    különben „Szia !” lesz a megszólítás.
+
+Kérdés esetén: Kovács Márk
+"""
+
+GUIDE_BREVO = """TWINX hírlevél — átadási csomag (BREVO)
+=========================================
+
+Ebben a csomagban egy darab kész hírlevél van, a Brevóba való beillesztéshez.
+
+A MAPPA TARTALMA
+  • {name}.html    → ezt kell a Brevóba beilleszteni (HTML-kód szerkesztő)
+  • {name}.txt     → ugyanaz a levél sima szövegként
+  • ADATLAP.txt    → tárgysor (A/B), előnézeti szöveg, időzítés, link — innen kell kimásolni
+  • kep.jpg        → a levélben szereplő kép (tájékoztatásul; a levél a twinx.hu-ról tölti be)
+
+HOGYAN NÉZD MEG?
+  Kattints duplán a {name}.html fájlra → megnyílik a böngészőben.
+  (A keresztnév és a leiratkozás helyén itt még a Brevo-kódok látszanak — küldéskor ezeket a Brevo kicseréli.)
+
+BEÁLLÍTÁS A BREVÓBAN (lépésenként)
+  1. Brevo → Kampányok (Campaigns) → Kampány létrehozása → E-mail.
+     Kampány neve pl.: „TWINX {num}. levél – {name}”.
+  2. Feladó: a TWINX feladó neve és e-mail címe (hitelesített domainről).
+  3. Címzettek: a meglévő partnerek listája.
+  4. Tárgy: az ADATLAP.txt „A” tárgya. Előnézeti szöveg (Preview text): az ADATLAP.txt „Előnézeti szöveg” sora.
+     A/B tesztnél a „B” tárgy menjen a második változatba.
+  5. Tartalom / Design: válaszd a HTML-kód szerkesztőt („Paste your code” / „Kód beillesztése”),
+     töröld ki, ami benne van, és illeszd be a {name}.html TELJES tartalmát
+     (a fájlt szövegszerkesztőben megnyitva: Cmd+A, Cmd+C).
+  6. Ellenőrizd az előnézetben: kép, narancs gomb, aláírás, alul a „Leiratkozás” link.
+  7. Küldj tesztlevelet magadnak, nyisd meg telefonon is.
+  8. Ütemezés: {delay}.
+
+FONTOS
+  • A levél alján lévő {{{{ unsubscribe }}}} kódot NE töröld — ebből lesz a leiratkozó link (kötelező).
+  • A megszólítás a névjegy FIRSTNAME mezőjéből jön. Ahol nincs név, automatikusan „Szia!” lesz.
+  • A „B” tárgy a keresztnevet használja — csak akkor válaszd, ha a listában mindenkinél van név.
+  • Az 5 levelet 5 külön kampányként ütemezd (az időzítés az ADATLAP-ban), vagy egy Automation-ben,
+    a lépések közé „Várakozás” (Wait) blokkal.
+
+Kérdés esetén: Kovács Márk
+"""
+
+
+def export_handoff(img_dir: str, platform: str = "smartlead"):
+    import shutil, zipfile
+    brevo = platform == "brevo"
+    base = os.path.join(HERE, "atadas-brevo" if brevo else "atadas-smartlead")
+    prefix = "TWINX-brevo-hirlevel" if brevo else "TWINX-smartlead-hirlevel"
+    conv = (lambda t, h: to_brevo(t, h)) if brevo else (lambda t, h: t)
+    if os.path.isdir(base):
+        shutil.rmtree(base)
+    os.makedirs(base)
+    zips = []
+    for i, m in enumerate(WARM, 1):
+        name = f"{i:02d}-{m['slug']}"
+        d = os.path.join(base, name); os.makedirs(d)
+        with open(os.path.join(d, name + ".html"), "w", encoding="utf-8") as f: f.write(conv(render(m, "meleg"), True))
+        with open(os.path.join(d, name + ".txt"), "w", encoding="utf-8") as f: f.write(conv(plain(m, "meleg"), False))
+        shutil.copy(os.path.join(img_dir, m["image"]), os.path.join(d, "kep.jpg"))
+        link = conv(utm(m["link"], "meleg", m["slug"]), False)
+        sheet = "\n".join([
+            f"TWINX hírlevél — {i}. levél: {m['title']}",
+            "=" * 60, "",
+            f"Tárgy (A):          {conv(m['subject'][0], False)}",
+            f"Tárgy (B, A/B-hez): {conv(m['subject'][1], False)}",
+            f"Előnézeti szöveg:   {m['preheader']}",
+            f"Időzítés:           {m['delay']}",
+            f"Gomb felirata:      {next((b[1] for b in m['blocks'] if b[0] == 'cta'), '')}",
+            f"Gomb linkje:        {link}",
+            "Címzettek:          meglévő partnerek",
+            ("Változók:           {{ contact.FIRSTNAME }} (keresztnév), {{ unsubscribe }} (leiratkozó link — ne töröld)"
+             if brevo else
+             "Változók:           {{first_name}} (keresztnév), %unsubscribe-text% (leiratkozás — ne töröld)"),
+            "",
+        ])
+        with open(os.path.join(d, "ADATLAP.txt"), "w", encoding="utf-8") as f: f.write(sheet)
+        with open(os.path.join(d, "UTMUTATO.txt"), "w", encoding="utf-8") as f:
+            f.write((GUIDE_BREVO if brevo else GUIDE).format(name=name, num=i, delay=("azonnal, a kampány indulásakor (ez az első levél)" if i == 1 else m["delay"] + " (az előző lépéshez képest)")))
+        zp = os.path.join(base, f"{prefix}-{name}.zip")
+        with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
+            for fn in sorted(os.listdir(d)):
+                z.write(os.path.join(d, fn), f"{name}/{fn}")
+        zips.append(zp)
+    # egyben is, ha az egész sorozatot egy emberhez kell adni
+    allz = os.path.join(base, "TWINX-brevo-hirlevelek-mind-az-5.zip" if brevo else "TWINX-smartlead-hirlevelek-mind-az-5.zip")
+    with zipfile.ZipFile(allz, "w", zipfile.ZIP_DEFLATED) as z:
+        for i, m in enumerate(WARM, 1):
+            name = f"{i:02d}-{m['slug']}"
+            for fn in sorted(os.listdir(os.path.join(base, name))):
+                z.write(os.path.join(base, name, fn), f"{name}/{fn}")
+        z.write(os.path.join(HERE, "SEQUENCE.md"), "SOROZAT-ATTEKINTES.md")
+        pdf = os.path.join(HERE, "TWINX-hirlevel-kikuldesi-utmutato.pdf")
+        if os.path.exists(pdf):
+            z.write(pdf, "TWINX-hirlevel-kikuldesi-utmutato.pdf")
+    return zips + [allz]
 
 
 if __name__ == "__main__":
