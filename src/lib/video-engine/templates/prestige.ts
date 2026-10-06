@@ -1,4 +1,4 @@
-// TWINX PRESTIGE — luxus videósablon (FEJLESZTÉS ALATT: csak localhoston látszik).
+// TWINX PRESTIGE — luxus videósablon (élesítve: 2026-10-06).
 //
 // Karakter: mély fekete + pezsgőarany, talpas (serif) címbetű, sok levegő. A felső
 // sávban az ingatlanos landing vékony vonalas ikonjai ülnek egy sorban (ház, kulcs,
@@ -122,7 +122,6 @@ const photoScene = (n: number): TwinxTemplate["scenes"][number] => ({
 export const PRESTIGE: TwinxTemplate = {
   id: "prestige",
   name: "TWINX Prestige",
-  devOnly: true, // FEJLESZTÉS ALATT — élesben nem jelenik meg
   version: 1,
   fps: 25,
   aspects: ["9:16", "1:1"],

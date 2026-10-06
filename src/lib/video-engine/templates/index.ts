@@ -44,7 +44,7 @@ export function engineGallery(): EngineGalleryItem[] {
 const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
   skandi: { name: "Skandi", tagline: "Világos, letisztult — lágy átúsztatás, háztető-panel" },
-  prestige: { name: "Prestige", tagline: "Luxus, fekete-arany — szimbólumos „átlépés a következő szobába” (fejlesztés alatt)" },
+  prestige: { name: "Prestige", tagline: "Luxus, fekete-arany — filmes „filmburn” áttűnés hanggal" },
 };
 const COLOR_NAMES: Record<string, string> = {
   aurora: "Borostyán",

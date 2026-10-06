@@ -962,7 +962,21 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
       )}
-      {skandi ? (
+      {item.templateId === "prestige" ? (
+        <>
+          {/* Prestige: sötét átmenet alul, arany ikonsor felül, talpas cím, arany ár */}
+          <span className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${p.shadow}99 0%, transparent 22%, transparent 45%, ${p.shadow}f0 80%)` }} />
+          <span className="absolute inset-[5%]" style={{ border: `1px solid ${p.accent}88` }} />
+          <div className="absolute inset-x-0 flex items-center justify-center gap-[6%]" style={{ top: "8%" }}>
+            {["⌂", "⚿", "⌖"].map((g) => <span key={g} className="text-[8px] leading-none" style={{ color: p.accent }}>{g}</span>)}
+          </div>
+          <div className="absolute inset-x-0 bottom-[9%] flex flex-col px-[12%]">
+            <span className="text-[5.5px] tracking-widest" style={{ color: p.accent }}>ÚJ ÉPÍTÉSŰ LAKÁS</span>
+            <span className="mt-0.5 font-serif text-[11px] font-semibold leading-tight" style={{ color: p.text }}>Sas utca 22.</span>
+            <span className="mt-1 font-serif text-[11px] font-semibold leading-none" style={{ color: p.accent }}>60 M Ft</span>
+          </div>
+        </>
+      ) : skandi ? (
         <>
           <span className="absolute inset-0" style={{ background: p.accent, clipPath: roofEdge }} />
           <span className="absolute inset-0" style={{ background: p.base, opacity: 0.97, clipPath: roofPanel }} />
