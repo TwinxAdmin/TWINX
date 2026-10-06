@@ -21,13 +21,13 @@ import { spawn } from "node:child_process";
 import { ImageResponse } from "next/og";
 import {
   ASPECT_SIZES, resolveColor, sceneStarts, totalDuration,
-  type Appear, type AspectId, type Layer, type Motion, type TwinxTemplate,
+  type Appear, type AspectId, type Box, type Layer, type Motion, type Scene, type TwinxTemplate,
 } from "./template-schema";
 import {
   chevronCutProgress, chevronWipeFrame, panelRevealFrame, softDipFrame, symbolZoomFrame, symbolMaskFrame,
   PANEL_CUT, DIP_CUT, SYMBOL_CUT, type SatoriNode, type EstateSymbol,
 } from "./transitions";
-import { layersFrame, type BindData } from "./layers";
+import { forAspect, layersFrame, type BindData } from "./layers";
 import { pngAlphaBbox, type Bbox } from "./png-bbox";
 
 export type EngineFont = { name: string; data: ArrayBuffer; weight: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900; style: "normal" };
@@ -424,6 +424,86 @@ async function applyFxWindows(o: {
 }
 
 // ---------------------------------------------------------------------------
+// GALÉRIA-CSERE (Mozaik): a következő fotó a kis helyéről nagyra nő, az addigi nagy kép
+// a megüresedett kis helyre zsugorodik. Mindkét mozgó kép képkockáit EGY előzetes
+// ffmpeg-futás gyártja (képkockánként pontos kivágás + méretezés + fehér keret), teljes
+// vászonméretű, átlátszó PNG-sorozatként. Gyors (nincs vektoros rajzolás), és a jelenet
+// rétegsorrendjébe illeszthető: az érkező a kis képek ALÁ, a távozó (leendő kis kép) legfelülre.
+// ---------------------------------------------------------------------------
+type SwapSeq = { inPattern: string; outPattern: string; frames: number };
+/** Doboz → pixel (ugyanaz a kerekítés, mint a nagyító rétegnél: páros méret). */
+function pxBox(b: Box, W: number, H: number, even = true) {
+  const r = (v: number) => (even ? Math.round(v / 2) * 2 : Math.round(v));
+  return { x: Math.round(b.x * W), y: Math.round(b.y * H), w: r(b.w * W), h: r(b.h * H) };
+}
+async function swapSequences(o: {
+  ffmpeg: string; prev: Scene; cur: Scene; aspect: AspectId; W: number; H: number; fps: number;
+  duration: number; photos: string[]; dir: string;
+}): Promise<SwapSeq | null> {
+  type Img = Extract<Layer, { kind: "image" }>;
+  const imgs = (sc: Scene) => sc.layers.filter((l): l is Img => l.kind === "image").map((l) => forAspect(l, o.aspect));
+  const prevImgs = imgs(o.prev), curImgs = imgs(o.cur);
+  const prevMain = prevImgs.find((l) => l.motion), curMain = curImgs.find((l) => l.motion);
+  if (!prevMain || !curMain) return null;
+  const fromSlot = prevImgs.find((l) => !l.motion && l.bind === curMain.bind);   // ahonnan az új nagy kép indul
+  const toSlot = curImgs.find((l) => !l.motion && l.bind === prevMain.bind);     // ahová az előző nagy kép érkezik
+  if (!fromSlot || !toSlot) return null;
+  const fileOf = (l: Img) => o.photos[Number(String(l.bind).split(".")[1]) - 1];
+  const inFile = fileOf(curMain), outFile = fileOf(prevMain);
+  if (!inFile || !outFile) return null;
+  const S = Math.min(o.W, o.H);
+  const bpx = toSlot.border && toSlot.border.width > 0 ? Math.max(1, Math.round(toSlot.border.width * S)) : 0;
+  const A = prevMain.motion?.amount ?? 0;
+  const n = Math.max(2, Math.round(o.duration * o.fps));
+  const N = n + 2; // +2 záró képkocka (végállapot) — a jelenet rétegei biztosan átveszik, nincs villanás
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const ease = (f: number) => { const p = Math.min(1, f / (n - 1)); return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  fs.mkdirSync(o.dir, { recursive: true });
+
+  const args: string[] = ["-y", "-v", "error"];
+  const filters: string[] = [];
+  const outs: string[] = [];
+  type End = { px: { x: number; y: number; w: number; h: number }; b: number; z: number };
+  const mover = (idx: number, file: string, a: End, z: End, tag: string) => {
+    const info = imageInfo(file);
+    const rot = orientFilter(info?.orientation ?? 1);
+    const swapWH = (info?.orientation ?? 1) >= 5;
+    const iw0 = (swapWH ? info?.height : info?.width) ?? 2000, ih0 = (swapWH ? info?.width : info?.height) ?? 1500;
+    // Egyszer kicsinyítve akkorára, amekkora a legnagyobb (nagy kép) állapothoz kell.
+    const big = pxBox(curMain.box, o.W, o.H);
+    const s0 = Math.min(1, Math.max((big.w * 1.08 * (1 + A)) / iw0, (big.h * 1.08 * (1 + A)) / ih0));
+    const IW = Math.max(2, Math.round((iw0 * s0) / 2) * 2), IH = Math.max(2, Math.round((ih0 * s0) / 2) * 2);
+    args.push("-i", file);
+    filters.push(`[${idx}:v]${rot}scale=${IW}:${IH}:flags=lanczos,setsar=1,split=${N}${Array.from({ length: N }, (_, f) => `[${tag}s${f}]`).join("")}`);
+    for (let f = 0; f < N; f++) {
+      const e = ease(f);
+      const ob = { x: Math.round(lerp(a.px.x, z.px.x, e)), y: Math.round(lerp(a.px.y, z.px.y, e)), w: Math.round(lerp(a.px.w, z.px.w, e)), h: Math.round(lerp(a.px.h, z.px.h, e)) };
+      const b = Math.round(lerp(a.b, z.b, e));
+      const rw = Math.max(2, ob.w - 2 * b), rh = Math.max(2, ob.h - 2 * b);
+      const zz = lerp(a.z, z.z, e);
+      const sc = Math.max(rw / IW, rh / IH) * zz;
+      const cw = Math.min(IW, Math.max(2, Math.round(rw / sc))), ch = Math.min(IH, Math.max(2, Math.round(rh / sc)));
+      const cx = Math.round((IW - cw) / 2), cy = Math.round((IH - ch) / 2);
+      const px = Math.min(Math.max(0, ob.x), o.W - ob.w), py = Math.min(Math.max(0, ob.y), o.H - ob.h);
+      filters.push(
+        `[${tag}s${f}]crop=${cw}:${ch}:${cx}:${cy},scale=${rw}:${rh}:flags=bicubic,` +
+          (b ? `pad=${rw + 2 * b}:${rh + 2 * b}:${b}:${b}:color=white,` : "") +
+          `format=rgba,pad=${o.W}:${o.H}:${px}:${py}:color=black@0[${tag}f${f}]`,
+      );
+      outs.push("-map", `[${tag}f${f}]`, "-frames:v", "1", path.join(o.dir, `${tag}${String(f).padStart(4, "0")}.png`));
+    }
+  };
+  // Érkező: a kis helyéről (fehér kerettel) a nagy kép helyére (keret nélkül).
+  // (A kis képek a rajzoló kerekítésével, a nagy kép a nagyító réteg páros méretével egyezik.)
+  const mainPx = (l: Img) => pxBox(l.box, o.W, o.H), slotPx = (l: Img) => pxBox(l.box, o.W, o.H, false);
+  mover(0, inFile, { px: slotPx(fromSlot), b: bpx, z: 1 }, { px: mainPx(curMain), b: 0, z: 1 }, "i");
+  // Távozó: a nagy kép helyéről (a nagyítás végállapotából) a megüresedett kis helyre.
+  mover(1, outFile, { px: mainPx(prevMain), b: 0, z: 1 + A }, { px: slotPx(toSlot), b: bpx, z: 1 }, "o");
+  await run(o.ffmpeg, [...args, "-filter_complex", filters.join(";"), ...outs]);
+  return { inPattern: path.join(o.dir, "i%04d.png"), outPattern: path.join(o.dir, "o%04d.png"), frames: N };
+}
+
+// ---------------------------------------------------------------------------
 // Fő menet
 // ---------------------------------------------------------------------------
 export async function renderVideo(input: RenderInput): Promise<RenderResult> {
@@ -498,29 +578,102 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
   timings.transitions = (Date.now() - t0) / 1000;
   log(`áttűnések: ${placed.length} db — ${timings.transitions.toFixed(1)} mp`);
 
+  // --- 1/B) Fotók a RÉTEGEKHEZ (pl. a Mozaik rombusz-képei): ha egy képréteg fotóra
+  //     hivatkozik, kicsinyített, forgatás-helyes JPEG-et adunk neki (data-URL).
+  const data: BindData = { ...(input.data ?? {}) };
+  const photoBound = new Set<number>();
+  for (const sc of tpl.scenes) for (const l of sc.layers) {
+    const m = l.kind === "image" ? /^photo\.(\d+)$/.exec(String(l.bind)) : null;
+    if (m) photoBound.add(Number(m[1]));
+  }
+  for (const n of photoBound) {
+    const file = input.photos[n - 1];
+    if (!file) continue;
+    const thumb = path.join(layerDir, `photo-${n}.jpg`);
+    const rot = orientFilter(imageInfo(file)?.orientation ?? 1);
+    try {
+      await run(input.ffmpegPath, ["-y", "-v", "error", "-i", file, "-vf", `${rot}scale='min(1800,iw)':-2`, "-frames:v", "1", "-q:v", "3", thumb]);
+      data[`photo.${n}`] = `data:image/jpeg;base64,${fs.readFileSync(thumb).toString("base64")}`;
+    } catch { /* a réteg ilyenkor üresen marad — a videó elkészül */ }
+  }
+
+  // --- 1/C) GALÉRIA-CSERE („swap") — a mozgó képek képkockái (jobonként, ffmpeg) ---
+  const tSwap = Date.now();
+  const swaps = new Map<number, SwapSeq>();
+  for (let i = 1; i < tpl.scenes.length; i++) {
+    if (tpl.scenes[i].transitionIn?.type !== "swap") continue;
+    const seq = await swapSequences({
+      ffmpeg: input.ffmpegPath, prev: tpl.scenes[i - 1], cur: tpl.scenes[i], aspect, W, H, fps,
+      duration: tpl.scenes[i].transitionIn!.duration, photos: input.photos, dir: path.join(layerDir, `swap-${i}`),
+    });
+    if (seq) swaps.set(i, seq);
+  }
+  if (swaps.size) timings.swap = (Date.now() - tSwap) / 1000;
+
   // --- 2) Rétegek: jelenetenként, megjelenés szerint csoportosítva ---
-  type Overlay = { file: string; start: number; end: number; appear?: Appear; box: Bbox };
+  // A nagyító (motion) fotóréteg „válaszfal": ami előtte van, alá, ami utána, fölé kerül —
+  // így a sorrend (márvány → nagy kép → felirat → kis képek) pontosan megmarad.
+  type Overlay =
+    | { kind: "png"; file: string; start: number; end: number; appear?: Appear; hide?: number; box: Bbox }
+    | { kind: "zoom"; file: string; start: number; end: number; amount: number; box: Bbox }
+    | { kind: "seq"; file: string; start: number; end: number; box: Bbox };
   const overlays: Overlay[] = [];
   const t1 = Date.now();
+  // Azonos rétegcsoport (pl. a márvány minden jelenetben) csak EGYSZER rajzolódik.
+  const drawn = new Map<string, { file: string; box: Bbox } | null>();
+  let g = 0;
   for (let i = 0; i < tpl.scenes.length; i++) {
     const sc = tpl.scenes[i];
-    const groups = new Map<string, Layer[]>();
-    for (const l of sc.layers) {
-      const key = JSON.stringify(l.appear ?? null);
-      groups.set(key, [...(groups.get(key) ?? []), l]);
+    const flush = async (part: Layer[]) => {
+      const groups = new Map<string, Layer[]>();
+      for (const l of part) {
+        const key = JSON.stringify([l.appear ?? null, l.hideBeforeEnd ?? null]);
+        groups.set(key, [...(groups.get(key) ?? []), l]);
+      }
+      for (const [key, layers] of groups) {
+        const ck = JSON.stringify(layers.map((l) => ({ ...l, appear: undefined, hideBeforeEnd: undefined })));
+        let hit = drawn.get(ck);
+        if (hit === undefined) {
+          const el = layersFrame(layers, { W, H, aspect, palette: tpl.palette, data }, family);
+          hit = null;
+          if (el) {
+            const buf = await png(el, W, H, input.fonts);
+            // Csak a TARTALMAZÓ dobozt keverjük a videóra (teljesen átlátszó réteget kihagyunk).
+            const box = pngAlphaBbox(buf);
+            if (box) {
+              const file = path.join(layerDir, `s${i}-g${g++}.png`);
+              fs.writeFileSync(file, buf);
+              hit = { file, box };
+            }
+          }
+          drawn.set(ck, hit);
+        }
+        if (!hit) continue;
+        const [appear, hide] = JSON.parse(key) as [Appear | null, number | null];
+        overlays.push({ kind: "png", file: hit.file, start: starts[i], end: starts[i] + sc.length, appear: appear ?? undefined, hide: hide ?? undefined, box: hit.box });
+      }
+    };
+    let part: Layer[] = [];
+    for (const raw of sc.layers) {
+      const l = forAspect(raw, aspect);
+      const m = l.kind === "image" && l.motion ? /^photo\.(\d+)$/.exec(String(l.bind)) : null;
+      if (!m || l.kind !== "image" || !l.motion) { part.push(raw); continue; }
+      await flush(part); part = [];
+      const file = input.photos[Number(m[1]) - 1];
+      if (!file) continue;
+      const bw = Math.round((l.box.w * W) / 2) * 2, bh = Math.round((l.box.h * H) / 2) * 2;
+      overlays.push({
+        kind: "zoom", file, start: starts[i] + (l.appear?.delay ?? 0), end: starts[i] + sc.length, amount: l.motion.amount,
+        box: { x: Math.round(l.box.x * W), y: Math.round(l.box.y * H), w: bw, h: bh },
+      });
+      // Csere: az érkező (nagyra növő) kép a nagy kép SZINTJÉN mozog — a felirat és a kis képek alatt.
+      const sw = swaps.get(i);
+      if (sw) overlays.push({ kind: "seq", file: sw.inPattern, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
     }
-    let g = 0;
-    for (const [key, layers] of groups) {
-      const el = layersFrame(layers, { W, H, aspect, palette: tpl.palette, data: input.data ?? {} }, family);
-      if (!el) continue;
-      const file = path.join(layerDir, `s${i}-g${g++}.png`);
-      const buf = await png(el, W, H, input.fonts);
-      // Csak a TARTALMAZÓ dobozt keverjük a videóra (teljesen átlátszó réteget kihagyunk).
-      const box = pngAlphaBbox(buf);
-      if (!box) continue;
-      fs.writeFileSync(file, buf);
-      overlays.push({ file, start: starts[i], end: starts[i] + sc.length, appear: JSON.parse(key) ?? undefined, box });
-    }
+    await flush(part);
+    // …a távozó (kis képpé zsugorodó) kép VÉGIG a kis képek szintjén, legfelül — nincs „előreugrás".
+    const sw = swaps.get(i);
+    if (sw) overlays.push({ kind: "seq", file: sw.outPattern, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
   }
   timings.layers = (Date.now() - t1) / 1000;
   log(`rétegek: ${overlays.length} kép — ${timings.layers.toFixed(1)} mp`);
@@ -568,9 +721,53 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     const idx = inputIdx++;
     const n = Math.max(1, Math.round((ov.end - ov.start) * fps));
     const b = ov.box;
+    if (ov.kind === "seq") {
+      args.push("-framerate", String(fps), "-i", ov.file);
+      filters.push(
+        `[${idx}:v]format=rgba,setpts=PTS-STARTPTS+${ov.start.toFixed(3)}/TB[l${k}]`,
+        `[${last}][l${k}]overlay=eof_action=pass[o${k}]`,
+      );
+      last = `o${k}`;
+      return;
+    }
     args.push("-i", ov.file);
+    if (ov.kind === "zoom") {
+      // LASSÚ NAGYÍTÁS a dobozban (Mozaik nagy képe): a fotó EGYSZER 4× felbontásra
+      // illesztve (cover, középre vágva), a zoompan ebből gyártja a képkockákat — remegésmentes.
+      const rot = orientFilter(imageInfo(ov.file)?.orientation ?? 1);
+      const w4 = b.w * 4, h4 = b.h * 4;
+      const st = ov.start.toFixed(3);
+      filters.push(
+        `[${idx}:v]${rot}scale=${w4}:${h4}:force_original_aspect_ratio=increase:flags=lanczos,crop=${w4}:${h4},setsar=1,` +
+          `zoompan=z='1+${ov.amount}*on/${Math.max(1, n - 1)}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${n}:s=${b.w}x${b.h}:fps=${fps},` +
+          `setsar=1,trim=end_frame=${n},setpts=PTS-STARTPTS+${st}/TB,format=yuv420p[l${k}]`,
+        `[${last}][l${k}]overlay=x=${b.x}:y=${b.y}:eof_action=pass:enable='between(t,${st},${ov.end.toFixed(3)})'[o${k}]`,
+      );
+      last = `o${k}`;
+      return;
+    }
+    if (ov.appear?.type === "pop") {
+      // ELŐUGRÁS: kicsiből (15%) rugalmasan, kis túllendüléssel (~108%) nő a végleges
+      // méretre, a doboz közepéből. A réteg csak a saját dobozán dolgozik.
+      const st = ov.start + (ov.appear.delay ?? 0);
+      const d = Math.max(0.15, ov.appear.duration ?? 0.5);
+      const pw = Math.ceil((b.w * 1.12) / 2) * 2, ph = Math.ceil((b.h * 1.12) / 2) * 2;
+      const p = `min(1,max(0,(t-${st.toFixed(3)})/${d}))`;
+      const sc = `(0.15+0.85*(1+2.70158*pow(${p}-1,3)+1.70158*pow(${p}-1,2)))`;
+      filters.push(
+        `[${idx}:v]crop=${b.w}:${b.h}:${b.x}:${b.y},format=yuva420p,loop=loop=${n - 1}:size=1:start=0,` +
+          `setpts=N/${fps}/TB+${ov.start.toFixed(3)}/TB,fade=t=in:st=${st.toFixed(3)}:d=${(d * 0.35).toFixed(3)}:alpha=1,` +
+          `scale=w='max(2,trunc(${b.w}*${sc}/2)*2)':h='max(2,trunc(${b.h}*${sc}/2)*2)':eval=frame,` +
+          `pad=w=${pw}:h=${ph}:x='(ow-iw)/2':y='(oh-ih)/2':color=black@0:eval=frame[l${k}]`,
+        `[${last}][l${k}]overlay=x=${b.x - (pw - b.w) / 2}:y=${b.y - (ph - b.h) / 2}:eof_action=pass:enable='between(t,${st.toFixed(3)},${ov.end.toFixed(3)})'[o${k}]`,
+      );
+      last = `o${k}`;
+      return;
+    }
     const a = appearExpr(ov.appear, ov.start, W, H);
-    const fade = a.fade ? `,fade=t=in:st=${a.fade.st.toFixed(3)}:d=${a.fade.d}:alpha=1` : "";
+    const fade = (a.fade ? `,fade=t=in:st=${a.fade.st.toFixed(3)}:d=${a.fade.d}:alpha=1` : "") +
+      // Eltűnés a jelenet vége előtt (pl. a felirat a csere előtt halkan elhalványul).
+      (ov.hide ? `,fade=t=out:st=${(ov.end - ov.hide).toFixed(3)}:d=${ov.hide}:alpha=1` : "");
     filters.push(
       `[${idx}:v]crop=${b.w}:${b.h}:${b.x}:${b.y},format=yuva420p,loop=loop=${n - 1}:size=1:start=0,` +
         `setpts=N/${fps}/TB+${ov.start.toFixed(3)}/TB${fade}[l${k}]`,

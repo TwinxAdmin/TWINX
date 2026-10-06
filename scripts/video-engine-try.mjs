@@ -24,7 +24,7 @@ const require = createRequire(import.meta.url);
 
 // --- 1) Fordítás CommonJS-re, az importok átírásával ---
 fs.mkdirSync(BUILD, { recursive: true });
-const files = ["template-schema.ts", "transitions.ts", "layers.ts", "png-bbox.ts", "render-node.ts", "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/index.ts"];
+const files = ["template-schema.ts", "transitions.ts", "layers.ts", "png-bbox.ts", "render-node.ts", "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/mozaik.ts", "templates/index.ts"];
 const OG = require.resolve("next/dist/compiled/@vercel/og/index.node.js");
 for (const f of files) {
   let js = ts.transpileModule(fs.readFileSync(path.join(SRC, f), "utf8"), {

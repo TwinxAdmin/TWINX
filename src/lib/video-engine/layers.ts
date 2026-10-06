@@ -171,6 +171,7 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
     case "image": {
       const src = valueOf(l.bind, undefined, ctx.data);
       if (!src) return null;
+      if (l.mask === "diamond") return diamondImage(l, src, ctx);
       // A kör alakú kép mindig valódi kör (a doboz rövidebb oldalára), középre igazítva.
       const bw = Math.round(l.box.w * ctx.W), bh = Math.round(l.box.h * ctx.H);
       const d = Math.min(bw, bh);
@@ -178,18 +179,23 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
       const frame = circle
         ? { left: Math.round(l.box.x * ctx.W + (bw - d) / 2), top: Math.round(l.box.y * ctx.H + (bh - d) / 2), width: d, height: d }
         : {};
-      const border = l.border ? Math.max(2, Math.round(l.border.width * S)) : 0;
+      const border = l.border && l.border.width > 0 ? Math.max(1, Math.round(l.border.width * S)) : 0;
+      // Ingatlanfotó (photo.N): középre vágva — ugyanúgy, ahogy a motor nagyító rétege vág,
+      // így az álló kép és a mozgó kép pontosan fedi egymást.
+      const isPhoto = String(l.bind).startsWith("photo.");
+      const zoom = l.zoom && Math.abs(l.zoom - 1) > 0.0005 ? { transform: `scale(${l.zoom.toFixed(4)})` } : {};
       return h("div", {
         ...base, ...frame, overflow: "hidden",
+        ...(l.shadow ? { boxShadow: `0 ${Math.round(S * 0.008)}px ${Math.round(S * 0.022)}px rgba(40,30,20,0.22)` } : {}),
         borderRadius: circle ? 9999 : l.mask === "rounded" ? Math.round(0.03 * S) : 0,
-        ...(l.border ? { border: `${border}px solid ${resolveColor(l.border.color, ctx.palette)}` } : {}),
+        ...(border ? { border: `${border}px solid ${resolveColor(l.border!.color, ctx.palette)}` } : {}),
         // Logónál (contain) fehér alap, hogy az átlátszó logó is jól látsszon.
         ...(l.fit === "contain" ? { background: "#ffffff", padding: Math.round(d * 0.12) } : {}),
       },
         // Portrénál az arc a kép felső részén van → a kivágás felülre igazodik.
         // A méret attribútumként is megvan: a Satori így sosem próbálja letölteni a képet
         // a méretéért (élesben ez okozott „Image size cannot be determined" hibát).
-        { type: "img", props: { src, width: circle ? d : bw, height: circle ? d : bh, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" ? "center" : "center top" } } });
+        { type: "img", props: { src, width: circle ? d : bw, height: circle ? d : bh, style: { width: "100%", height: "100%", objectFit: l.fit ?? "cover", objectPosition: l.fit === "contain" || isPhoto ? "center" : "center top", ...zoom } } });
     }
     case "symbol": {
       // Vonalas ingatlanos ikon (ugyanaz a rajz, mint a Prestige szimbólum-áttűnéséé).
@@ -203,6 +209,8 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
     case "component":
       if (l.component === "captionBar") return captionBar(l, ctx, family);
       if (l.component === "captionCard") return captionCard(l, ctx, family);
+      if (l.component === "marble") return marble(l, ctx);
+      if (l.component === "paperNote") return paperNote(l, ctx, family);
       return null; // ár-pecsét — később
 
     default:
@@ -362,6 +370,147 @@ function captionCard(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fa
     ...full, alignItems: "flex-end", justifyContent: "flex-start",
     paddingLeft: Math.round(W * 0.06), paddingBottom: Math.round(H * (square ? 0.06 : 0.075)),
   }, card);
+}
+
+/**
+ * RombUSZ alakú fotó (a Mozaik sablon „gyémánt" képei): a doboz oldalfelezőin ülő
+ * csúcsokkal, a fotó kitölti (cover), körben vastag (alapból fehér) kerettel.
+ * SVG-vel rajzolva (vágógörbe + kép), hogy a rajzoló biztosan kezelje.
+ */
+function diamondImage(l: Extract<Layer, { kind: "image" }>, src: string, ctx: LayerCtx): SatoriNode {
+  const S = Math.min(ctx.W, ctx.H);
+  // A rombusz = 45°-ban elforgatott négyzet: a doboz (D×D) oldalfelezőin ülnek a csúcsai.
+  const D = Math.round(Math.min(l.box.w * ctx.W, l.box.h * ctx.H));
+  const cx = Math.round((l.box.x + l.box.w / 2) * ctx.W), cy = Math.round((l.box.y + l.box.h / 2) * ctx.H);
+  const side = D / Math.SQRT2; // az elforgatott négyzet oldala
+  const b = l.border ? Math.max(2, Math.round(l.border.width * S)) : 0;
+  return {
+    type: "div",
+    props: {
+      style: {
+        position: "absolute", left: Math.round(cx - side / 2), top: Math.round(cy - side / 2),
+        width: Math.round(side), height: Math.round(side), display: "flex", overflow: "hidden",
+        transform: "rotate(45deg)", opacity: l.opacity ?? 1,
+        ...(b ? { border: `${b}px solid ${resolveColor(l.border!.color, ctx.palette)}` } : {}),
+      },
+      // A fotó visszaforgatva → álló kép, a rombusz teljes területét kitölti (cover).
+      children: {
+        type: "img",
+        props: {
+          src, width: D, height: D,
+          style: {
+            position: "absolute", left: Math.round((side - D) / 2) - b, top: Math.round((side - D) / 2) - b,
+            width: D, height: D, objectFit: "cover", transform: "rotate(-45deg)",
+          },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Világos MÁRVÁNY háttér (a Mozaik sablon alapja): halvány, lágy erezet a paletta
+ * alapszínén. Kódból (SVG zajszűrő) — nincs külső képfájl.
+ */
+function marble(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx): SatoriNode {
+  const W = ctx.W, H = ctx.H;
+  const base = resolveColor("@base", ctx.palette);
+  const vein = resolveColor((l.props?.vein as ColorRef | undefined) ?? "@muted", ctx.palette);
+  const seed = Number(l.props?.seed ?? 7);
+  return {
+    type: "div",
+    props: {
+      style: { position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex" },
+      children: {
+        type: "svg",
+        props: {
+          width: W, height: H, viewBox: `0 0 ${W} ${H}`,
+          children: [
+            { type: "defs", props: { children: [
+              { type: "filter", props: { id: "mv", x: "0", y: "0", width: "100%", height: "100%", children: [
+                { type: "feTurbulence", props: { type: "fractalNoise", baseFrequency: "0.0011 0.0034", numOctaves: "4", seed: String(seed), result: "n" } },
+                // A zaj értékét az átlátszóságba tesszük, majd csak egy KESKENY sávját hagyjuk meg
+                // → vékony, kanyargó „erezet" (mint a márványon), nem foltok.
+                { type: "feColorMatrix", props: { in: "n", type: "matrix", values: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0", result: "a" } },
+                { type: "feComponentTransfer", props: { in: "a", result: "v", children: { type: "feFuncA", props: { type: "table", tableValues: "0 0 0 0 0 0 0 0 0 0 0 0.75 0 0 0 0 0 0 0 0 0 0 0" } } } },
+                { type: "feGaussianBlur", props: { in: "v", stdDeviation: "0.6" } },
+              ] } },
+              { type: "linearGradient", props: { id: "mg", x1: "0", y1: "0", x2: "1", y2: "1", children: [
+                { type: "stop", props: { offset: "0", "stop-color": "#ffffff", "stop-opacity": "0.55" } },
+                { type: "stop", props: { offset: "1", "stop-color": "#ffffff", "stop-opacity": "0" } },
+              ] } },
+            ] } },
+            { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: base } },
+            { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: vein, opacity: 0.2, filter: "url(#mv)" } },
+            { type: "rect", props: { x: 0, y: 0, width: W, height: H, fill: "url(#mg)" } },
+          ],
+        },
+      },
+    },
+  };
+}
+
+/**
+ * PAPÍRCSÍK-FELIRAT (a Mozaik fotónkénti szövegablaka): krémszínű, enyhén szálas
+ * „vászonpapír" csík szakadt bal és jobb széllel, picit megdöntve, halk árnyékkal.
+ * A szöveg EGY tömb, egy betűmérettel, középre zárva; a csík magassága a szöveghez igazodik.
+ *  • props.family / props.weight — a felirat betűje (alap: a sablon első betűje, 500);
+ *  • props.size — betűméret a vászon rövidebb oldalához mérve; props.lines — max. sorszám
+ *    (ha a szöveg többet kívánna, a betű arányosan kisebb lesz — sosem lóg ki);
+ *  • props.insetLeft — a szöveg bal margója a csík bal szélétől (a vászon szélességében):
+ *    a csík bal vége a kis képek ALÁ bújik, a szöveg csak a látható részen ül;
+ *  • props.tilt — döntés fokban (alap −1).
+ * A csík a doboz függőleges közepén ül.
+ */
+function paperNote(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, family: string): SatoriNode | null {
+  const raw = valueOf(l.bind, undefined, ctx.data);
+  if (!raw) return null;
+  const text = raw.replace(/\s+/g, " ").trim();
+  const W = ctx.W, H = ctx.H, S = Math.min(W, H);
+  const fam = String(l.props?.family ?? family);
+  const weight = Number(l.props?.weight ?? 500);
+  const size = Number(l.props?.size ?? 0.044);
+  const lines = Number(l.props?.lines ?? 3);
+  const bx = Math.round(l.box.x * W), by = Math.round(l.box.y * H);
+  const bw = Math.round(l.box.w * W), bh = Math.round(l.box.h * H);
+  const inL = Math.round(Number(l.props?.insetLeft ?? 0.05) * W);
+  const inR = Math.round(S * 0.05);
+  const padY = Math.round(S * 0.034);
+  const innerW = bw - inL - inR;
+  const block = textBlock(text, { font: { weight, size }, color: (l.props?.color as ColorRef | undefined) ?? "#2e2a26", lineHeight: 1.24, maxLines: lines, align: "center" }, ctx, fam, innerW,
+    { width: innerW });
+  // A papír: SVG (szakadt szélek + finom szálas textúra + árnyék), a csík méretére nyújtva.
+  const jag = (side: "l" | "r") => {
+    const pts: string[] = [];
+    const n = 14;
+    for (let i = 0; i <= n; i++) {
+      const y = 20 + (i / n) * 260;
+      const wob = ((i * 37) % 11) / 11; // determinisztikus „szakadás"
+      const x = side === "l" ? 14 + wob * 9 : 986 - wob * 9;
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return side === "l" ? pts.reverse() : pts;
+  };
+  const poly = [...jag("r"), ...jag("l")].join(" ");
+  const paper = String(l.props?.paper ?? "#f5efe4");
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300" preserveAspectRatio="none">` +
+    `<defs><filter id="s" x="-5%" y="-10%" width="110%" height="130%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#3a2a1a" flood-opacity="0.22"/></filter>` +
+    `<filter id="t"><feTurbulence type="fractalNoise" baseFrequency="0.55 0.08" numOctaves="2" seed="4"/>` +
+    `<feColorMatrix values="0 0 0 0 0.42  0 0 0 0 0.37  0 0 0 0 0.30  0 0 0 0.16 0"/></filter>` +
+    `<clipPath id="c"><polygon points="${poly}"/></clipPath></defs>` +
+    `<polygon points="${poly}" fill="${paper}" filter="url(#s)"/>` +
+    `<rect x="0" y="0" width="1000" height="300" filter="url(#t)" clip-path="url(#c)"/>` +
+    `</svg>`;
+  const src = `data:image/svg+xml;base64,${typeof Buffer !== "undefined" ? Buffer.from(svg).toString("base64") : btoa(svg)}`;
+  return h("div", {
+    position: "absolute", left: bx, top: by, width: bw, height: bh, display: "flex", alignItems: "center",
+  }, h("div", {
+    display: "flex", width: bw, position: "relative",
+    paddingLeft: inL, paddingRight: inR, paddingTop: padY, paddingBottom: padY,
+    transform: `rotate(${Number(l.props?.tilt ?? -1)}deg)`,
+    backgroundImage: `url(${src})`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
+  }, block));
 }
 
 /** Több réteg egy teljes vászonméretű, átlátszó képre. */

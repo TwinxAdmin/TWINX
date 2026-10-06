@@ -4,11 +4,12 @@ import { applyVariant } from "@/lib/video-engine/template-schema";
 import { AURORA, AURORA_VARIANTS } from "@/lib/video-engine/templates/aurora";
 import { SKANDI, SKANDI_VARIANTS } from "@/lib/video-engine/templates/skandi";
 import { PRESTIGE, PRESTIGE_VARIANTS } from "@/lib/video-engine/templates/prestige";
+import { MOZAIK } from "@/lib/video-engine/templates/mozaik";
 
 /** Fejlesztés alatti sablonok (devOnly) csak localhoston látszanak és választhatók. */
 const SHOW_DEV = process.env.NODE_ENV !== "production";
 
-export const ENGINE_TEMPLATES: TwinxTemplate[] = [AURORA, SKANDI, PRESTIGE].filter((t) => SHOW_DEV || !t.devOnly);
+export const ENGINE_TEMPLATES: TwinxTemplate[] = [AURORA, SKANDI, PRESTIGE, MOZAIK].filter((t) => SHOW_DEV || !t.devOnly);
 export const ENGINE_VARIANTS: TemplateVariant[] = [...AURORA_VARIANTS, ...SKANDI_VARIANTS, ...PRESTIGE_VARIANTS];
 
 /** A választható tételek: alap sablonok + színváltozatok (a laborhoz / varázslóhoz). */
@@ -44,6 +45,7 @@ export function engineGallery(): EngineGalleryItem[] {
 const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
   skandi: { name: "Skandi", tagline: "Világos, letisztult — lágy átúsztatás, háztető-panel" },
+  mozaik: { name: "Mozaik", tagline: "Világos, márványos — rombusz fotómozaik, képcserés galéria, papírcsík-felirat" },
   prestige: { name: "Prestige", tagline: "Luxus, sötét elegancia — filmes „filmburn” áttűnés hanggal" },
 };
 const COLOR_NAMES: Record<string, string> = {
@@ -53,6 +55,7 @@ const COLOR_NAMES: Record<string, string> = {
   "skandi-zsalya": "Zsálya",
   prestige: "Pezsgőarany",
   "prestige-grafit": "Grafit + platina",
+  mozaik: "Márvány + terrakotta",
 };
 export type EngineColor = EngineGalleryItem & { colorName: string };
 export type EngineFamily = { templateId: string; name: string; tagline: string; colors: EngineColor[] };

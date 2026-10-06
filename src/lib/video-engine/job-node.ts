@@ -136,7 +136,12 @@ async function prepareImage(src: string, log?: (m: string) => void): Promise<str
 
 /** A videó elkészítése. Hibánál kivételt dob (a hívó dönt a visszatérítésről). */
 export async function runEngineJob(input: EngineJobInput): Promise<EngineJobResult> {
-  const { id: templateId, tpl } = pickEngineTemplate(input.engineTemplate, input.colorVariant);
+  const picked = pickEngineTemplate(input.engineTemplate, input.colorVariant);
+  const templateId = picked.id;
+  // A fotók számához igazított változat (pl. Mozaik: 4 fotónál 3 kis kép) — a színvilág marad.
+  const tpl: TwinxTemplate = picked.tpl.forPhotoCount
+    ? { ...picked.tpl.forPhotoCount(input.photos.length), palette: picked.tpl.palette }
+    : picked.tpl;
   const tplErrors = validateTemplate(tpl);
   if (tplErrors.length) throw new Error(`Sablonhiba: ${tplErrors.join("; ")}`);
   if (input.photos.length < tpl.photos.min || input.photos.length > tpl.photos.max) {

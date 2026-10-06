@@ -92,7 +92,9 @@ export type TransitionType =
   | "panelReveal"   // átlós panelek nyílnak fel (az Aurora zárókártyája)
   | "softDip"       // lágy átúsztatás egy világos színen át (a Skandi áttűnése)
   | "symbolZoom"    // ingatlanos szimbólum a kamera felé repül, belsejében a következő fotó
-  | "filmBurn";     // valódi filmes „beégés" klip Screen-keveréssel + hanggal (a Prestige áttűnése)
+  | "filmBurn"      // valódi filmes „beégés" klip Screen-keveréssel + hanggal (a Prestige áttűnése)
+  | "swap";         // GALÉRIA-CSERE (Mozaik): a következő fotó a kis helyéről nagyra nő, az addigi
+                    // nagy kép a megüresedett kis helyre zsugorodik. A jelenet ELEJÉN fut (nem a határon).
 
 export type Transition = {
   type: TransitionType;
@@ -117,6 +119,7 @@ export type Transition = {
 
 /** Megjelenés-animáció egy rétegre (a jeleneten belüli időben). */
 export type Appear = {
+  /** pop: ELŐUGRÁS — kicsiből rugalmasan (kis túllendüléssel) nő fel a végleges méretre. */
   type: "none" | "fade" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "pop" | "float";
   /** float: a lebegés kitérése (a vászon magasságának arányában); a periódus a `duration`. */
   amount?: number;
@@ -154,8 +157,18 @@ export type TextLayer = LayerBase & TextProps & ByAspect<TextProps & { box: Box 
 type ImageProps = {
   bind: BindKey;               // pl. "agent.photo", "agent.logo"
   fit?: "cover" | "contain";
-  mask?: "none" | "circle" | "rounded";
+  /** "diamond": 45°-ban elforgatott négyzet (rombusz) — a doboz oldalfelezőin a csúcsok. */
+  mask?: "none" | "circle" | "rounded" | "diamond";
   border?: { width: number; color: ColorRef };
+  /** Halk árnyék a kép alatt (a Mozaik kis képei). */
+  shadow?: boolean;
+  /**
+   * LASSÚ NAGYÍTÁS a dobozon belül (csak fotónál; a motor ffmpeg-gel rajzolja, simán).
+   * A nagyítás a réteg megjelenésétől (appear.delay) a jelenet végéig tart, egyenletesen.
+   */
+  motion?: { type: "zoomIn"; amount: number };
+  /** Belső használat (csere-áttűnés képkockái): a fotó nagyítása a keretén belül. */
+  zoom?: number;
 };
 export type ImageLayer = LayerBase & ImageProps & ByAspect<ImageProps & { box: Box }> & { kind: "image" };
 
@@ -178,10 +191,10 @@ export type ShapeLayer = LayerBase & ShapeProps & ByAspect<ShapeProps & { box: B
  */
 export type ComponentLayer = LayerBase & {
   kind: "component";
-  component: "captionBar" | "captionCard" | "priceSeal";
+  component: "captionBar" | "captionCard" | "priceSeal" | "marble" | "paperNote";
   bind?: BindKey;
   props?: Record<string, string | number | boolean>;
-};
+} & ByAspect<{ box: Box; props: Record<string, string | number | boolean> }>;
 
 /**
  * HALMOZOTT BLOKK: egymás alatti elemek automatikus térközzel (mint egy névjegy).
@@ -258,6 +271,11 @@ export type TwinxTemplate = {
   /** Fotónkénti felirat max. hossza ennél a sablonnál (alap: a régi 30 karakter).
    *  Akkora, hogy a leghosszabb megengedett szöveg pont kitöltse a feliratdobozt. */
   captionMaxChars?: number;
+  /**
+   * A fotók számához igazított változat (pl. a Mozaik 4 fotónál 3, 5 fotónál 4 kis képet
+   * mutat). A motor a tényleges fotószámmal hívja; a paletta a hívó oldalon marad.
+   */
+  forPhotoCount?: (n: number) => TwinxTemplate;
   scenes: Scene[];
   audio: { volume: number; fadeIn: number; fadeOut: number };
 };

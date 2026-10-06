@@ -31,6 +31,25 @@ Ez a jegyzet a következő munkamenet kiindulópontja. Git-ág: `twinx-video-mot
 - A szimbólumos „átlépés a következő szobába” áttűnés (`symbolZoom`) a motorban megmaradt, jelenleg nem használt.
 - Figyelni: a Prestige renderje a leglassabb (sok réteg + Screen-keverés). Ha élesben időtúllépés van, gyorsítani kell.
 
+## **Mozaik** (4. sablon) — ÉLESÍTVE 2026-10-06
+- Fájl: `templates/mozaik.ts`. Outfit 800/600/400. Paletta: Márvány + terrakotta.
+- Nyitókép a referencia alapján: márvány háttér (`marble` komponens), fehér keretes rombuszok
+  (`mask: "diamond"`) — a legnagyobban az 1. fotó, a kisebbekben a 2–4. fotó; infó jobbra zárva
+  (1:1: jobb oszlop, 9:16: alul). Animáció: valódi „pop" (`appear.type: "pop"`, back-out rugózás):
+  főkép 0,2 mp → kisebbek 0,6/0,74/0,88 → cím 1,05 → ár 1,25 → kapcsolat 1,45.
+- GALÉRIA (2. fotótól, jelenetenként 5,6 mp — EGÉSZ képkockaszám kell, különben a határon 1 kocka „villan”): márvány alap, jobbra NAGYBAN a soron következő fotó
+  (csak ez mozog: lassú +5% nagyítás, `motion: zoomIn` → ffmpeg zoompan a dobozban), balra egymás alatt
+  a többi fotó kicsiben, fehér kerettel (5 fotónál 4, 4 fotónál 3 kis kép — `forPhotoCount`).
+- Áttűnés: **swap** — a következő fotó a kis helyéről nagyra nő, az előző nagy kép a megüresedett kis helyre
+  zsugorodik. Motor: `swapSequences()` (render-node.ts) — egy előzetes ffmpeg-futás képkockánként vág/méretez,
+  átlátszó PNG-sorozat. Az érkező kép a nagy kép szintjén, a távozó (leendő kis kép) VÉGIG legfelül.
+  A kis képek oszlopa és a nagy kép nem fedik egymást (rés), így nincs takarás-váltás. ~1 mp/csere.
+- Felirat: `paperNote` komponens (layers.ts) — szakadt szélű vászonpapír-csík, Shantell Sans 500 (enyhén
+  kézírásos, Google Fonts), a kis képek és a nagy kép között. 9:16: alul, szinte teljes szélességben,
+  ~30 karakter/sor × 3 sor; 1:1: a nagy kép alján, ~26 karakter/sor × 4 sor → a 80 karakteres limit kitölti.
+  Csere előtt elhalványul (`hideBeforeEnd`, a motor új támogatása).
+- Render (5 fotó): 9:16 ~29 mp, 1:1 ~18 mp. Nyitó→galéria és galéria→zárókép: fehér softDip.
+
 ## Teljesítmény (élesítési felülvizsgálat, 2026-10-06)
 Vercel: 1 vCPU, 2 GB, legfeljebb 300 mp/videó. Mérés egy maggal, hideg gyorsítótárral, 9:16:
 Aurora 121 → 29 mp, Zsálya 133 → 31 mp, Prestige >170 (és memóriahiány) → 45 mp; csúcsmemória ~0,7 GB.
@@ -48,3 +67,7 @@ Aurora 121 → 29 mp, Zsálya 133 → 31 mp, Prestige >170 (és memóriahiány) 
 ## Próba-script
 `node scripts/video-engine-try.mjs <9:16|1:1> <aurora|nocturne|skandi|skandi-zsalya|prestige>`
 (`TWINX_LONG=1` hosszú szövegek, `TWINX_NOPHOTO=1` ingatlanos-fotó nélkül, `FFMPEG_PATH` saját ffmpeg).
+
+### Mozaik szerkesztő-előnézet
+A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik-9x16.jpg`
+(a motor nyitóképe a többi kártyával egyező lakás-ábrával — public/video-samples/aurora-hero.jpg — minden rombuszban, minta-adatokkal; 432×768). Ha a nyitókép változik, ezt újra kell gyártani.
