@@ -20,7 +20,8 @@ Ez a jegyzet a következő munkamenet kiindulópontja. Git-ág: `twinx-video-mot
 - Szerkesztő: `src/components/video/VideoWizard.tsx` (`EngineFamilyCard`, `EnginePreview`).
 
 ## **Prestige** (luxus) — ÉLESÍTVE 2026-10-06
-- Fájl: `templates/prestige.ts`. Fekete + pezsgőarany, Cormorant Garamond (cím) + Jost.
+- Fájl: `templates/prestige.ts`. Cormorant Garamond (cím) + Jost. Színvilág: Pezsgőarany (alap, fekete + arany),
+  Grafit + platina (`prestige-grafit`, `PRESTIGE_VARIANTS`).
 - Felső arany ikonsor (ház, kulcs, térképjel, épület, „Eladó” tábla) — dísz, a landing `EstateIcons` rajzai.
 - Áttűnés: **filmBurn** — valódi filmburn klip Screen-keveréssel + saját hang fele hangerőn (`fxVolume: 0.5`).
   Klipek: `assets/video-fx/filmburn6-9x16.mp4`, `-1x1.mp4` (előkészítés: `scripts/video-fx-prepare.mjs`;

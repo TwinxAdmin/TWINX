@@ -13,7 +13,7 @@
 //   0–6   nyitó: 1. fotó, alul sötét átmenet + adatblokk, arany keret, lebegő ikonok
 //   6–30  2–5. fotó, fotónként 6 mp, sötét kártyás felirat (max 80 karakter)
 //   30–36 zárókép: elsötétített fotó, középen ingatlanos (fotó arany gyűrűben) + összegzés
-import type { TwinxTemplate, Layer, StackItem } from "@/lib/video-engine/template-schema";
+import type { TwinxTemplate, TemplateVariant, Layer, StackItem } from "@/lib/video-engine/template-schema";
 
 const SERIF = "Cormorant Garamond";
 const SANS = "Jost";
@@ -241,3 +241,14 @@ export const PRESTIGE: TwinxTemplate = {
     },
   ],
 };
+
+/** Prestige színvilágok: az alap a Pezsgőarany (fekete + arany). */
+export const PRESTIGE_VARIANTS: TemplateVariant[] = [
+  {
+    id: "prestige-grafit",
+    templateId: "prestige",
+    name: "TWINX Prestige · Grafit",
+    // Antracit alap + hűvös ezüst-platina kiemelés (ikonok, vonalak, ár, keret).
+    palette: { shadow: "#0b0c0e", base: "#17191d", glow: "#cfd3d9", accent: "#cfd4db", text: "#f3f4f6", muted: "#a6abb3" },
+  },
+];
