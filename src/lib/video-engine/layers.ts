@@ -296,14 +296,17 @@ function captionCard(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fa
   const n = Number(String(l.bind ?? "").split(".")[1]) || 0;
   const position = (n && ctx.data[`captionpos.${n}`]) || String(l.props?.position ?? "bottom");
   const pal = ctx.palette;
-  const maxW = Math.round(W * 0.84);
-  const padX = Math.round(S * (square ? 0.032 : 0.036));
-  const padY = Math.round(S * (square ? 0.026 : 0.03));
+  // Álló (9:16) méretre a sablon nagyíthatja a kártyát és a betűt (props.portraitScale),
+  // szélesebbre veheti (props.portraitWidth) és több sort engedhet (props.portraitLines).
+  const ps = square ? 1 : Number(l.props?.portraitScale ?? 1);
+  const maxW = Math.round(W * (square ? 0.84 : Number(l.props?.portraitWidth ?? 0.84)));
+  const padX = Math.round(S * (square ? 0.032 : 0.036) * ps);
+  const padY = Math.round(S * (square ? 0.026 : 0.03) * ps);
   const innerW = maxW - padX * 2;
   const wMain = Number(l.props?.weightMain ?? 500);
   const wSub = Number(l.props?.weightSub ?? 300);
-  const sizeMain = square ? 0.04 : 0.046;
-  const sizeSub = square ? 0.028 : 0.032;
+  const sizeMain = (square ? 0.04 : 0.046) * ps;
+  const sizeSub = (square ? 0.028 : 0.032) * ps;
 
   const label = h("div", { display: "flex", alignItems: "center", marginBottom: Math.round(S * 0.014) }, [
     h("div", {
@@ -317,7 +320,8 @@ function captionCard(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fa
   // szöveg ennél többet kívánna, a betű arányosan kisebb lesz (nem lóg ki).
   if (l.props?.uniform) {
     const all = [line1, line2].filter(Boolean).join(" ");
-    const block = textBlock(all, { font: { weight: wMain, size: sizeMain }, color: "@text", lineHeight: 1.2, maxLines: 3 }, ctx, family, innerW);
+    const lines = square ? 3 : Number(l.props?.portraitLines ?? 3);
+    const block = textBlock(all, { font: { weight: wMain, size: sizeMain }, color: "@text", lineHeight: 1.2, maxLines: lines }, ctx, family, innerW);
     const ucard = h("div", {
       display: "flex", flexDirection: "column", maxWidth: maxW,
       paddingLeft: padX, paddingRight: padX, paddingTop: padY, paddingBottom: padY,

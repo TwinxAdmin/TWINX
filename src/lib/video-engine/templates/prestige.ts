@@ -77,7 +77,8 @@ function floaters(spots: Array<[typeof SYMBOLS[number], number, number, number]>
 
 /** A nyitókép adatblokkja. */
 function introItems(square: boolean): StackItem[] {
-  const k = square ? 0.86 : 1;
+  // 9:16-ban nagyobb, jól olvasható betűk (a doboz is nagyobb, így nem csúsznak össze).
+  const k = square ? 0.86 : 1.22;
   return [
     { type: "text", bind: "property.type", font: { family: SANS, weight: 400, size: 0.024 * k }, color: "@accent", uppercase: true, letterSpacing: 0.006, maxLines: 1 },
     { type: "text", bind: "property.title", font: { family: SERIF, weight: 600, size: 0.074 * k }, color: "@text", lineHeight: 1.04, maxLines: square ? 3 : 2, gapBefore: 0.012 * k },
@@ -111,7 +112,8 @@ const photoScene = (n: number): TwinxTemplate["scenes"][number] => ({
       id: "felirat", kind: "component", component: "captionCard",
       bind: `caption.${n}`,
       box: { x: 0, y: 0, w: 1, h: 1 },
-      props: { position: "bottom", uniform: true, weightMain: 600 },
+      // 9:16-ban nagyobb, szélesebb kártya, nagyobb betűvel; a 80 karakter 4 sorba is férhet.
+      props: { position: "bottom", uniform: true, weightMain: 600, portraitScale: 1.2, portraitWidth: 0.9, portraitLines: 4 },
       appear: { type: "slideUp", delay: 1.0, duration: 0.8, easing: "easeOut" },
     },
   ],
@@ -152,7 +154,7 @@ export const PRESTIGE: TwinxTemplate = {
       layers: [
         {
           id: "also-arnyek", kind: "shape", shape: "rect",
-          box: { x: 0, y: 0.42, w: 1, h: 0.58 }, byAspect: { "1:1": { box: { x: 0, y: 0.3, w: 1, h: 0.7 } } },
+          box: { x: 0, y: 0.36, w: 1, h: 0.64 }, byAspect: { "1:1": { box: { x: 0, y: 0.3, w: 1, h: 0.7 } } },
           fill: { gradient: "linear", angle: 180, stops: [[0, "@shadow", 0], [0.45, "@shadow", 0.78], [1, "@shadow", 0.94]] },
           appear: { type: "fade", duration: 1.2 },
         },
@@ -166,7 +168,7 @@ export const PRESTIGE: TwinxTemplate = {
         ...floaters([["key", 0.82, 0.2, 0.05], ["pin", 0.1, 0.27, 0.04], ["house", 0.86, 0.36, 0.035]]),
         {
           id: "adatok", kind: "stack",
-          box: { x: 0, y: 0.6, w: 1, h: 0.36 },
+          box: { x: 0, y: 0.52, w: 1, h: 0.44 },
           align: "left", valign: "bottom",
           padding: { left: 0.09, right: 0.09, top: 0.02, bottom: 0.03 },
           appear: { type: "slideUp", delay: 0.5, duration: 1.0, easing: "easeOut" },
@@ -197,23 +199,24 @@ export const PRESTIGE: TwinxTemplate = {
         ...floaters([["house", 0.12, 0.8, 0.045], ["key", 0.84, 0.74, 0.04], ["building", 0.8, 0.88, 0.035]]),
         {
           id: "ugynok-foto", kind: "image", bind: "agent.photo", mask: "circle", fit: "cover",
-          box: { x: 0.36, y: 0.15, w: 0.28, h: 0.16 },
+          box: { x: 0.34, y: 0.12, w: 0.32, h: 0.18 },
           border: { width: 0.006, color: "@accent" },
           byAspect: { "1:1": { box: { x: 0.41, y: 0.16, w: 0.18, h: 0.18 } } },
           appear: { type: "fade", delay: 0.9, duration: 0.8 },
         },
         {
           id: "osszegzes", kind: "stack",
-          box: { x: 0.08, y: 0.34, w: 0.84, h: 0.5 },
+          box: { x: 0.07, y: 0.32, w: 0.86, h: 0.52 },
           align: "center", valign: "top",
           appear: { type: "fade", delay: 1.1, duration: 0.9 },
           items: [
-            { type: "text", bind: "agent.name", font: { family: SERIF, weight: 600, size: 0.066 }, color: "@text", maxLines: 1, align: "center" },
-            { type: "text", bind: "agent.phone", font: { family: SANS, weight: 400, size: 0.042 }, color: "@accent", maxLines: 1, gapBefore: 0.012, align: "center" },
-            { type: "text", bind: "agent.email", font: { family: SANS, weight: 400, size: 0.03 }, color: "@muted", maxLines: 1, gapBefore: 0.008, align: "center" },
-            { type: "rule", width: 0.12, height: 0.0025, color: "@accent", gapBefore: 0.05 },
-            { type: "text", bind: "property.title", font: { family: SERIF, weight: 500, size: 0.05 }, color: "@text", lineHeight: 1.08, maxLines: 2, gapBefore: 0.045, align: "center" },
-            { type: "text", bind: "property.price", font: { family: SERIF, weight: 600, size: 0.058 }, color: "@accent", maxLines: 1, gapBefore: 0.014, align: "center" },
+            // 9:16: kb. 22%-kal nagyobb betűk (a doboz is nagyobb lett).
+            { type: "text", bind: "agent.name", font: { family: SERIF, weight: 600, size: 0.08 }, color: "@text", maxLines: 1, align: "center" },
+            { type: "text", bind: "agent.phone", font: { family: SANS, weight: 400, size: 0.052 }, color: "@accent", maxLines: 1, gapBefore: 0.014, align: "center" },
+            { type: "text", bind: "agent.email", font: { family: SANS, weight: 400, size: 0.037 }, color: "@muted", maxLines: 1, gapBefore: 0.01, align: "center" },
+            { type: "rule", width: 0.14, height: 0.0028, color: "@accent", gapBefore: 0.05 },
+            { type: "text", bind: "property.title", font: { family: SERIF, weight: 500, size: 0.062 }, color: "@text", lineHeight: 1.08, maxLines: 2, gapBefore: 0.045, align: "center" },
+            { type: "text", bind: "property.price", font: { family: SERIF, weight: 600, size: 0.072 }, color: "@accent", maxLines: 1, gapBefore: 0.016, align: "center" },
           ],
           byAspect: {
             "1:1": {
