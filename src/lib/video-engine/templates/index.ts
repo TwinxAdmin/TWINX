@@ -5,12 +5,15 @@ import { AURORA, AURORA_VARIANTS } from "@/lib/video-engine/templates/aurora";
 import { SKANDI, SKANDI_VARIANTS } from "@/lib/video-engine/templates/skandi";
 import { PRESTIGE, PRESTIGE_VARIANTS } from "@/lib/video-engine/templates/prestige";
 import { MOZAIK } from "@/lib/video-engine/templates/mozaik";
+import { PAKLI, PAKLI_VARIANTS } from "@/lib/video-engine/templates/pakli";
 
 /** Fejlesztés alatti sablonok (devOnly) csak localhoston látszanak és választhatók. */
 const SHOW_DEV = process.env.NODE_ENV !== "production";
 
-export const ENGINE_TEMPLATES: TwinxTemplate[] = [AURORA, SKANDI, PRESTIGE, MOZAIK].filter((t) => SHOW_DEV || !t.devOnly);
-export const ENGINE_VARIANTS: TemplateVariant[] = [...AURORA_VARIANTS, ...SKANDI_VARIANTS, ...PRESTIGE_VARIANTS];
+export const ENGINE_TEMPLATES: TwinxTemplate[] = [AURORA, SKANDI, PRESTIGE, MOZAIK, PAKLI].filter((t) => SHOW_DEV || !t.devOnly);
+export const ENGINE_VARIANTS: TemplateVariant[] = [...AURORA_VARIANTS, ...SKANDI_VARIANTS, ...PRESTIGE_VARIANTS, ...PAKLI_VARIANTS]
+  // A fejlesztés alatti (rejtett) sablon színváltozata is rejtve marad.
+  .filter((v) => ENGINE_TEMPLATES.some((t) => t.id === v.templateId));
 
 /** A választható tételek: alap sablonok + színváltozatok (a laborhoz / varázslóhoz). */
 export function engineChoices(): Array<{ id: string; name: string; templateId: string }> {
@@ -46,6 +49,7 @@ const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
   skandi: { name: "Skandi", tagline: "Világos, letisztult — lágy átúsztatás, háztető-panel" },
   mozaik: { name: "Mozaik", tagline: "Világos, márványos — rombusz fotómozaik, képcserés galéria, papírcsík-felirat" },
+  pakli: { name: "Pakli", tagline: "Fotópakli telt színen — a szél lefújja a legfelső képet, írógépes feliratok (fejlesztés alatt)" },
   prestige: { name: "Prestige", tagline: "Luxus, sötét elegancia — filmes „filmburn” áttűnés hanggal" },
 };
 const COLOR_NAMES: Record<string, string> = {
@@ -56,6 +60,8 @@ const COLOR_NAMES: Record<string, string> = {
   prestige: "Pezsgőarany",
   "prestige-grafit": "Grafit + platina",
   mozaik: "Márvány + terrakotta",
+  pakli: "Bíborpiros",
+  "pakli-kek": "Drámai kék",
 };
 export type EngineColor = EngineGalleryItem & { colorName: string };
 export type EngineFamily = { templateId: string; name: string; tagline: string; colors: EngineColor[] };

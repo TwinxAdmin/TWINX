@@ -3,7 +3,7 @@
 // videóra. KLIENS-/SZERVER-FÜGGETLEN (nincs Node-import).
 import {
   resolveColor,
-  type AspectId, type BindKey, type Box, type ColorRef, type Layer, type Palette, type StackItem,
+  type AspectId, type BindKey, type Box, type ColorRef, type Layer, type Palette, type StackItem, type TypeStackLayer,
 } from "./template-schema";
 import { symbolSvg, type SatoriNode } from "./transitions";
 
@@ -206,7 +206,12 @@ export function layerNode(layer: Layer, ctx: LayerCtx, family: string): SatoriNo
           stroke: resolveColor(l.stroke, ctx.palette),
         }));
     }
+    case "typeStack":
+      return typeStackNode(l, ctx);
     case "component":
+      if (l.component === "photoCard") return photoCard(l, ctx);
+      if (l.component === "hlText") return hlText(l, ctx, family);
+      if (l.component === "sparkle") return sparkle(l, ctx);
       if (l.component === "captionBar") return captionBar(l, ctx, family);
       if (l.component === "captionCard") return captionCard(l, ctx, family);
       if (l.component === "marble") return marble(l, ctx);
@@ -511,6 +516,171 @@ function paperNote(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, fami
     transform: `rotate(${Number(l.props?.tilt ?? -1)}deg)`,
     backgroundImage: `url(${src})`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
   }, block));
+}
+
+// ---------------------------------------------------------------------------
+// ÍRÓGÉPES SZÖVEG (typeStack) — monospace betű, a motor tördel; a sorok helye pontosan ismert
+// ---------------------------------------------------------------------------
+
+/** Egy kiszedett sor: hol van, hány betű, milyen betűvel (a gépelés-animációhoz is ez kell). */
+export type TypeLine = {
+  text: string; x: number; y: number; w: number; h: number;
+  size: number; weight: number; color: string; charW: number; letterSpacing: number;
+  /** Melyik tételhez (item) tartozik — a tételek között kis szünet van a gépelésben. */
+  item: number;
+};
+/** A monospace betű szélessége az em arányában (Liberation Mono / Courier: 0,6). */
+export const MONO_ADVANCE = 0.6;
+
+function wrapMono(text: string, maxChars: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (const word0 of para.split(/\s+/).filter(Boolean)) {
+      let word = word0;
+      while (word.length > maxChars) { // túl hosszú szó: kemény törés
+        if (line) { out.push(line); line = ""; }
+        out.push(word.slice(0, maxChars)); word = word.slice(maxChars);
+      }
+      if (!line) line = word;
+      else if (line.length + 1 + word.length <= maxChars) line += " " + word;
+      else { out.push(line); line = word; }
+    }
+    if (line) out.push(line);
+  }
+  return out;
+}
+
+/** A typeStack sorai pixelben (a rajzoló és a motor gépelés-animációja is ezt használja). */
+export function typeStackLayout(layer: TypeStackLayer, ctx: LayerCtx): TypeLine[] {
+  const l = forAspect(layer, ctx.aspect);
+  const S = Math.min(ctx.W, ctx.H);
+  const bx = Math.round(l.box.x * ctx.W), by = Math.round(l.box.y * ctx.H);
+  const bw = Math.round(l.box.w * ctx.W), bh = Math.round(l.box.h * ctx.H);
+  const lines: TypeLine[] = [];
+  let y = 0;
+  l.items.forEach((it, idx) => {
+    const raw = valueOf(it.bind, it.text, ctx.data);
+    if (!raw) return;
+    const text = it.uppercase ? raw.toUpperCase() : raw;
+    const ls = (it.letterSpacing ?? 0) * S;
+    let size = it.size * S;
+    let wrapped: string[];
+    for (;;) {
+      const charW = size * MONO_ADVANCE + ls;
+      wrapped = wrapMono(text, Math.max(4, Math.floor((bw + ls) / charW)));
+      if (!it.maxLines || wrapped.length <= it.maxLines || size < it.size * S * 0.55) break;
+      size *= 0.93;
+    }
+    if (lines.length || idx > 0) y += (it.gapBefore ?? 0) * S;
+    const lh = Math.round(size * (it.lineHeight ?? 1.22));
+    const charW = size * MONO_ADVANCE + ls;
+    for (const t of wrapped) {
+      const w = Math.ceil(t.length * charW - ls);
+      const x = l.align === "center" ? bx + Math.round((bw - w) / 2) : l.align === "right" ? bx + bw - w : bx;
+      lines.push({ text: t, x, y, w, h: lh, size: Math.round(size * 100) / 100, weight: it.weight, color: resolveColor(it.color, ctx.palette), charW, letterSpacing: ls, item: idx });
+      y += lh;
+    }
+  });
+  const total = y;
+  const y0 = l.valign === "bottom" ? by + bh - total : l.valign === "middle" ? by + Math.round((bh - total) / 2) : by;
+  return lines.map((ln) => ({ ...ln, y: Math.round(y0 + ln.y) }));
+}
+
+function typeStackNode(l: TypeStackLayer, ctx: LayerCtx): SatoriNode | null {
+  const lines = typeStackLayout(l, ctx);
+  if (!lines.length) return null;
+  const fam = forAspect(l, ctx.aspect).family;
+  return h("div", { position: "absolute", left: 0, top: 0, width: ctx.W, height: ctx.H, display: "flex", opacity: l.opacity ?? 1 },
+    lines.map((ln) => h("div", {
+      position: "absolute", left: ln.x, top: ln.y, height: ln.h, display: "flex", alignItems: "center",
+      fontFamily: fam, fontWeight: ln.weight, fontSize: ln.size, lineHeight: `${ln.h}px`, letterSpacing: ln.letterSpacing,
+      color: ln.color, whiteSpace: "pre",
+    }, ln.text)));
+}
+
+/**
+ * FOTÓKÁRTYA (Pakli): papír-keretes fotó (mint egy előhívott kép), halk árnyékkal, kicsit
+ * elforgatva. Fotó nélkül (props.blank) üres papírlap — a pakli alsó lapjai és a zárókártya.
+ *  • props.rotate — elforgatás fokban; props.border — a keret a kártya szélességéhez mérve;
+ *  • props.paper — papírszín; props.shadow — árnyék erőssége (0–1, alap 0.35).
+ */
+function photoCard(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx): SatoriNode | null {
+  const src = l.bind ? valueOf(l.bind, undefined, ctx.data) : null;
+  if (!src && !l.props?.blank) return null;
+  const bw = Math.round(l.box.w * ctx.W), bh = Math.round(l.box.h * ctx.H);
+  const b = Math.round(Number(l.props?.border ?? 0.035) * bw);
+  const paper = String(l.props?.paper ?? "#f2ede3");
+  const sh = Number(l.props?.shadow ?? 0.35);
+  return h("div", {
+    position: "absolute", left: Math.round(l.box.x * ctx.W), top: Math.round(l.box.y * ctx.H), width: bw, height: bh,
+    display: "flex", padding: src ? b : 0, background: paper, opacity: l.opacity ?? 1,
+    transform: `rotate(${Number(l.props?.rotate ?? 0)}deg)`,
+    boxShadow: `0 ${Math.round(bw * 0.012)}px ${Math.round(bw * 0.035)}px rgba(20,8,8,${sh})`,
+  }, src
+    ? { type: "img", props: { src, width: bw - 2 * b, height: bh - 2 * b, style: { width: bw - 2 * b, height: bh - 2 * b, objectFit: "cover", objectPosition: "center" } } }
+    : undefined);
+}
+
+/**
+ * KIEMELT SZÖVEG (Pakli ár): a szöveg mögött telt KIEMELŐ SÁV, ami pontosan a szöveg
+ * szélességéhez igazodik (a rajzoló méri ki). Két rétegként használjuk, ugyanazzal a
+ * beállítással: props.part = "bar" (csak a sáv — a szöveg láthatatlan, de helyet foglal) és
+ * props.part = "text" (csak a szöveg) — így a sáv és a szöveg külön animálható.
+ *  props: size, weight, family, color, bar (sávszín), align (left|right), padX (em), letterSpacing (em)
+ */
+function hlText(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx, family: string): SatoriNode | null {
+  const v = valueOf(l.bind, l.props?.text as string | undefined, ctx.data);
+  if (!v) return null;
+  const S = Math.min(ctx.W, ctx.H);
+  const px = Math.round(Number(l.props?.size ?? 0.06) * S);
+  const isBar = l.props?.part === "bar";
+  const padX = Math.round(px * Number(l.props?.padX ?? 0.18));
+  const right = l.props?.align === "right";
+  return h("div", {
+    ...boxStyle(l.box, ctx), display: "flex", alignItems: "center", justifyContent: right ? "flex-end" : "flex-start",
+  }, h("div", {
+    display: "flex", paddingLeft: padX, paddingRight: padX, marginLeft: right ? 0 : -padX, marginRight: right ? -padX : 0,
+    fontFamily: String(l.props?.family ?? family), fontWeight: Number(l.props?.weight ?? 700), fontSize: px, lineHeight: 1.12,
+    letterSpacing: Number(l.props?.letterSpacing ?? -0.02) * px, whiteSpace: "pre",
+    color: isBar ? "rgba(0,0,0,0)" : resolveColor((l.props?.color as ColorRef | undefined) ?? "@text", ctx.palette),
+    background: isBar ? resolveColor((l.props?.bar as ColorRef | undefined) ?? "@shadow", ctx.palette) : "transparent",
+  }, v));
+}
+
+/**
+ * DÍSZ-CSILLAG (Pakli, a referencia „✳” jelvénye): props.style =
+ *  "badge" — telt kör (props.color, alap fehér) benne 8 ágú csillag (props.ink, alap @base);
+ *  "star4" — 4 ágú, csillogó csillag (props.color);  "asterisk" — vékony 6 ágú csillag-jel.
+ * A doboz rövidebb oldala a méret (négyzetes rajz, középre).
+ */
+function sparkle(l: Extract<Layer, { kind: "component" }>, ctx: LayerCtx): SatoriNode | null {
+  const bw = Math.round(l.box.w * ctx.W), bh = Math.round(l.box.h * ctx.H);
+  const d = Math.min(bw, bh);
+  const color = resolveColor((l.props?.color as ColorRef | undefined) ?? "#ffffff", ctx.palette);
+  const ink = resolveColor((l.props?.ink as ColorRef | undefined) ?? "@base", ctx.palette);
+  const style = String(l.props?.style ?? "star4");
+  const c = 50;
+  const star = (n: number, rOut: number, rIn: number, rot = -90) => {
+    const pts: string[] = [];
+    for (let i = 0; i < n * 2; i++) {
+      const r = i % 2 ? rIn : rOut;
+      const a = ((rot + (i * 180) / n) * Math.PI) / 180;
+      pts.push(`${(c + r * Math.cos(a)).toFixed(2)},${(c + r * Math.sin(a)).toFixed(2)}`);
+    }
+    return pts.join(" ");
+  };
+  const kids =
+    style === "badge"
+      ? [{ type: "circle", props: { cx: c, cy: c, r: 49, fill: color } },
+         { type: "polygon", props: { points: star(8, 33, 7), fill: ink } }]
+      : style === "asterisk"
+        ? [0, 60, 120].map((deg) => ({ type: "rect", props: { x: 46, y: 6, width: 8, height: 88, rx: 4, fill: color, transform: `rotate(${deg} 50 50)` } }))
+        : [{ type: "polygon", props: { points: star(4, 48, 9), fill: color } }];
+  return h("div", {
+    position: "absolute", left: Math.round(l.box.x * ctx.W + (bw - d) / 2), top: Math.round(l.box.y * ctx.H + (bh - d) / 2),
+    width: d, height: d, display: "flex", opacity: l.opacity ?? 1,
+  }, { type: "svg", props: { width: d, height: d, viewBox: "0 0 100 100", children: kids } });
 }
 
 /** Több réteg egy teljes vászonméretű, átlátszó képre. */

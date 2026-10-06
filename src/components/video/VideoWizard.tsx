@@ -1118,7 +1118,14 @@ function EnginePreview({ item, photo }: { item: EngineGalleryItem; photo?: strin
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
       )}
-      {item.templateId === "mozaik" ? (
+      {item.templateId === "pakli" ? (
+        // Pakli: a VALÓDI motor nyitóképe a választott színvilággal (piros / kék) — lakás-ábrával.
+        // Újragyártás: node scripts/video-pakli-preview.mjs → public/video-previews/pakli*-9x16.jpg
+        <span className="absolute inset-0 flex justify-center" style={{ background: p.base }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/video-previews/${item.id}-9x16.jpg`} alt="" className="h-full w-auto max-w-none object-contain" />
+        </span>
+      ) : item.templateId === "mozaik" ? (
         // Mozaik: a VALÓDI motor nyitóképe (9:16, a végállapot) — pontosan az, amit a videó mutat.
         // Újragyártás sablonváltozáskor: public/video-previews/mozaik-9x16.jpg (docs/video-motor-allapot.md).
         <span className="absolute inset-0 flex justify-center" style={{ background: p.base }}>

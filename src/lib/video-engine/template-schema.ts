@@ -120,7 +120,11 @@ export type Transition = {
 /** Megjelenés-animáció egy rétegre (a jeleneten belüli időben). */
 export type Appear = {
   /** pop: ELŐUGRÁS — kicsiből rugalmasan (kis túllendüléssel) nő fel a végleges méretre. */
-  type: "none" | "fade" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "pop" | "float";
+  type: "none" | "fade" | "slideUp" | "slideDown" | "slideLeft" | "slideRight" | "pop" | "float" | "typewriter" | "rise" | "wipe";
+  // rise: gyors, lendületes beúszás alulról (rövid út, erős lassulás) + gyors áttűnés — dinamikus feliratokhoz.
+  // wipe: a réteg balról jobbra „kihúzódik” (pl. kiemelő sáv a szöveg mögött).
+  /** typewriter (csak typeStack rétegen): egy betű megjelenési ideje (mp), alap 0.04. */
+  charTime?: number;
   /** float: a lebegés kitérése (a vászon magasságának arányában); a periódus a `duration`. */
   amount?: number;
   /** Késleltetés a jelenet elejétől, mp. */
@@ -135,6 +139,15 @@ type LayerBase = {
   appear?: Appear;
   /** Eltűnés a jelenet vége előtt (mp a végétől); alapból a jelenettel együtt tűnik el. */
   hideBeforeEnd?: number;
+  /**
+   * „LEFÚJÁS” (Pakli): a réteg a jelenet elején a helyén áll, majd a szél lefújja —
+   * gyorsulva kirepül a vászonról, közben elfordul és kicsit meglebben. dir: 1 = jobbra, -1 = balra.
+   */
+  blow?: { duration: number; dir: 1 | -1 };
+  /** FOLYAMATOS FORGÁS (díszelem): egy teljes kör `period` mp alatt. Az idő abszolút → jelenetváltáskor sem ugrik. */
+  spin?: { period: number };
+  /** LÜKTETÉS / CSILLOGÁS (díszelem): a méret `amount` arányban ki-be „lélegzik”, `period` mp-enként (phase: 0–1 eltolás). */
+  pulse?: { period: number; amount: number; phase?: number };
   opacity?: number;
 };
 
@@ -191,7 +204,7 @@ export type ShapeLayer = LayerBase & ShapeProps & ByAspect<ShapeProps & { box: B
  */
 export type ComponentLayer = LayerBase & {
   kind: "component";
-  component: "captionBar" | "captionCard" | "priceSeal" | "marble" | "paperNote";
+  component: "captionBar" | "captionCard" | "priceSeal" | "marble" | "paperNote" | "photoCard" | "hlText" | "sparkle";
   bind?: BindKey;
   props?: Record<string, string | number | boolean>;
 } & ByAspect<{ box: Box; props: Record<string, string | number | boolean> }>;
@@ -226,7 +239,28 @@ type SymbolProps = {
 };
 export type SymbolLayer = LayerBase & SymbolProps & ByAspect<SymbolProps & { box: Box }> & { kind: "symbol" };
 
-export type Layer = TextLayer | ImageLayer | ShapeLayer | ComponentLayer | StackLayer | SymbolLayer;
+/**
+ * ÍRÓGÉPES SZÖVEGBLOKK (Pakli): egymás alatti sorok EGYENLŐ SZÉLESSÉGŰ (monospace) betűvel.
+ * A motor maga tördeli a sorokat (így pontosan tudja, hol van minden betű), és a
+ * `typewriter` megjelenésnél balról jobbra, betűnként „gépeli” őket. A gépeléshez a
+ * szöveg mögött EGYSZÍNŰ háttér kell: `cover` = ez a szín (pl. "@base" vagy a papír színe).
+ */
+export type TypeItem = {
+  bind?: BindKey; text?: string;
+  size: number; weight: number; color: ColorRef;
+  uppercase?: boolean; letterSpacing?: number; lineHeight?: number;
+  maxLines?: number; gapBefore?: number;
+};
+type TypeStackProps = {
+  items: TypeItem[];
+  family: string;
+  align?: "left" | "center" | "right";
+  valign?: "top" | "middle" | "bottom";
+  cover: ColorRef;
+};
+export type TypeStackLayer = LayerBase & TypeStackProps & ByAspect<TypeStackProps & { box: Box }> & { kind: "typeStack" };
+
+export type Layer = TextLayer | ImageLayer | ShapeLayer | ComponentLayer | StackLayer | SymbolLayer | TypeStackLayer;
 
 // =========================================================================
 // Jelenetek
@@ -276,6 +310,12 @@ export type TwinxTemplate = {
    * mutat). A motor a tényleges fotószámmal hívja; a paletta a hívó oldalon marad.
    */
   forPhotoCount?: (n: number) => TwinxTemplate;
+  /**
+   * „RÉGI FILM” HATÁS az egész videóra (a végső képen, kódolás előtt):
+   *  grain — mozgó filmszemcse (0–30), vignette — sötétedő szélek (0–1),
+   *  fade — fakóbb tónus (0–1), warm — melegebb szín (0–1), flicker — fényvibrálás (0–1).
+   */
+  look?: { grain?: number; vignette?: number; fade?: number; warm?: number; flicker?: number };
   scenes: Scene[];
   audio: { volume: number; fadeIn: number; fadeOut: number };
 };
