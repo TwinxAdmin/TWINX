@@ -1,4 +1,4 @@
-# Saját TWINX videómotor — állapot és folytatás (2026-10-05)
+# Saját TWINX videómotor — állapot és folytatás (frissítve: 2026-10-06)
 
 Ez a jegyzet a következő munkamenet kiindulópontja. Git-ág: `twinx-video-motor`
 (a `main`-be összefésülve élesedik; a felhasználó maga gitel).
@@ -104,3 +104,10 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - `mozaik-smaragd` (Smaragd + arany): sötétzöld márvány háttér, arany cím/ár, krém szöveg (`MOZAIK_VARIANTS`).
   A márvány sötét alapon halványabb fényfoltot és erezetet kap (layers.ts `marble`). Áttűnések előgyártva.
 - Előnézetek: `scripts/video-mozaik-preview.mjs` → `public/video-previews/mozaik*-9x16.jpg` (a kártya a színvilág képét mutatja).
+
+## INNEN FOLYTATJUK (2026-10-06 vége)
+- Élesben: Aurora, Skandi, Prestige, Mozaik (+ Smaragd + arany). Kétméretes gyártás, kedvenc sablonok (video-favorites.sql lefuttatva).
+- Fejlesztés alatt (devOnly, csak localhost): **Polaroid** (bíborpiros / drámai kék) — elfogadott alap: lefújós fotópakli,
+  régi film hatás, lendületes feliratok, mozgó díszek. Következő döntés: élesítés (devOnly levétele) vagy további finomítás.
+- Próbák: `node .cache/jobtest.mjs <sablon> <9:16|1:1>` (PH env: fotók), előnézetek: `scripts/video-*-preview.mjs`.
+- Villanás-ellenőrzés: a kész videó képkockáinak átlagos fényességét nézzük (kiugró kocka = hiba) — lásd a beszélgetésben használt python-mérést.
