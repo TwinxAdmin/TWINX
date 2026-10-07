@@ -1,7 +1,9 @@
 // OfficeHub — az „Irodai fiók" oldal tartalma:
 //   • rövid magyarázó (mi az irodai TWINX, hogyan működik)
 //   • fül 1: „Iroda nyitása" — igénylés a TWINX-től (vezetőknek), állapotkijelzéssel
-//   • fül 2: „Csatlakozás kóddal" — alkalmazottaknak (a beváltás a következő lépésben jön)
+//   • fül 1: „Csatlakozás kóddal" — kód beírása → azonnali tagság (0 kerettel)
+//   • jóváhagyott igénylés után: iroda megnyitása (név + generált csatlakozási kód)
+//   • ha már tag: a saját iroda panelje (OfficePanel) a fülek helyett
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
@@ -9,12 +11,14 @@ import {
   validateOfficeRequest,
   NOTE_MAX,
   OFFICE_NAME_MAX,
+  type MyOffice,
   type OfficeRequestInput,
   type OfficeRequestRow,
 } from "@/lib/office";
+import OfficePanel from "@/components/office/OfficePanel";
 
 type Tab = "open" | "join";
-type State = { membership: { office_id: string; role: string } | null; request: OfficeRequestRow | null };
+type State = { office: MyOffice | null; request: OfficeRequestRow | null };
 
 const EMPTY: OfficeRequestInput = { officeName: "", teamSize: "", phone: "", note: "" };
 
@@ -30,9 +34,13 @@ export default function OfficeHub() {
   const [newRequest, setNewRequest] = useState(false); // elutasítás után új igénylés
 
   useEffect(() => {
-    fetch("/api/office/request")
-      .then((r) => r.json())
-      .then((d) => (d.error ? setLoadError(d.error) : setState({ membership: d.membership, request: d.request })))
+    Promise.all([fetch("/api/office/request").then((r) => r.json()), fetch("/api/office").then((r) => r.json())])
+      .then(([rq, of]) => {
+        if (rq.error || of.error) { setLoadError(rq.error || of.error); return; }
+        setState({ office: of.office ?? null, request: rq.request ?? null });
+        // Jóváhagyott, de még meg nem nyitott iroda: rögtön a megnyitás fület mutatjuk.
+        if (!of.office && rq.request?.status === "approved") setTab("open");
+      })
       .catch(() => setLoadError("Nem sikerült betölteni az állapotot."));
   }, []);
 
@@ -58,7 +66,7 @@ export default function OfficeHub() {
       const data = await res.json();
       if (res.status === 422) { setErrors(data.errors ?? {}); return; }
       if (!res.ok) { setSubmitError(data.error ?? "Nem sikerült elküldeni."); return; }
-      setState((s) => ({ membership: s?.membership ?? null, request: data.request }));
+      setState((s) => ({ office: s?.office ?? null, request: data.request }));
       setNewRequest(false);
       setForm(EMPTY);
     } catch {
@@ -69,7 +77,7 @@ export default function OfficeHub() {
   }
 
   const req = state?.request ?? null;
-  const showForm = state && !state.membership && (!req || (req.status === "rejected" && newRequest));
+  const showForm = state && !state.office && (!req || (req.status === "rejected" && newRequest));
 
   return (
     <div className="space-y-6">
@@ -82,7 +90,15 @@ export default function OfficeHub() {
         </p>
       </section>
 
-      {/* Fülek */}
+      {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+      {!state && !loadError && <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
+
+      {/* Már tag: a saját iroda panelje */}
+      {state?.office && <OfficePanel office={state.office} />}
+
+      {/* Még nem tag: fülek */}
+      {state && !state.office && (
+      <>
       <div className="flex gap-2" role="tablist">
         {([["join", "Csatlakozás kóddal"], ["open", "Irodai fiók létrehozás"]] as [Tab, string][]).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
@@ -95,16 +111,10 @@ export default function OfficeHub() {
         ))}
       </div>
 
-      {loadError && <p className="text-sm text-red-600">{loadError}</p>}
-      {!state && !loadError && <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
-
-      {state && tab === "open" && (
+      {tab === "open" && (
         <section className="twx-card p-6">
-          {state.membership ? (
-            <p className="text-sm">
-              Már tagja vagy egy irodai fióknak{state.membership.role === "owner" ? " — te vagy a vezetője" : ""}.
-              Az iroda kezelése hamarosan itt lesz elérhető.
-            </p>
+          {req?.status === "approved" ? (
+            <OpenOffice req={req} onOpened={(office) => setState((s) => ({ request: s?.request ?? null, office }))} />
           ) : req && !showForm ? (
             <RequestStatus req={req} onNew={() => setNewRequest(true)} />
           ) : (
@@ -152,28 +162,18 @@ export default function OfficeHub() {
         </section>
       )}
 
-      {state && tab === "join" && (
+      {tab === "join" && (
         <section className="twx-card space-y-4 p-6">
           <div>
             <h2 className="font-display text-xl font-semibold">Csatlakozás egy irodához</h2>
             <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-              A csatlakozási kódot az irodavezetődtől kapod. Beírás után azonnal látod az iroda moduljait és a saját keretedet.
+              A csatlakozási kódot az irodai fiók létrehozójától kapod. Beírás után azonnal csatlakozol, és látod a saját irodai keretedet.
             </p>
           </div>
-          {state.membership ? (
-            <p className="text-sm">Már tagja vagy egy irodai fióknak.</p>
-          ) : (
-            <>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <input className="twx-input sm:max-w-xs" placeholder="pl. TWX-8K4P" disabled aria-disabled />
-                <button type="button" className="twx-btn" disabled>Csatlakozás</button>
-              </div>
-              <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                A kóddal csatlakozás a következő frissítésben kapcsol be.
-              </p>
-            </>
-          )}
+          <JoinByCode onJoined={(office) => setState((s) => ({ request: s?.request ?? null, office }))} />
         </section>
+      )}
+      </>
       )}
     </div>
   );
@@ -210,6 +210,88 @@ function RequestStatus({ req, onNew }: { req: OfficeRequestRow; onNew: () => voi
       {req.decision_note && <p className="text-sm">{req.decision_note}</p>}
       <button type="button" className="twx-btn-outline" onClick={onNew}>Új igénylés</button>
     </div>
+  );
+}
+
+function JoinByCode({ onJoined }: { onJoined: (o: MyOffice) => void }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function join(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (code.replace(/[^a-z0-9]/gi, "").length < 6) { setError("Írd be a teljes kódot (pl. TWX-8K4P9R)."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/office/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.errors?.code ?? data.error ?? "Nem sikerült csatlakozni."); return; }
+      onJoined(data.office);
+    } catch {
+      setError("Hálózati hiba — próbáld újra.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={join} className="space-y-2" noValidate>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input className="twx-input font-mono uppercase tracking-widest sm:max-w-xs" placeholder="TWX-8K4P9R"
+          value={code} maxLength={14} autoComplete="off" spellCheck={false}
+          onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(null); }} aria-label="Csatlakozási kód" />
+        <button type="submit" className="twx-btn" disabled={busy}>{busy ? "Csatlakozás…" : "Csatlakozás"}</button>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </form>
+  );
+}
+
+function OpenOffice({ req, onOpened }: { req: OfficeRequestRow; onOpened: (o: MyOffice) => void }) {
+  const [name, setName] = useState(req.office_name);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function open(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (name.trim().length < 2) { setError("Add meg az iroda nevét."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/office", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.errors?.name ?? data.error ?? "Nem sikerült megnyitni."); return; }
+      onOpened(data.office);
+    } catch {
+      setError("Hálózati hiba — próbáld újra.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={open} className="space-y-4" noValidate>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#15803d" }}>Jóváhagyva</p>
+        <h2 className="mt-1 font-display text-xl font-semibold">Nyisd meg az irodai fiókot</h2>
+        <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+          Megnyitás után kapsz egy csatlakozási kódot, amivel a kollégáid azonnal csatlakozhatnak.
+        </p>
+      </div>
+      <Field label="Iroda neve" error={error ?? undefined}>
+        <input className="twx-input" value={name} maxLength={OFFICE_NAME_MAX} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <button type="submit" className="twx-btn" disabled={busy}>{busy ? "Megnyitás…" : "Iroda megnyitása"}</button>
+    </form>
   );
 }
 

@@ -143,8 +143,9 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
 - Fejlesztés mikrolépésekben:
   - [x] IR1 — SQL alap: `office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
   - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
-  - [ ] IR3 — Iroda megnyitása + csatlakozási kód
-  - [ ] IR4 — Csatlakozás kóddal (fül) + e-mail-meghívó
+  - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
+  - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
+  - [ ] IR4b — E-mail-meghívó
   - [ ] IR5 — Munkamód-váltó (Privát/Irodai) + kreditlevonás bekötése
   - [ ] IR6 — Kiosztás, jogosultságok, kérés a vezetőtől, vezetői áttekintő
   - [ ] IR7 — Irodai mappák + megosztás + mappánkénti hozzáférés

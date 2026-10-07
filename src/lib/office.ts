@@ -63,3 +63,51 @@ export function validateOfficeRequest(input: Record<string, unknown>): {
       : undefined,
   };
 }
+
+// ---------------------------------------------------------------------
+// Iroda megnyitása + csatlakozási kód
+// ---------------------------------------------------------------------
+
+/** A csatlakozási kód karakterkészlete — összetéveszthető jelek (0/O, 1/I/L) nélkül. */
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/** Új csatlakozási kód, pl. „TWX-8K4P9R". Kriptográfiailag véletlen (csak szerveren hívjuk). */
+export function generateJoinCode(): string {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const b of bytes) out += CODE_ALPHABET[b % CODE_ALPHABET.length];
+  return `TWX-${out}`;
+}
+
+/** A felhasználó által beírt kód egységesítése (kisbetű, szóköz, hiányzó kötőjel). */
+export function normalizeJoinCode(raw: string): string {
+  const s = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const body = s.startsWith("TWX") ? s.slice(3) : s;
+  return `TWX-${body}`;
+}
+
+export function validateOfficeName(raw: unknown): { name?: string; error?: string } {
+  const name = String(raw ?? "").trim();
+  if (name.length < OFFICE_NAME_MIN) return { error: "Add meg az iroda nevét." };
+  if (name.length > OFFICE_NAME_MAX) return { error: `Legfeljebb ${OFFICE_NAME_MAX} karakter.` };
+  return { name };
+}
+
+/** A „saját irodám" nézet adatai. Az egyenleget és a kódot csak a létrehozó kapja meg. */
+export type MyOffice = {
+  id: string;
+  name: string;
+  role: "owner" | "member";
+  allowance: number;
+  unlimited: boolean;
+  canAllocate: boolean;
+  joinCode?: string;
+  balance?: number;
+  memberCount?: number;
+};
+
+/** Érvényes formátumú csatlakozási kód? (TWX- + 6 jel a kódkészletből) */
+export function isValidJoinCode(code: string): boolean {
+  return new RegExp(`^TWX-[${CODE_ALPHABET}]{6}$`).test(code);
+}
