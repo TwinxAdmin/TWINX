@@ -49,7 +49,7 @@ const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
   skandi: { name: "Skandi", tagline: "Világos, letisztult — lágy átúsztatás, háztető-panel" },
   mozaik: { name: "Mozaik", tagline: "Világos, márványos — rombusz fotómozaik, képcserés galéria, papírcsík-felirat" },
-  polaroid: { name: "Polaroid", tagline: "Előhívott fotók paklija telt színen — a szél lefújja a legfelsőt, régi film hangulat (fejlesztés alatt)" },
+  polaroid: { name: "Polaroid", tagline: "Előhívott fotók paklija telt színen — a szél lefújja a legfelsőt, régi film hangulat" },
   prestige: { name: "Prestige", tagline: "Luxus, sötét elegancia — filmes „filmburn” áttűnés hanggal" },
 };
 const COLOR_NAMES: Record<string, string> = {

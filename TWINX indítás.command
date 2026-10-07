@@ -7,6 +7,13 @@
 
 cd "$(dirname "$0")" || exit 1
 
+# Ha a szerver már fut (pl. egy korábbi ablakban), nem indítunk másodikat — csak megnyitjuk a böngészőt.
+if lsof -iTCP:3000 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "TWINX — a fejlesztői szerver már fut, megnyitom a böngészőt…"
+  open "http://localhost:3000/admin/video-lab"
+  exit 0
+fi
+
 echo "TWINX — projekt megnyitása VS Code-ban…"
 open -a "Visual Studio Code" . 2>/dev/null || echo "  (VS Code nem található az Alkalmazások között — nyisd meg kézzel.)"
 

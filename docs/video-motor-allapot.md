@@ -81,7 +81,7 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - Kedvencek: csillag a kártya bal felső sarkában → `video_template_favorites` tábla (`video-favorites.sql`),
   API: `src/app/api/real-estate/video/favorites/route.ts`. Ha a tábla hiányzik, a szerkesztő kedvencek nélkül működik.
 
-## **Polaroid** (5. sablon; korábbi munkanév: Pakli) — FEJLESZTÉS ALATT (`devOnly`, csak localhost)
+## **Polaroid** (5. sablon; korábbi munkanév: Pakli) — ÉLESÍTVE 2026-10-07
 - Fájl: `templates/polaroid.ts` (id: `polaroid`). Telt háttér: Bíborpiros (alap) / Drámai kék (`polaroid-kek`).
 - Betű: Liberation Sans (OFL, a repóban: `assets/fonts/video/`) — Helvetica-jellegű, szoros betűköz (a referencia betűképe).
 - Fent végig a fő infó: kis típus-felirat · nagy félkövér cím (balra) · település jobbra zárva · ár kiemelő sávval.
@@ -107,7 +107,7 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 
 ## INNEN FOLYTATJUK (2026-10-06 vége)
 - Élesben: Aurora, Skandi, Prestige, Mozaik (+ Smaragd + arany). Kétméretes gyártás, kedvenc sablonok (video-favorites.sql lefuttatva).
-- Fejlesztés alatt (devOnly, csak localhost): **Polaroid** (bíborpiros / drámai kék) — elfogadott alap: lefújós fotópakli,
+- ÉLESÍTVE 2026-10-07: **Polaroid** (bíborpiros / drámai kék) — elfogadott alap: lefújós fotópakli,
   régi film hatás, lendületes feliratok, mozgó díszek. Következő döntés: élesítés (devOnly levétele) vagy további finomítás.
 - Próbák: `node .cache/jobtest.mjs <sablon> <9:16|1:1>` (PH env: fotók), előnézetek: `scripts/video-*-preview.mjs`.
 - Villanás-ellenőrzés: a kész videó képkockáinak átlagos fényességét nézzük (kiugró kocka = hiba) — lásd a beszélgetésben használt python-mérést.

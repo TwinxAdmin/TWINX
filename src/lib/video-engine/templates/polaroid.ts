@@ -1,4 +1,4 @@
-// TWINX POLAROID (korábbi munkanév: Pakli) — „fotópakli” sablon (FEJLESZTÉS ALATT: csak localhoston — devOnly).
+// TWINX POLAROID (korábbi munkanév: Pakli) — „fotópakli” sablon. ÉLESÍTVE 2026-10-07.
 //
 // A referencia: telt színű háttéren (bíborpiros / drámai kék) egy pakli előhívott fotó.
 // • A FŐ INFORMÁCIÓK végig FENT állnak; a nyitóképen lendületesen, egymás után úsznak be
@@ -170,7 +170,6 @@ function buildPolaroid(count: number): TwinxTemplate {
   return {
     id: "polaroid",
     name: "TWINX Polaroid",
-    devOnly: true, // FEJLESZTÉS ALATT — élesben nem jelenik meg
     version: 1,
     fps: 25,
     aspects: ["9:16", "1:1"],
