@@ -7,8 +7,8 @@ import ModuleIcon from "@/components/ModuleIcon";
 import Reveal from "@/components/motion/Reveal";
 import B2BModal from "@/components/B2BModal";
 import RequestButton from "@/components/custom-module/RequestButton";
-import HeroFlow from "@/components/custom-module/HeroFlow";
-import BeforeAfter from "@/components/custom-module/BeforeAfter";
+import HeroScene from "@/components/custom-module/HeroScene";
+import MainGoalAnimation from "@/components/custom-module/MainGoalAnimation";
 
 const CORAL = "var(--twx-coral)";
 const MUTED = { color: "var(--twx-ink-muted)" };
@@ -34,7 +34,7 @@ const BENEFITS: { icon: string; title: string; text: string }[] = [
 const STEPS: { title: string; text: string; tag: string }[] = [
   { title: "Igénylés", text: "Pár mondatban leírod, mire lenne szükséged, és megadod a telefonszámod.", tag: "2 perc" },
   { title: "Telefonos egyeztetés", text: "Felhívunk, és közösen átnézzük a mostani munkafolyamatodat: mi ismétlődik, mi visz el sok időt.", tag: "díjmentes" },
-  { title: "Árajánlat", text: "Írásban megkapod, mit tud majd a modul, mennyibe kerül és mikorra készül el.", tag: "kötelezettség nélkül" },
+  { title: "Árajánlat", text: "Írásban megkapod, mit tud majd a modul és mikorra készül el, két árral: a fejlesztés egyszeri díjával, és azzal, hogy a kész modul egy elvégzett munkája hány kreditbe kerül.", tag: "kötelezettség nélkül" },
   { title: "Fejlesztés és tesztelés", text: "Megépítjük, és veled együtt kipróbáljuk valós adatokkal — addig finomítjuk, amíg pontosan úgy működik, ahogy kell.", tag: "közösen" },
   { title: "Átadás", text: "A modul megjelenik a „Saját moduljaim” menüben, és ugyanúgy használod, mint a TWINX többi eszközét.", tag: "kész" },
 ];
@@ -47,7 +47,7 @@ const QUALITY: { title: string; text: string }[] = [
 ];
 
 const FAQ: { q: string; a: string }[] = [
-  { q: "Mennyibe kerül egy egyedi modul?", a: "Az ár a modul összetettségétől függ, ezért mindig egyedi árajánlatot adunk. Az egyeztetés és az ajánlat díjmentes, és nem kötelez semmire." },
+  { q: "Mennyibe kerül egy egyedi modul?", a: "Két részből áll: a fejlesztés egyszeri díjából, és a használatból. A kész modult ugyanúgy kredittel használod, mint a TWINX többi modulját: minden elvégzett munka annyi kreditet von le, amennyit az árajánlatban rögzítünk. A kreditek nem járnak le. Az egyeztetés és az ajánlat díjmentes, és nem kötelez semmire." },
   { q: "Mennyi idő alatt készül el?", a: "A modul méretétől függ. Az egyeztetés után az árajánlatban pontos ütemtervet kapsz, így előre tudod, mikorra számíthatsz rá." },
   { q: "Mit kell előkészítenem?", a: "Elég, ha el tudod mondani, hogyan dolgozol most, és megmutatod a használt táblázatokat, sablonokat. A többit közösen tisztázzuk." },
   { q: "Ki látja az adataimat?", a: "A modult és a benne kezelt adatokat csak te és az általad megjelölt munkatársak érik el. Más felhasználó nem látja." },
@@ -68,7 +68,11 @@ export default function CustomModuleShowcase({ embedded = false }: { embedded?: 
       ...(embedded ? { marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)", marginTop: "-2.5rem", marginBottom: "-2.5rem" } : {}),
     }}>
       {/* ============================ 1) HERO ============================ */}
-      <section className="relative overflow-hidden" style={{ background: "var(--twx-dark)" }}>
+      <section className="relative overflow-hidden" style={{
+        background: "var(--twx-dark)",
+        // A TWINX-en belül halvány narancs keret választja el a szintén sötét felső menüsortól.
+        ...(embedded ? { borderTop: "1px solid rgba(239,122,90,0.45)", borderBottom: "1px solid rgba(239,122,90,0.25)", boxShadow: "inset 0 1px 0 rgba(239,122,90,0.12), inset 0 18px 40px -30px rgba(239,122,90,0.35)" } : {}),
+      }}>
         {/* Halvány rácsháttér + korall derengés — „mérnöki” hangulat */}
         <div aria-hidden className="pointer-events-none absolute inset-0"
           style={{
@@ -92,14 +96,17 @@ export default function CustomModuleShowcase({ embedded = false }: { embedded?: 
         </nav>
         )}
 
-        <div className={`relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 pb-20 lg:grid-cols-2 lg:pb-28 ${embedded ? "pt-14 lg:pt-20" : "pt-8 lg:pt-14"}`}>
+        <div className={`relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 pb-20 lg:grid-cols-[1fr_1.12fr] lg:pb-28 ${embedded ? "pt-14 lg:pt-20" : "pt-8 lg:pt-14"}`}>
           <Reveal>
             <p className="font-display text-sm font-semibold uppercase" style={{ color: CORAL, letterSpacing: "0.2em" }}>
               TWINX egyedi modul
             </p>
-            <h1 className="mt-4 font-display font-semibold leading-[1.03]" style={{ fontSize: "clamp(2.3rem, 5.4vw, 3.9rem)", color: "var(--twx-on-dark)" }}>
-              A te vállalkozásod.{" "}
-              <span style={{ color: CORAL }}>A te modulod.</span>
+            <h1 className="mt-4 font-display font-semibold leading-[1.06]" style={{ fontSize: "clamp(2.1rem, 4.1vw, 3.3rem)", color: "var(--twx-on-dark)" }}>
+              {/* Két sor, mindkettő EGYBEN (a betűméret úgy van belőve, hogy az oszlopba beférjen);
+                  csak a legkeskenyebb telefonon törhet az első mondat. */}
+              <span className="sm:whitespace-nowrap">A te vállalkozásod.</span>
+              <br />
+              <span className="whitespace-nowrap" style={{ color: CORAL }}>A te modulod.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
               Megépítjük azt az eszközt, ami a te napi munkádat automatizálja — a TWINX-be építve,
@@ -120,9 +127,7 @@ export default function CustomModuleShowcase({ embedded = false }: { embedded?: 
             </p>
           </Reveal>
           <Reveal delay={0.15}>
-            <div className="rounded-3xl p-4 sm:p-6" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(244,239,231,0.10)" }}>
-              <HeroFlow />
-            </div>
+            <HeroScene />
           </Reveal>
         </div>
 
@@ -140,7 +145,7 @@ export default function CustomModuleShowcase({ embedded = false }: { embedded?: 
         </div>
       </section>
 
-      {/* ===================== 2) MI EZ? + ELŐTTE/UTÁNA ===================== */}
+      {/* ===================== 2) MI EZ? + FŐ CÉL ANIMÁCIÓ ===================== */}
       <section className="px-6 py-20">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 lg:grid-cols-2">
           <Reveal>
@@ -162,8 +167,12 @@ export default function CustomModuleShowcase({ embedded = false }: { embedded?: 
           </Reveal>
           <Reveal delay={0.1}>
             <div className="rounded-3xl p-6 sm:p-8" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
-              <p className="mb-5 font-display text-lg font-semibold">Példa: egy árajánlat elkészítése</p>
-              <BeforeAfter />
+              {/* Rövid, tömör üzenet: minden egyedi modul az igénylő saját igényeire készül */}
+              <p className="mb-4 text-center font-display text-lg font-semibold leading-snug sm:text-xl">
+                Minden egyedi modul egyetlen vállalkozásnak készül:{" "}
+                <span style={{ color: CORAL }}>a te igényeidre fejlesztjük.</span>
+              </p>
+              <MainGoalAnimation />
             </div>
           </Reveal>
         </div>

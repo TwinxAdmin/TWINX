@@ -63,6 +63,8 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [ ] ELTÉVE KÉSŐBBRE: ugyanez önálló, kiküldhető landingként már kész: `/egyedi-modul`
   (közös tartalom: `src/components/custom-module/CustomModuleShowcase.tsx`; jelenleg sehonnan nem linkeljük —
   kampánynál ezt a címet kell kiküldeni)
+- [x] Egyedi modul árazása (DÖNTÉS): egyszeri fejlesztési díj + használat KREDITBEN (egy elvégzett munka = X kredit, az árajánlatban rögzítve).
+  Teendő a modul élesítésekor: a modul futtatása kreditet vonjon le (admin/sales továbbra is ingyen, CLAUDE.md szerint).
 - [ ] ELTÉVE KÉSŐBBRE — kulcsszavak máshova (a hero-ikonok szövegei, kódban: `HERO_KEYWORDS`, src/components/custom-module/HeroScene.tsx):
   „−10 óra / hét — kézi munka helyett” · „Másodpercek alatt — kész anyag, 1 kattintás” · „Hatékonyság ↑ — több munka, ugyanannyi idő” ·
   „A te vállalkozásodra szabva — a saját igényeidhez készül” · „Heti riport — magától elkészül” · „Több idő az ügyfélre — kevesebb adminisztráció”
