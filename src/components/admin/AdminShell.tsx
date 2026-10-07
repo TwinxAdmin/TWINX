@@ -24,6 +24,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/megkeresesek", label: "Kérések és üzenetek", hint: "tájékoztatás-kérés, B2B, ajándékkód-jelentkezők", countKey: "inboxPage" },
       { href: "/admin/credit-requests", label: "Kredit-kérések", hint: "csomagigénylés és számlázás", countKey: "pendingCredits" },
       { href: "/admin/ideas", label: "Ötletláda", hint: "felhasználói javaslatok", countKey: "newIdeas" },
+      { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása" },
     ],
   },
   { id: "users", label: "Felhasználók", href: "/admin/users" },

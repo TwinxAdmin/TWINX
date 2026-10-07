@@ -139,6 +139,9 @@ export default function MobileNav({
                 <a href="/dashboard/branding" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                   Arculatom
                 </a>
+                <a href="/dashboard/iroda" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  Irodai fiók
+                </a>
                 {isAdmin && (
                   <a href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                     Admin

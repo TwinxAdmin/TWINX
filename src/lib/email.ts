@@ -276,6 +276,49 @@ export async function sendInviteCodeEmail(invite: {
   }
 }
 
+/** Irodai TWINX fiók igénylése — értesítés a TWINX-nek (admin jóváhagyás kell). */
+export async function sendOfficeRequestNotification(req: {
+  requesterName?: string;
+  requesterEmail: string;
+  officeName: string;
+  teamSize: number;
+  phone: string;
+  note?: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.LEADS_NOTIFY_EMAIL;
+  if (!apiKey || !to) {
+    throw new Error("Hiányzó RESEND_API_KEY vagy LEADS_NOTIFY_EMAIL.");
+  }
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+
+  const html = `
+    <h2>Irodai TWINX fiók igénylése</h2>
+    <p><strong>Igénylő:</strong> ${escapeHtml(req.requesterName || "-")} (${escapeHtml(req.requesterEmail)})</p>
+    <p><strong>Iroda neve:</strong> ${escapeHtml(req.officeName)}</p>
+    <p><strong>Létszám:</strong> ${req.teamSize} fő</p>
+    <p><strong>Telefon:</strong> <a href="tel:${escapeHtml(req.phone.replace(/\s/g, ""))}">${escapeHtml(req.phone)}</a></p>
+    ${req.note ? `<p><strong>Megjegyzés:</strong><br>${escapeHtml(req.note).replace(/\n/g, "<br>")}</p>` : ""}
+    <p><em>A jóváhagyás az admin felületen történik.</em></p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to,
+      reply_to: req.requesterEmail,
+      subject: `Irodai fiók igénylés: ${req.officeName} (${req.teamSize} fő)`,
+      html,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

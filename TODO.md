@@ -107,6 +107,49 @@ zene **stílus-alapú** (random szám a `music/{stílus}/`-ból), formátumot a 
 - [ ] `video.sql` lefuttatva (megvan)
 - [ ] Webhook-teszthez ngrok tunnel (vagy éles deploy)
 
+## 6.7. fázis — Irodai TWINX fiók (TERV, még nincs fejlesztve)
+Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell: közös irodai egyenleg + tagonkénti keret.
+- Menüpont fent az „Arculatom" mellett: „Irodai fiók".
+- 1) Igénylés: a leendő vezető előbb a TWINX-től kér engedélyt (rövid magyarázó: mi az irodai fiók) → admin jóváhagyja.
+- 2) Vezető megnyitja az irodát (név, céges számlázási adatok) → meghívás e-mailben ÉS/VAGY csatlakozási kóddal.
+- 3) Csatlakozás: külön fül „Csatlakozás kóddal" → kód beírása után azonnal látja az iroda moduljait (egyedi modulokat is).
+- 4) Vásárlás csak a vezetőnél; a kredit az iroda egyenlegére megy.
+- 5) Alkalmazott NEM látja az iroda egyenlegét, csak a saját felhasználható keretét; ha elfogy → „Kredit kérése a vezetőtől".
+- 6) Vezető: tagok, keretek, kérések jóváhagyása, ki mire költött (havi bontás); tag eltávolítása → maradék keret vissza az irodához.
+- Szabályok: kredit csak irodán belül mozog, nem váltható vissza, nem jár le; admin/sales továbbra is ingyen; egy user = egy iroda.
+- DÖNTÉSEK (2026-10): a tag SAJÁT kreditje megmarad, és bármikor vásárolhat magának is (nem zárjuk irodai burokba).
+  Kóddal csatlakozás AZONNALI, de csak regisztrált felhasználónak. Új tag keretje: 0.
+- Jogosultságok tagonként (csak a vezető állíthatja):
+  • „Kioszthat kreditet" (vezető-helyettes: más tagoknak adhat irodai keretet; a vezető csak vásárol)
+  • „Korlátlan" (bizalmi kolléga: kérés nélkül költhet az iroda egyenlegéből)
+  • alap tag: csak a saját keretéből költ, elfogyáskor kér.
+- Munkamód-váltó gomb (fejléc): „Privát" ↔ „Irodai" — egyértelmű, melyik kreditből dolgozik a felhasználó.
+  Irodai módban: irodai keret; privát módban: saját egyenleg. A munka a mód szerint privát vagy irodai lesz.
+- Megosztás CSAK tudatosan (nem kerül minden automatikusan a közösbe):
+  • bármely munka (privát is) egy kattintással megosztható az irodában („Megosztás az irodával")
+  • közös IRODAI MAPPÁK: létrehozás, munkák behúzása (drag & drop, a meglévő FolderLibrary/AssetTray mintájára)
+  • mappánkénti hozzáférés: ki lát rá (pl. csak 2 kolléga, vagy az egész iroda)
+  • a mappa tagjai SZERKESZTHETIK a benne lévő munkákat (pl. értékbecslés szövegének javítása)
+    javaslat: módosítási napló + előző változat visszaállítása; „X épp szerkeszti" zár; törölni csak a készítő/vezető tud;
+    ha a javítás kreditbe kerül (pl. újragenerálás), a javító AKTUÁLIS módja szerinti keretből von le
+  • mappát a létrehozója és a vezető kezeli (tagok, törlés); megosztás = hivatkozás (nem másolat), visszavonható
+  • kilépéskor: irodai módban készült munka az irodánál marad; megosztott privát munka kikerül (előtte figyelmeztetés a vezetőnek)
+- LÁTHATÓSÁG (DÖNTÉS, felülírja a korábbi „vezetői rálátás" opciót — nincs választás az igényléskor):
+  • a munkák MINDIG a készítőjüknél maradnak; másik tag — a létrehozó is — csak a közös irodai mappákba tett munkát látja
+  • a létrehozó / kiosztó a KREDITHASZNÁLATOT látja: ki, melyik modulban, mennyit (munkák tartalma nélkül)
+  • ok: az irodai fiókot nem csak vezető nyithatja — pl. 3 kolléga egy közös munkára; ott senki ne lásson rá a másik munkáira
+  • (az office_requests.leader_view / offices.leader_view oszlop maradhat, nem használjuk)
+- Egyedi modul: az irodához tartozik, futtatása az iroda egyenlegéből (a tag keretéből) von le.
+- Fejlesztés mikrolépésekben:
+  - [x] IR1 — SQL alap: `office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
+  - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
+  - [ ] IR3 — Iroda megnyitása + csatlakozási kód
+  - [ ] IR4 — Csatlakozás kóddal (fül) + e-mail-meghívó
+  - [ ] IR5 — Munkamód-váltó (Privát/Irodai) + kreditlevonás bekötése
+  - [ ] IR6 — Kiosztás, jogosultságok, kérés a vezetőtől, vezetői áttekintő
+  - [ ] IR7 — Irodai mappák + megosztás + mappánkénti hozzáférés
+  - [ ] IR8 — Szerkesztés módosítási naplóval + „épp szerkeszti" zár
+
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)
 - [ ] Reszponzív finomítás + végső QA

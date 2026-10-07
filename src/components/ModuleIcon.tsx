@@ -114,6 +114,14 @@ const paths: Record<string, JSX.Element> = {
       <path d="m18.5 4.5.8 1.7 1.8.2-1.4 1.3.4 1.8-1.6-.9-1.6.9.4-1.8-1.4-1.3 1.8-.2z" />
     </>
   ),
+  office: (
+    <>
+      <path d="M3 21h18" />
+      <path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
+      <path d="M15 10h3a1 1 0 0 1 1 1v10" />
+      <path d="M8 8h1M11 8h1M8 12h1M11 12h1M8 16h1M11 16h1" />
+    </>
+  ),
   cost: (
     <>
       <circle cx="12" cy="12" r="9" />
