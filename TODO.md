@@ -63,6 +63,9 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [ ] ELTÉVE KÉSŐBBRE: ugyanez önálló, kiküldhető landingként már kész: `/egyedi-modul`
   (közös tartalom: `src/components/custom-module/CustomModuleShowcase.tsx`; jelenleg sehonnan nem linkeljük —
   kampánynál ezt a címet kell kiküldeni)
+- [ ] ELTÉVE KÉSŐBBRE — kulcsszavak máshova (a hero-ikonok szövegei, kódban: `HERO_KEYWORDS`, src/components/custom-module/HeroScene.tsx):
+  „−10 óra / hét — kézi munka helyett” · „Másodpercek alatt — kész anyag, 1 kattintás” · „Hatékonyság ↑ — több munka, ugyanannyi idő” ·
+  „A te vállalkozásodra szabva — a saját igényeidhez készül” · „Heti riport — magától elkészül” · „Több idő az ügyfélre — kevesebb adminisztráció”
 - [x] `dashboard/custom/` útvonalvédelem élesítése (szerepkör + `company_access`, RLS)
 - [x] Privát → publikus modul: `services.status` flag (public/private) — beépítve
 
