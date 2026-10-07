@@ -22,6 +22,8 @@ export type Lead = {
   name: string;
   email: string;
   company: string | null;
+  phone?: string | null;
+  callback_time?: string | null;
   message: string;
   created_at: string;
   handled_at: string | null;
@@ -142,6 +144,12 @@ function LeadRow({ lead }: { lead: Lead }) {
             {lead.email}
             {lead.company ? ` · ${lead.company}` : ""} · {fmt(lead.created_at)}
           </p>
+          {(lead.phone || lead.callback_time) && (
+            <p className="mt-0.5 text-xs font-semibold" style={{ color: "var(--twx-ink)" }}>
+              {lead.phone && <a href={`tel:${lead.phone.replace(/[^+0-9]/g, "")}`} className="underline">☎ {lead.phone}</a>}
+              {lead.callback_time && <span style={{ color: "var(--twx-ink-muted)" }}>{lead.phone ? " · " : ""}Mikor kereshetjük: {lead.callback_time}</span>}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <a

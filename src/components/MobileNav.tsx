@@ -11,7 +11,7 @@ import AdminInboxBadge from "@/components/AdminInboxBadge";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 
-type Item = { label: string; href: string; desc?: string; icon?: string };
+type Item = { label: string; href?: string; desc?: string; icon?: string; onClick?: () => void };
 
 export default function MobileNav({
   email,
@@ -43,7 +43,11 @@ export default function MobileNav({
     },
     {
       title: "Egyedi modulok",
-      items: [{ label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom" }],
+      items: [
+        { label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom" },
+        { label: "Egyedi modul igénylése", icon: "request", onClick: () => window.dispatchEvent(new CustomEvent("open-b2b")) },
+        { label: "Mi az egyedi modul?", icon: "info", onClick: () => window.dispatchEvent(new CustomEvent("open-custom-info")) },
+      ],
     },
   ];
 
@@ -111,9 +115,12 @@ export default function MobileNav({
                   </p>
                   {sec.items.map((it) => (
                     <a
-                      key={it.href}
-                      href={it.href}
-                      onClick={() => setOpen(false)}
+                      key={it.href ?? it.label}
+                      href={it.href ?? "#"}
+                      onClick={(e) => {
+                        if (it.onClick) { e.preventDefault(); it.onClick(); }
+                        setOpen(false);
+                      }}
                       className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-white/5"
                     >
                       <span

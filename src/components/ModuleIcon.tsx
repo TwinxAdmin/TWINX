@@ -55,6 +55,13 @@ const paths: Record<string, JSX.Element> = {
       <circle cx="12" cy="12" r="3.5" />
     </>
   ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6" />
+      <path d="M12 7.5v.5" />
+    </>
+  ),
   request: (
     <>
       <path d="M12 5v14M5 12h14" />

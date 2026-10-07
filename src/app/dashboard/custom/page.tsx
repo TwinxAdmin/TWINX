@@ -4,6 +4,7 @@
 // csak azokat a privát modulokat látja, amelyekhez van company_access rekordja.
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import CustomModuleActions from "@/components/CustomModuleActions";
 
 type PrivateService = { id: string; name: string; slug: string };
 
@@ -33,9 +34,12 @@ export default async function CustomModulesPage() {
       </p>
 
       {list.length === 0 ? (
-        <div className="rounded-xl p-4 text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-          Még nincs számodra fejlesztett egyedi modul. Ha szeretnél egyet, a felső sávban az
-          „Egyedi modulok → Egyedi modul igénylése" ponton keresztül tudsz árajánlatot kérni.
+        <div className="space-y-3 rounded-xl p-4 text-sm" style={{ border: "1px dashed var(--twx-line)", color: "var(--twx-ink-muted)" }}>
+          <p>
+            Még nincs számodra fejlesztett egyedi modul. Az egyedi modul a te vállalkozásodra szabott eszköz —
+            nézd meg, mire jó, vagy kérj rá ajánlatot.
+          </p>
+          <CustomModuleActions />
         </div>
       ) : (
         <ul className="space-y-2">

@@ -2,13 +2,15 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { validateLeadInput } from "@/lib/leads";
+import { validateLeadInput, CALLBACK_PRESETS } from "@/lib/leads";
 import { gaEvent } from "@/lib/analytics";
 
 export default function B2BForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
+  const [callbackTime, setCallbackTime] = useState("");
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function B2BForm() {
     e.preventDefault();
     setServerError(null);
 
-    const input = { name, email, company, message };
+    const input = { name, email, company, phone, callbackTime, message };
     const result = validateLeadInput(input);
     setErrors(result.errors);
     if (!result.valid) return;
@@ -49,7 +51,7 @@ export default function B2BForm() {
   if (done) {
     return (
       <p className="text-sm text-green-700">
-        Köszönjük! Megkaptuk az ajánlatkérésed, hamarosan keresünk.
+        Köszönjük! Megkaptuk az igénylésed — hamarosan keresünk telefonon{callbackTime.trim() ? ` (${callbackTime.trim()})` : ""}.
       </p>
     );
   }
@@ -82,6 +84,53 @@ export default function B2BForm() {
           className="twx-input mt-1"
         />
         {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="b2b-phone" className="block text-sm">
+          Telefonszám <span style={{ color: "var(--twx-coral)" }}>*</span>
+        </label>
+        <input
+          id="b2b-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="pl. +36 30 123 4567"
+          className="twx-input mt-1"
+        />
+        {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="b2b-callback" className="block text-sm">
+          Mikor kereshetünk? <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>(opcionális)</span>
+        </label>
+        {/* Gyors választás — egy kattintással kitölti; utána szabadon átírható. */}
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {CALLBACK_PRESETS.map((p) => {
+            const on = callbackTime === p;
+            return (
+              <button key={p} type="button" onClick={() => setCallbackTime(on ? "" : p)} aria-pressed={on}
+                className="rounded-full px-2.5 py-1 text-[11px] font-medium transition"
+                style={on
+                  ? { background: "var(--twx-coral)", color: "#1c1005", border: "1px solid var(--twx-coral)" }
+                  : { background: "#fff", color: "var(--twx-ink-muted)", border: "1px solid var(--twx-line)" }}>
+                {p}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          id="b2b-callback"
+          type="text"
+          value={callbackTime}
+          onChange={(e) => setCallbackTime(e.target.value)}
+          placeholder="vagy írd be, pl. kedd vagy csütörtök 10 után"
+          className="twx-input mt-1.5"
+        />
+        {errors.callbackTime && <p className="mt-1 text-xs text-red-600">{errors.callbackTime}</p>}
       </div>
 
       <div>
@@ -119,7 +168,7 @@ export default function B2BForm() {
         className="rounded-full px-6 py-2.5 text-sm font-medium disabled:opacity-50"
         style={{ background: "var(--twx-coral)", color: "#1c1005" }}
       >
-        {loading ? "Küldés…" : "Ajánlatkérés küldése"}
+        {loading ? "Küldés…" : "Igénylés elküldése"}
       </button>
 
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}

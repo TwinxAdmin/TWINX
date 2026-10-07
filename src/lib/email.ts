@@ -16,6 +16,8 @@ export async function sendLeadNotification(lead: LeadInput): Promise<void> {
     <p><strong>Név:</strong> ${escapeHtml(lead.name)}</p>
     <p><strong>E-mail:</strong> ${escapeHtml(lead.email)}</p>
     <p><strong>Cég:</strong> ${escapeHtml(lead.company ?? "-")}</p>
+    <p><strong>Telefon:</strong> ${escapeHtml(lead.phone ?? "-")}</p>
+    <p><strong>Mikor kereshetjük:</strong> ${escapeHtml(lead.callbackTime || "nincs megadva")}</p>
     <p><strong>Üzenet:</strong></p>
     <p>${escapeHtml(lead.message).replace(/\n/g, "<br>")}</p>
   `;

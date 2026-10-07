@@ -56,10 +56,19 @@ export default function B2BModal() {
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-semibold">Egyedi fejlesztés</h2>
+            <h2 className="font-display text-2xl font-semibold">Egyedi modul igénylése</h2>
             <p className="mt-1 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-              Van egy ötleted egy saját modulra? Kérj rá árajánlatot — pár napon belül keresünk.
+              Van egy ötleted egy saját modulra? Írd le röviden, add meg a telefonszámod — pár napon belül
+              felhívunk, és díjmentes árajánlatot adunk.
             </p>
+            <button
+              type="button"
+              onClick={() => { close(); window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-custom-info")), 200); }}
+              className="mt-1.5 text-xs font-semibold underline underline-offset-2"
+              style={{ color: "var(--twx-coral)" }}
+            >
+              Mi az egyedi modul? — részletes ismertető
+            </button>
           </div>
           <button
             type="button"

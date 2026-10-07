@@ -170,6 +170,12 @@ export default function DashboardNav() {
       desc: "Saját üzleti automatizáció",
       onClick: () => window.dispatchEvent(new CustomEvent("open-b2b")),
     },
+    {
+      label: "Mi az egyedi modul?",
+      icon: "info",
+      desc: "Részletes ismertető: mire jó, hogyan készül",
+      onClick: () => window.dispatchEvent(new CustomEvent("open-custom-info")),
+    },
   ];
 
   return (

@@ -57,6 +57,8 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 
 ## 6. fázis — B2B ajánlatkérő + privát modulok
 - [x] Landing page B2B ajánlatkérő űrlap → Resend API (lead mentés + e-mail a vezetőségnek)
+- [x] Egyedi modul igénylése: kötelező telefonszám + opcionális „Mikor kereshetünk?” (`custom-module-request.sql`, leads.phone / callback_time)
+- [x] „Mi az egyedi modul?” ismertető ablak (menü + Saját moduljaim oldal + az igénylő ablakból)
 - [x] `dashboard/custom/` útvonalvédelem élesítése (szerepkör + `company_access`, RLS)
 - [x] Privát → publikus modul: `services.status` flag (public/private) — beépítve
 

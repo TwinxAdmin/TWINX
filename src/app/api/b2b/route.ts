@@ -24,13 +24,28 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
+  const phone = lead.phone.trim();
+  const callbackTime = lead.callbackTime?.trim() || null;
+
   // 1) Lead mentése (ez a megbízható forrás).
-  const { error: insertError } = await admin.from("leads").insert({
+  let { error: insertError } = await admin.from("leads").insert({
     name: lead.name,
     email: lead.email,
     company: lead.company ?? null,
+    phone,
+    callback_time: callbackTime,
     message: lead.message,
   });
+  // Ha az új oszlopok még nincsenek a táblában (custom-module-request.sql nem futott le),
+  // a telefonszám és az időpont az üzenet végére kerül — így semmi nem vész el.
+  if (insertError && /phone|callback_time|column/i.test(insertError.message)) {
+    ({ error: insertError } = await admin.from("leads").insert({
+      name: lead.name,
+      email: lead.email,
+      company: lead.company ?? null,
+      message: `${lead.message}\n\nTelefon: ${phone}${callbackTime ? `\nMikor kereshetjük: ${callbackTime}` : ""}`,
+    }));
+  }
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }

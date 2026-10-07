@@ -6,6 +6,7 @@ import DashboardNav from "@/components/DashboardNav";
 import AccountMenu from "@/components/AccountMenu";
 import MobileNav from "@/components/MobileNav";
 import B2BModal from "@/components/B2BModal";
+import CustomModuleInfoModal from "@/components/CustomModuleInfoModal";
 import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
@@ -110,6 +111,7 @@ export default async function DashboardLayout({
 
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
+      <CustomModuleInfoModal />
       <PricingModal />
 
       {/* Nézet-váltó — csak adminnak látszik */}
