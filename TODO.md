@@ -148,7 +148,8 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   - [ ] IR4b — E-mail-meghívó
   - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
     (/api/office/members, PATCH /api/office; OfficeMembers komponens)
-  - [ ] IR6b — Irodai egyenleg feltöltése (vásárlás az irodának / admin jóváírás) + kérés a vezetőtől + kredithasználat-áttekintő
+  - [x] IR6b — Irodai egyenleg feltöltése: létrehozó megrendel (számlás folyamat, credit_requests.office_id) + admin közvetlen jóváírás (/admin/irodak) — `office-topup.sql`
+  - [ ] IR6c — „Kredit kérése a vezetőtől" (tag) + kredithasználat-áttekintő (ki, melyik modul, mennyi)
   - [ ] IR5 — Munkamód-váltó (Privát/Irodai) + kreditlevonás bekötése
   - [ ] IR7 — Irodai mappák + megosztás + mappánkénti hozzáférés
   - [ ] IR8 — Szerkesztés módosítási naplóval + „épp szerkeszti" zár

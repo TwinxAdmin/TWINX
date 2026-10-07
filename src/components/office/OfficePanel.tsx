@@ -6,6 +6,7 @@
 import { useState } from "react";
 import type { MyOffice } from "@/lib/office";
 import OfficeMembers from "@/components/office/OfficeMembers";
+import OfficeTopup from "@/components/office/OfficeTopup";
 
 export default function OfficePanel({ office: initial }: { office: MyOffice }) {
   const [office, setOffice] = useState(initial);
@@ -88,9 +89,7 @@ export default function OfficePanel({ office: initial }: { office: MyOffice }) {
             <Stat label="Irodai egyenleg" value={`${office.balance ?? 0} kredit`} />
             <Stat label="Tagok" value={`${office.memberCount ?? 1} fő`} />
           </div>
-          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            Az irodai egyenleg feltöltése (kreditvásárlás az irodának) hamarosan itt lesz elérhető.
-          </p>
+          <OfficeTopup />
 
           <OfficeMembers balance={office.balance} onChanged={refresh} />
         </>

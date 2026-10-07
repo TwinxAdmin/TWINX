@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { amount?: number; reason?: string; packageId?: string };
+  let body: { amount?: number; reason?: string; packageId?: string; target?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
   const reason = String(body.reason ?? "").trim().slice(0, 500);
@@ -53,12 +53,23 @@ export async function POST(request: Request) {
   const { data: me } = await admin
     .from("profiles").select("role, full_name").eq("id", user.id).single();
   const role = (me?.role as string) ?? "user";
-  if (role === "admin") {
+  if (role === "admin" && body.target !== "office") {
     return NextResponse.json({ error: "Adminként korlátlanul használhatod, nem kell kérned." }, { status: 400 });
   }
 
+  // Irodai egyenleg feltöltése: CSAK az irodai fiók létrehozója rendelheti, és mindig számlás.
+  let officeId: string | null = null;
+  if (body.target === "office") {
+    const { data: m } = await admin
+      .from("office_members").select("office_id, role").eq("user_id", user.id).maybeSingle();
+    if (!m || m.role !== "owner") {
+      return NextResponse.json({ error: "Irodai egyenleget csak az irodai fiók létrehozója tölthet fel." }, { status: 403 });
+    }
+    officeId = m.office_id as string;
+  }
+
   // Sales = belső keret (ingyen). Minden más = számlázandó megrendelés.
-  const isFree = role === "sales";
+  const isFree = role === "sales" && !officeId;
 
   // --- A csomag és az ár SZERVEROLDALON dől el (a böngészőből csak az azonosító jön) ---
   let amount: number;
@@ -116,6 +127,7 @@ export async function POST(request: Request) {
       billing_kind: isFree ? "free" : "invoice",
       invoice_status: isFree ? "none" : "to_issue",
       billing_snapshot: snapshot,
+      ...(officeId ? { office_id: officeId } : {}),
     })
     .select("id, amount, reason, status, created_at, net_huf, billing_kind, invoice_status")
     .single();
@@ -139,7 +151,7 @@ export async function POST(request: Request) {
       requesterName: (me?.full_name as string) ?? undefined,
       requesterEmail: user.email ?? "",
       amount,
-      reason: reason || undefined,
+      reason: (officeId ? "IRODAI EGYENLEG FELTÖLTÉSE. " : "") + (reason || "") || undefined,
       balance: wallet?.balance ?? 0,
       role,
       netHuf: netHuf ?? undefined,
