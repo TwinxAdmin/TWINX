@@ -20,6 +20,7 @@
 }
 
 body {
+  overflow-x: clip; /* a teljes szélességű (100vw) szakaszok ne okozzanak vízszintes görgetősávot */
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   background: #ffffff;
   color: #171717;
@@ -218,4 +219,3 @@ body {
 
 /* Szándékosan NEM kapcsoljuk le az animációkat reduced-motion esetén: a landing
    élménye mindig fusson, a távoli partner böngésző-/OS-beállításától függetlenül. */
-

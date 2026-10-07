@@ -46,7 +46,7 @@ export default function MobileNav({
       items: [
         { label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom" },
         { label: "Egyedi modul igénylése", icon: "request", onClick: () => window.dispatchEvent(new CustomEvent("open-b2b")) },
-        { label: "Mi az egyedi modul?", icon: "info", onClick: () => window.dispatchEvent(new CustomEvent("open-custom-info")) },
+        { label: "Mi az egyedi modul?", href: "/dashboard/egyedi-modul", icon: "info" },
       ],
     },
   ];

@@ -3,11 +3,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import B2BForm from "@/components/B2BForm";
 
 export default function B2BModal() {
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Az ismertető oldalon nem kell a rá mutató link.
+  const path = usePathname();
+  const onInfoPage = path === "/egyedi-modul" || path === "/dashboard/egyedi-modul";
 
   const close = useCallback(() => {
     setVisible(false);
@@ -61,14 +65,12 @@ export default function B2BModal() {
               Van egy ötleted egy saját modulra? Írd le röviden, add meg a telefonszámod — pár napon belül
               felhívunk, és díjmentes árajánlatot adunk.
             </p>
-            <button
-              type="button"
-              onClick={() => { close(); window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-custom-info")), 200); }}
-              className="mt-1.5 text-xs font-semibold underline underline-offset-2"
-              style={{ color: "var(--twx-coral)" }}
-            >
-              Mi az egyedi modul? — részletes ismertető
-            </button>
+            {!onInfoPage && (
+              <a href="/dashboard/egyedi-modul" className="mt-1.5 inline-block text-xs font-semibold underline underline-offset-2"
+                style={{ color: "var(--twx-coral)" }}>
+                Mi az egyedi modul? — részletes ismertető
+              </a>
+            )}
           </div>
           <button
             type="button"
