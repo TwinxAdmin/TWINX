@@ -105,7 +105,11 @@ export type MyOffice = {
   joinCode?: string;
   balance?: number;
   memberCount?: number;
+  /** Munkamód: „office" = irodai keretből, „private" = saját kreditből (office-mode.sql). */
+  workMode: WorkMode;
 };
+
+export type WorkMode = "office" | "private";
 
 /** Érvényes formátumú csatlakozási kód? (TWX- + 6 jel a kódkészletből) */
 export function isValidJoinCode(code: string): boolean {

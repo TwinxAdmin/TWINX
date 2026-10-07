@@ -4,6 +4,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS, getFormat } from "@/lib/video";
 import { submitVideoRender, type TimelineClip, type OverlayClip } from "@/lib/shotstack";
+import { refundCredit } from "@/lib/credits";
 
 export type VideoJobRow = {
   id: string;
@@ -87,11 +88,11 @@ export async function failJobOnce(
   if (error) {
     // Végszükség: ha a migráció hiányzik, a kredit akkor se vesszen el.
     await admin.from("video_jobs").update({ status: "failed", error: message }).eq("id", jobId);
-    if (creditsCharged > 0) await admin.rpc("wallet_add", { p_user_id: userId, p_amount: creditsCharged });
+    if (creditsCharged > 0) await refundCredit(userId, creditsCharged);
     return;
   }
   if (data === true && creditsCharged > 0) {
-    await admin.rpc("wallet_add", { p_user_id: userId, p_amount: creditsCharged });
+    await refundCredit(userId, creditsCharged);
   }
 }
 

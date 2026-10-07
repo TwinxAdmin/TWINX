@@ -17,7 +17,10 @@ export async function loadMyOffice(userId: string): Promise<MyOffice | null> {
   if (!o) return null;
 
   const isOwner = m.role === "owner";
+  // Külön lekérdezés: ha az office-mode.sql még nem futott le, ne dőljön el az egész nézet.
+  const { data: wm } = await admin.from("office_members").select("work_mode").eq("user_id", userId).maybeSingle();
   const base: MyOffice = {
+    workMode: (wm?.work_mode as "office" | "private" | undefined) ?? "office",
     id: o.id as string,
     name: o.name as string,
     role: isOwner ? "owner" : "member",

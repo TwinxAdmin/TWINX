@@ -3,17 +3,41 @@
 // Üzleti szabály: az 'admin' korlátlan (prezentációs mód, nincs levonás). A 'sales' viszont
 // FOGYASZTJA a keretet — az adminisztrátor adja neki a kreditet (/admin/credits), és ő is
 // tölti újra; így az admin korlátozni tudja a sales folyamatait. Minden más: normál levonás.
+//
+// IRODAI MUNKAMÓD (office-mode.sql): ha a felhasználó irodai tag és „Irodai" módban
+// dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
+// különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export type CreditSource = "wallet" | "office";
+
 export type ChargeResult =
-  | { ok: true; bypassed: boolean }
-  | { ok: false; reason: "insufficient" };
+  | { ok: true; bypassed: boolean; source?: CreditSource }
+  | { ok: false; reason: "insufficient"; source?: CreditSource };
+
+/** Irodai módban dolgozik-e a felhasználó? (Ha az office-mode.sql még nem futott le: nem.) */
+async function officeMode(userId: string): Promise<{ allowance: number; unlimited: boolean; owner: boolean; officeId: string } | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("office_members")
+    .select("office_id, role, allowance, unlimited, work_mode")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data || data.work_mode !== "office") return null;
+  return {
+    officeId: data.office_id as string,
+    allowance: (data.allowance as number) ?? 0,
+    unlimited: !!data.unlimited,
+    owner: data.role === "owner",
+  };
+}
 
 export async function chargeCredit(params: {
   userId: string;
   amount?: number;
+  service?: string;   // melyik modul (az irodai naplóhoz)
 }): Promise<ChargeResult> {
-  const { userId, amount = 1 } = params;
+  const { userId, amount = 1, service } = params;
   const admin = createAdminClient();
 
   // 1) Szerepkör ellenőrzés — CSAK az admin korlátlan (megkerüli a levonást).
@@ -27,16 +51,39 @@ export async function chargeCredit(params: {
     return { ok: true, bypassed: true };
   }
 
-  // 2) Atomikus levonás a közös egyenlegből (csak ha van elég).
+  // 2a) Irodai mód → az iroda egyenlegéből + a tag keretéből (atomikus, office_deduct).
+  if (await officeMode(userId)) {
+    const { data: ok, error: offErr } = await admin.rpc("office_deduct", {
+      p_user: userId, p_amount: amount, p_service: service ?? null,
+    });
+    if (offErr) throw new Error(offErr.message);
+    return ok ? { ok: true, bypassed: false, source: "office" } : { ok: false, reason: "insufficient", source: "office" };
+  }
+
+  // 2b) Saját pénztárca: atomikus levonás a közös egyenlegből (csak ha van elég).
   const { data: deducted, error } = await admin.rpc("wallet_deduct", {
     p_user_id: userId,
     p_amount: amount,
   });
 
   if (error) throw new Error(error.message);
-  if (!deducted) return { ok: false, reason: "insufficient" };
+  if (!deducted) return { ok: false, reason: "insufficient", source: "wallet" };
 
-  return { ok: true, bypassed: false };
+  return { ok: true, bypassed: false, source: "wallet" };
+}
+
+/**
+ * Visszatérítés sikertelen generálás után — oda, ahonnan levontuk (iroda vagy
+ * saját pénztárca). Ha a credit_refund SQL-függvény még nincs (office-mode.sql),
+ * a régi módon a saját pénztárcába ír vissza.
+ */
+export async function refundCredit(userId: string, amount: number): Promise<void> {
+  if (!amount || amount <= 0) return;
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("credit_refund", { p_user: userId, p_amount: amount });
+  if (error) {
+    await admin.rpc("wallet_add", { p_user_id: userId, p_amount: amount });
+  }
 }
 
 /**
@@ -62,6 +109,15 @@ export async function checkCreditAvailable(params: {
     .single();
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
+
+  // Irodai mód: a tag keretét (ha nem korlátlan) ÉS az iroda egyenlegét is nézzük.
+  const om = await officeMode(userId);
+  if (om) {
+    if (!(om.owner || om.unlimited) && om.allowance < amount) return { ok: false, reason: "insufficient", source: "office" };
+    const { data: office } = await admin.from("offices").select("balance").eq("id", om.officeId).maybeSingle();
+    if (((office?.balance as number | undefined) ?? 0) < amount) return { ok: false, reason: "insufficient", source: "office" };
+    return { ok: true, bypassed: false, source: "office" };
+  }
 
   const { data: wallet } = await admin
     .from("wallets")

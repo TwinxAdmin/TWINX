@@ -17,7 +17,7 @@ import { runEngineJob } from "@/lib/video-engine/job-node";
 import type { AspectId } from "@/lib/video-engine/template-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import {
   CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
   creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto, splitCaption,
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
   const refund = async (message: string) => {
     if (!charge || charge.bypassed) return;
     if (createdJobId) await failJobOnce(createdJobId, user.id, credits, message);
-    else await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+    else await refundCredit(user.id, credits);
   };
 
   try {
@@ -528,7 +528,7 @@ async function postWithEngine(form: FormData, userId: string) {
     if (jobErr || !job) throw new Error("A videó-job létrehozása nem sikerült.");
     jobId = job.id as string;
   } catch (err) {
-    if (charged) await admin.rpc("wallet_add", { p_user_id: userId, p_amount: charged });
+    if (charged) await refundCredit(userId, charged);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 

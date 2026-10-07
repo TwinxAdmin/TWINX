@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSimulationPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
   }
   const refund = async () => {
     if (!charge.bypassed && credits > 0) {
-      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+      await refundCredit(user.id, credits);
     }
   };
 

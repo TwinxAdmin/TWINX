@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
 export const runtime = "nodejs";
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, url, kind: format.kind, charged: charge ? !charge.bypassed : false });
   } catch (err) {
     if (charge && !charge.bypassed) {
-      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: FLYER_CREDITS });
+      await refundCredit(user.id, FLYER_CREDITS);
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

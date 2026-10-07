@@ -11,6 +11,7 @@ import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
 import { resolveViewContext } from "@/lib/view-as";
+import WorkModeSwitch from "@/components/office/WorkModeSwitch";
 
 export default async function DashboardLayout({
   children,
@@ -35,6 +36,14 @@ export default async function DashboardLayout({
   // A sales saját, szűkített megkeresés-felületet kap (jelvénnyel).
   const isSales = view.role === "sales";
   const balance = (wallet?.balance as number | undefined) ?? 0;
+
+  // Irodai tag? → munkamód-kapcsoló a fejlécben (az office-mode.sql nélkül nem jelenik meg).
+  const { data: membership } = user
+    ? await supabase.from("office_members").select("role, allowance, unlimited, work_mode").eq("user_id", user.id).maybeSingle()
+    : { data: null };
+  const officeLabel = membership
+    ? (membership.role === "owner" || membership.unlimited ? "korlátlan" : `${membership.allowance ?? 0} kredit`)
+    : "";
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -81,6 +90,9 @@ export default async function DashboardLayout({
 
         {/* Jobb: arculat + fiók-menü + kilépés (csak desktop) */}
         <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
+          {membership?.work_mode && (
+            <WorkModeSwitch initialMode={membership.work_mode as "office" | "private"} officeLabel={officeLabel} privateBalance={balance} />
+          )}
           {/* Az arculat fiók-szintű: minden hirdetés és videó ebből dolgozik. */}
           <a
             href="/dashboard/branding"
@@ -110,8 +122,11 @@ export default async function DashboardLayout({
           <LogoutButton />
         </div>
 
-        {/* Mobil: hamburger */}
-        <div className="ml-auto md:hidden">
+        {/* Mobil: munkamód-kapcsoló + hamburger */}
+        <div className="ml-auto flex items-center gap-2 md:hidden">
+          {membership?.work_mode && (
+            <WorkModeSwitch compact initialMode={membership.work_mode as "office" | "private"} officeLabel={officeLabel} privateBalance={balance} />
+          )}
           <MobileNav
             email={user?.email ?? ""}
             role={view.role}

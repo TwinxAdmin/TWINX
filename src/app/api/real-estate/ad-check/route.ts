@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildAdCheckPromptActive } from "@/lib/prompts";
 import { ADCHECK_CREDITS, isValidTone, parseAdCheck } from "@/lib/adcheck";
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }
   const refund = async () => {
-    if (charge && !charge.bypassed) await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+    if (charge && !charge.bypassed) await refundCredit(user.id, credits);
   };
 
   try {

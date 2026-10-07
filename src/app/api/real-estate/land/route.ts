@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import {
   validateLandInput,
   isLandLevel,
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, url, report, charged: !charge.bypassed });
     } catch (err) {
       if (!charge.bypassed) {
-        await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+        await refundCredit(user.id, credits);
       }
       return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, jobId: job.id, async: true });
   } catch (err) {
     if (!charge.bypassed) {
-      await admin.rpc("wallet_add", { p_user_id: user.id, p_amount: credits });
+      await refundCredit(user.id, credits);
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

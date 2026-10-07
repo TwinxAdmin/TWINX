@@ -8,6 +8,7 @@ import { getSonarAsync } from "@/lib/perplexity";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { finalizeSupplierSearch } from "@/lib/supplier-finalize";
 import { SUPPLIER_DEEP_MODEL, type SupplierQuery } from "@/lib/suppliers";
+import { refundCredit } from "@/lib/credits";
 
 export const runtime = "nodejs";
 const FEATURE = "supplier_search";
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
 
   async function refund() {
     if ((job.credits_charged ?? 0) > 0) {
-      await admin.rpc("wallet_add", { p_user_id: job.user_id, p_amount: job.credits_charged });
+      await refundCredit(job.user_id, job.credits_charged);
     }
   }
 

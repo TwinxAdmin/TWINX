@@ -150,7 +150,7 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
     (/api/office/members, PATCH /api/office; OfficeMembers komponens)
   - [x] IR6b — Irodai egyenleg feltöltése: létrehozó megrendel (számlás folyamat, credit_requests.office_id) + admin közvetlen jóváírás (/admin/irodak) — `office-topup.sql`
   - [ ] IR6c — „Kredit kérése a vezetőtől" (tag) + kredithasználat-áttekintő (ki, melyik modul, mennyi)
-  - [ ] IR5 — Munkamód-váltó (Privát/Irodai) + kreditlevonás bekötése
+  - [x] IR5 — Munkamód-váltó (fejléc, /api/office/mode) + levonás a közös chargeCredit-ben (office_deduct) + refundCredit (oda vissza, ahonnan vontunk) — `office-mode.sql`
   - [ ] IR7 — Irodai mappák + megosztás + mappánkénti hozzáférés
   - [ ] IR8 — Szerkesztés módosítási naplóval + „épp szerkeszti" zár
 

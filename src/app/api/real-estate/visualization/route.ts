@@ -15,7 +15,7 @@ import {
   type RoomConfig,
 } from "@/lib/visualization";
 import { buildRoomPromptActive } from "@/lib/prompts";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit } from "@/lib/credits";
 import { generateImage } from "@/lib/nanobanana";
 import { getReferenceImage } from "@/lib/references";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
@@ -183,10 +183,7 @@ export async function POST(request: Request) {
   } catch (err) {
     // Nem sikerült MIND -> teljes visszatérítés.
     if (!charge.bypassed) {
-      await admin.rpc("wallet_add", {
-        p_user_id: user.id,
-        p_amount: 1,
-      });
+      await refundCredit(user.id, 1);
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
