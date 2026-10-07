@@ -111,3 +111,18 @@ export type MyOffice = {
 export function isValidJoinCode(code: string): boolean {
   return new RegExp(`^TWX-[${CODE_ALPHABET}]{6}$`).test(code);
 }
+
+/** Egy tag a létrehozó / kiosztó taglistájában. */
+export type OfficeMember = {
+  userId: string;
+  name: string;
+  email: string;
+  role: "owner" | "member";
+  allowance: number;
+  unlimited: boolean;
+  canAllocate: boolean;
+  joinedAt: string;
+};
+
+/** Egyszerre kiosztható / visszavehető keret felső határa (elütés elleni védelem). */
+export const ALLOCATE_MAX = 1000;

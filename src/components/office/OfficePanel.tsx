@@ -5,10 +5,41 @@
 
 import { useState } from "react";
 import type { MyOffice } from "@/lib/office";
+import OfficeMembers from "@/components/office/OfficeMembers";
 
-export default function OfficePanel({ office }: { office: MyOffice }) {
+export default function OfficePanel({ office: initial }: { office: MyOffice }) {
+  const [office, setOffice] = useState(initial);
   const isOwner = office.role === "owner";
   const [copied, setCopied] = useState(false);
+  const [regenBusy, setRegenBusy] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
+
+  async function regenerate() {
+    if (!window.confirm("Új csatlakozási kódot generálsz? A régi kód azonnal érvénytelen lesz (a már csatlakozott tagokat nem érinti).")) return;
+    setRegenBusy(true);
+    setRegenError(null);
+    try {
+      const res = await fetch("/api/office", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "regenerateCode" }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRegenError(data.error ?? "Nem sikerült."); return; }
+      setOffice(data.office);
+    } catch {
+      setRegenError("Hálózati hiba.");
+    } finally {
+      setRegenBusy(false);
+    }
+  }
+
+  async function refresh() {
+    try {
+      const d = await fetch("/api/office").then((r) => r.json());
+      if (d.office) setOffice(d.office);
+    } catch { /* nem kritikus */ }
+  }
 
   async function copyCode() {
     if (!office.joinCode) return;
@@ -45,7 +76,12 @@ export default function OfficePanel({ office }: { office: MyOffice }) {
               <button type="button" className="twx-btn-outline" onClick={copyCode}>
                 {copied ? "Kimásolva ✓" : "Kód másolása"}
               </button>
+              <button type="button" className="text-xs underline" style={{ color: "var(--twx-ink-muted)" }}
+                onClick={regenerate} disabled={regenBusy}>
+                {regenBusy ? "Generálás…" : "Új kód generálása"}
+              </button>
             </div>
+            {regenError && <p className="mt-2 text-xs text-red-600">{regenError}</p>}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -53,8 +89,10 @@ export default function OfficePanel({ office }: { office: MyOffice }) {
             <Stat label="Tagok" value={`${office.memberCount ?? 1} fő`} />
           </div>
           <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            A kreditvásárlás az irodai egyenlegre, a kollégák keretei és jogosultságai hamarosan itt lesznek kezelhetők.
+            Az irodai egyenleg feltöltése (kreditvásárlás az irodának) hamarosan itt lesz elérhető.
           </p>
+
+          <OfficeMembers balance={office.balance} onChanged={refresh} />
         </>
       ) : (
         <>
@@ -65,6 +103,7 @@ export default function OfficePanel({ office }: { office: MyOffice }) {
           <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             A saját kreditjeid ettől függetlenül megmaradnak.
           </p>
+          {office.canAllocate && <OfficeMembers onChanged={refresh} />}
         </>
       )}
     </section>

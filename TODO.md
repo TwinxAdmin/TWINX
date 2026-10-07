@@ -146,8 +146,10 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
   - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
   - [ ] IR4b — E-mail-meghívó
+  - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
+    (/api/office/members, PATCH /api/office; OfficeMembers komponens)
+  - [ ] IR6b — Irodai egyenleg feltöltése (vásárlás az irodának / admin jóváírás) + kérés a vezetőtől + kredithasználat-áttekintő
   - [ ] IR5 — Munkamód-váltó (Privát/Irodai) + kreditlevonás bekötése
-  - [ ] IR6 — Kiosztás, jogosultságok, kérés a vezetőtől, vezetői áttekintő
   - [ ] IR7 — Irodai mappák + megosztás + mappánkénti hozzáférés
   - [ ] IR8 — Szerkesztés módosítási naplóval + „épp szerkeszti" zár
 

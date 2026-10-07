@@ -85,3 +85,29 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
 }
+
+// PATCH /api/office — { action: "regenerateCode" }: új csatlakozási kód (CSAK a létrehozó).
+// A régi kód azonnal érvénytelen lesz; a már csatlakozott tagokat nem érinti.
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
+
+  let body: { action?: string };
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
+  if (body.action !== "regenerateCode") return NextResponse.json({ error: "Ismeretlen művelet." }, { status: 400 });
+
+  const admin = createAdminClient();
+  const { data: me } = await admin
+    .from("office_members").select("office_id, role").eq("user_id", user.id).maybeSingle();
+  if (!me || me.role !== "owner") {
+    return NextResponse.json({ error: "Kódot csak az irodai fiók létrehozója generálhat." }, { status: 403 });
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { error } = await admin.from("offices").update({ join_code: generateJoinCode() }).eq("id", me.office_id);
+    if (!error) return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
+    if (!/join_code|duplicate key/i.test(error.message)) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ error: "Nem sikerült új kódot generálni, próbáld újra." }, { status: 500 });
+}
