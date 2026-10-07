@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 /** `countKey`: melyik számláló tartozik a menüponthoz (lásd /api/admin/inbox-counts). */
-type CountKey = "inboxPage" | "pendingCredits" | "newIdeas";
+type CountKey = "inboxPage" | "pendingCredits" | "newIdeas" | "pendingOffices";
 type Item = { href: string; label: string; hint?: string; countKey?: CountKey };
 type Section = { id: string; label: string; href?: string; items?: Item[] };
 
@@ -24,7 +24,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/megkeresesek", label: "Kérések és üzenetek", hint: "tájékoztatás-kérés, B2B, ajándékkód-jelentkezők", countKey: "inboxPage" },
       { href: "/admin/credit-requests", label: "Kredit-kérések", hint: "csomagigénylés és számlázás", countKey: "pendingCredits" },
       { href: "/admin/ideas", label: "Ötletláda", hint: "felhasználói javaslatok", countKey: "newIdeas" },
-      { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása" },
+      { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása", countKey: "pendingOffices" },
     ],
   },
   { id: "users", label: "Felhasználók", href: "/admin/users" },

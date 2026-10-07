@@ -19,7 +19,7 @@ export async function GET() {
   const admin = createAdminClient();
   const openLeadsQuery = admin.from("leads").select("id", { count: "exact", head: true }).is("handled_at", null);
 
-  const [invites, pendingSend, leads, credits, ideas] = await Promise.all([
+  const [invites, pendingSend, leads, credits, ideas, offices] = await Promise.all([
     admin.from("ingatlan_invites").select("id", { count: "exact", head: true }).eq("status", "uj"),
     // Elfogadva, kód megvan, DE a levél még nem ment ki — ez is elintézetlen tétel.
     // (Ha az invite-code-sent.sql még nem futott le, ez a lekérdezés 0-t ad, nem hibázik.)
@@ -32,6 +32,10 @@ export async function GET() {
     isAdmin
       ? admin.from("ideas").select("id", { count: "exact", head: true }).eq("status", "new")
       : Promise.resolve({ count: 0 }),
+    // Irodai fiók igénylések elbírálásra várva (ha az office.sql még nem futott le, 0).
+    isAdmin
+      ? admin.from("office_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+      : Promise.resolve({ count: 0 }),
   ]);
 
   const newInvites = invites.count ?? 0;
@@ -39,14 +43,15 @@ export async function GET() {
   const openLeads = leads.count ?? 0;
   const pendingCredits = credits.count ?? 0;
   const newIdeas = ideas.count ?? 0;
+  const pendingOffices = offices.count ?? 0;
 
   // A jelentkezőknél két teendő lehet: elbírálás és a kód kiküldése.
   const inviteTodo = newInvites + unsentCodes;
 
   return NextResponse.json({
-    newInvites, unsentCodes, openLeads, pendingCredits, newIdeas,
+    newInvites, unsentCodes, openLeads, pendingCredits, newIdeas, pendingOffices,
     // A „Kérések és üzenetek" oldalon két dolog van egy helyen.
     inboxPage: openLeads + inviteTodo,
-    total: inviteTodo + openLeads + pendingCredits + newIdeas,
+    total: inviteTodo + openLeads + pendingCredits + newIdeas + pendingOffices,
   });
 }
