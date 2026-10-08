@@ -111,7 +111,7 @@ zene **stílus-alapú** (random szám a `music/{stílus}/`-ból), formátumot a 
 Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell: közös irodai egyenleg + tagonkénti keret.
 - Menüpont fent az „Arculatom" mellett: „Irodai fiók".
 - 1) Igénylés: a leendő vezető előbb a TWINX-től kér engedélyt (rövid magyarázó: mi az irodai fiók) → admin jóváhagyja.
-- 2) Vezető megnyitja az irodát (név, céges számlázási adatok) → meghívás e-mailben ÉS/VAGY csatlakozási kóddal.
+- 2) Vezető megnyitja az irodát (név, céges számlázási adatok) → csatlakozás kóddal (e-mail-meghívó elengedve).
 - 3) Csatlakozás: külön fül „Csatlakozás kóddal" → kód beírása után azonnal látja az iroda moduljait (egyedi modulokat is).
 - 4) Vásárlás csak a vezetőnél; a kredit az iroda egyenlegére megy.
 - 5) Alkalmazott NEM látja az iroda egyenlegét, csak a saját felhasználható keretét; ha elfogy → „Kredit kérése a vezetőtől".
@@ -141,13 +141,13 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   • (az office_requests.leader_view / offices.leader_view oszlop maradhat, nem használjuk)
 - Egyedi modul: az irodához tartozik, futtatása az iroda egyenlegéből (a tag keretéből) von le.
 - ▶ INNEN FOLYTATJUK (2026-10-07): IR1–IR6b + IR5 élesben (office.sql, office-topup.sql, office-mode.sql lefuttatva).
-  Következő: IR4b (e-mail-meghívó). (IR6c + IR7 + IR8 kész: 2026-10-08)
+  ✔ Az irodai fiók KÉSZ (IR1–IR8; IR4b e-mail-meghívó elengedve). 2026-10-08
 - Fejlesztés mikrolépésekben:
   - [x] IR1 — SQL alap: `office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
   - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
   - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
   - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
-  - [ ] IR4b — E-mail-meghívó
+  - [—] IR4b — E-mail-meghívó: ELENGEDVE (döntés 2026-10-08) — a kóddal csatlakozás a legegyszerűbb, elég.
   - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
     (/api/office/members, PATCH /api/office; OfficeMembers komponens)
   - [x] IR6b — Irodai egyenleg feltöltése: létrehozó megrendel (számlás folyamat, credit_requests.office_id) + admin közvetlen jóváírás (/admin/irodak) — `office-topup.sql`
