@@ -319,6 +319,37 @@ export async function sendOfficeRequestNotification(req: {
   }
 }
 
+/** Irodai tag keretet kér — értesítés az irodai fiók létrehozójának. */
+export async function sendOfficeCreditRequestNotification(req: {
+  to: string;
+  officeName: string;
+  requester: string;
+  amount: number;
+  note?: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("Hiányzó RESEND_API_KEY.");
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "").replace(/\/$/, "");
+
+  const html = `
+    <h2>Kredit-kérés érkezett — ${escapeHtml(req.officeName)}</h2>
+    <p><strong>${escapeHtml(req.requester)}</strong> ${req.amount} kredit keretet kér az irodai egyenlegből.</p>
+    ${req.note ? `<p><strong>Megjegyzés:</strong><br>${escapeHtml(req.note).replace(/\n/g, "<br>")}</p>` : ""}
+    <p>Jóváhagyás egy kattintással${site ? `: <a href="${site}/dashboard/iroda">${site}/dashboard/iroda</a>` : " az Irodai fiók oldalon."}</p>
+  `;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: req.to, subject: `Kredit-kérés: ${req.amount} kredit — ${req.requester}`, html }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

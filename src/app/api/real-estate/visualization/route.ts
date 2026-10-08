@@ -91,6 +91,7 @@ export async function POST(request: Request) {
   const charge = await chargeCredit({
     userId: user.id,
     amount: 1,
+    service: "visualization",
   });
   if (!charge.ok) {
     return NextResponse.json(

@@ -7,6 +7,9 @@ import { useState } from "react";
 import type { MyOffice } from "@/lib/office";
 import OfficeMembers from "@/components/office/OfficeMembers";
 import OfficeTopup from "@/components/office/OfficeTopup";
+import OfficeCreditAsk from "@/components/office/OfficeCreditAsk";
+import OfficeRequestsInbox from "@/components/office/OfficeRequestsInbox";
+import OfficeUsage from "@/components/office/OfficeUsage";
 
 export default function OfficePanel({ office: initial }: { office: MyOffice }) {
   const [office, setOffice] = useState(initial);
@@ -14,6 +17,8 @@ export default function OfficePanel({ office: initial }: { office: MyOffice }) {
   const [copied, setCopied] = useState(false);
   const [regenBusy, setRegenBusy] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+  const [membersKey, setMembersKey] = useState(0);
+  const onDecided = () => { setMembersKey((k) => k + 1); refresh(); };
 
   async function regenerate() {
     if (!window.confirm("Új csatlakozási kódot generálsz? A régi kód azonnal érvénytelen lesz (a már csatlakozott tagokat nem érinti).")) return;
@@ -91,7 +96,9 @@ export default function OfficePanel({ office: initial }: { office: MyOffice }) {
           </div>
           <OfficeTopup />
 
-          <OfficeMembers balance={office.balance} onChanged={refresh} />
+          <OfficeRequestsInbox onDecided={onDecided} />
+          <OfficeMembers balance={office.balance} onChanged={refresh} reloadKey={membersKey} />
+          <OfficeUsage />
         </>
       ) : (
         <>
@@ -102,7 +109,14 @@ export default function OfficePanel({ office: initial }: { office: MyOffice }) {
           <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             A saját kreditjeid ettől függetlenül megmaradnak.
           </p>
-          {office.canAllocate && <OfficeMembers onChanged={refresh} />}
+          {!office.unlimited && <OfficeCreditAsk />}
+          {office.canAllocate && (
+            <>
+              <OfficeRequestsInbox onDecided={onDecided} />
+              <OfficeMembers onChanged={refresh} reloadKey={membersKey} />
+              <OfficeUsage />
+            </>
+          )}
         </>
       )}
     </section>

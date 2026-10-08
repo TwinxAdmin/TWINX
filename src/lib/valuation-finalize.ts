@@ -45,7 +45,7 @@ export async function finalizeValuation(params: {
   let charged = false;
   if (!params.bypassed) {
     try {
-      const c = await chargeCredit({ userId: params.userId, amount: 1 });
+      const c = await chargeCredit({ userId: params.userId, amount: 1, service: "valuation" });
       charged = c.ok && !c.bypassed;
     } catch {
       charged = false; // a levonás technikai hibája ne buktassa el a kész riportot

@@ -5,9 +5,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ALLOCATE_MAX, type OfficeMember } from "@/lib/office";
 
-type Props = { balance?: number; onChanged?: () => void };
+type Props = { balance?: number; onChanged?: () => void; reloadKey?: number };
 
-export default function OfficeMembers({ balance, onChanged }: Props) {
+export default function OfficeMembers({ balance, onChanged, reloadKey = 0 }: Props) {
   const [members, setMembers] = useState<OfficeMember[] | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [meId, setMeId] = useState<string>("");
@@ -24,7 +24,7 @@ export default function OfficeMembers({ balance, onChanged }: Props) {
         setMembers(d.members); setCanManage(!!d.canManage); setMeId(d.meId ?? "");
       })
       .catch(() => setLoadError("Nem sikerült betölteni a taglistát."));
-  }, []);
+  }, [reloadKey]);
 
   async function act(userId: string, payload: Record<string, unknown>) {
     setBusy(userId);

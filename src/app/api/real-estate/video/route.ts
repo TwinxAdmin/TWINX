@@ -147,7 +147,7 @@ export async function POST(request: Request) {
 
   // 1) Kredit (admin/sales bypass). Hibánál a lánc bármely pontján visszatérítjük.
   const credits = creditsForPackage(pkg);
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "video" }) : null;
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }
@@ -504,7 +504,7 @@ async function postWithEngine(form: FormData, userId: string) {
 
   // 2) Kredit (admin/sales bypass). A saját motornak nincs PRO csomagja.
   const credits = creditsForPackage("alap");
-  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits, service: "video" }) : null;
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }

@@ -143,7 +143,7 @@ export async function POST(request: Request) {
   const pro = Boolean(body.pro);
   const credits = creditsForCountPro(count, pro);
 
-  const charge = await chargeCredit({ userId: user.id, amount: credits });
+  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "suppliers" });
   if (!charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }

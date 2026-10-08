@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   const credits = MENU_CREDITS * timeframeDays(String(timeframe));
 
   // 1) Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = await chargeCredit({ userId: user.id, amount: credits });
+  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "hospitality-menu" });
   if (!charge.ok) {
     return NextResponse.json(
       { error: `Nincs elég egyenleg (${credits} szükséges).` },

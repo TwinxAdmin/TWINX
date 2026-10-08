@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
   // 1) Kredit (admin/sales bypass). Hibánál visszatérítjük.
   const credits = ADCHECK_CREDITS;
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "ad-check" }) : null;
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }

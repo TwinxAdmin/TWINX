@@ -153,7 +153,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const credits = creditsForCount(count);
 
-  const charge = await chargeCredit({ userId: user.id, amount: credits });
+  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "professionals" });
   if (!charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }

@@ -130,3 +130,35 @@ export type OfficeMember = {
 
 /** Egyszerre kiosztható / visszavehető keret felső határa (elütés elleni védelem). */
 export const ALLOCATE_MAX = 1000;
+
+/** Egy „Kredit kérése a vezetőtől" tétel. */
+export type OfficeCreditRequest = {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  amount: number;
+  note: string | null;
+  status: "pending" | "approved" | "rejected";
+  granted: number | null;
+  createdAt: string;
+  decidedAt: string | null;
+};
+
+/** Modulnevek a kredithasználat-kimutatáshoz (chargeCredit `service` paramétere). */
+export const SERVICE_LABELS: Record<string, string> = {
+  valuation: "Értékbecslés",
+  visualization: "Látványtervező",
+  video: "Videó",
+  flyer: "Hirdetéskép",
+  "image-enhance": "Képjavító",
+  "ad-check": "Hirdetés-ellenőrző",
+  "fb-ads": "Facebook-hirdetés",
+  "google-ads": "Google Ads",
+  land: "Telekelemzés",
+  professionals: "Szakember-kereső",
+  "hospitality-menu": "Menü generátor",
+  costing: "Önköltség & profit",
+  simulation: "Profit-terv",
+  suppliers: "Beszállító-kereső",
+};

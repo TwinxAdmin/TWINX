@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   const credits = FBADS_CREDITS;
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "google-ads" }) : null;
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
   }

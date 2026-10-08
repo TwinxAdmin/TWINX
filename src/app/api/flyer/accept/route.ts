@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   // 1) Kredit (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = FLYER_CREDITS > 0 ? await chargeCredit({ userId: user.id, amount: FLYER_CREDITS }) : null;
+  const charge = FLYER_CREDITS > 0 ? await chargeCredit({ userId: user.id, amount: FLYER_CREDITS, service: "flyer" }) : null;
   if (charge && !charge.ok) {
     return NextResponse.json({ error: `Nincs elég egyenleg (${FLYER_CREDITS} szükséges).` }, { status: 402 });
   }

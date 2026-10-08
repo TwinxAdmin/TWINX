@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
 
   // 1 kredit az egész feldolgozásra (all-or-nothing), a közös egyenlegből.
-  const charge = await chargeCredit({ userId: user.id, amount: 1 });
+  const charge = await chargeCredit({ userId: user.id, amount: 1, service: "image-enhance" });
   if (!charge.ok) {
     return NextResponse.json({ error: "Nincs elég kredit ehhez a modulhoz." }, { status: 402 });
   }

@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   const credits = cfg.credits;
 
   // Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = await chargeCredit({ userId: user.id, amount: credits });
+  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "land" });
   if (!charge.ok) {
     return NextResponse.json(
       { error: `Nincs elég egyenleg (${credits} szükséges).` },
