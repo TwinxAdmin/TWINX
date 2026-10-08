@@ -3,6 +3,9 @@
 // szakember a Kedvencek közé), kategória-mappák (szakmánként) az előzményhez, PDF.
 "use client";
 
+import { toDownloadUrl } from "@/lib/files";
+import SavedRow from "@/components/ui/SavedRow";
+import { MI } from "@/components/ui/ActionMenu";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
@@ -486,17 +489,15 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
                   )
                 ) : (
                   folderItems.map((s) => (
-                    <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                      <div className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dt(s.created_at)}</div>
-                      <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                        {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <button onClick={() => setViewSearch(s)} className="text-sm font-medium underline" style={{ color: "var(--twx-coral)" }}>Megnyitás</button>
-                        {s.pdf_url && <a href={s.pdf_url} target="_blank" rel="noopener noreferrer" download className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>PDF</a>}
-                        <button onClick={() => deleteSearch(s.id)} className="ml-auto text-sm font-medium underline" style={{ color: "#b4442b" }}>Törlés</button>
-                      </div>
-                    </div>
+                    <SavedRow key={s.id} onOpen={() => setViewSearch(s)}
+                      title={<>{s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat</>}
+                      sub={dt(s.created_at)}
+                      items={[
+                        { label: "Megnyitás", icon: MI.open, onClick: () => setViewSearch(s) },
+                        ...(s.pdf_url ? [{ kind: "link" as const, label: "PDF letöltése", icon: MI.download, href: toDownloadUrl(s.pdf_url), download: true }] : []),
+                        { kind: "divider" as const },
+                        { label: "Törlés", icon: MI.trash, danger: true, onClick: () => deleteSearch(s.id) },
+                      ]} />
                   ))
                 )}
               </div>
@@ -615,7 +616,7 @@ function ResultBody({ result, pdfUrl, isFav, onToggleFav }: {
 
       <div className="flex flex-wrap items-center gap-3">
         {pdfUrl && (
-          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download className="rounded-xl px-5 py-2.5 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>PDF letöltése</a>
+          <a href={toDownloadUrl(pdfUrl)} download className="rounded-xl px-5 py-2.5 text-sm font-semibold" style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>PDF letöltése</a>
         )}
         <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Az elérhetőségek nyilvános forrásokból származnak — megkeresés előtt érdemes ellenőrizni.</span>
       </div>

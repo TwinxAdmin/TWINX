@@ -265,15 +265,6 @@ export default function LandPage() {
                 >
                   Letöltés
                 </a>
-                <a
-                  href={resultUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full px-4 py-2 text-sm font-medium"
-                  style={{ border: "1px solid rgba(255,255,255,0.35)", color: "var(--twx-on-dark)" }}
-                >
-                  Új lapon
-                </a>
                 <button
                   type="button"
                   onClick={() => setViewerOpen(false)}

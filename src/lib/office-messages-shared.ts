@@ -25,7 +25,7 @@ export type OfficeMessage = {
   moduleHref: string | null;
   moduleLabel: string | null;
   folder: { id: string; name: string } | null;
-  work: { id: string; title: string; moduleLabel: string } | null;
+  work: { id: string; title: string; moduleLabel: string; url: string | null } | null;
   parentId: string | null;
   task: { status: TaskStatus; assignee: { id: string; name: string } | null } | null;
   read: boolean;

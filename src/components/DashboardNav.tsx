@@ -200,16 +200,6 @@ export default function DashboardNav() {
         />
       ))}
 
-      {/* Korábbi munkák — egyszerű link, nem legördülő: egy oldal gyűjti
-          az összes modul kimenetét. */}
-      <a
-        href="/dashboard/munkaim"
-        className="whitespace-nowrap rounded-full px-3 py-2 transition-colors hover:bg-white/5"
-        style={{ color: "var(--twx-on-dark)" }}
-      >
-        Korábbi munkák
-      </a>
-
       <NavDropdown
         id="egyedi"
         label="Egyedi modulok"
@@ -219,6 +209,16 @@ export default function DashboardNav() {
         onToggle={() => setOpen(open === "egyedi" ? null : "egyedi")}
         onClose={() => setOpen(null)}
       />
+
+      {/* Korábbi munkák — egyszerű link, nem legördülő: egy oldal gyűjti
+          az összes modul kimenetét. */}
+      <a
+        href="/dashboard/munkaim"
+        className="whitespace-nowrap rounded-full px-3 py-2 transition-colors hover:bg-white/5"
+        style={{ color: "var(--twx-on-dark)" }}
+      >
+        Korábbi munkák
+      </a>
     </nav>
   );
 }

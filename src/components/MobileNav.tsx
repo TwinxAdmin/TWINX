@@ -36,17 +36,17 @@ export default function MobileNav({
     // Az Arculat a lenti „Arculatom" sorban van, a korábbi munkák pedig
     // egy közös gyűjtőoldalon.
     {
-      title: "Korábbi munkák",
-      items: [
-        { label: "Minden elkészült anyagom", href: "/dashboard/munkaim", icon: "history" },
-      ],
-    },
-    {
       title: "Egyedi modulok",
       items: [
         { label: "Saját moduljaim", href: "/dashboard/custom", icon: "custom" },
         { label: "Egyedi modul igénylése", icon: "request", onClick: () => window.dispatchEvent(new CustomEvent("open-b2b")) },
         { label: "Mi az egyedi modul?", href: "/dashboard/egyedi-modul", icon: "info" },
+      ],
+    },
+    {
+      title: "Korábbi munkák",
+      items: [
+        { label: "Minden elkészült anyagom", href: "/dashboard/munkaim", icon: "history" },
       ],
     },
   ];

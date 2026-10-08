@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: job } = await admin
     .from("video_jobs")
-    .select("id, user_id, service_id, status, package, credits_charged, meta")
+    .select("id, user_id, service_id, status, package, credits_charged, meta, title")
     .eq("id", jobId)
     .single();
   if (!job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       user_id: job.user_id,
       service_id: job.service_id,
       feature_used: FEATURE,
-      input_data: { title: meta.title ?? "Ingatlan videó", package: job.package },
+      input_data: { title: meta.title ?? "Ingatlan videó", address: job.title ?? null, package: job.package },
       output_file_url: publicUrl,
       credits_charged: job.credits_charged,
     });

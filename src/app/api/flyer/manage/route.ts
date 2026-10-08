@@ -1,5 +1,5 @@
 // PATCH /api/flyer/manage — hirdetés áthelyezése mappába (vagy átnevezése).
-// DELETE ?id=... — hirdetés VÉGLEGES törlése (a tárhelyről is).
+// DELETE ?id=... — hirdetés „törlése" = elrejtés (hidden_at); a fájl megmarad, visszahozható.
 //
 // BIZTONSÁG: a usage_history-n NINCS user-oldali UPDATE/DELETE policy (különben a
 // partner az anon kulccsal átírhatná a saját sorában a kredit-mezőt vagy törölhetne
@@ -11,16 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const BUCKET = "reports";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** A publikus Storage URL-ből visszafejti a bucketen belüli útvonalat. */
-function storagePathFromUrl(url: string): string | null {
-  const marker = `/object/public/${BUCKET}/`;
-  const i = url.indexOf(marker);
-  if (i < 0) return null;
-  return decodeURIComponent(url.slice(i + marker.length).split("?")[0]);
-}
 
 /** A sor betöltése + tulajdonjog és típus ellenőrzése. */
 async function loadOwnFlyer(id: string, userId: string) {
@@ -91,19 +82,11 @@ export async function DELETE(request: Request) {
   const { row, error: ownErr } = await loadOwnFlyer(id, user.id);
   if (!row) return NextResponse.json({ error: ownErr }, { status: 404 });
 
-  const admin = createAdminClient();
-
-  // A fájl törlése — CSAK a saját mappájából (`flyer/<user>/…`), hogy egy
-  // manipulált URL ne törölhessen idegen fájlt a bucketből.
-  if (row.output_file_url) {
-    const path = storagePathFromUrl(row.output_file_url);
-    if (path && path.startsWith(`flyer/${user.id}/`)) {
-      await admin.storage.from(BUCKET).remove([path]);
-    }
-  }
-
-  const { error } = await admin
-    .from("usage_history").delete().eq("id", id).eq("user_id", user.id).eq("feature_used", "flyer");
+  // „Törlés" = ELREJTÉS (CLAUDE.md: a tárhelyről nem törlünk). A fájl és az előzmény megmarad;
+  // a Korábbi munkák „Elrejtett munkák" nézetéből visszahozható.
+  const { error } = await createAdminClient()
+    .from("usage_history").update({ hidden_at: new Date().toISOString() })
+    .eq("id", id).eq("user_id", user.id).eq("feature_used", "flyer");
   if (error) return NextResponse.json({ error: "A törlés nem sikerült." }, { status: 500 });
 
   return NextResponse.json({ ok: true });

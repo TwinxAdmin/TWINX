@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateJoinCode, validateOfficeName } from "@/lib/office";
 import { getMembership, listMyOffices, loadMyOffice, setWorkContext } from "@/lib/office-server";
-import { officeMemberPreview } from "@/lib/view-as";
+import { officeMemberPreview, officeNonePreview } from "@/lib/view-as";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,11 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [office, offices, preview] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id), officeMemberPreview()]);
+  const [office, offices, preview, none] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id), officeMemberPreview(), officeNonePreview()]);
+  // „Nincs iroda" előnézet (csak létrehozó/vezető kapcsolhatja be): úgy válaszolunk, mintha nem lenne tagság
+  if (none && office && (office.role === "owner" || office.canAllocate)) {
+    return NextResponse.json({ office: null, offices: [], memberPreview: false, nonePreview: true });
+  }
   // Kolléga-nézet előnézete: csak a létrehozónál / vezetőnél van hatása (megjelenítés, jogot nem ad / nem vesz el).
   const memberPreview = preview && !!office && (office.role === "owner" || office.canAllocate);
   return NextResponse.json({ office, offices, memberPreview });

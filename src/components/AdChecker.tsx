@@ -21,6 +21,7 @@ type SavedItem = {
   pdf_url: string | null;
   folder_id: string | null;
   created_at: string;
+  history_id?: string | null;   // a Korábbi munkák / közös mappákba áthelyezéshez
 };
 
 type LibItem = {
@@ -205,6 +206,7 @@ export default function AdChecker() {
       <section className="twx-card p-5 sm:p-6">
         <h3 className="mb-3 text-sm font-semibold">Korábbi ellenőrzéseim</h3>
         <FolderLibrary<LibItem>
+          historyIdOf={(it) => it.raw.history_id ?? null}
           items={items}
           folders={folders}
           noun="elemzés"

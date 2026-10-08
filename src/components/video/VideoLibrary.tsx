@@ -17,6 +17,8 @@ export type VideoItem = {
   imageCount: number;
   folderId: string | null;
   createdAt: string;
+  /** A hozzá tartozó usage_history sor — a Korábbi munkák / közös mappákba áthelyezéshez. */
+  historyId?: string | null;
   /** A FolderLibrary borítóképe. */
   coverUrl?: string | null;
 };
@@ -37,6 +39,7 @@ export default function VideoLibrary({
 
   return (
     <FolderLibrary<VideoItem>
+      historyIdOf={(v) => v.historyId ?? null}
       items={withCover}
       folders={folders}
       noun="videó"

@@ -61,13 +61,14 @@ async function decorate(rows: Row[], userId: string): Promise<OfficeMessage[]> {
     namesFor(people),
     admin.from("office_message_reads").select("message_id").eq("user_id", userId).in("message_id", ids),
     folderIds.length ? admin.from("office_folders").select("id, name").in("id", folderIds) : Promise.resolve({ data: [] }),
-    workIds.length ? admin.from("usage_history").select("id, feature_used, input_data").in("id", workIds) : Promise.resolve({ data: [] }),
+    workIds.length ? admin.from("usage_history").select("id, feature_used, input_data, output_file_url, created_at").in("id", workIds) : Promise.resolve({ data: [] }),
   ]);
   const readSet = new Set((reads ?? []).map((r) => r.message_id as string));
   const folderName = new Map((folders ?? []).map((f) => [f.id as string, f.name as string]));
   const workMap = new Map((works ?? []).map((w) => [w.id as string, {
-    title: activityTitle(w.feature_used as string, w.input_data as Record<string, unknown> | null),
+    title: activityTitle(w.feature_used as string, w.input_data as Record<string, unknown> | null, w.created_at as string),
     moduleLabel: featureLabel(w.feature_used as string),
+    url: (w.output_file_url as string | null) ?? null,
   }]));
   const modLabel = new Map(selectableModules().map((m) => [m.href, m.label]));
 
@@ -130,8 +131,15 @@ export async function sendMessage(officeId: string, senderId: string, v: SendInp
     }
   }
 
-  // munka: csak olyan, ami a címzett(ek) számára látható közös mappában van
+  // munka: a küldő SAJÁT munkája (közvetlen küldés kollégának), VAGY olyan, ami a címzett(ek)
+  // számára is látható közös mappában van (különben ne lehessen idegen munkát „kiszivárogtatni").
+  let ownWork = false;
   if (v.historyId) {
+    const { data: w } = await admin.from("usage_history").select("user_id").eq("id", v.historyId).maybeSingle();
+    if (!w) return { error: "A csatolt munka nem található.", status: 422 };
+    ownWork = w.user_id === senderId;
+  }
+  if (v.historyId && !ownWork) {
     const { data: links } = await admin.from("office_folder_items").select("folder_id").eq("history_id", v.historyId);
     const folderIds = (links ?? []).map((l) => l.folder_id as string);
     let ok = false;

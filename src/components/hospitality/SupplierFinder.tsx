@@ -4,6 +4,8 @@
 // Árat szándékosan nem kérünk: az a partner és a beszállító megállapodása.
 "use client";
 
+import SavedRow from "@/components/ui/SavedRow";
+import { MI } from "@/components/ui/ActionMenu";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { showToast } from "@/components/Toast";
@@ -654,26 +656,13 @@ export default function SupplierFinder({ ingredientNames }: { ingredientNames: s
                       <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Ez a mappa üres.</p>
                     )}
                     {folderItems.map((s) => (
-                      <div key={s.id} className="rounded-xl border p-3" style={{ borderColor: "var(--twx-line)", background: "#fff" }}>
-                        <div className="min-w-0">
-                          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dateTimeLabel(s.created_at)}</span>
-                          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                            {s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat
-                          </p>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-3">
-                          <button onClick={() => openSaved(s)} className="text-sm font-medium underline"
-                            style={{ color: "var(--twx-coral)" }}>
-                            Megnyitás
-                          </button>
-                          {s.pdf_url && (
-                            <a href={pdfDownloadUrl(s.pdf_url)} download="twinx-beszallitok.pdf"
-                              className="text-sm font-medium underline" style={{ color: "var(--twx-ink-muted)" }}>
-                              PDF
-                            </a>
-                          )}
-                        </div>
-                      </div>
+                      <SavedRow key={s.id} onOpen={() => openSaved(s)}
+                        title={<>{s.query?.county}{s.query?.city ? `, ${s.query.city}` : ""} · {s.results?.length ?? 0} találat</>}
+                        sub={dateTimeLabel(s.created_at)}
+                        items={[
+                          { label: "Megnyitás", icon: MI.open, onClick: () => openSaved(s) },
+                          ...(s.pdf_url ? [{ kind: "link" as const, label: "PDF letöltése", icon: MI.download, href: pdfDownloadUrl(s.pdf_url), download: true }] : []),
+                        ]} />
                     ))}
                   </>
                 )}

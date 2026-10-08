@@ -4,6 +4,7 @@
 // tetszőleges időszakra a TÁROLT eladásokból kér le kredites, PDF-es kimutatást.
 "use client";
 
+import { toDownloadUrl } from "@/lib/files";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ModuleIntro from "@/components/ModuleIntro";
@@ -1026,7 +1027,7 @@ function ReportTab({ priced, sales, menuSales, overhead, oneTime }: { priced: Di
           <div className="flex flex-wrap items-center gap-3">
             {pdfUrl && (
               <a
-                href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+                href={toDownloadUrl(pdfUrl)} download
                 className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
                 style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}
               >
@@ -1398,7 +1399,7 @@ function PlanTab({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {pdfUrl && (
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" download
+              <a href={toDownloadUrl(pdfUrl)} download
                 className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
                 style={{ border: "1px solid var(--twx-coral)", color: "var(--twx-coral)" }}>
                 PDF letöltése

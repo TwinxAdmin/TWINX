@@ -195,7 +195,11 @@ export type OfficeFolderItem = {
   addedAt: string;
   createdAt: string;
   canRemove: boolean;
+  mine?: boolean;                // a néző saját munkája (tovább küldhető / más mappába tehető)
 };
+
+/** Egy munka egyedi neve (átnevezés a közös mappában) — max. hossz. */
+export const WORK_TITLE_MAX = 120;
 
 /** Mappa-név validáció (kliens + szerver). */
 export function validateFolderName(raw: unknown): { name?: string; error?: string } {

@@ -1,12 +1,11 @@
 // PATCH /api/real-estate/video/manage — videó áthelyezése mappába vagy átnevezése.
-// DELETE ?id=... — videó VÉGLEGES törlése (a tárhelyről is).
+// DELETE ?id=... — videó „törlése" = elrejtés (hidden_at); a fájl megmarad, visszahozható.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const BUCKET = "reports";
 
 export async function PATCH(request: Request) {
   const supabase = await createClient();
@@ -49,23 +48,17 @@ export async function DELETE(request: Request) {
     .single();
   if (!job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
 
-  // A fájlok törlése a tárhelyről (admin klienssel).
+  // „Törlés" = ELREJTÉS (CLAUDE.md: a tárhelyről nem törlünk). A videó, a képkockák és az
+  // előzmény megmaradnak; a Korábbi munkák „Elrejtett munkák" nézetéből visszahozható.
   const admin = createAdminClient();
-  const paths: string[] = [`video/${job.user_id}/${job.id}.mp4`];
-  // A generáláshoz készült képkockák és forrásfotók is mehetnek.
-  for (const prefix of [`video-frames/${job.user_id}/${job.id}`, `video-src/${job.user_id}/${job.id}`]) {
-    const { data: files } = await admin.storage.from(BUCKET).list(prefix, { limit: 100 });
-    for (const f of files ?? []) paths.push(`${prefix}/${f.name}`);
+  const now = new Date().toISOString();
+  const { error } = await admin.from("video_jobs").update({ hidden_at: now }).eq("id", id).eq("user_id", job.user_id);
+  if (error) {
+    return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a library-hidden.sql migrációt." : error.message }, { status: 500 });
   }
-  await admin.storage.from(BUCKET).remove(paths);
-
-  // Előzmény-bejegyzés is (ha van).
   if (job.output_url) {
-    await admin.from("usage_history").delete().eq("output_file_url", job.output_url);
+    await admin.from("usage_history").update({ hidden_at: now }).eq("output_file_url", job.output_url).eq("user_id", job.user_id);
   }
-
-  const { error } = await supabase.from("video_jobs").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

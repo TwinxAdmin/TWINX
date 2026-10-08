@@ -47,6 +47,7 @@ export async function GET() {
       // viszont KIZÁRÓLAG a saját munkák látszhatnak (különben a mozgatás/átnevezés
       // jogosan visszautasítaná őket).
       .eq("user_id", user.id)
+      .is("hidden_at", null)            // „törölt" (elrejtett) munkák nem látszanak
       .neq("feature_used", "flyer")
       .order("created_at", { ascending: false })
       .limit(80),
@@ -54,6 +55,7 @@ export async function GET() {
       .from("usage_history")
       .select("id, feature_used, input_data, output_file_url, created_at, folder_id")
       .eq("user_id", user.id)
+      .is("hidden_at", null)
       .eq("feature_used", "flyer")
       .order("created_at", { ascending: false })
       .limit(300),

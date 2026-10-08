@@ -14,6 +14,14 @@ const FEATURE_LABEL: Record<string, string> = {
   flyer: "Hirdetés",
   "ad-check": "Hirdetés-ellenőrzés",
   menu_generator: "Menü generátor",
+  image_enhance: "Képjavító",
+  image_enhance_regenerate: "Képjavító (újra)",
+  "fb-ads": "Hirdetésszöveg",
+  "google-ads": "Google Ads",
+  cost_analysis: "Önköltség elemzés",
+  profit_plan: "Profit-terv",
+  supplier_search: "Beszállító-kereső",
+  professional_search: "Szakember-kereső",
 };
 
 export function featureLabel(feature: string): string {
@@ -53,8 +61,26 @@ function s(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
-export function activityTitle(feature: string, input: Json): string {
+/** „14:32" — budapesti idő szerint (a szerver UTC-ben fut). */
+function hm(iso?: string | null): string {
+  if (!iso) return "";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "";
+  return new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Budapest" }).format(t);
+}
+
+export function activityTitle(feature: string, input: Json, createdAt?: string | null): string {
   const d = (input ?? {}) as Record<string, unknown>;
+
+  // Kézzel adott név (átnevezés a közös mappában) mindig elsőbbséget kap.
+  if (s(d.custom_title)) return s(d.custom_title);
+
+  // Képjavító: a partner nem ad címet — a mód + képszám + időpont különbözteti meg a munkákat.
+  if (feature === "image_enhance" || feature === "image_enhance_regenerate") {
+    const mode = s(d.mode_label) || (feature === "image_enhance_regenerate" ? "Újrajavítás" : "Képjavítás");
+    const n = Number(d.image_count) || 0;
+    return [mode, n ? `${n} kép` : "", hm(createdAt)].filter(Boolean).join(" · ");
+  }
 
   if (feature === "ad-check") {
     const score = typeof d.score === "number" ? ` · ${d.score}/100` : "";
@@ -91,6 +117,9 @@ export function activityTitle(feature: string, input: Json): string {
   }
 
   if (feature === "video") {
+    // A videó neve az ingatlan címe (a varázslóban megadott cím); ha nincs, a főcím, végül a formátum.
+    const name = s(d.address) || (s(d.title) && !/^(Eladó ingatlan|Ingatlan videó)$/i.test(s(d.title)) ? s(d.title) : "");
+    if (name) return name;
     const fmt = VIDEO_FORMATS.find((f) => f.value === s(d.format))?.value ?? s(d.format);
     const count = Number(d.image_count) || 0;
     const parts = [fmt, count ? `${count} kép` : ""].filter(Boolean).join(", ");

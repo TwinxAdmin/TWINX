@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { showToast } from "@/components/Toast";
 import { compressImage } from "@/lib/image-compress";
 import { WorkDot, isWorkKind, type WorkKind } from "@/components/WorkBadge";
+import { ActionMenu, MI, MenuDots, useActionMenu } from "@/components/ui/ActionMenu";
 
 export const TWX_DRAG_TYPE = "application/x-twinx-url";
 export function readTwxDragUrl(dt: DataTransfer): string {
@@ -48,6 +49,8 @@ export default function AssetTray({
   const [renaming, setRenaming] = useState<string | null>(null); // folder key
   const [renameValue, setRenameValue] = useState("");
   const [assignFor, setAssignFor] = useState<string | null>(null); // image url
+  const tileMenu = useActionMenu();                                   // a képek ⋯ menüje
+  const [menuUrl, setMenuUrl] = useState<string | null>(null);
   // A partner saját elnevezései (url -> név) és az épp szerkesztett kép.
   const [names, setNames] = useState<Record<string, string>>({});
   const [renameUrl, setRenameUrl] = useState<string | null>(null);
@@ -406,7 +409,8 @@ export default function AssetTray({
                     const isSel = selected.has(url);
                     return (
                       <div key={url} className="contents">
-                      <div className="relative overflow-hidden rounded-lg border-2" style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}>
+                      <div className="relative overflow-hidden rounded-lg border-2" style={{ borderColor: isSel ? "var(--twx-coral)" : "var(--twx-line)" }}
+                        onContextMenu={(e) => { setMenuUrl(url); tileMenu.openAtEvent(e); }}>
                         <button
                           type="button"
                           draggable
@@ -424,30 +428,16 @@ export default function AssetTray({
                             {(badges[url] ?? []).map((k) => <WorkDot key={k} kind={k} size={20} />)}
                           </span>
                         )}
-                        {/* Áthelyezés gomb */}
-                        <button type="button" title="Áthelyezés mappába" aria-label="Áthelyezés mappába"
-                          onClick={() => { setAssignFor(assignFor === url ? null : url); setRenameUrl(null); }}
-                          className="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.92)", border: "1px solid var(--twx-line)" }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" style={{ color: "var(--twx-coral)" }}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /></svg>
-                        </button>
-                        {/* Átnevezés gomb */}
-                        <button type="button" title="Átnevezés" aria-label="Átnevezés"
-                          onClick={() => { setRenameName(names[url] ?? ""); setRenameUrl(renameUrl === url ? null : url); setAssignFor(null); }}
-                          className="absolute left-8 top-1 flex h-6 w-6 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.92)", border: "1px solid var(--twx-line)" }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--twx-ink)" }}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                        </button>
+                        {/* Egyetlen ⋯ a kép sarkában (jobb klikkre is): áthelyezés, átnevezés, kivétel */}
+                        <span className="absolute right-1 top-1 rounded-full" style={{ background: "rgba(255,255,255,0.92)" }}>
+                          <MenuDots label="Kép műveletei" onClick={(e) => { setMenuUrl(url); tileMenu.openAtButton(e); }} />
+                        </span>
                         {/* A partner saját elnevezése a kép alatt */}
                         {names[url] && (
                           <span className="block truncate px-1.5 py-1 text-[10px] font-semibold" title={names[url]}
                             style={{ background: "#fff", color: "var(--twx-ink)" }}>
                             {names[url]}
                           </span>
-                        )}
-                        {/* Kivétel a mappából (csak elnevezett mappa nézetében) */}
-                        {openFolder?.kind === "named" && openFolder.id && (
-                          <button type="button" title="Kivétel a mappából" aria-label="Kivétel a mappából"
-                            onClick={() => openFolder.id && void removeFromFolder(openFolder.id, url)}
-                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full text-sm" style={{ background: "rgba(20,12,8,0.6)", color: "#fff" }}>×</button>
                         )}
                         {isSel && (
                           <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>✓</span>
@@ -523,6 +513,16 @@ export default function AssetTray({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {tileMenu.open && menuUrl && (
+        <ActionMenu at={tileMenu.at} onClose={tileMenu.close} items={[
+          { label: "Áthelyezés mappába", icon: MI.move, onClick: () => { setAssignFor(menuUrl); setRenameUrl(null); } },
+          { label: "Átnevezés", icon: MI.rename, onClick: () => { setRenameName(names[menuUrl] ?? ""); setRenameUrl(menuUrl); setAssignFor(null); } },
+          ...(openFolder?.kind === "named" && openFolder.id
+            ? [{ kind: "divider" as const }, { label: "Kivétel a mappából", icon: MI.out, onClick: () => { if (openFolder.id) void removeFromFolder(openFolder.id, menuUrl); } }]
+            : []),
+        ]} />
+      )}
     </>
   );
 }

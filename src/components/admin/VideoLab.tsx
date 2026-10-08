@@ -7,6 +7,7 @@
 // mellé beilleszthető egy Shotstack-videó az összevetéshez.
 "use client";
 
+import { toDownloadUrl } from "@/lib/files";
 import { useEffect, useState } from "react";
 import VideoWizard from "@/components/video/VideoWizard";
 import type { BrandingProfile } from "@/lib/branding";
@@ -88,7 +89,7 @@ function RunCard({ run, n }: { run: Run; n: number }) {
         <div>
           <p className="mb-2 text-sm font-semibold" style={{ color: "#2e7d52" }}>● Saját TWINX motor</p>
           <video src={run.url} controls playsInline className="w-full rounded-xl" style={{ maxHeight: 640, background: "#000" }} />
-          <a href={run.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs underline">Megnyitás új lapon</a>
+          <a href={toDownloadUrl(run.url)} className="mt-2 inline-block text-xs underline">Letöltés</a>
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold" style={{ color: "var(--twx-ink-muted)" }}>● Shotstack (összevetéshez)</p>

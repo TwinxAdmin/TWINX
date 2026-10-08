@@ -1,11 +1,13 @@
 // Közös könyvtár-nézet: hónap szerinti automatikus mappák + saját mappák.
 // A mappára kattintva ABLAK (modal) nyílik a tartalommal. Elemenként áthelyezés
-// és végleges törlés. A videó- és a hirdetés-könyvtár is ezt használja; a
+// és törlés (= elrejtés, a fájl megmarad). A videó- és a hirdetés-könyvtár is ezt használja; a
 // tartalom megjelenítését a hívó adja meg (renderItem).
+// Az elemek műveletei (letöltés, áthelyezés, átnevezés, törlés) egyetlen „⋯" menüben vannak (jobb klikkre is).
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { showToast } from "@/components/Toast";
+import { ActionMenu, MI, MenuDots, useActionMenu, type MenuItem, type SubItem } from "@/components/ui/ActionMenu";
 
 export type LibraryItem = {
   id: string;
@@ -41,12 +43,17 @@ export type FolderLibraryProps<T extends LibraryItem> = {
   onMove: (itemId: string, folderId: string | null) => Promise<unknown>;
   /** Elem saját nevének mentése (ha nincs megadva, nincs átnevezés gomb). */
   onRenameItem?: (item: T, name: string) => Promise<unknown>;
-  /** Végleges törlés (ha nincs megadva, nincs törlés gomb). */
+  /** Törlés = elrejtés (a fájl megmarad; ha nincs megadva, nincs törlés pont). */
   onDelete?: (item: T) => Promise<unknown>;
   /** Saját mappa átnevezése (ha nincs megadva, nincs átnevezés gomb). */
   onRenameFolder?: (folderId: string, name: string) => Promise<unknown>;
   /** Saját mappa törlése (a benne lévő elemek visszakerülnek a dátum-mappába). */
   onDeleteFolder?: (folderId: string) => Promise<unknown>;
+  /**
+   * Az elemhez tartozó usage_history azonosító. Ha meg van adva, az „Áthelyezés" almenüben a modul
+   * mappái mellett a Korábbi munkák SAJÁT mappái és a KÖZÖS irodai mappák is megjelennek.
+   */
+  historyIdOf?: (item: T) => string | null;
   /** Letöltési URL (ha nincs, nincs letöltés gomb). */
   downloadUrl?: (item: T) => string | null;
   emptyText?: string;
@@ -67,19 +74,65 @@ const GRID_CLASS: Record<2 | 3 | 4, string> = {
 
 export default function FolderLibrary<T extends LibraryItem>({
   items, folders, renderItem, onCreateFolder, onMove, onDelete, downloadUrl,
-  onRenameFolder, onDeleteFolder, onRenameItem,
+  onRenameFolder, onDeleteFolder, onRenameItem, historyIdOf,
   emptyText = "Még nincs elkészült munkád.",
   noun = "elem",
   cols = 2,
 }: FolderLibraryProps<T>) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [moveFor, setMoveFor] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");     // a mappanézet mezője
   const [renameFor, setRenameFor] = useState<string | null>(null); // elem átnevezése
   const [itemName, setItemName] = useState("");
   const [renaming, setRenaming] = useState(false);    // a megnyitott mappa átnevezése
   const [renameVal, setRenameVal] = useState("");
+  // ⋯ menük: egy elem műveletei, illetve a megnyitott saját mappa műveletei
+  const itemMenu = useActionMenu();
+  const [menuItem, setMenuItem] = useState<T | null>(null);
+  const folderMenu = useActionMenu();
+
+  // ---- Korábbi munkák saját mappái + közös irodai mappák (a modultól független rendszerezés) ----
+  type F = { id: string; name: string };
+  const [wf, setWf] = useState<{ folders: F[]; links: { folderId: string; historyId: string }[] } | null>(null);
+  const [of, setOf] = useState<F[]>([]);
+  const [ofIn, setOfIn] = useState<Record<string, string[]>>({});   // historyId → közös mappa-azonosítók
+  const crossOn = !!historyIdOf;
+  useEffect(() => {
+    if (!crossOn) return;
+    const loadWf = () => fetch("/api/work-folders").then((r) => r.json())
+      .then((d) => setWf({ folders: d.folders ?? [], links: d.links ?? [] })).catch(() => setWf({ folders: [], links: [] }));
+    void loadWf();
+    fetch("/api/office/folders").then((r) => (r.ok ? r.json() : { folders: [] }))
+      .then((d) => setOf((d.folders ?? []).map((f: F) => ({ id: f.id, name: f.name })))).catch(() => {});
+    window.addEventListener("twx-works-changed", loadWf);
+    return () => window.removeEventListener("twx-works-changed", loadWf);
+  }, [crossOn]);
+
+  function openItemMenu(e: React.MouseEvent<HTMLElement>, it: T, how: "button" | "event") {
+    setMenuItem(it);
+    if (how === "button") itemMenu.openAtButton(e); else itemMenu.openAtEvent(e);
+    const hid = historyIdOf?.(it);
+    if (hid && of.length && !ofIn[hid]) {
+      fetch(`/api/office/folders/items?historyId=${hid}`).then((r) => r.json())
+        .then((d) => setOfIn((m) => ({ ...m, [hid]: d.folderIds ?? [] }))).catch(() => {});
+    }
+  }
+
+  async function toggleCross(kind: "work" | "office", f: F, hid: string, isIn: boolean) {
+    const res = await fetch(kind === "work" ? "/api/work-folders/items" : "/api/office/folders/items", {
+      method: isIn ? "DELETE" : "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderId: f.id, historyId: hid }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return; }
+    if (kind === "work") {
+      setWf((w) => w && ({ ...w, links: isIn ? w.links.filter((l) => !(l.folderId === f.id && l.historyId === hid)) : [...w.links, { folderId: f.id, historyId: hid }] }));
+    } else {
+      setOfIn((m) => ({ ...m, [hid]: isIn ? (m[hid] ?? []).filter((x) => x !== f.id) : [...(m[hid] ?? []), f.id] }));
+    }
+    showToast(isIn ? `Kivetted: „${f.name}”.` : `Betéve: „${f.name}”${kind === "office" ? " (közös mappa)" : ""}.`, "success");
+    window.dispatchEvent(new CustomEvent("twx-works-changed"));
+  }
 
   // Csoportosítás: saját mappák előre, majd a mappa nélküliek hónap szerint.
   const groups = useMemo(() => {
@@ -106,10 +159,10 @@ export default function FolderLibrary<T extends LibraryItem>({
   // Escape zárja az ablakot.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenKey(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !itemMenu.open && !folderMenu.open) setOpenKey(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, itemMenu.open, folderMenu.open]);
 
   async function guard(fn: () => Promise<void>, okMsg?: string) {
     setBusy(true);
@@ -119,6 +172,53 @@ export default function FolderLibrary<T extends LibraryItem>({
     } catch (e) {
       showToast((e as Error).message || "A művelet nem sikerült.", "error");
     } finally { setBusy(false); }
+  }
+
+  /** Egy elem ⋯ menüje: Letöltés · Áthelyezés (almenü) · Átnevezés · Törlés. */
+  function itemMenuItems(it: T): MenuItem[] {
+    const list: MenuItem[] = [];
+    const dl = downloadUrl?.(it) ?? null;
+    if (dl) list.push({ kind: "link", label: "Letöltés", icon: MI.download, href: dl, download: true });
+    const hid = historyIdOf?.(it) ?? null;
+    const moduleItems: SubItem[] = [
+      { id: "__date", label: "Dátum szerinti mappa", checked: !it.folderId, disabled: busy || !it.folderId,
+        onClick: () => guard(async () => { await onMove(it.id, null); }, "Áthelyezve.") },
+      ...folders.map((f) => ({
+        id: f.id, label: f.name, checked: it.folderId === f.id, disabled: busy || it.folderId === f.id,
+        onClick: () => guard(async () => { await onMove(it.id, f.id); }, "Áthelyezve."),
+      })),
+    ];
+    // a modul saját mappái (egy helyen lehet) + a Korábbi munkák saját mappái és a közös mappák (több helyen is lehet ✓)
+    const crossItems: SubItem[] = [];
+    if (hid && wf && wf.folders.length) {
+      crossItems.push({ id: "__h_work", header: "Saját mappáim", hint: "Korábbi munkák" });
+      for (const f of wf.folders) {
+        const isIn = wf.links.some((l) => l.folderId === f.id && l.historyId === hid);
+        crossItems.push({ id: `w:${f.id}`, label: f.name, checked: isIn, onClick: () => toggleCross("work", f, hid, isIn) });
+      }
+    }
+    if (hid && of.length) {
+      crossItems.push({ id: "__h_office", header: "Közös irodai mappák", hint: "a kollégák is látják" });
+      for (const f of of) {
+        const isIn = (ofIn[hid] ?? []).includes(f.id);
+        crossItems.push({ id: `o:${f.id}`, label: f.name, checked: isIn, onClick: () => toggleCross("office", f, hid, isIn) });
+      }
+    }
+    list.push({
+      kind: "sub", label: "Áthelyezés", icon: MI.move, title: "Hová kerüljön?",
+      items: crossItems.length ? [{ id: "__h_mod", header: `Ebben a modulban` }, ...moduleItems, ...crossItems] : moduleItems,
+    });
+    if (onRenameItem) list.push({ label: "Átnevezés", icon: MI.rename, onClick: () => { setItemName(it.title); setRenameFor(it.id); } });
+    if (onDelete) {
+      list.push({ kind: "divider" }, {
+        label: "Törlés", icon: MI.trash, danger: true,
+        onClick: () => {
+          if (!confirm(`Törlöd a listádból? „${it.title}"\n\nA fájl megmarad — a Korábbi munkák „Elrejtett munkák” nézetéből visszahozhatod.`)) return;
+          void guard(async () => { await onDelete(it); }, "Törölve.");
+        },
+      });
+    }
+    return list;
   }
 
   const createFolder = () => {
@@ -211,25 +311,8 @@ export default function FolderLibrary<T extends LibraryItem>({
               </div>
 
               <div className="flex items-center gap-1.5">
-                {open.kind === "folder" && !renaming && onRenameFolder && (
-                  <button type="button" disabled={busy}
-                    onClick={() => { setRenameVal(open.label); setRenaming(true); }}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                    Átnevezés
-                  </button>
-                )}
-                {open.kind === "folder" && !renaming && onDeleteFolder && (
-                  <button type="button" disabled={busy}
-                    onClick={() => {
-                      const fid = open.key.replace("folder:", "");
-                      if (!confirm(`Törlöd a(z) „${open.label}" mappát?\n\nA benne lévő ${noun}ek NEM törlődnek, visszakerülnek a dátum szerinti mappába.`)) return;
-                      void guard(async () => { await onDeleteFolder(fid); setOpenKey(null); }, "Mappa törölve.");
-                    }}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-                    style={{ border: "1px solid #f0b3b3", color: "#c0392b", background: "#fff" }}>
-                    Mappa törlése
-                  </button>
+                {open.kind === "folder" && !renaming && (onRenameFolder || onDeleteFolder) && (
+                  <MenuDots label="Mappa műveletei" onClick={folderMenu.openAtButton} />
                 )}
                 <button type="button" onClick={() => { setRenaming(false); setOpenKey(null); }}
                   className="rounded-lg px-3 py-1.5 text-sm" aria-label="Bezárás"
@@ -242,14 +325,14 @@ export default function FolderLibrary<T extends LibraryItem>({
             <div className="overflow-y-auto p-4">
               {open.items.length === 0 ? (
                 <p className="py-10 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                  Ez a mappa üres. Egy {noun} „Áthelyezés&quot; gombjával tehetsz ide tartalmat.
+                  Ez a mappa üres. Egy {noun} ⋯ menüjében az „Áthelyezés” ponttal tehetsz ide tartalmat.
                 </p>
               ) : (
                 <div className={`grid gap-3 ${GRID_CLASS[cols]}`}>
                   {open.items.map((it) => {
-                    const dl = downloadUrl?.(it) ?? null;
                     return (
                       <div key={it.id} className="rounded-xl p-3"
+                        onContextMenu={(e) => openItemMenu(e, it, "event")}
                         style={{ border: "1px solid var(--twx-line)" }}>
                         {renderItem(it)}
 
@@ -281,96 +364,15 @@ export default function FolderLibrary<T extends LibraryItem>({
                             </button>
                           </div>
                         ) : (
-                          <p className="mt-2 truncate text-sm font-semibold">{it.title}</p>
-                        )}
-                        <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                          {new Date(it.createdAt).toLocaleDateString("hu-HU")}
-                        </p>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          {dl && (
-                            // `download`: a böngésző töltse le, ne navigáljon el rá.
-                            <a href={dl} download
-                              className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white"
-                              style={{ background: "var(--twx-coral)" }}>
-                              Letöltés
-                            </a>
-                          )}
-                          {onRenameItem && renameFor !== it.id && (
-                            <button type="button" disabled={busy}
-                              onClick={() => { setItemName(it.title); setRenameFor(it.id); setMoveFor(null); }}
-                              className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
-                              style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-                              Átnevezés
-                            </button>
-                          )}
-                          <button type="button" disabled={busy}
-                            onClick={() => { setMoveFor(moveFor === it.id ? null : it.id); setRenameFor(null); }}
-                            className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
-                            style={{
-                              border: `1px solid ${moveFor === it.id ? "var(--twx-coral)" : "var(--twx-line)"}`,
-                              background: moveFor === it.id ? "var(--twx-coral-soft)" : "#fff",
-                            }}>
-                            Áthelyezés
-                          </button>
-                          {onDelete && (
-                            <button type="button" disabled={busy}
-                              onClick={() => {
-                                if (!confirm(`Biztosan törlöd véglegesen? „${it.title}"\n\nA tárhelyről is törlődik, és nem állítható vissza.`)) return;
-                                void guard(async () => { await onDelete(it); }, "Törölve.");
-                              }}
-                              className="rounded-lg px-2.5 py-1 text-[11px] font-medium disabled:opacity-40"
-                              style={{ border: "1px solid #f0b3b3", color: "#c0392b", background: "#fff" }}>
-                              Törlés
-                            </button>
-                          )}
-                        </div>
-
-                        {/* ÁTHELYEZÉS: az elem alatt kinyíló mappalista, egy kattintás */}
-                        {moveFor === it.id && (
-                          <div className="mt-2 overflow-hidden rounded-xl"
-                            style={{ border: "1px solid var(--twx-coral)", background: "#fff" }}>
-                            <p className="px-3 py-2 text-[11px] font-semibold"
-                              style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                              Hová kerüljön? Kattints a mappára.
-                            </p>
-                            <div className="max-h-52 overflow-y-auto p-1.5">
-                              {/* Dátum szerinti (alapértelmezett) hely */}
-                              <button type="button" disabled={busy || !it.folderId}
-                                onClick={() => void guard(async () => { await onMove(it.id, null); setMoveFor(null); }, "Áthelyezve.")}
-                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-[color:var(--twx-cream)] disabled:cursor-default disabled:opacity-100">
-                                <span aria-hidden className="inline-block h-4 w-5 shrink-0 rounded-[3px]"
-                                  style={{ background: "#e8c97a" }} />
-                                <span className="flex-1 truncate">Dátum szerinti mappa</span>
-                                {!it.folderId && (
-                                  <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--twx-ink-muted)" }}>
-                                    jelenleg itt
-                                  </span>
-                                )}
-                              </button>
-                              {folders.map((f) => {
-                                const here = it.folderId === f.id;
-                                return (
-                                  <button key={f.id} type="button" disabled={busy || here}
-                                    onClick={() => void guard(async () => { await onMove(it.id, f.id); setMoveFor(null); }, "Áthelyezve.")}
-                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition hover:bg-[color:var(--twx-cream)] disabled:cursor-default disabled:opacity-100">
-                                    <span aria-hidden className="inline-block h-4 w-5 shrink-0 rounded-[3px]"
-                                      style={{ background: "var(--twx-coral)" }} />
-                                    <span className="flex-1 truncate">{f.name}</span>
-                                    {here && (
-                                      <span className="shrink-0 text-[10px] font-semibold" style={{ color: "var(--twx-ink-muted)" }}>
-                                        jelenleg itt
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                              {folders.length === 0 && (
-                                <p className="px-2.5 py-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                                  Még nincs saját mappád. A könyvtár tetején, az „Új mappa&quot; kártyán tudsz létrehozni egyet.
-                                </p>
-                              )}
+                          // cím + dátum, jobbra egyetlen ⋯ — a műveletek (letöltés, áthelyezés, átnevezés, törlés) a menüben
+                          <div className="mt-2 flex items-start gap-1">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold" title={it.title}>{it.title}</p>
+                              <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                                {new Date(it.createdAt).toLocaleDateString("hu-HU")}
+                              </p>
                             </div>
+                            <MenuDots label={`Műveletek: ${it.title}`} onClick={(e) => openItemMenu(e, it, "button")} />
                           </div>
                         )}
                       </div>
@@ -381,6 +383,20 @@ export default function FolderLibrary<T extends LibraryItem>({
             </div>
           </div>
         </div>
+      )}
+      {itemMenu.open && menuItem && <ActionMenu at={itemMenu.at} items={itemMenuItems(items.find((x) => x.id === menuItem.id) ?? menuItem)} onClose={itemMenu.close} />}
+      {folderMenu.open && open && open.kind === "folder" && (
+        <ActionMenu at={folderMenu.at} onClose={folderMenu.close} items={[
+          ...(onRenameFolder ? [{ label: "Mappa átnevezése", icon: MI.rename, onClick: () => { setRenameVal(open.label); setRenaming(true); } }] : []),
+          ...(onDeleteFolder ? [{ kind: "divider" as const }, {
+            label: "Mappa törlése", icon: MI.trash, danger: true,
+            onClick: () => {
+              const fid = open.key.replace("folder:", "");
+              if (!confirm(`Törlöd a(z) „${open.label}" mappát?\n\nA benne lévő ${noun}ek NEM törlődnek, visszakerülnek a dátum szerinti mappába.`)) return;
+              void guard(async () => { await onDeleteFolder(fid); setOpenKey(null); }, "Mappa törölve.");
+            },
+          }] : []),
+        ]} />
       )}
     </div>
   );

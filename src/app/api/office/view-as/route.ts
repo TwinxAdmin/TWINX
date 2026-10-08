@@ -1,4 +1,5 @@
-// POST /api/office/view-as — irodai KOLLÉGA-nézet előnézete be/ki. body: { view: "member" | null }
+// POST /api/office/view-as — irodai előnézet. body: { view: "member" | "none" | null }
+//   member = kolléga-nézet · none = „nincs iroda" (mintha nem lenne tagja egy irodának sem) · null = valódi nézet
 // Csak a kiválasztott iroda létrehozója / vezetője (kiosztó jogú tag) kapcsolhatja be.
 // A cookie CSAK a megjelenítést befolyásolja: minden irodai API a valódi tagságot és jogot ellenőrzi.
 import { NextResponse } from "next/server";
@@ -21,10 +22,10 @@ export async function POST(request: Request) {
   let body: { view?: string | null };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
-  const member = body.view === "member";
-  const res = NextResponse.json({ ok: true, view: member ? "member" : null });
-  if (member) {
-    res.cookies.set(OFFICE_VIEW_COOKIE, "member", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8 });
+  const view = body.view === "member" || body.view === "none" ? body.view : null;
+  const res = NextResponse.json({ ok: true, view });
+  if (view) {
+    res.cookies.set(OFFICE_VIEW_COOKIE, view, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8 });
   } else {
     res.cookies.set(OFFICE_VIEW_COOKIE, "", { path: "/", maxAge: 0 });
   }

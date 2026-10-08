@@ -278,13 +278,11 @@ export default function RecentActivity({
             )}
             {curKind === "other" && current.output_file_url && (
               <a
-                href={current.output_file_url}
-                target="_blank"
-                rel="noreferrer"
+                href={toDownloadUrl(current.output_file_url)}
                 className="rounded-full px-5 py-2.5 text-sm font-medium"
                 style={{ background: "var(--twx-coral)", color: "#1c1005" }}
               >
-                Fájl megnyitása
+                Fájl letöltése
               </a>
             )}
 
@@ -302,18 +300,9 @@ export default function RecentActivity({
               </span>
             </div>
 
-            {/* Megnyitás + Letöltés */}
+            {/* Letöltés (új lapon megnyitás nincs — minden az ablakban nézhető meg) */}
             {current.output_file_url && (
               <div className="flex flex-wrap justify-center gap-3">
-                <a
-                  href={current.output_file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full px-5 py-2 text-sm font-medium"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                >
-                  Megnyitás
-                </a>
                 <a
                   href={toDownloadUrl(current.output_file_url)}
                   className="rounded-full px-5 py-2 text-sm font-medium"

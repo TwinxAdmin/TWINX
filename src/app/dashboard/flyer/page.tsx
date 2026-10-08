@@ -86,6 +86,7 @@ export default function FlyerPage() {
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
         ) : (
           <FolderLibrary<FlyerItem>
+            historyIdOf={(f) => f.id}
             items={items}
             folders={folders}
             noun="hirdetés"

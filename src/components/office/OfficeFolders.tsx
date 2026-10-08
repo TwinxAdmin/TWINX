@@ -4,10 +4,15 @@
 // Munkát a „Korábbi munkák" oldalon lehet mappába tenni („Megosztás az irodával").
 "use client";
 
+import { toDownloadUrl } from "@/lib/files";
 import { useEffect, useState, type FormEvent } from "react";
-import { FOLDER_NAME_MAX, type OfficeFolder, type OfficeFolderItem } from "@/lib/office";
+import { FOLDER_NAME_MAX, WORK_TITLE_MAX, type OfficeFolder, type OfficeFolderItem } from "@/lib/office";
 import { avatarColor, fmtWhen, initials } from "@/lib/office-format";
 import { EmptyState, Icons, OfficeCard, OfficeDialog } from "@/components/office/OfficeUi";
+import WorkViewer from "@/components/works/WorkViewer";
+import WorkThumb from "@/components/works/WorkThumb";
+import WorkTypeBadge, { CATEGORY_META, FileTag, workCategory, type WorkCategory } from "@/components/works/WorkTypeBadge";
+import { showToast } from "@/components/Toast";
 
 type Member = { userId: string; name: string };
 
@@ -107,21 +112,12 @@ export default function OfficeFolders({ height = 300 }: { height?: number }) {
       )}
 
       {open && (
-        <OfficeDialog title={open.name} onClose={() => setOpenId(null)} wide>
-          <p className="mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            {open.everyone ? "Az egész iroda látja" : `Látja: ${[open.createdByName, ...open.memberIds.map(nameOf)].join(", ")}`}
-            {open.canManage && (
-              <>
-                {" · "}
-                <button type="button" className="underline" onClick={() => { setEditing(open); setOpenId(null); }}>Szerkesztés</button>
-                {" · "}
-                <button type="button" className="underline" style={{ color: "#c0392b" }} onClick={() => remove(open)}>Törlés</button>
-              </>
-            )}
-          </p>
-          <FolderContents folder={open}
-            onCountChange={(n) => setFolders((list) => (list ?? []).map((f) => (f.id === open.id ? { ...f, itemCount: n } : f)))} />
-        </OfficeDialog>
+        <FolderWindow folder={open}
+          scope={open.everyone ? "Az egész iroda látja" : `Látja: ${[open.createdByName, ...open.memberIds.map(nameOf)].join(", ")}`}
+          onClose={() => setOpenId(null)}
+          onEdit={open.canManage ? () => { setEditing(open); setOpenId(null); } : undefined}
+          onDelete={open.canManage ? () => void remove(open) : undefined}
+          onCountChange={(n) => setFolders((list) => (list ?? []).map((f) => (f.id === open.id ? { ...f, itemCount: n } : f)))} />
       )}
     </>
   );
@@ -300,20 +296,63 @@ function ScopeCard({ selected, onClick, icon, title, text }: {
   );
 }
 
-function FolderContents({ folder, onCountChange }: { folder: OfficeFolder; onCountChange: (n: number) => void }) {
+/**
+ * Mappa-ablak — áttekinthető „fájlkezelő": fejléc (név, ki látja, kezelés), típus-szűrő chipek
+ * darabszámmal + kereső, alatta FIX magasságú, görgethető lista. Minden sorban bélyegkép
+ * (videó első képkockája / kép / PDF), színes típus-címke + fájltípus, cím, készítő, dátum,
+ * jobbra ikon-gombok. Sorra kattintva a közös nézegető nyílik.
+ */
+function FolderWindow({ folder, scope, onClose, onEdit, onDelete, onCountChange }: {
+  folder: OfficeFolder; scope: string; onClose: () => void;
+  onEdit?: () => void; onDelete?: () => void; onCountChange: (n: number) => void;
+}) {
   const [items, setItems] = useState<OfficeFolderItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cat, setCat] = useState<WorkCategory | "all">("all");
+  const [q, setQ] = useState("");
+  const [viewId, setViewId] = useState<string | null>(null);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
 
   useEffect(() => {
     setItems(null);
     fetch(`/api/office/folders/items?folderId=${folder.id}`)
       .then((r) => r.json())
-      .then((d) => (d.error ? setError(d.error) : setItems(d.items)))
-      .catch(() => setError("Nem sikerült betölteni."));
+      .then((d) => { if (d.error) setError(d.error); setItems(d.items ?? []); })
+      .catch(() => { setError("Nem sikerült betölteni."); setItems([]); });
   }, [folder.id]);
 
+  useEffect(() => {
+    // Esc: ha épp egy mezőben (átnevezés, kereső) gépel, az csak azt zárja — az ablakot nem.
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest?.("input, textarea")) return;
+      if (e.key === "Escape" && viewId === null) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose, viewId]);
+
+  async function saveRename(it: OfficeFolderItem) {
+    if (renaming !== it.historyId) return;
+    const title = renameVal.trim();
+    setRenaming(null);
+    if (!title || title === it.title) return;
+    const res = await fetch("/api/office/folders/items", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderId: folder.id, historyId: it.historyId, title }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(d.error ?? "Nem sikerült átnevezni.", "error"); return; }
+    setItems((list) => (list ?? []).map((x) => (x.historyId === it.historyId ? { ...x, title } : x)));
+    window.dispatchEvent(new CustomEvent("twx-works-changed"));
+    showToast("Átnevezve.", "success");
+  }
+
   async function takeOut(it: OfficeFolderItem) {
+    if (!window.confirm(`Kiveszed a(z) „${it.title}” munkát a mappából? A munka a készítőjénél megmarad.`)) return;
     const res = await fetch("/api/office/folders/items", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folderId: folder.id, historyId: it.historyId }),
@@ -321,47 +360,208 @@ function FolderContents({ folder, onCountChange }: { folder: OfficeFolder; onCou
     if (res.ok) {
       const next = (items ?? []).filter((x) => x.historyId !== it.historyId);
       setItems(next); onCountChange(next.length);
+      showToast("Kivetted a mappából.", "success");
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showToast(d.error ?? "Nem sikerült kivenni.", "error");
     }
   }
 
+  // típusonkénti darabszám a szűrő-chipekhez (csak a ténylegesen előforduló típusok)
+  const counts = new Map<WorkCategory, number>();
+  for (const it of items ?? []) counts.set(workCategory(it.feature), (counts.get(workCategory(it.feature)) ?? 0) + 1);
+  const cats = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+
+  const needle = q.trim().toLowerCase();
+  const shown = (items ?? []).filter((it) =>
+    (cat === "all" || workCategory(it.feature) === cat) &&
+    (!needle || `${it.title} ${it.typeLabel} ${it.ownerName}`.toLowerCase().includes(needle)));
+  const viewIdx = viewId ? shown.findIndex((x) => x.historyId === viewId) : -1;
+
   return (
-    <div className="space-y-2">
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      {!items && !error && <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
-      {items && items.length === 0 && (
-        <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Üres mappa. Munkát a „Korábbi munkák” oldalon tehetsz bele.</p>
-      )}
-      {items && items.length > 0 && (
-        <ul className="space-y-2">
-          {items.map((it) => (
-            <li key={it.historyId} className="flex flex-wrap items-center gap-3 rounded-xl p-3" style={{ border: "1px solid var(--twx-line)" }}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{it.title}</p>
-                <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  {it.typeLabel} · készítette: {it.ownerName} · {new Date(it.createdAt).toLocaleDateString("hu-HU")}
-                </p>
-              </div>
-              {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="twx-btn-outline text-xs">Megnyitás</a>}
-              {/* A mappa tagjai javíthatnak — jelenleg az értékbecslés szövege szerkeszthető (IR8). */}
-              {it.feature === "valuation" && (
-                <a href={`/dashboard/real-estate/valuation?shared=${it.historyId}`} className="twx-btn text-xs">Szerkesztés</a>
-              )}
-              {it.feature === "valuation" && (
-                <button type="button" className="text-xs underline" onClick={() => setHistoryOf(historyOf === it.historyId ? null : it.historyId)}>
-                  Előzmények
-                </button>
-              )}
-              {it.canRemove && (
-                <button type="button" className="text-xs underline" style={{ color: "var(--twx-ink-muted)" }} onClick={() => takeOut(it)}>
-                  Kivétel
-                </button>
-              )}
-              {historyOf === it.historyId && <WorkVersions historyId={it.historyId} />}
-            </li>
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(12,11,10,0.72)" }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={folder.name}
+        className="flex h-[min(680px,90vh)] w-full max-w-[900px] flex-col overflow-hidden rounded-2xl"
+        style={{ background: "#FDFBF6", border: "1px solid #E8E1D6", color: "#1C1815", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}>
+
+        {/* ── fejléc ── */}
+        <div className="flex flex-none items-start gap-4 px-6 pb-5 pt-5"
+          style={{ background: "#121110", backgroundImage: "radial-gradient(ellipse 420px 200px at 90% 0%, rgba(238,123,91,0.22), transparent 70%)", color: "#F3EDE6" }}>
+          <span className="flex h-12 w-12 flex-none items-center justify-center rounded-xl" style={{ background: "rgba(238,123,91,0.16)", color: "#F4A48A" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "#EE7B5B" }}>Közös mappa</p>
+            <h2 className="truncate font-display text-[24px] font-semibold leading-tight">{folder.name}</h2>
+            <p className="mt-0.5 truncate text-xs" style={{ color: "#A89E94" }}>
+              {scope} · {items ? items.length : folder.itemCount} munka · létrehozta: {folder.createdByName}
+            </p>
+          </div>
+          <div className="flex flex-none items-center gap-1.5">
+            {onEdit && <HeadBtn onClick={onEdit}>Szerkesztés</HeadBtn>}
+            {onDelete && <HeadBtn onClick={onDelete} danger>Törlés</HeadBtn>}
+            <button type="button" onClick={onClose} aria-label="Bezárás (Esc)" title="Bezárás (Esc)"
+              className="ml-1 flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/15" style={{ background: "rgba(255,255,255,0.08)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* ── szűrő-sáv ── */}
+        <div className="flex flex-none flex-wrap items-center gap-2 px-6 py-3" style={{ borderBottom: "1px solid #EFE7DD" }}>
+          <FilterBtn on={cat === "all"} onClick={() => setCat("all")}>Mind <Count n={items?.length ?? 0} /></FilterBtn>
+          {cats.map(([c, n]) => (
+            <FilterBtn key={c} on={cat === c} onClick={() => setCat(c)}>
+              <span style={{ color: cat === c ? undefined : CATEGORY_META[c].fg }}>{CATEGORY_META[c].icon}</span>
+              {CATEGORY_META[c].label} <Count n={n} />
+            </FilterBtn>
           ))}
-        </ul>
+          <div className="flex h-8 w-full items-center gap-2 rounded-full px-3 sm:ml-auto sm:w-[200px]" style={{ background: "#fff", border: "1px solid #E1D6C9" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8F857B" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Keresés a mappában…" aria-label="Keresés a mappában"
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none" />
+          </div>
+        </div>
+
+        {/* ── lista ── */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {!items && !error && <p className="text-sm" style={{ color: "#6B6258" }}>Betöltés…</p>}
+          {items && items.length === 0 && !error && (
+            <div className="h-full">
+              <EmptyState icon={Icons.folder} title="Üres mappa"
+                text="Nyiss meg egy munkát a Munkáim listában vagy a Korábbi munkák oldalon, és az „Áthelyezés” gombbal tedd bele." />
+            </div>
+          )}
+          {items && items.length > 0 && shown.length === 0 && (
+            <p className="py-10 text-center text-sm" style={{ color: "#6B6258" }}>Nincs a szűrésnek megfelelő munka.</p>
+          )}
+          {shown.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {shown.map((it) => (
+                <li key={it.historyId} className="overflow-hidden rounded-xl" style={{ background: "#fff", border: "1px solid #EFE7DD" }}>
+                  <div className="group flex items-center gap-4 p-2.5 pr-3">
+                    <button type="button" onClick={() => setViewId(it.historyId)} aria-label={`${it.title} megnézése`}
+                      className="relative h-[56px] w-[84px] flex-none overflow-hidden rounded-lg sm:h-[68px] sm:w-[104px]" style={{ background: "#F1EAE1" }}>
+                      <WorkThumb url={it.url} />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <WorkTypeBadge feature={it.feature} label={it.typeLabel} />
+                        <FileTag url={it.url} />
+                      </span>
+                      {renaming === it.historyId ? (
+                        <input autoFocus value={renameVal} maxLength={WORK_TITLE_MAX} aria-label="Új név"
+                          onChange={(e) => setRenameVal(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") void saveRename(it); if (e.key === "Escape") { e.stopPropagation(); setRenaming(null); } }}
+                          onBlur={() => void saveRename(it)}
+                          className="mt-1 block h-[22px] w-full rounded-md px-1.5 text-[14px] font-semibold outline-none"
+                          style={{ background: "#FFF6F1", border: "1px solid #F08A68" }} />
+                      ) : (
+                        <button type="button" onClick={() => setViewId(it.historyId)} title={it.title}
+                          className="mt-1 block h-[22px] w-full truncate text-left text-[14px] font-semibold hover:underline">{it.title}</button>
+                      )}
+                      <span className="block truncate text-xs" style={{ color: "#6B6258" }}>
+                        {it.mine ? "Te készítetted" : `Készítette: ${it.ownerName}`} · {fmtWhen(it.createdAt, false)}
+                        {it.addedByName && it.addedByName !== it.ownerName ? ` · betette: ${it.addedByName}` : ""}
+                        {it.feature === "valuation" && (
+                          <>
+                            {" · "}
+                            <a href={`/dashboard/real-estate/valuation?shared=${it.historyId}`} className="font-semibold underline" style={{ color: "#C2512F" }}>szöveg szerkesztése</a>
+                            {" · "}
+                            <button type="button" onClick={() => setHistoryOf(historyOf === it.historyId ? null : it.historyId)}
+                              className="font-semibold underline" style={{ color: "#C2512F" }}>előzmények</button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    {/* EGYSÉGES művelet-sor, minden fájltípusnál ugyanott: Megnézem · Letöltés · Átnevezés · Kivétel.
+                        Ami az adott munkánál nem érhető el, az halványan látszik (nem tűnik el, nem ugrik a sor). */}
+                    <div className="flex flex-none items-center gap-1">
+                      <RowBtn label="Megnézem" primary onClick={() => setViewId(it.historyId)}>
+                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
+                      </RowBtn>
+                      {it.url ? (
+                        <RowLink label="Letöltés" href={toDownloadUrl(it.url)}>
+                          <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+                        </RowLink>
+                      ) : (
+                        <RowBtn label="Ehhez a munkához nincs letölthető fájl" disabled onClick={() => {}}>
+                          <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+                        </RowBtn>
+                      )}
+                      <RowBtn label={it.canRemove ? "Átnevezés" : "Csak a készítő vagy a mappa kezelője nevezheti át"} disabled={!it.canRemove}
+                        on={renaming === it.historyId} onClick={() => { setRenaming(it.historyId); setRenameVal(it.title); }}>
+                        <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                      </RowBtn>
+                      <RowBtn label={it.canRemove ? "Kivétel a mappából" : "Csak a készítő, a betevő vagy a mappa kezelője veheti ki"} disabled={!it.canRemove}
+                        danger onClick={() => void takeOut(it)}>
+                        <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m6 6 1 14h10l1-14" />
+                      </RowBtn>
+                    </div>
+                  </div>
+                  {historyOf === it.historyId && (
+                    <div className="px-3 pb-3"><WorkVersions historyId={it.historyId} /></div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {viewIdx >= 0 && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <WorkViewer index={viewIdx} onIndex={(i) => setViewId(shown[i]?.historyId ?? null)} onClose={() => setViewId(null)} canShare
+            works={shown.map((x) => ({ id: x.historyId, title: x.title, typeLabel: x.typeLabel, url: x.url, createdAt: x.createdAt, ownerName: x.mine ? null : x.ownerName, mine: !!x.mine }))} />
+        </div>
       )}
     </div>
+  );
+}
+
+function HeadBtn({ children, onClick, danger = false }: { children: React.ReactNode; onClick: () => void; danger?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} className="h-9 rounded-full px-3.5 text-xs font-semibold transition-colors hover:bg-white/15"
+      style={{ background: "rgba(255,255,255,0.08)", color: danger ? "#F4A48A" : "#F3EDE6", border: "1px solid rgba(255,255,255,0.14)" }}>
+      {children}
+    </button>
+  );
+}
+
+function FilterBtn({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on}
+      className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors"
+      style={on ? { background: "#1C1A17", color: "#fff" } : { background: "#F1EAE1", color: "#4A433C" }}>
+      {children}
+    </button>
+  );
+}
+
+function Count({ n }: { n: number }) {
+  return <span className="tabular-nums opacity-60">{n}</span>;
+}
+
+const rowBtnCls = "flex h-9 w-9 items-center justify-center rounded-full transition-colors";
+function RowBtn({ label, onClick, children, primary = false, danger = false, on = false, disabled = false }: {
+  label: string; onClick: () => void; children: React.ReactNode; primary?: boolean; danger?: boolean; on?: boolean; disabled?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label}
+      className={`${rowBtnCls} ${primary ? "" : "hover:bg-[#F1EAE1]"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent`}
+      style={primary ? { background: "#F08A68", color: "#1C1A17" } : on ? { background: "#1C1A17", color: "#fff" } : { color: danger ? "#B4432A" : "#4A433C" }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
+    </button>
+  );
+}
+function RowLink({ label, href, children }: { label: string; href: string; children: React.ReactNode }) {
+  return (
+    <a href={href} aria-label={label} title={label} className={`${rowBtnCls} hover:bg-[#F1EAE1]`} style={{ color: "#4A433C" }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
+    </a>
   );
 }
 
@@ -406,7 +606,7 @@ function WorkVersions({ historyId }: { historyId: string }) {
               <span className="font-semibold">{LABEL[v.kind] ?? v.kind}</span>
               <span>· {v.savedBy} · {new Date(v.createdAt).toLocaleString("hu-HU")}</span>
               {v.current && <span className="rounded-full px-1.5" style={{ background: "#fff" }}>aktuális</span>}
-              {v.url && <a href={v.url} target="_blank" rel="noreferrer" className="underline">PDF</a>}
+              {v.url && <a href={toDownloadUrl(v.url)} className="underline">PDF letöltése</a>}
               {!v.current && (
                 <button type="button" className="underline" disabled={busy === v.id} onClick={() => restore(v)}>Visszaállítás</button>
               )}

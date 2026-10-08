@@ -1,6 +1,7 @@
 // Lengő nézet-váltó sáv a JOBB alsó sarokban (középen a kredit-sáv van).
 //   • Admin: Admin / Sales / Felhasználó — „így látja a partner" előnézet.
-//   • Irodai létrehozó / vezető: Vezető / Kolléga — „így látja a kolléga" az Irodai fiók oldalon.
+//   • Irodai létrehozó / vezető: Vezető / Kolléga / Ki — „így látja a kolléga", illetve
+//     „Ki" = mintha egyetlen irodának sem lenne tagja (csak megjelenítés).
 // Mindkettő CSAK megjelenítés: a jogosultságot és a kreditlevonást a szerver a valódi
 // szerepkör / tagság alapján dönti el. Előnézet közben a sáv feltűnő (korall), hogy ne
 // lehessen elfelejteni, miért látszik másképp a felület.
@@ -21,7 +22,7 @@ const ROLE_OPTIONS: { id: View; label: string }[] = [
 
 type Props = {
   current: View | null;                     // null = nem admin (nincs szerepkör-váltó)
-  office?: { preview: boolean } | null;     // null / hiány = nem irodai vezető (nincs irodai váltó)
+  office?: { preview: boolean; none?: boolean } | null;   // null / hiány = nem irodai vezető (nincs irodai váltó)
 };
 
 export default function ViewAsBar({ current, office = null }: Props) {
@@ -48,13 +49,16 @@ export default function ViewAsBar({ current, office = null }: Props) {
     }
   }
 
-  async function pickOffice(member: boolean) {
-    if (!office || member === office.preview || busy) return;
+  type OfficeView = "manager" | "member" | "none";
+  const officeView: OfficeView = office?.none ? "none" : office?.preview ? "member" : "manager";
+
+  async function pickOffice(v: OfficeView) {
+    if (!office || v === officeView || busy) return;
     setBusy(true);
     try {
       const res = await fetch("/api/office/view-as", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ view: member ? "member" : null }),
+        body: JSON.stringify({ view: v === "manager" ? null : v }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -69,7 +73,7 @@ export default function ViewAsBar({ current, office = null }: Props) {
   }
 
   const rolePreview = current !== null && current !== "admin";
-  const officePreview = !!office?.preview;
+  const officePreview = officeView !== "manager";
   const previewing = rolePreview || officePreview;
 
   return (
@@ -99,8 +103,10 @@ export default function ViewAsBar({ current, office = null }: Props) {
 
         {office && (
           <Row label={officePreview ? "Előnézet — iroda:" : "Iroda:"}>
-            <Seg on={!officePreview} dark={previewing} disabled={busy} onClick={() => void pickOffice(false)}>Vezető</Seg>
-            <Seg on={officePreview} dark={previewing} disabled={busy} onClick={() => void pickOffice(true)}>Kolléga</Seg>
+            <Seg on={officeView === "manager"} dark={previewing} disabled={busy} onClick={() => void pickOffice("manager")}>Vezető</Seg>
+            <Seg on={officeView === "member"} dark={previewing} disabled={busy} onClick={() => void pickOffice("member")}>Kolléga</Seg>
+            {/* „Ki": úgy látod az oldalt, mintha egyetlen irodának sem lennél tagja */}
+            <Seg on={officeView === "none"} dark={previewing} disabled={busy} onClick={() => void pickOffice("none")}>Ki</Seg>
           </Row>
         )}
       </div>

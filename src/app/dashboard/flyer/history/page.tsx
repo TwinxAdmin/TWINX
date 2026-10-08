@@ -1,6 +1,6 @@
 // dashboard/flyer/history — Korábbi hirdetések, hónap szerinti és saját mappákban.
 // A mappára kattintva ABLAK nyílik a tartalommal; onnan a hirdetés nagyban is
-// megnézhető (nézegető), letölthető, áthelyezhető és véglegesen törölhető.
+// megnézhető (nézegető), letölthető, áthelyezhető és törölhető (= elrejtés, a fájl megmarad).
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -69,6 +69,7 @@ export default function FlyerHistoryPage() {
       ) : (
         <section className="twx-card p-5 sm:p-6">
           <FolderLibrary<FlyerItem>
+            historyIdOf={(f) => f.id}
             items={flyers}
             folders={folders}
             noun="hirdetés"

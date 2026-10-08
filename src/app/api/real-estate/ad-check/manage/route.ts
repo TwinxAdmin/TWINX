@@ -8,15 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const BUCKET = "reports";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function storagePathFromUrl(url: string): string | null {
-  const marker = `/object/public/${BUCKET}/`;
-  const i = url.indexOf(marker);
-  if (i < 0) return null;
-  return decodeURIComponent(url.slice(i + marker.length).split("?")[0]);
-}
 
 /** Új mappa. */
 export async function POST(request: Request) {
@@ -102,16 +94,14 @@ export async function DELETE(request: Request) {
     .from("ad_checks").select("id, user_id, pdf_url").eq("id", id).single();
   if (!row || row.user_id !== user.id) return NextResponse.json({ error: "Nem található." }, { status: 404 });
 
-  // A PDF törlése is — csak a saját mappájából.
-  if (row.pdf_url) {
-    const path = storagePathFromUrl(row.pdf_url);
-    if (path && path.startsWith(`ad-check/${user.id}/`)) {
-      await admin.storage.from(BUCKET).remove([path]);
-      await admin.from("usage_history").delete().eq("output_file_url", row.pdf_url).eq("user_id", user.id);
-    }
+  // „Törlés" = ELREJTÉS (CLAUDE.md: a tárhelyről nem törlünk) — a PDF és az előzmény megmarad.
+  const now = new Date().toISOString();
+  const { error } = await admin.from("ad_checks").update({ hidden_at: now }).eq("id", id).eq("user_id", user.id);
+  if (error) {
+    return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a library-hidden.sql migrációt." : "A törlés nem sikerült." }, { status: 500 });
   }
-
-  const { error } = await admin.from("ad_checks").delete().eq("id", id).eq("user_id", user.id);
-  if (error) return NextResponse.json({ error: "A törlés nem sikerült." }, { status: 500 });
+  if (row.pdf_url) {
+    await admin.from("usage_history").update({ hidden_at: now }).eq("output_file_url", row.pdf_url).eq("user_id", user.id);
+  }
   return NextResponse.json({ ok: true });
 }

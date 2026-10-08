@@ -169,7 +169,7 @@ export default async function DashboardHome() {
         topFeature={topFeature}
         items={historyList.map((h) => ({
           id: h.id,
-          title: activityTitle(h.feature_used, h.input_data),
+          title: activityTitle(h.feature_used, h.input_data, h.created_at),
           typeLabel: featureLabel(h.feature_used),
           output_file_url: h.output_file_url,
           created_at: h.created_at,

@@ -857,6 +857,7 @@ export default function ValuationPage() {
             megnyithatod, szerkesztheted, letöltheted, áthelyezheted vagy törölheted a becsléseket.
           </p>
           <FolderLibrary<ValItem>
+            historyIdOf={(v) => v.id}
             items={libraryItems}
             folders={folders}
             noun="értékbecslés"

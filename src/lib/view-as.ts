@@ -65,3 +65,13 @@ export async function officeMemberPreview(): Promise<boolean> {
   const jar = await cookies();
   return jar.get(OFFICE_VIEW_COOKIE)?.value === "member";
 }
+
+/**
+ * „Nincs iroda" előnézet: a felület úgy jelenik meg, mintha a felhasználó egyetlen irodának sem lenne tagja
+ * (nincs Privát/Irodai váltó, az Irodai fiók oldal a csatlakozás/igénylés képernyőt mutatja, nincsenek közös
+ * mappák). CSAK megjelenítés — a cookie-t csak irodai létrehozó/vezető kapcsolhatja be (/api/office/view-as).
+ */
+export async function officeNonePreview(): Promise<boolean> {
+  const jar = await cookies();
+  return jar.get(OFFICE_VIEW_COOKIE)?.value === "none";
+}

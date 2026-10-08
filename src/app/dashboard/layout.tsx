@@ -10,7 +10,7 @@ import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
-import { officeMemberPreview, resolveViewContext } from "@/lib/view-as";
+import { officeMemberPreview, officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import CreditDock from "@/components/CreditDock";
 import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
@@ -42,8 +42,11 @@ export default async function DashboardLayout({
   const balance = (wallet?.balance as number | undefined) ?? 0;
 
   // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).
-  const dock = user ? await loadDockState(user.id) : null;
-  const officePreview = dock?.isManager ? await officeMemberPreview() : false;
+  const realDock = user ? await loadDockState(user.id) : null;
+  const officePreview = realDock?.isManager ? await officeMemberPreview() : false;
+  // „Nincs iroda" előnézet: a felület úgy néz ki, mintha nem lenne irodai tagság (csak megjelenítés)
+  const officeNone = realDock?.isManager ? await officeNonePreview() : false;
+  const dock = officeNone ? null : realDock;
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -88,19 +91,8 @@ export default async function DashboardLayout({
           <DashboardNav />
         </div>
 
-        {/* Jobb: arculat + fiók-menü + kilépés (csak desktop) */}
+        {/* Jobb: irodai menü + fiók-menü (benne az Arculatom) + kilépés (csak desktop) */}
         <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
-          {/* Az arculat fiók-szintű: minden hirdetés és videó ebből dolgozik. */}
-          <a
-            href="/dashboard/branding"
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-            style={{ color: "var(--twx-on-dark)" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 3 4 7v6c0 4.4 3.4 7.3 8 8 4.6-.7 8-3.6 8-8V7l-8-4Z" />
-            </svg>
-            Arculatom
-          </a>
           {/* Irodai TWINX fiók — legördülő menü (magyarázó, igénylés, csatlakozás, irodáim). */}
           <OfficeMenu
             currentOffice={dock?.offices.find((o) => o.id === dock.officeId)?.name ?? null}
@@ -138,10 +130,10 @@ export default async function DashboardLayout({
       />
 
       {/* Nézet-váltó — jobb alsó sarok: admin (Admin/Sales/Felhasználó) + irodai vezető (Vezető/Kolléga) */}
-      {(view.canPreview || dock?.isManager) && (
+      {(view.canPreview || realDock?.isManager) && (
         <ViewAsBar
           current={view.canPreview ? (view.role as "admin" | "user" | "sales") : null}
-          office={dock?.isManager ? { preview: officePreview } : null}
+          office={realDock?.isManager ? { preview: officePreview, none: officeNone } : null}
         />
       )}
     </div>

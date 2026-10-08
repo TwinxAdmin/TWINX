@@ -583,7 +583,7 @@ async function postWithEngine(form: FormData, userId: string, payFrom: PayFrom) 
           user_id: userId,
           service_id: service?.id ?? null,
           feature_used: "video",
-          input_data: { title, package: "alap", renderer: "twinx", template: result.templateName },
+          input_data: { title, address: propertyAddress, package: "alap", renderer: "twinx", template: result.templateName },
           output_file_url: outputUrl,
           credits_charged: charged,
         });

@@ -29,7 +29,7 @@ export async function GET(
 
   const { data: job, error } = await supabase
     .from("video_jobs")
-    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error, format, music_url, source_images, created_at")
+    .select("id, user_id, service_id, status, output_url, image_count, package, credits_charged, meta, error, format, music_url, source_images, created_at, title")
     .eq("id", id)
     .single();
   if (error || !job) return NextResponse.json({ error: "Nem található." }, { status: 404 });
@@ -158,7 +158,7 @@ export async function GET(
                 user_id: job.user_id,
                 service_id: job.service_id,
                 feature_used: "video",
-                input_data: { title: meta.title ?? "Ingatlan videó", package: job.package },
+                input_data: { title: meta.title ?? "Ingatlan videó", address: job.title ?? null, package: job.package },
                 output_file_url: outputUrl,
                 credits_charged: job.credits_charged,
               });

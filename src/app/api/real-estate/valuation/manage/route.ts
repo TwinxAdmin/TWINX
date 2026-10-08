@@ -12,16 +12,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const BUCKET = "reports";
 const FEATURE = "valuation";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function storagePathFromUrl(url: string): string | null {
-  const marker = `/object/public/${BUCKET}/`;
-  const i = url.indexOf(marker);
-  if (i < 0) return null;
-  return decodeURIComponent(url.slice(i + marker.length).split("?")[0]);
-}
 
 /** Új mappa. */
 export async function POST(request: Request) {
@@ -160,7 +152,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Becslés törlése: tulajdonos + típus ellenőrzés, majd a PDF is a tárhelyről.
+  // Becslés „törlése": tulajdonos + típus ellenőrzés, majd elrejtés (a PDF megmarad).
   const admin = createAdminClient();
   const { data: row } = await admin
     .from("usage_history")
@@ -171,15 +163,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Nem található." }, { status: 404 });
   }
 
-  if (row.output_file_url) {
-    const path = storagePathFromUrl(row.output_file_url);
-    if (path && path.startsWith(`${FEATURE}/${user.id}/`)) {
-      await admin.storage.from(BUCKET).remove([path]);
-    }
-  }
-
+  // „Törlés" = ELREJTÉS (CLAUDE.md: a tárhelyről nem törlünk) — visszahozható a Korábbi munkák közül.
   const { error } = await admin
-    .from("usage_history").delete().eq("id", id).eq("user_id", user.id).eq("feature_used", FEATURE);
+    .from("usage_history").update({ hidden_at: new Date().toISOString() })
+    .eq("id", id).eq("user_id", user.id).eq("feature_used", FEATURE);
   if (error) return NextResponse.json({ error: "A törlés nem sikerült." }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

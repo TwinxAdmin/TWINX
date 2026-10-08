@@ -21,6 +21,7 @@ export async function GET() {
       // FONTOS: az RLS az adminnak MINDEN sort átenged, ezért itt is szűrünk a
       // saját felhasználóra — különben az admin más partnerek riportjait látná.
       .eq("user_id", user.id)
+      .is("hidden_at", null)            // „törölt" (elrejtett) becslések nem látszanak
       .order("created_at", { ascending: false })
       .limit(50),
     supabase

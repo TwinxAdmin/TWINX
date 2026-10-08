@@ -16,6 +16,7 @@ import { avatarColor, fmtDue, fmtFull, fmtWhen, initials } from "@/lib/office-fo
 import { showToast } from "@/components/Toast";
 import { EmptyState, Icons, OfficeCard } from "@/components/office/OfficeUi";
 import SelectField from "@/components/SelectField";
+import WorkViewer from "@/components/works/WorkViewer";
 import DateField from "@/components/DateField";
 
 const HEIGHT = 360;
@@ -52,6 +53,7 @@ export default function OfficeMessagesRow({ canDecide, reloadKey = 0, onDecided 
   const [tick, setTick] = useState(0);
   // megnyitott üzenet (kulcs + utolsó pozíció, hogy egy eltűnő tétel — pl. jóváhagyott kreditkérés — után a következőre ugorjunk)
   const [open, setOpen] = useState<{ key: string; idx: number } | null>(null);
+  const [workView, setWorkView] = useState<OfficeMessage | null>(null);   // csatolt munka a nézegetőben
 
   const load = useCallback(async () => {
     try {
@@ -195,7 +197,13 @@ export default function OfficeMessagesRow({ canDecide, reloadKey = 0, onDecided 
           onDone={(id) => void patch(id, "done", "Feladat késznek jelölve.")}
           onReopen={(id) => void patch(id, "reopen", "Feladat újranyitva.")}
           onReply={(m) => { setReplyTo(m); setOpen(null); }}
-          onDecide={(c, a) => void decideCredit(c, a)} />
+          onDecide={(c, a) => void decideCredit(c, a)}
+          onOpenWork={(m) => setWorkView(m)} />
+      )}
+      {workView?.work && (
+        <WorkViewer index={0} onIndex={() => {}} onClose={() => setWorkView(null)}
+          works={[{ id: workView.work.id, title: workView.work.title, typeLabel: workView.work.moduleLabel, url: workView.work.url,
+            createdAt: workView.createdAt, ownerName: workView.sender.name, mine: workView.mine }]} />
       )}
 
       {/* ===================== ÜZENET KÜLDÉSE ===================== */}
@@ -246,11 +254,12 @@ function CompactRow({ it, first, box, onOpen }: { it: Item; first: boolean; box:
  *   alul: adatsáv (határidő, állapot, mappa, munka / kért összeg) + művelet-sáv
  * Lapozás: gombok és ←/→ billentyű; Esc bezár.
  */
-function MessageViewer({ items, open, setOpen, meId, box, busy, onClose, onRead, onAccept, onDone, onReopen, onReply, onDecide }: {
+function MessageViewer({ items, open, setOpen, meId, box, busy, onClose, onRead, onAccept, onDone, onReopen, onReply, onDecide, onOpenWork }: {
   items: Item[]; open: { key: string; idx: number }; setOpen: (o: { key: string; idx: number } | null) => void;
   meId: string; box: Box; busy: string | null; onClose: () => void;
   onRead: (id: string) => void; onAccept: (id: string) => void; onDone: (id: string) => void; onReopen: (id: string) => void;
   onReply: (m: OfficeMessage) => void; onDecide: (c: OfficeCreditRequest, a: "approve" | "reject") => void;
+  onOpenWork: (m: OfficeMessage) => void;
 }) {
   const found = items.findIndex((it) => itemKey(it) === open.key);
   const idx = found >= 0 ? found : Math.min(open.idx, items.length - 1);
@@ -278,7 +287,7 @@ function MessageViewer({ items, open, setOpen, meId, box, busy, onClose, onRead,
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [go, onClose]);
 
-  const v = viewModel(it, box, meId, busy, { onAccept, onDone, onReopen, onReply, onDecide });
+  const v = viewModel(it, box, meId, busy, { onAccept, onDone, onReopen, onReply, onDecide, onOpenWork });
   const chip = KIND_CHIP[v.kind];
   const av = avatarColor(v.fromId ?? "all");
 
@@ -383,6 +392,7 @@ const bodyText = (t: string) => (
 function viewModel(it: Item, box: Box, meId: string, busy: string | null, h: {
   onAccept: (id: string) => void; onDone: (id: string) => void; onReopen: (id: string) => void;
   onReply: (m: OfficeMessage) => void; onDecide: (c: OfficeCreditRequest, a: "approve" | "reject") => void;
+  onOpenWork: (m: OfficeMessage) => void;
 }): ViewModel {
   if (it.type === "credit") {
     const c = it.c;
@@ -428,7 +438,14 @@ function viewModel(it: Item, box: Box, meId: string, busy: string | null, h: {
   });
   if (m.work) meta.push({
     label: "Csatolt munka",
-    value: <span className="max-w-[240px] truncate text-[12px] font-semibold" style={{ color: "#4A433C" }}>{m.work.moduleLabel} · {m.work.title}</span>,
+    value: (
+      <button type="button" onClick={() => h.onOpenWork(m)}
+        className="inline-flex max-w-[260px] items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-semibold transition-colors hover:bg-[#F1EAE1]"
+        style={{ background: "#fff", border: "1px solid #E1D6C9", color: "#4A433C" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M8 5.5v13l11-6.5-11-6.5Z" /></svg>
+        <span className="truncate">{m.work.moduleLabel} · {m.work.title}</span>
+      </button>
+    ),
   });
   if (m.moduleHref && t) meta.push({ label: "Modul", value: <span className="text-[12px] font-semibold" style={{ color: "#4A433C" }}>{m.moduleLabel ?? "Modul"}</span> });
 

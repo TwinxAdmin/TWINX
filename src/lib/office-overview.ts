@@ -149,7 +149,7 @@ export async function memberWorks(officeId: string, userId: string, range: Overv
     id: h.id as string,
     feature: h.feature_used as string,
     moduleLabel: featureLabel(h.feature_used as string),
-    title: activityTitle(h.feature_used as string, h.input_data as Record<string, unknown> | null),
+    title: activityTitle(h.feature_used as string, h.input_data as Record<string, unknown> | null, h.created_at as string),
     createdAt: h.created_at as string,
     credits: (h.credits_charged as number) ?? 0,
   }));
@@ -159,13 +159,15 @@ export async function memberWorks(officeId: string, userId: string, range: Overv
 export async function myWorks(officeId: string, userId: string, range: OverviewRange): Promise<WorkRow[]> {
   const admin = createAdminClient();
   const from = rangeStart(range);
-  let q = admin.from("usage_history")
-    .select("id, feature_used, input_data, output_file_url, created_at, credits_charged")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false }).limit(50);
-  if (from) q = q.gte("created_at", from);
-  const { data } = await q;
-  const rows = data ?? [];
+  const query = (cols: string) => {
+    let q = admin.from("usage_history").select(cols).eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
+    if (from) q = q.gte("created_at", from);
+    return q;
+  };
+  // az elrejtett („törölt") munkák nem jelennek meg; ha a hidden_at oszlop még nincs, nélküle kérdezünk
+  let res = await query("id, feature_used, input_data, output_file_url, created_at, credits_charged, hidden_at");
+  if (res.error && /hidden_at/.test(res.error.message)) res = await query("id, feature_used, input_data, output_file_url, created_at, credits_charged");
+  const rows = ((res.data ?? []) as unknown as Record<string, unknown>[]).filter((r) => !r.hidden_at);
   const ids = rows.map((r) => r.id as string);
 
   const folderNames = new Map<string, string[]>();
@@ -188,7 +190,7 @@ export async function myWorks(officeId: string, userId: string, range: OverviewR
     id: h.id as string,
     feature: h.feature_used as string,
     moduleLabel: featureLabel(h.feature_used as string),
-    title: activityTitle(h.feature_used as string, h.input_data as Record<string, unknown> | null),
+    title: activityTitle(h.feature_used as string, h.input_data as Record<string, unknown> | null, h.created_at as string),
     createdAt: h.created_at as string,
     credits: (h.credits_charged as number) ?? 0,
     fileUrl: (h.output_file_url as string | null) ?? null,

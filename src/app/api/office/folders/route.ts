@@ -4,6 +4,7 @@
 //   PATCH  { id, name?, everyone?, memberIds? }   — módosítás (mappa létrehozója / iroda létrehozója)
 //   DELETE { id }                                  — törlés: csak a mappa és a hivatkozások szűnnek meg, a munkák maradnak
 import { NextResponse } from "next/server";
+import { officeNonePreview } from "@/lib/view-as";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateFolderName } from "@/lib/office";
@@ -33,6 +34,10 @@ export async function GET() {
   const r = await me();
   if ("error" in r) return r.error;
   const { user, m } = r;
+  // „Nincs iroda" előnézetben a közös mappák sem látszanak (csak megjelenítés)
+  if ((m.role === "owner" || m.can_allocate) && (await officeNonePreview())) {
+    return NextResponse.json({ folders: [], members: [], meId: user.id, nonePreview: true });
+  }
   try {
     const [folders, members] = await Promise.all([
       listFolders(m.office_id, user.id, m.role === "owner"),

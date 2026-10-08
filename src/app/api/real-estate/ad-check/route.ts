@@ -32,20 +32,32 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [{ data: items, error }, { data: folders }] = await Promise.all([
-    supabase
-      .from("ad_checks")
+  // Csak a saját, NEM elrejtett elemzések; max 50 elem. Ha a hidden_at még nincs, szűrés nélkül.
+  const listQ = (hide: boolean) => {
+    const q = supabase.from("ad_checks")
       .select("id, source_url, title, tone, score, result, pdf_url, folder_id, created_at")
-      // Csak a saját elemzések (adminként az RLS mást is átengedne).
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50), // az előzményekben max 50 elemet listázunk
+      .eq("user_id", user.id);
+    return (hide ? q.is("hidden_at", null) : q).order("created_at", { ascending: false }).limit(50);
+  };
+  const [first, { data: folders }] = await Promise.all([
+    listQ(true),
     supabase.from("ad_check_folders").select("id, name").order("name"),
   ]);
+  let { data: items, error } = first;
+  if (error && /hidden_at/.test(error.message)) ({ data: items, error } = await listQ(false));
   // A hibát NE nyeljük el: ha a migráció hiányzik, derüljön ki.
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ items: items ?? [], folders: folders ?? [] });
+  // a PDF-hez tartozó usage_history sor (a Korábbi munkák mappáihoz / közös mappákhoz)
+  const pdfs = (items ?? []).map((i) => i.pdf_url as string | null).filter(Boolean) as string[];
+  const histByUrl = new Map<string, string>();
+  if (pdfs.length) {
+    const { data: hs } = await supabase.from("usage_history").select("id, output_file_url")
+      .eq("user_id", user.id).in("output_file_url", pdfs);
+    for (const h of hs ?? []) histByUrl.set(h.output_file_url as string, h.id as string);
+  }
+  const withHist = (items ?? []).map((i) => ({ ...i, history_id: (i.pdf_url && histByUrl.get(i.pdf_url as string)) || null }));
+  return NextResponse.json({ items: withHist, folders: folders ?? [] });
 }
 
 export async function POST(request: Request) {
