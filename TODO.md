@@ -141,7 +141,7 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   • (az office_requests.leader_view / offices.leader_view oszlop maradhat, nem használjuk)
 - Egyedi modul: az irodához tartozik, futtatása az iroda egyenlegéből (a tag keretéből) von le.
 - ▶ INNEN FOLYTATJUK (2026-10-07): IR1–IR6b + IR5 élesben (office.sql, office-topup.sql, office-mode.sql lefuttatva).
-  Következő: IR8 (szerkesztés a mappákban naplóval), IR4b (e-mail-meghívó). (IR6c + IR7 kész: 2026-10-08)
+  Következő: IR4b (e-mail-meghívó). (IR6c + IR7 + IR8 kész: 2026-10-08)
 - Fejlesztés mikrolépésekben:
   - [x] IR1 — SQL alap: `office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
   - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
@@ -154,7 +154,7 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   - [x] IR6c — „Kredit kérése a vezetőtől" (+e-mail a létrehozónak, jóváhagyás/elutasítás) + kredithasználat-kimutatás (havi, kollégánként és modulonként) — `office-credit-requests.sql`
   - [x] IR5 — Munkamód-váltó (fejléc, /api/office/mode) + levonás a közös chargeCredit-ben (office_deduct) + refundCredit (oda vissza, ahonnan vontunk) — `office-mode.sql`
   - [x] IR7 — Irodai munka jelölése (usage_history.office_id, trigger) + közös mappák (egész iroda / kiválasztott tagok) + „Megosztás az irodával" a Korábbi munkákban + mappa tartalma (megnyitás, kivétel); kilépéskor a privát megosztások kikerülnek — `office-folders.sql`
-  - [ ] IR8 — Szerkesztés módosítási naplóval + „épp szerkeszti" zár
+  - [x] IR8 — Közös mappában lévő értékbecslés szerkesztése a mappa tagjainak (valuation/save jogosultság) + módosítási napló + visszaállítás + „épp szerkeszti" zár (10 perc) — `office-work-edit.sql`. Más munkatípus (kép/videó) nem szöveges → csak megnyitás/letöltés.
 
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)

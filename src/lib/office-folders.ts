@@ -76,3 +76,24 @@ export async function listFolders(officeId: string, userId: string, isOfficeOwne
     createdAt: f.created_at,
   }));
 }
+
+/**
+ * Szerkesztheti-e a felhasználó ezt a munkát? Igen, ha az övé, VAGY ha a munka
+ * benne van egy olyan közös irodai mappában, amelyet ő lát (a mappa tagjai javíthatnak).
+ */
+export async function canEditWork(historyId: string, userId: string): Promise<{ ok: boolean; ownerId: string | null }> {
+  const admin = createAdminClient();
+  const { data: h } = await admin.from("usage_history").select("user_id").eq("id", historyId).maybeSingle();
+  if (!h) return { ok: false, ownerId: null };
+  if (h.user_id === userId) return { ok: true, ownerId: h.user_id as string };
+  const { data: links, error } = await admin.from("office_folder_items").select("folder_id").eq("history_id", historyId);
+  if (error) return { ok: false, ownerId: h.user_id as string };
+  for (const l of links ?? []) {
+    const acc = await folderAccess(l.folder_id as string, userId);
+    if (acc?.canView) return { ok: true, ownerId: h.user_id as string };
+  }
+  return { ok: false, ownerId: h.user_id as string };
+}
+
+/** Lejárt-e a szerkesztési zár (10 perc tétlenség). */
+export const LOCK_TTL_MS = 10 * 60 * 1000;

@@ -4,11 +4,15 @@
 //
 // BIZTONSÁG: a felhasználónak NINCS UPDATE joga a usage_history-ra (az RLS sorokat
 // szűr, nem oszlopokat). Ezért a mentést a szerver végzi, és minden hívásnál
-// ellenőrzi, hogy a sor a hívóé és tényleg értékbecslés-e. Kreditet nem érint.
+// ellenőrzi, hogy a hívó szerkesztheti-e (saját munka, VAGY egy általa látott közös
+// irodai mappában van — IR8), és tényleg értékbecslés-e. Kreditet nem érint.
+// Minden mentés bekerül a módosítási naplóba (work_versions), ezért a korábbi PDF-et
+// NEM töröljük — így bármelyik változat visszaállítható.
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canEditWork, LOCK_TTL_MS } from "@/lib/office-folders";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,12 +49,20 @@ export async function POST(request: Request) {
   // Tulajdonos- és típusellenőrzés — csak a saját értékbecslése menthető.
   const { data: row, error: rowError } = await admin
     .from("usage_history")
-    .select("id, user_id, feature_used, output_file_url")
+    .select("id, user_id, feature_used, output_file_url, output_text")
     .eq("id", id)
     .maybeSingle();
   if (rowError) return NextResponse.json({ error: "Adatbázis hiba." }, { status: 500 });
-  if (!row || row.user_id !== user.id)
+  if (!row) return NextResponse.json({ error: "Nem található ez az értékbecslés." }, { status: 404 });
+  if (row.user_id !== user.id && !(await canEditWork(id, user.id)).ok)
     return NextResponse.json({ error: "Nem található ez az értékbecslés." }, { status: 404 });
+
+  // „Épp szerkeszti" zár: ha más tartja (és friss), ne írjuk felül alatta.
+  {
+    const { data: lock } = await admin.from("work_locks").select("user_id, locked_at").eq("history_id", id).maybeSingle();
+    if (lock && lock.user_id !== user.id && Date.now() - new Date(lock.locked_at as string).getTime() < LOCK_TTL_MS)
+      return NextResponse.json({ error: "Egy kolléga épp szerkeszti ezt a munkát — a mentés most nem lehetséges." }, { status: 409 });
+  }
   if (row.feature_used !== FEATURE)
     return NextResponse.json({ error: "Ez a bejegyzés nem értékbecslés." }, { status: 400 });
 
@@ -79,18 +91,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Feltöltési hiba: ${upErr.message}` }, { status: 500 });
 
     const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(filePath);
-    const previous = publicUrl;
     publicUrl = pub.publicUrl;
-
-    // A korábbi PDF törlése — csak ha biztosan a saját mappájából való.
-    if (previous) {
-      const marker = `/${BUCKET}/`;
-      const idx = previous.indexOf(marker);
-      const path = idx >= 0 ? previous.slice(idx + marker.length) : "";
-      if (path.startsWith(`${FEATURE}/${user.id}/`)) {
-        await admin.storage.from(BUCKET).remove([path]);
-      }
-    }
+    // A korábbi PDF-et szándékosan megtartjuk (módosítási napló → visszaállítható).
   }
 
   const { error: updErr } = await admin
@@ -100,10 +102,24 @@ export async function POST(request: Request) {
       output_file_url: publicUrl,
       edited_at: new Date().toISOString(),
     })
-    .eq("id", id)
-    .eq("user_id", user.id); // dupla biztosíték
+    .eq("id", id);
 
   if (updErr) return NextResponse.json({ error: `Mentési hiba: ${updErr.message}` }, { status: 500 });
+
+  // Módosítási napló (ha a work-edit SQL még nincs, csendben kihagyjuk).
+  try {
+    const { count } = await admin.from("work_versions").select("id", { count: "exact", head: true }).eq("history_id", id);
+    if ((count ?? 0) === 0 && (row.output_text || row.output_file_url)) {
+      await admin.from("work_versions").insert({
+        history_id: id, saved_by: row.user_id, kind: "original",
+        output_text: row.output_text ?? null, output_file_url: row.output_file_url ?? null,
+        created_at: new Date(Date.now() - 1000).toISOString(),
+      });
+    }
+    await admin.from("work_versions").insert({
+      history_id: id, saved_by: user.id, kind: "edit", output_text: text, output_file_url: publicUrl,
+    });
+  } catch { /* a napló nem kritikus */ }
 
   return NextResponse.json({ ok: true, url: publicUrl });
 }

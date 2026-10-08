@@ -347,7 +347,7 @@ function ShareToOffice({ historyId }: { historyId: string }) {
             </ul>
           )}
           <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-            A munka nálad marad; a mappa tagjai látják és letölthetik.
+            A munka nálad marad; a mappa tagjai látják, letölthetik és javíthatják (minden módosítás naplózva, visszaállítható).
           </p>
         </div>
       )}

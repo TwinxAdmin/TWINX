@@ -166,6 +166,7 @@ function FolderForm({ initial, members, onCancel, onSaved }: {
 function FolderContents({ folder, onCountChange }: { folder: OfficeFolder; onCountChange: (n: number) => void }) {
   const [items, setItems] = useState<OfficeFolderItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [historyOf, setHistoryOf] = useState<string | null>(null);
 
   useEffect(() => {
     setItems(null);
@@ -205,10 +206,73 @@ function FolderContents({ folder, onCountChange }: { folder: OfficeFolder; onCou
                 </p>
               </div>
               {it.url && <a href={it.url} target="_blank" rel="noreferrer" className="twx-btn-outline text-xs">Megnyitás</a>}
+              {/* A mappa tagjai javíthatnak — jelenleg az értékbecslés szövege szerkeszthető (IR8). */}
+              {it.feature === "valuation" && (
+                <a href={`/dashboard/real-estate/valuation?shared=${it.historyId}`} className="twx-btn text-xs">Szerkesztés</a>
+              )}
+              {it.feature === "valuation" && (
+                <button type="button" className="text-xs underline" onClick={() => setHistoryOf(historyOf === it.historyId ? null : it.historyId)}>
+                  Előzmények
+                </button>
+              )}
               {it.canRemove && (
                 <button type="button" className="text-xs underline" style={{ color: "var(--twx-ink-muted)" }} onClick={() => takeOut(it)}>
                   Kivétel
                 </button>
+              )}
+              {historyOf === it.historyId && <WorkVersions historyId={it.historyId} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Módosítási napló: ki, mikor mentette; bármelyik változat visszaállítható. */
+function WorkVersions({ historyId }: { historyId: string }) {
+  type V = { id: string; kind: string; savedBy: string; url: string | null; createdAt: string; current: boolean };
+  const [versions, setVersions] = useState<V[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function load() {
+    fetch(`/api/office/works/versions?historyId=${historyId}`)
+      .then((r) => r.json())
+      .then((d) => (d.error ? setError(d.error) : setVersions(d.versions)))
+      .catch(() => setError("Nem sikerült betölteni."));
+  }
+  useEffect(load, [historyId]);
+
+  async function restore(v: V) {
+    if (!window.confirm(`Visszaállítod a ${new Date(v.createdAt).toLocaleString("hu-HU")} változatot? A mostani állapot is megmarad a naplóban.`)) return;
+    setBusy(v.id);
+    const res = await fetch("/api/office/works/versions", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ versionId: v.id }),
+    });
+    const d = await res.json();
+    setBusy(null);
+    if (!res.ok) { setError(d.error ?? "Nem sikerült visszaállítani."); return; }
+    load();
+  }
+
+  const LABEL: Record<string, string> = { original: "Eredeti", edit: "Módosítás", restore: "Visszaállítás" };
+
+  return (
+    <div className="w-full rounded-lg p-3 text-xs" style={{ background: "var(--twx-cream)" }}>
+      {error && <p className="text-red-600">{error}</p>}
+      {!versions && !error && <p>Betöltés…</p>}
+      {versions && versions.length === 0 && <p>Még nem módosította senki.</p>}
+      {versions && versions.length > 0 && (
+        <ul className="space-y-1.5">
+          {versions.map((v) => (
+            <li key={v.id} className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">{LABEL[v.kind] ?? v.kind}</span>
+              <span>· {v.savedBy} · {new Date(v.createdAt).toLocaleString("hu-HU")}</span>
+              {v.current && <span className="rounded-full px-1.5" style={{ background: "#fff" }}>aktuális</span>}
+              {v.url && <a href={v.url} target="_blank" rel="noreferrer" className="underline">PDF</a>}
+              {!v.current && (
+                <button type="button" className="underline" disabled={busy === v.id} onClick={() => restore(v)}>Visszaállítás</button>
               )}
             </li>
           ))}

@@ -260,6 +260,55 @@ export default function ValuationPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [editorOpen]);
 
+  // --- IR8: „épp szerkeszti" zár + megosztott (közös mappás) munka megnyitása ---
+  const [lockMessage, setLockMessage] = useState<string | null>(null);
+
+  /** Zár megszerzése; ha más szerkeszti, üzenetet ad és nem nyitja meg. */
+  async function openWithLock(h: HistoryItem) {
+    setLockMessage(null);
+    try {
+      const res = await fetch("/api/office/works/lock", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ historyId: h.id }),
+      });
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        setLockMessage(d.error ?? "Egy kolléga épp szerkeszti ezt a munkát. Próbáld újra később.");
+        return;
+      }
+    } catch { /* a zár nem kritikus — megnyitjuk */ }
+    openHistoryItem(h);
+  }
+
+  // Megnyitott szerkesztő alatt 2 percenként frissítjük a zárat; bezáráskor elengedjük.
+  const editingId = editorOpen ? result?.id ?? null : null;
+  useEffect(() => {
+    if (!editingId) return;
+    const ping = () => fetch("/api/office/works/lock", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ historyId: editingId }),
+    }).catch(() => {});
+    const timer = setInterval(ping, 2 * 60 * 1000);
+    return () => {
+      clearInterval(timer);
+      fetch("/api/office/works/lock", {
+        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ historyId: editingId }),
+      }).catch(() => {});
+    };
+  }, [editingId]);
+
+  // „?shared=<id>" — közös irodai mappából megnyitott értékbecslés (IR8).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("shared");
+    if (!id) return;
+    fetch(`/api/office/works/item?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) { setLockMessage(d.error); return; }
+        openWithLock(d.item as HistoryItem);
+      })
+      .catch(() => setLockMessage("A megosztott munka nem tölthető be."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function closeEditor() {
     // A lap bármikor újranyitható a Korábbi munkák közül, ezért nincs kérdés.
     setEditorOpen(false);
@@ -292,7 +341,7 @@ export default function ValuationPage() {
 
   function openLibItem(v: ValItem) {
     const h = history.find((x) => x.id === v.id);
-    if (h) openHistoryItem(h);
+    if (h) openWithLock(h);
   }
 
   async function manage(url: string, init: RequestInit) {
@@ -387,6 +436,11 @@ export default function ValuationPage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-4">
+      {lockMessage && (
+        <div className="rounded-xl p-3 text-sm" style={{ background: "rgba(239,122,90,0.12)", border: "1px solid var(--twx-coral)" }}>
+          {lockMessage}
+        </div>
+      )}
       <ModuleIntro
         eyebrow="Ingatlan · Elemzés"
         title="Ingatlan értékbecslés"
