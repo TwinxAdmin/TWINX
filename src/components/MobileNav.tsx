@@ -139,9 +139,21 @@ export default function MobileNav({
                 <a href="/dashboard/branding" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                   Arculatom
                 </a>
-                <a href="/dashboard/iroda" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
-                  Irodai fiók
+                <p className="px-2 pt-1 text-[11px] uppercase tracking-wider" style={{ color: "var(--twx-on-dark-muted)" }}>Irodai fiók</p>
+                <a href="/dashboard/iroda/bemutato" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  Mi az irodai fiók?
                 </a>
+                <a href="/dashboard/iroda/igenyles" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  Irodai fiók igénylése
+                </a>
+                <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-office-join")); }}
+                  className="block w-full rounded-xl px-2 py-2.5 text-left text-sm hover:bg-white/5">
+                  Csatlakozás kóddal
+                </button>
+                <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("open-office-picker")); }}
+                  className="block w-full rounded-xl px-2 py-2.5 text-left text-sm hover:bg-white/5">
+                  Irodai fiókjaim
+                </button>
                 {isAdmin && (
                   <a href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                     Admin

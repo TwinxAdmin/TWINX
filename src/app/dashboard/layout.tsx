@@ -12,6 +12,8 @@ import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
 import { resolveViewContext } from "@/lib/view-as";
 import CreditDock from "@/components/CreditDock";
+import OfficeMenu from "@/components/office/OfficeMenu";
+import OfficeModals from "@/components/office/OfficeModals";
 import { getMembershipIn, getWorkContext, listMyOffices } from "@/lib/office-server";
 
 export default async function DashboardLayout({
@@ -97,20 +99,11 @@ export default async function DashboardLayout({
             </svg>
             Arculatom
           </a>
-          {/* Irodai TWINX fiók — közös irodai kreditkeret (igénylés / csatlakozás). */}
-          <a
-            href="/dashboard/iroda"
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5"
-            style={{ color: "var(--twx-on-dark)" }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M3 21h18" />
-              <path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
-              <path d="M15 10h3a1 1 0 0 1 1 1v10" />
-              <path d="M8 8h1M11 8h1M8 12h1M11 12h1M8 16h1M11 16h1" />
-            </svg>
-            Irodai fiók
-          </a>
+          {/* Irodai TWINX fiók — legördülő menü (magyarázó, igénylés, csatlakozás, irodáim). */}
+          <OfficeMenu
+            currentOffice={dock?.offices.find((o) => o.id === dock.officeId)?.name ?? null}
+            officeCount={dock?.offices.length ?? 0}
+          />
           <AccountMenu email={user?.email ?? ""} role={view.role} balance={balance} />
           <LogoutButton />
         </div>
@@ -131,6 +124,7 @@ export default async function DashboardLayout({
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
       <PricingModal />
+      <OfficeModals />
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
       <CreditDock
