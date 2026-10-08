@@ -10,7 +10,8 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import { generateImage } from "@/lib/nanobanana";
 import { logCost, googleImageCostUsd } from "@/lib/costs";
 import { buildEnhancePromptActive } from "@/lib/prompts";
@@ -75,9 +76,9 @@ export async function POST(request: Request) {
   if (!service) return NextResponse.json({ error: "A modul nem található." }, { status: 400 });
 
   // 1 kredit az egész feldolgozásra (all-or-nothing), a közös egyenlegből.
-  const charge = await chargeCredit({ userId: user.id, amount: 1, service: "image-enhance" });
+  const charge = await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: 1, service: "image-enhance" });
   if (!charge.ok) {
-    return NextResponse.json({ error: "Nincs elég kredit ehhez a modulhoz." }, { status: 402 });
+    return insufficientResponse(user.id, 1, charge);
   }
 
   try {
@@ -149,7 +150,7 @@ export async function POST(request: Request) {
   } catch (err) {
     // Nem sikerült MIND -> teljes visszatérítés.
     if (!charge.bypassed) {
-      await refundCredit(user.id, 1);
+      await refundCredit(user.id, 1, charge?.source);
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

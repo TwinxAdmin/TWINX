@@ -6,7 +6,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildAdCheckPromptActive } from "@/lib/prompts";
 import { ADCHECK_CREDITS, isValidTone, parseAdCheck } from "@/lib/adcheck";
@@ -74,12 +75,12 @@ export async function POST(request: Request) {
 
   // 1) Kredit (admin/sales bypass). Hibánál visszatérítjük.
   const credits = ADCHECK_CREDITS;
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "ad-check" }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: credits, service: "ad-check" }) : null;
   if (charge && !charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+    return insufficientResponse(user.id, credits, charge);
   }
   const refund = async () => {
-    if (charge && !charge.bypassed) await refundCredit(user.id, credits);
+    if (charge && !charge.bypassed) await refundCredit(user.id, credits, charge?.source);
   };
 
   try {

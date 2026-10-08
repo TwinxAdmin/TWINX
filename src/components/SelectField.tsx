@@ -10,9 +10,27 @@ import { AnimatePresence, motion } from "framer-motion";
 
 export type SelectOption = { value: string; label: string; group?: string };
 
+/** Megjelenés: „light" (alap, világos űrlapokhoz) vagy „dark" (sötét TWINX paneleken, pl. Üzenet küldése). */
+type Tone = "light" | "dark";
+const TONES: Record<Tone, {
+  bg: string; border: string; text: string; muted: string; popBg: string; popBorder: string; shadow: string;
+  hover: string; selBg: string; selText: string; inputBg: string; inputBorder: string;
+}> = {
+  light: {
+    bg: "var(--twx-cream-card)", border: "var(--twx-line)", text: "var(--twx-ink)", muted: "var(--twx-ink-muted)",
+    popBg: "var(--twx-cream-card)", popBorder: "var(--twx-line)", shadow: "0 18px 44px rgba(20,12,8,0.18)",
+    hover: "rgba(239,122,90,0.10)", selBg: "var(--twx-coral)", selText: "#fff", inputBg: "#fff", inputBorder: "var(--twx-line)",
+  },
+  dark: {
+    bg: "#1B1815", border: "#2E2723", text: "#F3EDE6", muted: "#8F857B",
+    popBg: "#1B1815", popBorder: "#3A322C", shadow: "0 22px 50px rgba(0,0,0,0.55)",
+    hover: "rgba(239,122,90,0.16)", selBg: "#F08A68", selText: "#1C1A17", inputBg: "#121110", inputBorder: "#3A322C",
+  },
+};
+
 export default function SelectField({
   value, onChange, options, placeholder = "— válassz —", className, disabled,
-  searchable, ariaLabel,
+  searchable, ariaLabel, tone = "light", size = "md",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -22,7 +40,10 @@ export default function SelectField({
   disabled?: boolean;
   searchable?: boolean;   // ha nincs megadva: 8+ opciónál automatikusan bekapcsol
   ariaLabel?: string;
+  tone?: Tone;
+  size?: "md" | "sm";      // sm: alacsony, kerek („pill") mező — kompakt sávokba
 }) {
+  const T = TONES[tone];
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -99,11 +120,11 @@ export default function SelectField({
         disabled={disabled}
         aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
-        className="box-border flex h-[42px] w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm transition disabled:opacity-60"
+        className={`box-border flex w-full items-center justify-between gap-2 border transition disabled:opacity-60 ${size === "sm" ? "h-8 rounded-full px-3 text-xs" : "h-[42px] rounded-lg px-3 text-sm"}`}
         style={{
-          borderColor: open ? "var(--twx-coral)" : "var(--twx-line)",
-          background: "var(--twx-cream-card)",
-          color: selected ? "var(--twx-ink)" : "var(--twx-ink-muted)",
+          borderColor: open ? "var(--twx-coral)" : T.border,
+          background: T.bg,
+          color: selected ? T.text : T.muted,
         }}
       >
         <span className="truncate">{selected ? selected.label : placeholder}</span>
@@ -129,26 +150,26 @@ export default function SelectField({
               top: rect.below ? rect.top : undefined,
               bottom: rect.below ? undefined : window.innerHeight - rect.top,
               width: Math.max(rect.width, 180),
-              background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 18px 44px rgba(20,12,8,0.18)",
+              background: T.popBg, border: `1px solid ${T.popBorder}`, boxShadow: T.shadow, color: T.text,
             }}
           >
             {showSearch && (
-              <div className="border-b p-2" style={{ borderColor: "var(--twx-line)" }}>
+              <div className="border-b p-2" style={{ borderColor: T.popBorder }}>
                 <input
                   autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Keresés…"
                   className="w-full rounded-lg border px-3 py-1.5 text-sm"
-                  style={{ borderColor: "var(--twx-line)", background: "#fff" }}
+                  style={{ borderColor: T.inputBorder, background: T.inputBg, color: T.text }}
                 />
               </div>
             )}
             <div className="max-h-64 overflow-y-auto p-1">
               {groups.length === 0 || filtered.length === 0 ? (
-                <p className="px-3 py-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</p>
+                <p className="px-3 py-2 text-sm" style={{ color: T.muted }}>Nincs találat.</p>
               ) : (
                 groups.map((g) => (
                   <div key={g.name || "_"}>
                     {g.name && (
-                      <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>
+                      <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: T.muted }}>
                         {g.name}
                       </div>
                     )}
@@ -160,8 +181,8 @@ export default function SelectField({
                           type="button"
                           onClick={() => { onChange(o.value); setOpen(false); }}
                           className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition"
-                          style={{ background: isSel ? "var(--twx-coral)" : "transparent", color: isSel ? "#fff" : "var(--twx-ink)" }}
-                          onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = "rgba(239,122,90,0.10)"; }}
+                          style={{ background: isSel ? T.selBg : "transparent", color: isSel ? T.selText : T.text }}
+                          onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = T.hover; }}
                           onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
                         >
                           <span className="truncate">{o.label}</span>

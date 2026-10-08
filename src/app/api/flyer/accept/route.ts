@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
 export const runtime = "nodejs";
@@ -55,9 +56,9 @@ export async function POST(request: Request) {
   }
 
   // 1) Kredit (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = FLYER_CREDITS > 0 ? await chargeCredit({ userId: user.id, amount: FLYER_CREDITS, service: "flyer" }) : null;
+  const charge = FLYER_CREDITS > 0 ? await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: FLYER_CREDITS, service: "flyer" }) : null;
   if (charge && !charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${FLYER_CREDITS} szükséges).` }, { status: 402 });
+    return insufficientResponse(user.id, FLYER_CREDITS, charge);
   }
 
   try {
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, url, kind: format.kind, charged: charge ? !charge.bypassed : false });
   } catch (err) {
     if (charge && !charge.bypassed) {
-      await refundCredit(user.id, FLYER_CREDITS);
+      await refundCredit(user.id, FLYER_CREDITS, charge?.source);
     }
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

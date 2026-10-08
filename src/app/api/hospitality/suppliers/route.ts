@@ -6,7 +6,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import { runSonar, submitSonarAsync, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSupplierPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
@@ -143,14 +144,14 @@ export async function POST(request: Request) {
   const pro = Boolean(body.pro);
   const credits = creditsForCountPro(count, pro);
 
-  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "suppliers" });
+  const charge = await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: credits, service: "suppliers" });
   if (!charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+    return insufficientResponse(user.id, credits, charge);
   }
   const creditsCharged = charge.bypassed ? 0 : credits;
   const refund = async () => {
     if (!charge.bypassed && credits > 0) {
-      await refundCredit(user.id, credits);
+      await refundCredit(user.id, credits, charge?.source);
     }
   };
 

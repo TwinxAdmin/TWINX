@@ -10,8 +10,9 @@ import PricingModal from "@/components/PricingModal";
 import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
-import { resolveViewContext } from "@/lib/view-as";
+import { officeMemberPreview, resolveViewContext } from "@/lib/view-as";
 import CreditDock from "@/components/CreditDock";
+import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
 import { getMembershipIn, getWorkContext, listMyOffices } from "@/lib/office-server";
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
 
   // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).
   const dock = user ? await loadDockState(user.id) : null;
+  const officePreview = dock?.isManager ? await officeMemberPreview() : false;
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -124,6 +126,8 @@ export default async function DashboardLayout({
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
       <PricingModal />
+      {/* Elfogyott irodai keret → „Folytatás saját kreditből?" (minden modulra, egy helyen) */}
+      {dock && <OfficeFallbackProvider />}
       <OfficeModals />
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
@@ -133,8 +137,13 @@ export default async function DashboardLayout({
         office={dock}
       />
 
-      {/* Nézet-váltó (fejlesztést segítő) — csak adminnak, a bal alsó sarokban */}
-      {view.canPreview && <ViewAsBar current={view.role as "admin" | "user" | "sales"} />}
+      {/* Nézet-váltó — jobb alsó sarok: admin (Admin/Sales/Felhasználó) + irodai vezető (Vezető/Kolléga) */}
+      {(view.canPreview || dock?.isManager) && (
+        <ViewAsBar
+          current={view.canPreview ? (view.role as "admin" | "user" | "sales") : null}
+          office={dock?.isManager ? { preview: officePreview } : null}
+        />
+      )}
     </div>
   );
 }
@@ -153,6 +162,8 @@ async function loadDockState(userId: string) {
       label,
       officeId: selected.id,
       offices: offices.map((o) => ({ id: o.id, name: o.name })),
+      // Létrehozó / vezető a kiválasztott irodában → használhatja a „Kolléga-nézet" előnézetet.
+      isManager: !!m && (m.role === "owner" || !!m.can_allocate),
     };
   } catch {
     return null;

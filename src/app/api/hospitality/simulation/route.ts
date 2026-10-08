@@ -8,7 +8,8 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildSimulationPromptActive } from "@/lib/prompts";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
@@ -81,13 +82,13 @@ export async function POST(request: Request) {
 
   // Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
   const credits = SIMULATION_CREDITS;
-  const charge = await chargeCredit({ userId: user.id, amount: credits, service: "simulation" });
+  const charge = await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: credits, service: "simulation" });
   if (!charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+    return insufficientResponse(user.id, credits, charge);
   }
   const refund = async () => {
     if (!charge.bypassed && credits > 0) {
-      await refundCredit(user.id, credits);
+      await refundCredit(user.id, credits, charge?.source);
     }
   };
 

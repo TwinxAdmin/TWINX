@@ -90,7 +90,8 @@ export async function loadMyOffice(userId: string): Promise<MyOffice | null> {
     unlimited: !!m.unlimited,
     canAllocate: !!m.can_allocate,
   };
-  if (!isOwner) return base;
+  // A létrehozó ÉS a vezető (kiosztó jogú tag) látja az egyenleget és a csatlakozási kódot.
+  if (!(isOwner || m.can_allocate)) return base;
 
   const { count } = await admin
     .from("office_members").select("user_id", { count: "exact", head: true }).eq("office_id", o.id);
@@ -137,12 +138,27 @@ export async function listMembers(officeId: string): Promise<OfficeMember[]> {
  * Visszatér: az új keret, vagy null, ha nem engedélyezett; hiba esetén { error }.
  */
 export async function allocateIn(officeId: string, actor: string, member: string, delta: number, note: string | null) {
-  const admin = createAdminClient();
-  const res = await admin.rpc("office_allocate_in", {
+  // Foglalásos modell (office-reserve.sql): a szabályokat az adatbázis kényszeríti ki,
+  // a hibát kódként adja vissza (OFFICE_…) — ezt az officeErrorMessage() fordítja le.
+  return createAdminClient().rpc("office_allocate_in", {
     p_office: officeId, p_actor: actor, p_member: member, p_delta: delta, p_note: note,
   });
-  if (res.error && /office_allocate_in|function/i.test(res.error.message)) {
-    return admin.rpc("office_allocate", { p_actor: actor, p_member: member, p_delta: delta, p_note: note });
-  }
-  return res;
+}
+
+/** Az adatbázis OFFICE_… hibakódjai érthető, magyar üzenetként. */
+export function officeErrorMessage(raw: string | undefined | null): string {
+  const m = raw ?? "";
+  if (m.includes("OFFICE_FREE_INSUFFICIENT")) return "Nincs ennyi szabadon kiosztható kredit. Tölts fel, vagy vegyél vissza keretet valakitől.";
+  if (m.includes("OFFICE_ALLOWANCE_LOW")) return "Ennyit nem lehet visszavenni — a kolléga kerete 0 alá menne.";
+  if (m.includes("OFFICE_TARGET_UNLIMITED")) return "A létrehozónak és a korlátlan tagnak nem kell keret — ők a szabad részből dolgoznak.";
+  if (m.includes("OFFICE_NOT_ALLOWED")) return "Ehhez nincs jogod (magadnak sem oszthatsz keretet).";
+  if (m.includes("OFFICE_WRITE_FORBIDDEN") || m.includes("OFFICE_ROLE_LOCKED") || m.includes("OFFICE_OWNER_LOCKED")) return "A művelet nem engedélyezett.";
+  return m || "Ismeretlen hiba.";
+}
+
+/** Egyenleg, kiosztott (lefoglalt) keretek összege és a szabadon kiosztható rész. */
+export async function officeFree(officeId: string): Promise<{ balance: number; allocated: number; free: number }> {
+  const { data } = await createAdminClient().rpc("office_free", { p_office: officeId });
+  const row = (Array.isArray(data) ? data[0] : data) as { balance?: number; allocated?: number; free?: number } | null;
+  return { balance: row?.balance ?? 0, allocated: row?.allocated ?? 0, free: row?.free ?? 0 };
 }

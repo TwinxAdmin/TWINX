@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateJoinCode, validateOfficeName } from "@/lib/office";
 import { getMembership, listMyOffices, loadMyOffice, setWorkContext } from "@/lib/office-server";
+import { officeMemberPreview } from "@/lib/view-as";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [office, offices] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id)]);
-  return NextResponse.json({ office, offices });
+  const [office, offices, preview] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id), officeMemberPreview()]);
+  // Kolléga-nézet előnézete: csak a létrehozónál / vezetőnél van hatása (megjelenítés, jogot nem ad / nem vesz el).
+  const memberPreview = preview && !!office && (office.role === "owner" || office.canAllocate);
+  return NextResponse.json({ office, offices, memberPreview });
 }
 
 export async function POST(request: Request) {

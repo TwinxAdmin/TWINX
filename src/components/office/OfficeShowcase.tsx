@@ -44,7 +44,7 @@ const FAQ: { q: string; a: string }[] = [
   { q: "Hogyan tudja a kollégám folytatni a munkámat?", a: "Tedd be a munkát egy közös irodai mappába, aminek ő is tagja. Ott megnyitja, és folytathatja vagy átnézheti. Szerkesztés közben a munka zárolva van, így ketten nem írják felül egymást, és minden mentésből új verzió lesz. A szerkesztés jelenleg az értékbecsléseknél érhető el; a többi modul munkái megoszthatók és megnyithatók." },
   { q: "Több irodához is tartozhatok?", a: "Igen. Több irodai fióknak is tagja lehetsz, és akár többet is létrehozhatsz. Az „Irodai fiókjaim” oldalon választod ki, melyikben dolgozol." },
   { q: "Lejárnak az irodai kreditek?", a: "Nem. Ugyanúgy, mint a saját kreditek, az irodai egyenleg sem jár le havonta." },
-  { q: "Mi történik, ha egy kolléga kilép?", a: "A vezető eltávolítja a tagok közül. Az irodai egyenleg az irodánál marad, a kolléga megosztott munkái kikerülnek a közös mappákból, a saját munkái és saját kreditjei pedig nála maradnak." },
+  { q: "Mi történik, ha egy kolléga kilép?", a: "A létrehozó eltávolítja a tagok közül. A fel nem használt irodai kerete visszakerül az irodához, az irodai módban készült munkái az irodánál maradnak, a saját kreditjei és a privát munkái pedig nála — ez utóbbiak a közös mappákból is kikerülnek." },
 ];
 
 export default function OfficeShowcase() {

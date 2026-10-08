@@ -8,9 +8,22 @@
 // dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMembershipIn, getWorkContext } from "@/lib/office-server";
+import { getMembershipIn, getWorkContext, officeFree } from "@/lib/office-server";
 
 export type CreditSource = "wallet" | "office";
+
+/**
+ * Honnan fizessen EZ az egy művelet:
+ *  • "auto"   — a beállított munkamód szerint (irodai mód → iroda, különben saját pénztárca)
+ *  • "wallet" — a felhasználó KIFEJEZETTEN a saját kreditjéből kérte (pl. elfogyott az irodai
+ *               kerete, és a felugró ablakban rábólintott). Csak erre az egy kérésre szól.
+ */
+export type PayFrom = "auto" | "wallet";
+
+/** A kérés fejlécéből: a kliens „Folytatás saját kreditből" után küldi (x-twx-pay-from: wallet). */
+export function payFromRequest(request: Request): PayFrom {
+  return request.headers.get("x-twx-pay-from") === "wallet" ? "wallet" : "auto";
+}
 
 export type ChargeResult =
   | { ok: true; bypassed: boolean; source?: CreditSource }
@@ -29,8 +42,9 @@ export async function chargeCredit(params: {
   userId: string;
   amount?: number;
   service?: string;   // melyik modul (az irodai naplóhoz)
+  payFrom?: PayFrom;  // "wallet" = most kifejezetten a saját kreditből (soha nem automatikus)
 }): Promise<ChargeResult> {
-  const { userId, amount = 1, service } = params;
+  const { userId, amount = 1, service, payFrom = "auto" } = params;
   const admin = createAdminClient();
 
   // 1) Szerepkör ellenőrzés — CSAK az admin korlátlan (megkerüli a levonást).
@@ -45,7 +59,8 @@ export async function chargeCredit(params: {
   }
 
   // 2a) Irodai mód → az iroda egyenlegéből + a tag keretéből (atomikus, office_deduct).
-  if (await officeMode(userId)) {
+  //     Ha a felhasználó erre a kérésre a saját kreditjét választotta, ezt az ágat kihagyjuk.
+  if (payFrom !== "wallet" && (await officeMode(userId))) {
     const { data: ok, error: offErr } = await admin.rpc("office_deduct", {
       p_user: userId, p_amount: amount, p_service: service ?? null,
     });
@@ -70,9 +85,15 @@ export async function chargeCredit(params: {
  * saját pénztárca). Ha a credit_refund SQL-függvény még nincs (office-mode.sql),
  * a régi módon a saját pénztárcába ír vissza.
  */
-export async function refundCredit(userId: string, amount: number): Promise<void> {
+export async function refundCredit(userId: string, amount: number, source?: CreditSource): Promise<void> {
   if (!amount || amount <= 0) return;
   const admin = createAdminClient();
+  // Ha biztosan tudjuk, hogy a SAJÁT pénztárcából vontunk (pl. „Folytatás saját kreditből"),
+  // oda írjuk vissza — ne keressen a credit_refund irodai levonást ugyanakkora összeggel.
+  if (source === "wallet") {
+    await admin.rpc("wallet_add", { p_user_id: userId, p_amount: amount });
+    return;
+  }
   const { error } = await admin.rpc("credit_refund", { p_user: userId, p_amount: amount });
   if (error) {
     await admin.rpc("wallet_add", { p_user_id: userId, p_amount: amount });
@@ -91,8 +112,9 @@ export async function refundCredit(userId: string, amount: number): Promise<void
 export async function checkCreditAvailable(params: {
   userId: string;
   amount?: number;
+  payFrom?: PayFrom;
 }): Promise<ChargeResult> {
-  const { userId, amount = 1 } = params;
+  const { userId, amount = 1, payFrom = "auto" } = params;
   const admin = createAdminClient();
 
   const { data: profile } = await admin
@@ -103,12 +125,17 @@ export async function checkCreditAvailable(params: {
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
 
-  // Irodai mód: a tag keretét (ha nem korlátlan) ÉS az iroda egyenlegét is nézzük.
-  const om = await officeMode(userId);
+  // Irodai mód (foglalásos keret, office-reserve.sql):
+  //   • tag: a saját (lefoglalt) kerete számít;
+  //   • létrehozó / korlátlan: csak a SZABADON kiosztható rész (a kollégák foglalását nem érinti).
+  const om = payFrom === "wallet" ? null : await officeMode(userId);
   if (om) {
-    if (!(om.owner || om.unlimited) && om.allowance < amount) return { ok: false, reason: "insufficient", source: "office" };
-    const { data: office } = await admin.from("offices").select("balance").eq("id", om.officeId).maybeSingle();
-    if (((office?.balance as number | undefined) ?? 0) < amount) return { ok: false, reason: "insufficient", source: "office" };
+    if (om.owner || om.unlimited) {
+      const { free } = await officeFree(om.officeId);
+      if (free < amount) return { ok: false, reason: "insufficient", source: "office" };
+    } else if (om.allowance < amount) {
+      return { ok: false, reason: "insufficient", source: "office" };
+    }
     return { ok: true, bypassed: false, source: "office" };
   }
 

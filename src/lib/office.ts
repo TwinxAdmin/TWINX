@@ -129,7 +129,10 @@ export type OfficeMember = {
 };
 
 /** Egyszerre kiosztható / visszavehető keret felső határa (elütés elleni védelem). */
-export const ALLOCATE_MAX = 1000;
+export const ALLOCATE_MAX = 9999;
+
+/** Keretkiosztás megjegyzésének max. hossza (az adatbázis is levágja 200-ra). */
+export const ALLOCATE_NOTE_MAX = 200;
 
 /** Egy „Kredit kérése a vezetőtől" tétel. */
 export type OfficeCreditRequest = {
@@ -176,6 +179,7 @@ export type OfficeFolder = {
   createdBy: string | null;
   createdByName: string;
   itemCount: number;
+  lastAddedAt: string | null;   // a legutóbb betett munka ideje (utolsó aktivitás)
   canManage: boolean;           // létrehozó vagy az iroda létrehozója: átnevezés, tagok, törlés
   createdAt: string;
 };

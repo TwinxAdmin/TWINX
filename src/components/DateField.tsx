@@ -4,8 +4,16 @@
 // Nincs új függőség — csak React + Framer Motion (ami már használatban van).
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+
+/** „light" (alap) vagy „dark" (sötét TWINX paneleken). */
+type Tone = "light" | "dark";
+const TONES: Record<Tone, { bg: string; border: string; text: string; muted: string; popBg: string; popBorder: string; shadow: string; off: string; selText: string; sel: string }> = {
+  light: { bg: "var(--twx-cream-card)", border: "var(--twx-line)", text: "var(--twx-ink)", muted: "var(--twx-ink-muted)", popBg: "var(--twx-cream-card)", popBorder: "var(--twx-line)", shadow: "0 18px 44px rgba(20,12,8,0.18)", off: "var(--twx-line)", selText: "#fff", sel: "var(--twx-coral)" },
+  dark: { bg: "#1B1815", border: "#2E2723", text: "#F3EDE6", muted: "#8F857B", popBg: "#1B1815", popBorder: "#3A322C", shadow: "0 22px 50px rgba(0,0,0,0.55)", off: "#3A322C", selText: "#1C1A17", sel: "#F08A68" },
+};
 
 const MONTHS = [
   "január", "február", "március", "április", "május", "június",
@@ -36,7 +44,7 @@ function firstWeekday(y: number, m: number): number {
 }
 
 export default function DateField({
-  value, onChange, min, max, placeholder = "Válassz dátumot", className,
+  value, onChange, min, max, placeholder = "Válassz dátumot", className, tone = "light", size = "md", clearable = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -44,8 +52,23 @@ export default function DateField({
   max?: string;
   placeholder?: string;
   className?: string;
+  tone?: Tone;
+  size?: "md" | "sm";     // sm: alacsony, kerek mező
+  clearable?: boolean;    // „Törlés" a láblécben (nem kötelező dátumhoz)
 }) {
+  const T = TONES[tone];
   const [open, setOpen] = useState(false);
+  const popRef = useRef<HTMLDivElement>(null);
+  // A naptárat portálon át, FIX pozícióval rendereljük — görgethető panel nem vágja el.
+  const [rect, setRect] = useState<{ left: number; top: number; below: boolean } | null>(null);
+  const place = () => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom > 340 || window.innerHeight - r.bottom > r.top;
+    const left = Math.min(r.left, window.innerWidth - 280);
+    setRect({ left: Math.max(8, left), top: below ? r.bottom + 6 : r.top - 6, below });
+  };
   const parsed = parseISO(value);
   const [view, setView] = useState(() => {
     const p = parsed ?? parseISO(todayISO())!;
@@ -63,7 +86,9 @@ export default function DateField({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (wrapRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDown);
@@ -98,17 +123,26 @@ export default function DateField({
 
   const today = todayISO();
 
+  useLayoutEffect(() => { if (open) place(); }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => place();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => { window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
+  }, [open]);
+
   return (
     // Alapértelmezett szélesség, hogy flex-sorban is elférjen a formázott dátum.
     <div ref={wrapRef} className={`relative ${className ?? "w-[156px]"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="box-border flex h-[38px] w-full items-center justify-between gap-2 rounded-lg border px-3 text-sm transition"
+        className={`box-border flex w-full items-center justify-between gap-2 border transition ${size === "sm" ? "h-8 rounded-full px-3 text-xs" : "h-[38px] rounded-lg px-3 text-sm"}`}
         style={{
-          borderColor: open ? "var(--twx-coral)" : "var(--twx-line)",
-          background: "var(--twx-cream-card)",
-          color: parsed ? "var(--twx-ink)" : "var(--twx-ink-muted)",
+          borderColor: open ? "var(--twx-coral)" : T.border,
+          background: T.bg,
+          color: parsed ? T.text : T.muted,
         }}
       >
         <span className="truncate">{label}</span>
@@ -119,18 +153,24 @@ export default function DateField({
         </svg>
       </button>
 
+      {typeof document !== "undefined" && createPortal(
       <AnimatePresence>
-        {open && (
+        {open && rect && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            ref={popRef}
+            initial={{ opacity: 0, y: rect.below ? -6 : 6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: rect.below ? -6 : 6, scale: 0.98 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute left-0 z-[70] mt-2 w-[268px] rounded-2xl p-3"
+            className="fixed z-[120] w-[268px] rounded-2xl p-3"
             style={{
-              background: "var(--twx-cream-card)",
-              border: "1px solid var(--twx-line)",
-              boxShadow: "0 18px 44px rgba(20,12,8,0.18)",
+              left: rect.left,
+              top: rect.below ? rect.top : undefined,
+              bottom: rect.below ? undefined : window.innerHeight - rect.top,
+              background: T.popBg,
+              border: `1px solid ${T.popBorder}`,
+              boxShadow: T.shadow,
+              color: T.text,
             }}
           >
             {/* Fejléc: hónapléptetés */}
@@ -150,7 +190,7 @@ export default function DateField({
             <div className="mb-1 grid grid-cols-7 gap-0.5">
               {WEEKDAYS.map((w, i) => (
                 <div key={w} className="text-center text-[10px] font-medium uppercase tracking-wide"
-                  style={{ color: i >= 5 ? "var(--twx-coral)" : "var(--twx-ink-muted)" }}>
+                  style={{ color: i >= 5 ? "var(--twx-coral)" : T.muted }}>
                   {w}
                 </div>
               ))}
@@ -172,14 +212,14 @@ export default function DateField({
                     onClick={() => { onChange(iso); setOpen(false); }}
                     className="h-8 rounded-lg text-sm transition disabled:cursor-not-allowed"
                     style={{
-                      background: isSel ? "var(--twx-coral)" : "transparent",
+                      background: isSel ? T.sel : "transparent",
                       color: off
-                        ? "var(--twx-line)"
+                        ? T.off
                         : isSel
-                          ? "#fff"
+                          ? T.selText
                           : isToday
                             ? "var(--twx-coral)"
-                            : "var(--twx-ink)",
+                            : T.text,
                       fontWeight: isSel || isToday ? 600 : 400,
                       border: isToday && !isSel ? "1px solid var(--twx-coral)" : "1px solid transparent",
                       opacity: off ? 0.5 : 1,
@@ -192,7 +232,7 @@ export default function DateField({
             </div>
 
             {/* Lábléc: gyors ugrás a mai napra */}
-            <div className="mt-2 flex items-center justify-between border-t pt-2" style={{ borderColor: "var(--twx-line)" }}>
+            <div className="mt-2 flex items-center justify-between border-t pt-2" style={{ borderColor: T.popBorder }}>
               <button
                 type="button"
                 onClick={() => {
@@ -206,13 +246,22 @@ export default function DateField({
               >
                 Ma
               </button>
-              <button type="button" onClick={() => setOpen(false)} className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Bezár
-              </button>
+              <div className="flex items-center gap-3">
+                {clearable && value && (
+                  <button type="button" onClick={() => { onChange(""); setOpen(false); }} className="text-xs" style={{ color: T.muted }}>
+                    Törlés
+                  </button>
+                )}
+                <button type="button" onClick={() => setOpen(false)} className="text-xs" style={{ color: T.muted }}>
+                  Bezár
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 }

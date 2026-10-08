@@ -6,7 +6,7 @@
 // így váltáskor a sáv nem szélesedik és nem ugrál.
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WorkMode } from "@/lib/office";
 
@@ -29,6 +29,16 @@ export default function CreditDock({ balance, unlimited = false, office = null }
   const [officeId, setOfficeId] = useState<string | null>(office?.officeId ?? null);
   const [busy, setBusy] = useState(false);
 
+  // Az Irodai fiók oldal „Miből fizetek?" kapcsolója ugyanezt állítja → kövessük azonnal.
+  useEffect(() => {
+    const onMode = (e: Event) => {
+      const m = (e as CustomEvent<{ mode: WorkMode }>).detail?.mode;
+      if (m) setMode(m);
+    };
+    window.addEventListener("twx-work-mode", onMode);
+    return () => window.removeEventListener("twx-work-mode", onMode);
+  }, []);
+
   async function save(patch: { mode?: WorkMode; officeId?: string }, rollback: () => void) {
     setBusy(true);
     try {
@@ -48,7 +58,12 @@ export default function CreditDock({ balance, unlimited = false, office = null }
     if (!mode || next === mode || busy) return;
     const prev = mode;
     setMode(next);
-    void save({ mode: next }, () => setMode(prev));
+    // az Irodai fiók oldal „Miből fizetek?" kapcsolója is váltson
+    window.dispatchEvent(new CustomEvent("twx-work-mode", { detail: { mode: next } }));
+    void save({ mode: next }, () => {
+      setMode(prev);
+      window.dispatchEvent(new CustomEvent("twx-work-mode", { detail: { mode: prev } }));
+    });
   }
 
   function changeOffice(id: string) {

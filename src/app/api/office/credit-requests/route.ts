@@ -1,12 +1,12 @@
 // GET   /api/office/credit-requests — tag: a saját legutóbbi kérése; létrehozó/kiosztó: az iroda függő kérései.
 // POST  /api/office/credit-requests — tag keretet kér. body: { amount, note? }
 // PATCH /api/office/credit-requests — létrehozó/kiosztó dönt. body: { id, action: "approve"|"reject", amount? }
-//   Jóváhagyáskor office_allocate növeli a tag keretét (a szabályokat az adatbázis is kikényszeríti).
+//   Jóváhagyáskor office_allocate_in növeli a tag keretét — csak a szabad részből (office-reserve.sql).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ALLOCATE_MAX, type OfficeCreditRequest } from "@/lib/office";
-import { allocateIn, getMembership } from "@/lib/office-server";
+import { allocateIn, getMembership, officeErrorMessage } from "@/lib/office-server";
 import { sendOfficeCreditRequestNotification } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -174,7 +174,7 @@ export async function PATCH(request: Request) {
       // A kiosztás nem sikerült → a kérést visszanyitjuk, hogy ne vesszen el.
       await admin.from("office_credit_requests")
         .update({ status: "pending", granted: null, decided_by: null, decided_at: null }).eq("id", id);
-      return NextResponse.json({ error: error?.message ?? "A kiosztás nem engedélyezett." }, { status: 403 });
+      return NextResponse.json({ error: error ? officeErrorMessage(error.message) : "A kiosztás nem engedélyezett." }, { status: 409 });
     }
   }
 

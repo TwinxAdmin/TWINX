@@ -52,3 +52,16 @@ export const VIEW_ROLE_LABEL: Record<string, string> = {
   sales: "Sales",
   user: "Felhasználó",
 };
+
+// ---------------------------------------------------------------------------
+// Irodai nézet előnézete: a létrehozó / vezető megnézheti, mit lát egy KOLLÉGA
+// az Irodai fiók oldalon. Ugyanaz az elv: CSAK megjelenítés — minden irodai API
+// a valódi tagságot és jogot ellenőrzi, és a cookie a nem-vezetőnél hatástalan.
+// ---------------------------------------------------------------------------
+export const OFFICE_VIEW_COOKIE = "twx_office_view";
+
+/** Kolléga-előnézet be van-e kapcsolva (a cookie alapján; a jogot a hívó ellenőrzi). */
+export async function officeMemberPreview(): Promise<boolean> {
+  const jar = await cookies();
+  return jar.get(OFFICE_VIEW_COOKIE)?.value === "member";
+}

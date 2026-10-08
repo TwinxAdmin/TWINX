@@ -52,12 +52,18 @@ export async function listFolders(officeId: string, userId: string, isOfficeOwne
   const ids = folders.map((f) => f.id);
   const [{ data: fm }, { data: items }] = await Promise.all([
     admin.from("office_folder_members").select("folder_id, user_id").in("folder_id", ids),
-    admin.from("office_folder_items").select("folder_id").in("folder_id", ids),
+    admin.from("office_folder_items").select("folder_id, added_at").in("folder_id", ids),
   ]);
   const membersOf = new Map<string, string[]>();
   for (const r of fm ?? []) membersOf.set(r.folder_id as string, [...(membersOf.get(r.folder_id as string) ?? []), r.user_id as string]);
   const counts = new Map<string, number>();
-  for (const r of items ?? []) counts.set(r.folder_id as string, (counts.get(r.folder_id as string) ?? 0) + 1);
+  const lastAdded = new Map<string, string>();
+  for (const r of items ?? []) {
+    const fid = r.folder_id as string;
+    counts.set(fid, (counts.get(fid) ?? 0) + 1);
+    const at = r.added_at as string;
+    if (!lastAdded.has(fid) || at > (lastAdded.get(fid) as string)) lastAdded.set(fid, at);
+  }
 
   const visible = folders.filter((f) =>
     f.everyone || isOfficeOwner || f.created_by === userId || (membersOf.get(f.id) ?? []).includes(userId)
@@ -72,6 +78,7 @@ export async function listFolders(officeId: string, userId: string, isOfficeOwne
     createdBy: f.created_by,
     createdByName: names.get(f.created_by ?? "") ?? "—",
     itemCount: counts.get(f.id) ?? 0,
+    lastAddedAt: lastAdded.get(f.id) ?? null,
     canManage: isOfficeOwner || f.created_by === userId,
     createdAt: f.created_at,
   }));

@@ -4,7 +4,7 @@
 // KREDIT: a levonás CSAK itt történik, azaz kizárólag KÉSZ riport esetén.
 // Így egy időtúllépés, hiba vagy megszakadt job SOHA nem visz el kreditet.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit } from "@/lib/credits";
+import { chargeCredit, type PayFrom } from "@/lib/credits";
 import { logCost, perplexityCostUsd } from "@/lib/costs";
 import { PERPLEXITY_MODEL, type SonarSource } from "@/lib/perplexity";
 import { stripHiddenReportSections } from "@/lib/valuation-engine-server";
@@ -34,6 +34,8 @@ export async function finalizeValuation(params: {
   bypassed: boolean;
   /** hány fotót elemeztünk (költség-logoláshoz) */
   photoCount?: number;
+  /** "wallet" = a felhasználó a saját kreditjéből kérte (elfogyott irodai keret után) */
+  payFrom?: PayFrom;
 }): Promise<FinalizeResult> {
   const admin = createAdminClient();
 
@@ -45,7 +47,7 @@ export async function finalizeValuation(params: {
   let charged = false;
   if (!params.bypassed) {
     try {
-      const c = await chargeCredit({ userId: params.userId, amount: 1, service: "valuation" });
+      const c = await chargeCredit({ userId: params.userId, amount: 1, service: "valuation", payFrom: params.payFrom });
       charged = c.ok && !c.bypassed;
     } catch {
       charged = false; // a levonás technikai hibája ne buktassa el a kész riportot

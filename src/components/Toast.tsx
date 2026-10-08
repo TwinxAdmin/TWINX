@@ -34,7 +34,7 @@ export default function ToastProvider() {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[100] flex w-[min(92vw,360px)] flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-36 right-5 z-[100] flex w-[min(92vw,360px)] flex-col gap-2">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div

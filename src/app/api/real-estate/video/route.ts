@@ -17,7 +17,8 @@ import { runEngineJob } from "@/lib/video-engine/job-node";
 import type { AspectId } from "@/lib/video-engine/template-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit } from "@/lib/credits";
+import { chargeCredit, refundCredit, payFromRequest, type PayFrom } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import {
   CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
   creditsForPackage, getFormat, isValidMusicStyle, captionForPhoto, splitCaption,
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
 
   // A Videólabor kapcsolója dönt: saját motor (alap) vagy a Shotstack-tartalék.
   const renderer = await activeRenderer();
-  if (renderer === "twinx") return postWithEngine(form, user.id);
+  if (renderer === "twinx") return postWithEngine(form, user.id, payFromRequest(request));
 
   // A dizájn + méret köti a formátumot és a képszámot. Visszafelé kompatibilis.
   const design = getDesign(String(form.get("designId") ?? "")) ?? VIDEO_DESIGNS[0];
@@ -147,9 +148,9 @@ export async function POST(request: Request) {
 
   // 1) Kredit (admin/sales bypass). Hibánál a lánc bármely pontján visszatérítjük.
   const credits = creditsForPackage(pkg);
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "video" }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "video", payFrom: payFromRequest(request) }) : null;
   if (charge && !charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+    return insufficientResponse(user.id, credits, charge);
   }
   // Ha már létrejött a job, a bukást + visszatérítést az EGYSZERI úton intézzük,
   // hogy egy később beérkező webhook ne térítsen vissza másodszor is.
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
   const refund = async (message: string) => {
     if (!charge || charge.bypassed) return;
     if (createdJobId) await failJobOnce(createdJobId, user.id, credits, message);
-    else await refundCredit(user.id, credits);
+    else await refundCredit(user.id, credits, charge?.source);
   };
 
   try {
@@ -466,7 +467,7 @@ export async function POST(request: Request) {
 // =============================================================================
 const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 
-async function postWithEngine(form: FormData, userId: string) {
+async function postWithEngine(form: FormData, userId: string, payFrom: PayFrom) {
   // 1) Validáció (kredit előtt) — ugyanazok a mezők, mint a Videólaborban.
   const aspect: AspectId = String(form.get("aspect") ?? "") === "1:1" ? "1:1" : "9:16";
   const format = getFormat(aspect);
@@ -504,9 +505,9 @@ async function postWithEngine(form: FormData, userId: string) {
 
   // 2) Kredit (admin/sales bypass). A saját motornak nincs PRO csomagja.
   const credits = creditsForPackage("alap");
-  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits, service: "video" }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits, service: "video", payFrom }) : null;
   if (charge && !charge.ok) {
-    return NextResponse.json({ error: `Nincs elég egyenleg (${credits} szükséges).` }, { status: 402 });
+    return insufficientResponse(userId, credits, charge);
   }
   const charged = charge && !charge.bypassed ? credits : 0;
 
@@ -528,7 +529,7 @@ async function postWithEngine(form: FormData, userId: string) {
     if (jobErr || !job) throw new Error("A videó-job létrehozása nem sikerült.");
     jobId = job.id as string;
   } catch (err) {
-    if (charged) await refundCredit(userId, charged);
+    if (charged) await refundCredit(userId, charged, charge?.source);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 

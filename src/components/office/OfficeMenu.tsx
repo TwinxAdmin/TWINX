@@ -11,6 +11,24 @@ type Props = { currentOffice?: string | null; officeCount?: number };
 
 export default function OfficeMenu({ currentOffice = null, officeCount = 0 }: Props) {
   const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Olvasatlan üzenetek + függő kredit-kérések → kis korall jelzés az „Irodai fiók" gombon.
+  useEffect(() => {
+    if (!currentOffice) return;
+    const load = () => {
+      fetch("/api/office/messages/unread").then((r) => r.json()).then((d) => setUnread(d.count ?? 0)).catch(() => {});
+    };
+    load();
+    const t = window.setInterval(load, 60_000);
+    window.addEventListener("twx-office-messages", load);
+    window.addEventListener("focus", load);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener("twx-office-messages", load);
+      window.removeEventListener("focus", load);
+    };
+  }, [currentOffice]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +59,12 @@ export default function OfficeMenu({ currentOffice = null, officeCount = 0 }: Pr
           <path d="M15 10h3a1 1 0 0 1 1 1v10" /><path d="M8 8h1M11 8h1M8 12h1M11 12h1M8 16h1M11 16h1" />
         </svg>
         Irodai fiók
+        {unread > 0 && (
+          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums"
+            style={{ background: "#F08A68", color: "#1C1A17" }} aria-label={`${unread} új irodai üzenet`}>
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
         <span className="text-xs transition-transform duration-200" style={{ transform: open ? "rotate(180deg)" : "none" }}>▾</span>
       </button>
 
@@ -56,6 +80,9 @@ export default function OfficeMenu({ currentOffice = null, officeCount = 0 }: Pr
             style={{ background: "rgba(255,255,255,0.05)" }}>
             <span className="block text-[11px]" style={{ color: "var(--twx-on-dark-muted)" }}>Kiválasztott iroda</span>
             <span className="block truncate text-sm font-semibold">{currentOffice}</span>
+            {unread > 0 && (
+              <span className="mt-1 block text-[11px] font-semibold" style={{ color: "#F4A48A" }}>{unread} új üzenet / kérés →</span>
+            )}
           </a>
         )}
         <a href="/dashboard/iroda/bemutato" className={item} onClick={() => setOpen(false)}>

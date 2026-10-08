@@ -1,7 +1,8 @@
-// dashboard/iroda — Irodai TWINX fiók: magyarázó + igénylés (vezetőknek) + csatlakozás kóddal.
+// dashboard/iroda — Irodai TWINX fiók felülete (a kiválasztott irodára).
+//   • létrehozó / vezető: vezetői nézet (OfficeManagerView)
+//   • kolléga: kolléga-nézet; ha még nem tag: üres állapot (csatlakozás / igénylés)
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import ModuleIntro from "@/components/ModuleIntro";
 import OfficeHub from "@/components/office/OfficeHub";
 
 export default async function OfficePage() {
@@ -11,13 +12,6 @@ export default async function OfficePage() {
 
   return (
     <main className="space-y-6">
-      <ModuleIntro
-        eyebrow="Irodai TWINX fiók"
-        title="Egy iroda, egy közös kreditkeret"
-        subtitle="A vezető egyszer vásárol, a kollégák pedig az irodai keretből dolgoznak — nem kell mindenkinek külön kreditet vennie. A saját kreditjeid közben megmaradnak."
-        icon="office"
-        chips={["Közös irodai egyenleg", "Keret kollégánként", "Csatlakozás kóddal", "Tudatos megosztás"]}
-      />
       <OfficeHub />
     </main>
   );

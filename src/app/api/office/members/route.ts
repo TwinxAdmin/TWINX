@@ -1,14 +1,15 @@
 // GET   /api/office/members — az iroda taglistája (csak a létrehozó és a kiosztó jogú tag).
 // PATCH /api/office/members — egy tag kezelése. body: { userId, action, ... }
-//   • action "allocate"    { delta }                    — keret +/−  (létrehozó vagy kiosztó; a kiosztó magának nem)
+//   • action "allocate"    { delta, note? }             — keret +/−  (létrehozó vagy kiosztó; a kiosztó magának nem)
+//                                                         foglalásos modell: csak a szabad részből adható (office-reserve.sql)
 //   • action "permissions" { canAllocate?, unlimited? } — jogosultságok (CSAK a létrehozó)
 //   • action "remove"                                   — tag eltávolítása (CSAK a létrehozó; magát nem)
-// A keretkiosztás szabályait az adatbázis (office_allocate) is kikényszeríti.
+// A keretkiosztás szabályait az adatbázis (office_allocate_in) kényszeríti ki — egy tranzakcióban, naplózva.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ALLOCATE_MAX } from "@/lib/office";
-import { allocateIn, getMembership, getMembershipIn, listMembers } from "@/lib/office-server";
+import { ALLOCATE_MAX, ALLOCATE_NOTE_MAX } from "@/lib/office";
+import { allocateIn, getMembership, getMembershipIn, listMembers, officeErrorMessage } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { userId?: string; action?: string; delta?: unknown; canAllocate?: unknown; unlimited?: unknown };
+  let body: { userId?: string; action?: string; delta?: unknown; note?: unknown; canAllocate?: unknown; unlimited?: unknown };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
 
   const targetId = String(body.userId ?? "");
@@ -57,8 +58,12 @@ export async function PATCH(request: Request) {
     if (delta < 0 && target.allowance + delta < 0) {
       return NextResponse.json({ error: `Legfeljebb ${target.allowance} kredit vehető vissza.` }, { status: 422 });
     }
-    const { data, error } = await allocateIn(me.office_id, user.id, targetId, delta, null);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const note = typeof body.note === "string" ? body.note.trim().slice(0, ALLOCATE_NOTE_MAX) : "";
+    if (typeof body.note === "string" && body.note.trim().length > ALLOCATE_NOTE_MAX) {
+      return NextResponse.json({ errors: { note: `A megjegyzés legfeljebb ${ALLOCATE_NOTE_MAX} karakter lehet.` } }, { status: 422 });
+    }
+    const { data, error } = await allocateIn(me.office_id, user.id, targetId, delta, note || null);
+    if (error) return NextResponse.json({ error: officeErrorMessage(error.message) }, { status: /OFFICE_/.test(error.message) ? 409 : 500 });
     if (data === null) return NextResponse.json({ error: "A kiosztás nem engedélyezett." }, { status: 403 });
     return NextResponse.json({ ok: true, members: await listMembers(me.office_id) });
   }
@@ -81,7 +86,8 @@ export async function PATCH(request: Request) {
   if (body.action === "remove") {
     if (!isOwner) return NextResponse.json({ error: "Tagot csak az irodai fiók létrehozója távolíthat el." }, { status: 403 });
     if (target.role === "owner") return NextResponse.json({ error: "A létrehozó nem távolítható el." }, { status: 400 });
-    // A keret csak plafon volt — eltávolításkor nincs mit „visszautalni" az irodának.
+    // Foglalásos modell: a tag maradék kerete a törléskor magától visszakerül a szabad
+    // részbe (office_members_on_delete trigger, naplózva).
     // A közös mappákból kikerülnek a tag SAJÁT (privát módban készült) megosztott munkái;
     // az irodai módban készültek az irodánál maradnak. (Ha az office-folders.sql még nincs, kihagyjuk.)
     try {

@@ -10,7 +10,7 @@ create table if not exists public.office_credit_requests (
   id          uuid primary key default gen_random_uuid(),
   office_id   uuid not null references public.offices (id) on delete cascade,
   user_id     uuid not null references auth.users (id) on delete cascade,
-  amount      integer not null check (amount between 1 and 1000),
+  amount      integer not null check (amount between 1 and 9999),
   note        text,
   status      text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   granted     integer,

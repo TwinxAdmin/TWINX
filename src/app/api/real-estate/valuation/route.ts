@@ -16,7 +16,8 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateValuationInput, type ValuationInput } from "@/lib/valuation";
-import { checkCreditAvailable } from "@/lib/credits";
+import { checkCreditAvailable, payFromRequest } from "@/lib/credits";
+import { insufficientResponse } from "@/lib/credit-response";
 import {
   runSonarWithSources,
   PERPLEXITY_MODEL,
@@ -158,9 +159,11 @@ export async function POST(request: Request) {
   //    csak a SIKERES generálás után történik (lentebb) — így egy időtúllépés
   //    vagy hiba SOHA nem visz el kreditet, még akkor sem, ha a hosting platform
   //    (Vercel) a függvényt menet közben leállítaná.
+  // „Folytatás saját kreditből" (irodai keret elfogyott): erre a becslésre a saját pénztárcából.
+  const payFrom = payFromRequest(request);
   let avail: Awaited<ReturnType<typeof checkCreditAvailable>>;
   try {
-    avail = await checkCreditAvailable({ userId: user.id, amount: 1 });
+    avail = await checkCreditAvailable({ userId: user.id, amount: 1, payFrom });
   } catch {
     return NextResponse.json(
       { error: "A kredit ellenőrzése most nem sikerült. Próbáld újra." },
@@ -168,10 +171,7 @@ export async function POST(request: Request) {
     );
   }
   if (!avail.ok) {
-    return NextResponse.json(
-      { error: "Nincs elég kredit ehhez a modulhoz." },
-      { status: 402 }
-    );
+    return insufficientResponse(user.id, 1, avail);
   }
   const bypassed = avail.bypassed;
 
@@ -204,7 +204,7 @@ export async function POST(request: Request) {
           const fin = await finalizeValuation({
             userId: user.id, serviceId: service.id, input,
             report: composeEngineReport(res, input, engineCfg),
-            engineAudit: res, bypassed, photoCount: photoImages.length,
+            engineAudit: res, bypassed, photoCount: photoImages.length, payFrom,
           });
           // A megjelenés-adatokat (arculat, lap-fotók) és a levezetést is átadjuk,
           // hogy a gyors ágon is arculatos lap készüljön.
@@ -291,7 +291,7 @@ export async function POST(request: Request) {
 
         // KÉSZ riport → kredit levonása (CSAK itt!) + mentés az előzményekbe.
         const fin = await finalizeValuation({
-          userId, serviceId, input, report, engineAudit, bypassed, photoCount: photoImages.length,
+          userId, serviceId, input, report, engineAudit, bypassed, photoCount: photoImages.length, payFrom,
         });
         // Az új oszlopok (history_id, audit) hiányozhatnak, ha a migráció még nem
         // futott le — ilyenkor a becslés attól még KÉSZ, csak szűkebb adattal zárjuk.

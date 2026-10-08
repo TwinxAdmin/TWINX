@@ -148,6 +148,14 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
   - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
   - [x] IR9 — Több irodai fiók egy felhasználónak (létrehozás + csatlakozás) + váltás köztük (kredit-sáv irodaválasztó, Irodai fiók oldalon váltó); kiválasztott iroda + mód: user_office_context — `office-multi.sql`
+  - Irodai felület átépítése (terv: twinx-irodai-fiok-vezetoi / -kollega):
+    - [x] IF1.1 — Foglalásos keret + védő triggerek + vezető olvashatja az egyenleget/kódot — `office-reserve.sql` (lefuttatva)
+    - [x] IF1.2 — Szerver: hibakódok magyarul, megjegyzés a kiosztásnál, szabad részből költés ellenőrzése; API: /api/office/overview, /api/office/works/list, /api/office/ledger
+    - [x] IF1.3 — Vezetői nézet (fejléc-sáv, kód, KPI, tagtábla, keret-panel, kredit-mozgások) — OfficeManagerView, OfficeMemberTable, OfficeLedgerCard
+    - [x] IF1.4 — Kolléga-nézet (OfficeMemberView: KPI, Miből fizetek, Munkáim, Feladataim [Hamarosan], mappák, Keretem változásai, modulok) + „Iroda: Vezető | Kolléga" előnézet a jobb alsó váltón
+    - [x] IF2 — Elfogyott irodai keret → „Folytatás saját kreditből?" (OfficeFallbackProvider + lib/credit-response.ts + payFrom a chargeCredit-ben, 16 modul)
+    - [x] IF3 — Üzenetek és feladatok (`office-messages.sql`, /api/office/messages, OfficeMessagesRow, OfficeTasksCard, fejléc-jelzés)
+    - [~] IF4 — Kedvenc modulok (kész: module-favorites.sql, /api/module-favorites, OfficeModuleShelf a vezetői nézet alján) + mappa „új" jelzés (hátra van)
   - [x] Kredit-sáv (CreditDock) alul középen, FIX méretű; nézetváltó a bal alsó sarokban
   - [—] IR4b — E-mail-meghívó: ELENGEDVE (döntés 2026-10-08) — a kóddal csatlakozás a legegyszerűbb, elég.
   - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
