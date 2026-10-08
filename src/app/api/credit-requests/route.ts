@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCreditRequestNotification } from "@/lib/email";
 import { getPackage } from "@/lib/packages";
 import { validateBilling, BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
+import { getMembership } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -60,8 +61,7 @@ export async function POST(request: Request) {
   // Irodai egyenleg feltöltése: CSAK az irodai fiók létrehozója rendelheti, és mindig számlás.
   let officeId: string | null = null;
   if (body.target === "office") {
-    const { data: m } = await admin
-      .from("office_members").select("office_id, role").eq("user_id", user.id).maybeSingle();
+    const m = await getMembership(user.id);
     if (!m || m.role !== "owner") {
       return NextResponse.json({ error: "Irodai egyenleget csak az irodai fiók létrehozója tölthet fel." }, { status: 403 });
     }

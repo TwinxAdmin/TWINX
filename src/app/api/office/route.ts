@@ -1,4 +1,4 @@
-// GET  /api/office — a saját irodám (ha tagja vagyok valamelyiknek), különben null.
+// GET  /api/office — a KIVÁLASZTOTT irodám (ha tagja vagyok valamelyiknek) + az összes irodám listája (váltóhoz).
 //        Az egyenleget, a csatlakozási kódot és a létszámot CSAK a létrehozó kapja meg.
 // POST /api/office — iroda megnyitása a JÓVÁHAGYOTT igénylés alapján. body: { name }
 //        A megnyitó lesz a létrehozó (owner) és az első tag; a rendszer csatlakozási kódot generál.
@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateJoinCode, validateOfficeName } from "@/lib/office";
-import { loadMyOffice } from "@/lib/office-server";
+import { getMembership, listMyOffices, loadMyOffice, setWorkContext } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  return NextResponse.json({ office: await loadMyOffice(user.id) });
+  const [office, offices] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id)]);
+  return NextResponse.json({ office, offices });
 }
 
 export async function POST(request: Request) {
@@ -31,25 +32,18 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // 1) Már tag valahol? (egy felhasználó = egy iroda)
-  const { data: member } = await admin
-    .from("office_members").select("office_id").eq("user_id", user.id).maybeSingle();
-  if (member) return NextResponse.json({ error: "Már tagja vagy egy irodai fióknak." }, { status: 409 });
-
-  // 2) Van JÓVÁHAGYOTT igénylése, amiből még nem nyitott irodát?
-  const { data: req } = await admin
-    .from("office_requests")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("status", "approved")
-    .order("decided_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!req) return NextResponse.json({ error: "Irodát csak jóváhagyott igénylés után lehet nyitni." }, { status: 403 });
-
-  const { data: used } = await admin
-    .from("offices").select("id").eq("request_id", req.id).maybeSingle();
-  if (used) return NextResponse.json({ error: "Ebből az igénylésből már nyitottál irodát." }, { status: 409 });
+  // 1-2) Van JÓVÁHAGYOTT igénylése, amiből még nem nyitott irodát? (Több iroda is lehet —
+  //      mindegyikhez külön jóváhagyott igénylés kell.)
+  const { data: approved } = await admin
+    .from("office_requests").select("id").eq("user_id", user.id).eq("status", "approved")
+    .order("decided_at", { ascending: false }).limit(20);
+  const ids = (approved ?? []).map((r) => r.id as string);
+  if (ids.length === 0) return NextResponse.json({ error: "Irodát csak jóváhagyott igénylés után lehet nyitni." }, { status: 403 });
+  const { data: usedRows } = await admin.from("offices").select("request_id").in("request_id", ids);
+  const used = new Set((usedRows ?? []).map((r) => r.request_id as string));
+  const free = ids.find((id) => !used.has(id));
+  if (!free) return NextResponse.json({ error: "A jóváhagyott igényléseidből már mind megnyitottad az irodát. Újabbhoz új igénylés kell." }, { status: 409 });
+  const req = { id: free };
 
   // 3) Iroda létrehozása — egyedi kóddal (ütközéskor új kódot próbálunk).
   let officeId: string | null = null;
@@ -76,12 +70,11 @@ export async function POST(request: Request) {
   });
   if (memberError) {
     await admin.from("offices").delete().eq("id", officeId);
-    const dup = /duplicate key|office_members_user_id_key/i.test(memberError.message);
-    return NextResponse.json(
-      { error: dup ? "Már tagja vagy egy irodai fióknak." : memberError.message },
-      { status: dup ? 409 : 500 }
-    );
+    return NextResponse.json({ error: memberError.message }, { status: 500 });
   }
+
+  // Az új iroda lesz a kiválasztott, irodai módban (ha a kontextus-tábla még nincs, nem baj).
+  await setWorkContext(user.id, { officeId, useOffice: true });
 
   return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
 }
@@ -98,8 +91,7 @@ export async function PATCH(request: Request) {
   if (body.action !== "regenerateCode") return NextResponse.json({ error: "Ismeretlen művelet." }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: me } = await admin
-    .from("office_members").select("office_id, role").eq("user_id", user.id).maybeSingle();
+  const me = await getMembership(user.id);
   if (!me || me.role !== "owner") {
     return NextResponse.json({ error: "Kódot csak az irodai fiók létrehozója generálhat." }, { status: 403 });
   }

@@ -8,6 +8,7 @@
 // dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMembershipIn, getWorkContext } from "@/lib/office-server";
 
 export type CreditSource = "wallet" | "office";
 
@@ -15,21 +16,13 @@ export type ChargeResult =
   | { ok: true; bypassed: boolean; source?: CreditSource }
   | { ok: false; reason: "insufficient"; source?: CreditSource };
 
-/** Irodai módban dolgozik-e a felhasználó? (Ha az office-mode.sql még nem futott le: nem.) */
+/** Irodai módban dolgozik-e a felhasználó? (a KIVÁLASZTOTT irodában; ha nincs irodai mód: null) */
 async function officeMode(userId: string): Promise<{ allowance: number; unlimited: boolean; owner: boolean; officeId: string } | null> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("office_members")
-    .select("office_id, role, allowance, unlimited, work_mode")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error || !data || data.work_mode !== "office") return null;
-  return {
-    officeId: data.office_id as string,
-    allowance: (data.allowance as number) ?? 0,
-    unlimited: !!data.unlimited,
-    owner: data.role === "owner",
-  };
+  const ctx = await getWorkContext(userId);
+  if (!ctx.useOffice || !ctx.officeId) return null;
+  const m = await getMembershipIn(userId, ctx.officeId);
+  if (!m) return null;
+  return { officeId: m.office_id, allowance: m.allowance ?? 0, unlimited: !!m.unlimited, owner: m.role === "owner" };
 }
 
 export async function chargeCredit(params: {

@@ -17,7 +17,7 @@ export async function GET() {
 
   // RLS: a saját tagsági sor és a saját igénylések olvashatók.
   const [{ data: member }, { data: requests }] = await Promise.all([
-    supabase.from("office_members").select("office_id, role").eq("user_id", user.id).maybeSingle(),
+    supabase.from("office_members").select("office_id, role").eq("user_id", user.id).limit(1),
     supabase
       .from("office_requests")
       .select("id, office_name, team_size, phone, note, leader_view, status, decision_note, created_at, decided_at")
@@ -26,9 +26,18 @@ export async function GET() {
       .limit(1),
   ]);
 
+  // A legutóbbi jóváhagyott igénylésből nyitottak-e már irodát? (Ha igen, újat lehet igényelni.)
+  const last = requests?.[0] ?? null;
+  let requestUsed = false;
+  if (last?.status === "approved") {
+    const { data: used } = await createAdminClient().from("offices").select("id").eq("request_id", last.id).limit(1);
+    requestUsed = !!used?.length;
+  }
+
   return NextResponse.json({
-    membership: member ?? null,
-    request: requests?.[0] ?? null,
+    membership: member?.[0] ?? null,
+    request: last,
+    requestUsed,
   });
 }
 
@@ -45,12 +54,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Aki már tagja egy irodának, nem igényelhet újat (egy felhasználó = egy iroda).
-  const { data: member } = await admin
-    .from("office_members").select("office_id").eq("user_id", user.id).maybeSingle();
-  if (member) {
-    return NextResponse.json({ error: "Már tagja vagy egy irodai fióknak." }, { status: 409 });
-  }
+  // Több irodai fiók is igényelhető (egyszerre egy függő igénylés lehet — lásd egyedi index).
 
   const { data: profile } = await admin
     .from("profiles").select("full_name").eq("id", user.id).maybeSingle();

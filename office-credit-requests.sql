@@ -22,9 +22,9 @@ create table if not exists public.office_credit_requests (
 create index if not exists office_credit_requests_office_idx
   on public.office_credit_requests (office_id, status, created_at desc);
 
--- Egy tagnak egyszerre csak EGY függő kérése lehet.
-create unique index if not exists office_credit_requests_one_pending
-  on public.office_credit_requests (user_id) where status = 'pending';
+-- Egy tagnak irodánként egyszerre csak EGY függő kérése lehet.
+create unique index if not exists office_credit_requests_one_pending_per_office
+  on public.office_credit_requests (office_id, user_id) where status = 'pending';
 
 alter table public.office_credit_requests enable row level security;
 

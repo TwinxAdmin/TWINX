@@ -1,4 +1,4 @@
-// Lengő nézet-váltó sáv a képernyő alján — CSAK adminnak.
+// Lengő nézet-váltó sáv a bal alsó sarokban — CSAK adminnak (középen a kredit-sáv van).
 //
 // Kilépés nélkül átkapcsolható, hogy a felület úgy nézzen ki, ahogy egy sima
 // felhasználó vagy egy sales kolléga látja. Előnézet közben a sáv feltűnő,
@@ -51,11 +51,11 @@ export default function ViewAsBar({ current }: { current: View }) {
       initial={{ y: 40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.2 }}
-      className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4"
+      className="fixed bottom-20 left-0 z-40 flex px-4 lg:bottom-0 lg:pb-4"
       style={{ pointerEvents: "none" }}
     >
       <div
-        className="flex flex-wrap items-center gap-2 rounded-2xl px-3 py-2 shadow-lg"
+        className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded-2xl px-3 py-2 shadow-lg lg:max-w-[420px]"
         style={{
           pointerEvents: "auto",
           background: previewing ? "#7a2e17" : "var(--twx-dark)",

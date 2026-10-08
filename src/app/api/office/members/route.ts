@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ALLOCATE_MAX } from "@/lib/office";
-import { getMembership, listMembers } from "@/lib/office-server";
+import { allocateIn, getMembership, getMembershipIn, listMembers } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -39,7 +39,7 @@ export async function PATCH(request: Request) {
   if (!me) return NextResponse.json({ error: "Nem vagy tagja irodának." }, { status: 403 });
   const isOwner = me.role === "owner";
 
-  const target = await getMembership(targetId);
+  const target = await getMembershipIn(targetId, me.office_id);
   if (!target || target.office_id !== me.office_id) {
     return NextResponse.json({ error: "Ez a felhasználó nem tagja az irodádnak." }, { status: 404 });
   }
@@ -57,9 +57,7 @@ export async function PATCH(request: Request) {
     if (delta < 0 && target.allowance + delta < 0) {
       return NextResponse.json({ error: `Legfeljebb ${target.allowance} kredit vehető vissza.` }, { status: 422 });
     }
-    const { data, error } = await admin.rpc("office_allocate", {
-      p_actor: user.id, p_member: targetId, p_delta: delta, p_note: null,
-    });
+    const { data, error } = await allocateIn(me.office_id, user.id, targetId, delta, null);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (data === null) return NextResponse.json({ error: "A kiosztás nem engedélyezett." }, { status: 403 });
     return NextResponse.json({ ok: true, members: await listMembers(me.office_id) });

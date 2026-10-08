@@ -11,7 +11,8 @@ import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
 import { resolveViewContext } from "@/lib/view-as";
-import WorkModeSwitch from "@/components/office/WorkModeSwitch";
+import CreditDock from "@/components/CreditDock";
+import { getMembershipIn, getWorkContext, listMyOffices } from "@/lib/office-server";
 
 export default async function DashboardLayout({
   children,
@@ -37,13 +38,8 @@ export default async function DashboardLayout({
   const isSales = view.role === "sales";
   const balance = (wallet?.balance as number | undefined) ?? 0;
 
-  // Irodai tag? → munkamód-kapcsoló a fejlécben (az office-mode.sql nélkül nem jelenik meg).
-  const { data: membership } = user
-    ? await supabase.from("office_members").select("role, allowance, unlimited, work_mode").eq("user_id", user.id).maybeSingle()
-    : { data: null };
-  const officeLabel = membership
-    ? (membership.role === "owner" || membership.unlimited ? "korlátlan" : `${membership.allowance ?? 0} kredit`)
-    : "";
+  // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).
+  const dock = user ? await loadDockState(user.id) : null;
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -90,9 +86,6 @@ export default async function DashboardLayout({
 
         {/* Jobb: arculat + fiók-menü + kilépés (csak desktop) */}
         <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
-          {membership?.work_mode && (
-            <WorkModeSwitch initialMode={membership.work_mode as "office" | "private"} officeLabel={officeLabel} privateBalance={balance} />
-          )}
           {/* Az arculat fiók-szintű: minden hirdetés és videó ebből dolgozik. */}
           <a
             href="/dashboard/branding"
@@ -122,11 +115,8 @@ export default async function DashboardLayout({
           <LogoutButton />
         </div>
 
-        {/* Mobil: munkamód-kapcsoló + hamburger */}
-        <div className="ml-auto flex items-center gap-2 md:hidden">
-          {membership?.work_mode && (
-            <WorkModeSwitch compact initialMode={membership.work_mode as "office" | "private"} officeLabel={officeLabel} privateBalance={balance} />
-          )}
+        {/* Mobil: hamburger */}
+        <div className="ml-auto md:hidden">
           <MobileNav
             email={user?.email ?? ""}
             role={view.role}
@@ -135,14 +125,42 @@ export default async function DashboardLayout({
           />
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
+      {/* pb-28: a lebegő kredit-sáv ne takarja ki az oldal alját */}
+      <div className="mx-auto max-w-5xl px-6 py-10 pb-28">{children}</div>
 
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
       <PricingModal />
 
-      {/* Nézet-váltó — csak adminnak látszik */}
+      {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
+      <CreditDock
+        balance={balance}
+        unlimited={view.role === "admin"}
+        office={dock}
+      />
+
+      {/* Nézet-váltó (fejlesztést segítő) — csak adminnak, a bal alsó sarokban */}
       {view.canPreview && <ViewAsBar current={view.role as "admin" | "user" | "sales"} />}
     </div>
   );
+}
+
+/** A kredit-sáv irodai állapota: irodák listája, kiválasztott iroda, mód és a keret felirata. */
+async function loadDockState(userId: string) {
+  try {
+    const offices = await listMyOffices(userId);
+    if (offices.length === 0) return null;
+    const ctx = await getWorkContext(userId);
+    const selected = offices.find((o) => o.id === ctx.officeId) ?? offices[0];
+    const m = await getMembershipIn(userId, selected.id);
+    const label = !m ? "0 kredit" : m.role === "owner" || m.unlimited ? "Korlátlan" : `${m.allowance ?? 0} kredit`;
+    return {
+      mode: (ctx.useOffice && ctx.officeId === selected.id ? "office" : "private") as "office" | "private",
+      label,
+      officeId: selected.id,
+      offices: offices.map((o) => ({ id: o.id, name: o.name })),
+    };
+  } catch {
+    return null;
+  }
 }

@@ -18,7 +18,12 @@ import {
 import OfficePanel from "@/components/office/OfficePanel";
 
 type Tab = "open" | "join";
-type State = { office: MyOffice | null; request: OfficeRequestRow | null };
+type State = {
+  office: MyOffice | null;
+  request: OfficeRequestRow | null;
+  requestUsed?: boolean;
+  offices?: { id: string; name: string; role: "owner" | "member" }[];
+};
 
 const EMPTY: OfficeRequestInput = { officeName: "", teamSize: "", phone: "", note: "" };
 
@@ -32,14 +37,26 @@ export default function OfficeHub() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [newRequest, setNewRequest] = useState(false); // elutasítás után új igénylés
+  const [showMore, setShowMore] = useState(false);     // már tag: másik iroda (csatlakozás / új igénylés)
+  const [switching, setSwitching] = useState(false);
+
+  /** Másik irodára váltás (ez lesz a kiválasztott a kredit-sávon is), majd újratöltés. */
+  async function switchOffice(id: string) {
+    setSwitching(true);
+    const res = await fetch("/api/office/mode", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ officeId: id }),
+    }).catch(() => null);
+    if (res?.ok) window.location.reload();
+    else setSwitching(false);
+  }
 
   useEffect(() => {
     Promise.all([fetch("/api/office/request").then((r) => r.json()), fetch("/api/office").then((r) => r.json())])
       .then(([rq, of]) => {
         if (rq.error || of.error) { setLoadError(rq.error || of.error); return; }
-        setState({ office: of.office ?? null, request: rq.request ?? null });
+        setState({ office: of.office ?? null, request: rq.request ?? null, requestUsed: !!rq.requestUsed, offices: of.offices ?? [] });
         // Jóváhagyott, de még meg nem nyitott iroda: rögtön a megnyitás fület mutatjuk.
-        if (!of.office && rq.request?.status === "approved") setTab("open");
+        if (rq.request?.status === "approved" && !rq.requestUsed) { setTab("open"); if (of.office) setShowMore(true); }
       })
       .catch(() => setLoadError("Nem sikerült betölteni az állapotot."));
   }, []);
@@ -66,7 +83,7 @@ export default function OfficeHub() {
       const data = await res.json();
       if (res.status === 422) { setErrors(data.errors ?? {}); return; }
       if (!res.ok) { setSubmitError(data.error ?? "Nem sikerült elküldeni."); return; }
-      setState((s) => ({ office: s?.office ?? null, request: data.request }));
+      setState((s) => ({ ...(s ?? { office: null }), request: data.request, requestUsed: false }));
       setNewRequest(false);
       setForm(EMPTY);
     } catch {
@@ -77,7 +94,7 @@ export default function OfficeHub() {
   }
 
   const req = state?.request ?? null;
-  const showForm = state && !state.office && (!req || (req.status === "rejected" && newRequest));
+  const showForm = state && (!req || (req.status === "rejected" && newRequest) || (req.status === "approved" && state.requestUsed));
 
   return (
     <div className="space-y-6">
@@ -93,11 +110,35 @@ export default function OfficeHub() {
       {loadError && <p className="text-sm text-red-600">{loadError}</p>}
       {!state && !loadError && <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
 
-      {/* Már tag: a saját iroda panelje */}
-      {state?.office && <OfficePanel office={state.office} />}
+      {/* Több iroda: váltó */}
+      {state?.office && (state.offices?.length ?? 0) > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Irodáid:</span>
+          {state.offices!.map((o) => {
+            const on = o.id === state.office!.id;
+            return (
+              <button key={o.id} type="button" disabled={switching || on} onClick={() => switchOffice(o.id)}
+                className="max-w-[220px] truncate rounded-full px-4 py-1.5 text-sm font-medium"
+                style={on ? { background: "var(--twx-ink)", color: "var(--twx-cream)" } : { border: "1px solid var(--twx-line)" }}>
+                {o.name}{o.role === "owner" ? " ★" : ""}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Még nem tag: fülek */}
-      {state && !state.office && (
+      {/* Már tag: a kiválasztott iroda panelje */}
+      {state?.office && <OfficePanel key={state.office.id} office={state.office} />}
+
+      {/* Már tag: másik iroda — csatlakozás kóddal vagy új irodai fiók igénylése */}
+      {state?.office && (
+        <button type="button" className="twx-btn-outline" onClick={() => setShowMore((v) => !v)}>
+          {showMore ? "Bezárás" : "+ Másik irodai fiók (csatlakozás vagy új létrehozása)"}
+        </button>
+      )}
+
+      {/* Fülek: még nem tag, vagy másik irodát nyit / csatlakozik */}
+      {state && (!state.office || showMore) && (
       <>
       <div className="flex gap-2" role="tablist">
         {([["join", "Csatlakozás kóddal"], ["open", "Irodai fiók létrehozás"]] as [Tab, string][]).map(([k, label]) => (
@@ -113,8 +154,8 @@ export default function OfficeHub() {
 
       {tab === "open" && (
         <section className="twx-card p-6">
-          {req?.status === "approved" ? (
-            <OpenOffice req={req} onOpened={(office) => setState((s) => ({ request: s?.request ?? null, office }))} />
+          {req?.status === "approved" && !state.requestUsed ? (
+            <OpenOffice req={req} onOpened={() => window.location.reload()} />
           ) : req && !showForm ? (
             <RequestStatus req={req} onNew={() => setNewRequest(true)} />
           ) : (
@@ -170,7 +211,7 @@ export default function OfficeHub() {
               A csatlakozási kódot az irodai fiók létrehozójától kapod. Beírás után azonnal csatlakozol, és látod a saját irodai keretedet.
             </p>
           </div>
-          <JoinByCode onJoined={(office) => setState((s) => ({ request: s?.request ?? null, office }))} />
+          <JoinByCode onJoined={() => window.location.reload()} />
         </section>
       )}
       </>

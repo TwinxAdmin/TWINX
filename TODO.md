@@ -116,7 +116,7 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
 - 4) Vásárlás csak a vezetőnél; a kredit az iroda egyenlegére megy.
 - 5) Alkalmazott NEM látja az iroda egyenlegét, csak a saját felhasználható keretét; ha elfogy → „Kredit kérése a vezetőtől".
 - 6) Vezető: tagok, keretek, kérések jóváhagyása, ki mire költött (havi bontás); tag eltávolítása → maradék keret vissza az irodához.
-- Szabályok: kredit csak irodán belül mozog, nem váltható vissza, nem jár le; admin/sales továbbra is ingyen; egy user = egy iroda.
+- Szabályok: kredit csak irodán belül mozog, nem váltható vissza, nem jár le; admin/sales továbbra is ingyen; több iroda is lehet (IR9).
 - DÖNTÉSEK (2026-10): a tag SAJÁT kreditje megmarad, és bármikor vásárolhat magának is (nem zárjuk irodai burokba).
   Kóddal csatlakozás AZONNALI, de csak regisztrált felhasználónak. Új tag keretje: 0.
 - Jogosultságok tagonként (csak a vezető állíthatja):
@@ -147,6 +147,8 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
   - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
   - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
+  - [x] IR9 — Több irodai fiók egy felhasználónak (létrehozás + csatlakozás) + váltás köztük (kredit-sáv irodaválasztó, Irodai fiók oldalon váltó); kiválasztott iroda + mód: user_office_context — `office-multi.sql`
+  - [x] Kredit-sáv (CreditDock) alul középen, FIX méretű; nézetváltó a bal alsó sarokban
   - [—] IR4b — E-mail-meghívó: ELENGEDVE (döntés 2026-10-08) — a kóddal csatlakozás a legegyszerűbb, elég.
   - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
     (/api/office/members, PATCH /api/office; OfficeMembers komponens)

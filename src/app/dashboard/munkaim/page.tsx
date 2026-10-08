@@ -35,8 +35,9 @@ export default async function MyWorksPage() {
   const rows = (data ?? []) as unknown as HistoryRow[];
 
   // Irodai tag? → a nézegetőben megjelenik a „Megosztás az irodával" gomb.
-  const { data: membership } = await supabase
-    .from("office_members").select("office_id").eq("user_id", user.id).maybeSingle();
+  const { data: memberships } = await supabase
+    .from("office_members").select("office_id").eq("user_id", user.id).limit(1);
+  const membership = memberships?.[0] ?? null;
   const items: WorkItem[] = rows.map((h) => ({
     id: h.id,
     feature: h.feature_used,

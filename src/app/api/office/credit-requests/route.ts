@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ALLOCATE_MAX, type OfficeCreditRequest } from "@/lib/office";
-import { getMembership } from "@/lib/office-server";
+import { allocateIn, getMembership } from "@/lib/office-server";
 import { sendOfficeCreditRequestNotification } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -169,9 +169,7 @@ export async function PATCH(request: Request) {
   if (!closed?.length) return NextResponse.json({ error: "Ezt a kérést már elbírálták." }, { status: 409 });
 
   if (action === "approve" && granted) {
-    const { data: newAllowance, error } = await admin.rpc("office_allocate", {
-      p_actor: user.id, p_member: req.user_id, p_delta: granted, p_note: "Kérés jóváhagyva",
-    });
+    const { data: newAllowance, error } = await allocateIn(me.office_id, user.id, req.user_id as string, granted, "Kérés jóváhagyva");
     if (error || newAllowance === null) {
       // A kiosztás nem sikerült → a kérést visszanyitjuk, hogy ne vesszen el.
       await admin.from("office_credit_requests")
