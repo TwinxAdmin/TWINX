@@ -162,3 +162,41 @@ export const SERVICE_LABELS: Record<string, string> = {
   simulation: "Profit-terv",
   suppliers: "Beszállító-kereső",
 };
+
+// ---------------------------------------------------------------------
+// Irodai mappák (IR7)
+// ---------------------------------------------------------------------
+export const FOLDER_NAME_MAX = 80;
+
+export type OfficeFolder = {
+  id: string;
+  name: string;
+  everyone: boolean;            // az egész iroda látja
+  memberIds: string[];          // kiválasztott tagok (everyone=false esetén)
+  createdBy: string | null;
+  createdByName: string;
+  itemCount: number;
+  canManage: boolean;           // létrehozó vagy az iroda létrehozója: átnevezés, tagok, törlés
+  createdAt: string;
+};
+
+export type OfficeFolderItem = {
+  historyId: string;
+  title: string;
+  typeLabel: string;
+  feature: string;
+  url: string | null;
+  ownerName: string;
+  addedByName: string;
+  addedAt: string;
+  createdAt: string;
+  canRemove: boolean;
+};
+
+/** Mappa-név validáció (kliens + szerver). */
+export function validateFolderName(raw: unknown): { name?: string; error?: string } {
+  const name = String(raw ?? "").trim();
+  if (!name) return { error: "Adj nevet a mappának." };
+  if (name.length > FOLDER_NAME_MAX) return { error: `Legfeljebb ${FOLDER_NAME_MAX} karakter.` };
+  return { name };
+}

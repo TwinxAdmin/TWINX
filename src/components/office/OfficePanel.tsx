@@ -10,6 +10,7 @@ import OfficeTopup from "@/components/office/OfficeTopup";
 import OfficeCreditAsk from "@/components/office/OfficeCreditAsk";
 import OfficeRequestsInbox from "@/components/office/OfficeRequestsInbox";
 import OfficeUsage from "@/components/office/OfficeUsage";
+import OfficeFolders from "@/components/office/OfficeFolders";
 
 export default function OfficePanel({ office: initial }: { office: MyOffice }) {
   const [office, setOffice] = useState(initial);
@@ -119,6 +120,8 @@ export default function OfficePanel({ office: initial }: { office: MyOffice }) {
           )}
         </>
       )}
+
+      <OfficeFolders />
     </section>
   );
 }

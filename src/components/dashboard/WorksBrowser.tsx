@@ -56,7 +56,7 @@ function relativeDay(iso: string): string {
   return d.toLocaleDateString("hu-HU");
 }
 
-export default function WorksBrowser({ items }: { items: WorkItem[] }) {
+export default function WorksBrowser({ items, canShareToOffice = false }: { items: WorkItem[]; canShareToOffice?: boolean }) {
   const [folder, setFolder] = useState<string | null>(null); // melyik modul-mappa van nyitva
   const [active, setActive] = useState<number | null>(null);
   const [visible, setVisible] = useState(false);
@@ -279,6 +279,7 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
                   style={{ background: "rgba(255,255,255,0.14)", color: "#fff" }}>Letöltés</a>
               </div>
             )}
+            {canShareToOffice && <ShareToOffice key={current.id} historyId={current.id} />}
           </div>
 
           <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }}
@@ -292,5 +293,65 @@ export default function WorksBrowser({ items }: { items: WorkItem[] }) {
         </div>
       )}
     </>
+  );
+}
+
+/** „Megosztás az irodával": a munka berakása egy közös irodai mappába (hivatkozásként). */
+function ShareToOffice({ historyId }: { historyId: string }) {
+  const [open, setOpen] = useState(false);
+  const [folders, setFolders] = useState<{ id: string; name: string }[] | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function toggle() {
+    setOpen((o) => !o);
+    setMsg(null);
+    if (folders) return;
+    try {
+      const d = await fetch("/api/office/folders").then((r) => r.json());
+      setFolders(d.error ? [] : (d.folders ?? []).map((f: { id: string; name: string }) => ({ id: f.id, name: f.name })));
+      if (d.error) setMsg({ ok: false, text: d.error });
+    } catch {
+      setFolders([]);
+    }
+  }
+
+  async function share(folderId: string, name: string) {
+    const res = await fetch("/api/office/folders/items", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folderId, historyId }),
+    });
+    const d = await res.json();
+    setMsg(res.ok ? { ok: true, text: `Betéve a(z) „${name}” mappába.` } : { ok: false, text: d.error ?? "Nem sikerült." });
+    if (res.ok) setOpen(false);
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button type="button" onClick={toggle} className="rounded-full px-5 py-2 text-sm font-medium"
+        style={{ background: "rgba(255,255,255,0.14)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)" }}>
+        Megosztás az irodával
+      </button>
+      {open && (
+        <div className="w-72 rounded-xl p-3 text-sm" style={{ background: "#fff", color: "var(--twx-ink)" }}>
+          {!folders && <p className="text-xs">Betöltés…</p>}
+          {folders && folders.length === 0 && (
+            <p className="text-xs">Még nincs közös mappa. Hozz létre egyet az „Irodai fiók” oldalon.</p>
+          )}
+          {folders && folders.length > 0 && (
+            <ul className="max-h-56 space-y-1 overflow-auto">
+              {folders.map((f) => (
+                <li key={f.id}>
+                  <button type="button" onClick={() => share(f.id, f.name)}
+                    className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-black/5">📁 {f.name}</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+            A munka nálad marad; a mappa tagjai látják és letölthetik.
+          </p>
+        </div>
+      )}
+      {msg && <p className="text-xs" style={{ color: msg.ok ? "#86efac" : "#fca5a5" }}>{msg.text}</p>}
+    </div>
   );
 }

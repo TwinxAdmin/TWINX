@@ -84,6 +84,20 @@ export async function PATCH(request: Request) {
     if (!isOwner) return NextResponse.json({ error: "Tagot csak az irodai fiók létrehozója távolíthat el." }, { status: 403 });
     if (target.role === "owner") return NextResponse.json({ error: "A létrehozó nem távolítható el." }, { status: 400 });
     // A keret csak plafon volt — eltávolításkor nincs mit „visszautalni" az irodának.
+    // A közös mappákból kikerülnek a tag SAJÁT (privát módban készült) megosztott munkái;
+    // az irodai módban készültek az irodánál maradnak. (Ha az office-folders.sql még nincs, kihagyjuk.)
+    try {
+      const { data: folders } = await admin.from("office_folders").select("id").eq("office_id", me.office_id);
+      const folderIds = (folders ?? []).map((f) => f.id as string);
+      if (folderIds.length) {
+        const { data: privateWorks } = await admin
+          .from("usage_history").select("id").eq("user_id", targetId).is("office_id", null).limit(5000);
+        const ids = (privateWorks ?? []).map((w) => w.id as string);
+        if (ids.length) await admin.from("office_folder_items").delete().in("folder_id", folderIds).in("history_id", ids);
+        await admin.from("office_folder_members").delete().in("folder_id", folderIds).eq("user_id", targetId);
+      }
+    } catch { /* nem kritikus */ }
+
     const { error } = await admin.from("office_members").delete()
       .eq("office_id", me.office_id).eq("user_id", targetId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
