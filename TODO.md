@@ -246,7 +246,7 @@ Modul-kulcs: a modul útvonala (katalógus `href`); a futtatásnál `FEATURE_TO_
 - [x] MH5 — Modul-rangsor (megnyitás → futtatás, visszatérő, változás, kedvenc, jelzések) + modul részletei ablak (`?module=`) — 2026-10-12
 - [x] MH6 — Felhasználók és kedvenc moduljaik (TOP 5) + részletes felhasználói ablak (`UserModuleTable`) — 2026-10-12
 - [x] MH7 — Irodák és munkaterek (váltó) + iroda részletei ablak (`OfficeUsageCard`) — 2026-10-12
-- [ ] MH8 — (később) CSV-letöltés
+- [x] MH8 — CSV-letöltés (2026-10-12): „CSV letöltése” gomb a szűrősávban — a betöltött adatok egy fájlban, szakaszokban (`moduleUsageCsv`, `lib/csv.ts`; magyar Excelhez: `;`, UTF-8 BOM)
 
 ## ME — Admin: Modul elemzés (Felhasználók oldal 3. füle)
 Látványterv: `design/admin-modul-elemzes-latvanyterv.html` (2026-10-12, jóváhagyásra vár).

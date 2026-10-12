@@ -6,6 +6,7 @@
 //   • Modul-rangsor (MH5, ModuleRanking) — kattintásra a modul részletei
 //   • Felhasználók és kedvenc moduljaik (MH6, UserModuleTable) — TOP 5 + részletes felhasználói ablak
 //   • Irodák és munkaterek (MH7, OfficeUsageCard) — váltó + iroda részletei (tag × modul)
+//   • CSV letöltése (MH8) — a betöltött adatok egy fájlban, a szűrősáv beállításaival (moduleUsageCsv)
 // Minden blokk fix méretű; betöltés közben a helyükön marad, nem ugrik.
 "use client";
 
@@ -14,6 +15,8 @@ import SelectField from "@/components/SelectField";
 import ModuleRanking, { type RankRow } from "@/components/admin/ModuleRanking";
 import UserModuleTable, { type UsageUser } from "@/components/admin/UserModuleTable";
 import OfficeUsageCard, { type OfficeUsageRow } from "@/components/admin/OfficeUsageCard";
+import { moduleUsageCsv } from "@/components/admin/moduleUsageCsv";
+import { downloadCsv } from "@/lib/csv";
 
 type Range = "7d" | "30d" | "90d" | "all";
 type RegWindow = "today" | "7d" | "30d" | "90d" | "12m" | "all";
@@ -34,6 +37,8 @@ export type UsageOverview = {
 
 const RANGES: { v: Range; t: string }[] = [{ v: "7d", t: "7 nap" }, { v: "30d", t: "30 nap" }, { v: "90d", t: "90 nap" }, { v: "all", t: "Összes" }];
 const REG_TEXT: Record<RegWindow, string> = { today: "Ma", "7d": "7 nap", "30d": "30 nap", "90d": "90 nap", "12m": "12 hónap", all: "Összes" };
+const SOURCE_TEXT: Record<string, string> = { all: "mind", direct: "közvetlen", landing: "ingatlan landing" };
+const MODE_TEXT: Record<string, string> = { all: "mind", private: "privát", office: "irodai fiók", team: "közös munkatér" };
 const DARK = "#12100e", CORAL = "#E3683F", TEAL = "#2F7F86", MUTED = "#6E655C";
 
 export default function ModuleUsageView() {
@@ -66,6 +71,16 @@ export default function ModuleUsageView() {
 
   useEffect(() => { void load(); }, [load]);
 
+  function exportCsv() {
+    if (!data) return;
+    const csv = moduleUsageCsv(data, {
+      range: RANGES.find((r) => r.v === range)?.t ?? range, source: SOURCE_TEXT[source] ?? source,
+      mode: MODE_TEXT[mode] ?? mode, staff, reg: REG_TEXT[reg],
+    });
+    const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Budapest" }); // ÉÉÉÉ-HH-NN
+    downloadCsv(`twinx-modul-hasznalat-${range}-${day}.csv`, csv);
+  }
+
   function pickReg(w: RegWindow) {
     setReg(w);
     // a grafikon alapértelmezett bontása az ablakhoz igazodik (kézzel átállítható)
@@ -89,6 +104,12 @@ export default function ModuleUsageView() {
           Admin és sales is
         </button>
         <span className="ml-auto text-xs" style={{ color: MUTED }}>{loading ? "Frissítés…" : " "}</span>
+        <button type="button" onClick={exportCsv} disabled={!data || loading}
+          title={!data || loading ? "Az adatok betöltése után tölthető le" : "A jelenlegi szűrőkkel látható adatok Excelben megnyitható fájlba (CSV)"}
+          className="inline-flex h-8 w-[136px] items-center justify-center gap-1.5 rounded-full text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+          <span aria-hidden>⤓</span> CSV letöltése
+        </button>
       </div>
 
       {error && <p className="rounded-xl px-4 py-3 text-sm text-red-700" style={{ background: "#FDECEA" }}>{error}</p>}
