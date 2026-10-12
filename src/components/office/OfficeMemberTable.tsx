@@ -2,7 +2,7 @@
 //   • Széles képernyőn táblázat, ami vízszintes görgetés nélkül kifér; keskenyebben minden tag egy kártya.
 //   • Sor: név, státusz (létrehozónak egy kattintással: Tag ⇄ Vezető, Korlátlan), keret · felhasználva, munkák, −/+, részletek.
 //   • Részletek (felugró ablak): modulonkénti bontás, a kolléga irodai munkái (címmel), keret módosítása
-//     (Ad / Visszavesz, előnézettel, megjegyzéssel), és a létrehozónak: eltávolítás.
+//     (Ad / Visszavesz, előnézettel, megjegyzéssel — visszavenni csak a létrehozó tud), és a létrehozónak: eltávolítás.
 // Minden kreditművelet a szerveren, egy tranzakcióban, naplózva fut (office_allocate_in).
 "use client";
 
@@ -27,6 +27,8 @@ type Props = {
 // a tagok a dobozon BELÜL görgethetők fel-le — a blokk magassága nem változik.
 const ROW_H = 57;
 const VISIBLE_ROWS = 5;
+
+const TAKE_OWNER_ONLY = "Kreditet visszavenni csak az iroda létrehozója tud.";
 
 // Széles képernyőn táblázat, ami MINDIG kifér (nincs vízszintes görgetés); alatta kártyák, a mezők egymás alatt.
 const COLS = "lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(150px,1.3fr)_minmax(0,1.5fr)_52px_80px_32px] lg:items-center lg:gap-3";
@@ -143,7 +145,9 @@ export default function OfficeMemberTable({ members, meId, isOwner, free, range,
                     </button>
                   ) : (
                     <>
-                      <IconBtn label="Kredit visszavétele" onClick={() => toggle(m.userId, "take")}>−</IconBtn>
+                      {/* visszavenni csak a létrehozó tud — a vezetőnél halványan, magyarázattal marad a helyén */}
+                      <IconBtn label={isOwner ? "Kredit visszavétele" : TAKE_OWNER_ONLY} disabled={!isOwner}
+                        onClick={() => toggle(m.userId, "take")}>−</IconBtn>
                       <IconBtn label="Kredit adása" onClick={() => toggle(m.userId, "give")}>+</IconBtn>
                     </>
                   )}
@@ -182,7 +186,8 @@ export default function OfficeMemberTable({ members, meId, isOwner, free, range,
                 {(canAllocate || (isOwner && m.role !== "owner")) && (
                   <div className="flex min-w-0 flex-[2_1_260px] flex-col gap-3">
                     {canAllocate && (
-                      <AllocatePanel key={`${m.userId}-${preset}`} member={m} free={free} initialMode={preset} onDone={onChanged} />
+                      <AllocatePanel key={`${m.userId}-${preset}`} member={m} free={free} initialMode={isOwner ? preset : "give"}
+                        canTake={isOwner} onDone={onChanged} />
                     )}
                     {isOwner && m.role !== "owner" && <RemovePanel member={m} onDone={() => { setOpen(null); onChanged(); }} />}
                   </div>
@@ -271,8 +276,8 @@ function MemberWorks({ member, range }: { member: MemberStat; range: OverviewRan
 // ---------------------------------------------------------------------------
 // Keret módosítása (Ad / Visszavesz) — előnézettel
 // ---------------------------------------------------------------------------
-function AllocatePanel({ member, free, initialMode, onDone }: {
-  member: MemberStat; free: number; initialMode: "give" | "take"; onDone: () => void;
+function AllocatePanel({ member, free, initialMode, canTake, onDone }: {
+  member: MemberStat; free: number; initialMode: "give" | "take"; canTake: boolean; onDone: () => void;
 }) {
   const [mode, setMode] = useState<"give" | "take">(initialMode);
   const [amount, setAmount] = useState("10");
@@ -320,7 +325,8 @@ function AllocatePanel({ member, free, initialMode, onDone }: {
       <div className="grid grid-cols-2 rounded-full p-[3px]" style={{ background: "#F1EAE1" }}>
         {(["give", "take"] as const).map((m) => (
           <button key={m} type="button" onClick={() => { setMode(m); setError(null); }}
-            className="h-8 rounded-full text-[13px] font-semibold"
+            disabled={m === "take" && !canTake} title={m === "take" && !canTake ? TAKE_OWNER_ONLY : undefined}
+            className="h-8 rounded-full text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
             style={mode === m ? { background: "#fff", color: "#1C1A17", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" } : { color: "#6B6258" }}>
             {m === "give" ? "+ Ad" : "− Visszavesz"}
           </button>
@@ -510,10 +516,10 @@ function Chip({ children, bg, fg, border }: { children: React.ReactNode; bg: str
   );
 }
 
-function IconBtn({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: () => void }) {
+function IconBtn({ children, label, onClick, disabled = false }: { children: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick}
-      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg text-base"
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled}
+      className="flex h-[30px] w-[30px] items-center justify-center rounded-lg text-base disabled:cursor-not-allowed disabled:opacity-40"
       style={{ background: "#fff", color: "#3A342E", border: "1px solid #E1D6C9" }}>
       {children}
     </button>

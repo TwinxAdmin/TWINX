@@ -1,6 +1,6 @@
 // GET   /api/office/members — az iroda taglistája (csak a létrehozó és a kiosztó jogú tag).
 // PATCH /api/office/members — egy tag kezelése. body: { userId, action, ... }
-//   • action "allocate"    { delta, note? }             — keret +/−  (létrehozó vagy kiosztó; a kiosztó magának nem)
+//   • action "allocate"    { delta, note? }             — keret +/−  (létrehozó vagy kiosztó; a kiosztó magának nem, és csak +)
 //                                                         foglalásos modell: csak a szabad részből adható (20261008104953_office-reserve.sql)
 //   • action "permissions" { canAllocate?, unlimited? } — jogosultságok (CSAK a létrehozó)
 //   • action "remove"                                   — tag eltávolítása (CSAK a létrehozó; magát nem)
@@ -55,6 +55,8 @@ export async function PATCH(request: Request) {
     }
     if (!(isOwner || me.can_allocate)) return NextResponse.json({ error: "Nincs jogod keretet kiosztani." }, { status: 403 });
     if (!isOwner && targetId === user.id) return NextResponse.json({ error: "Magadnak nem oszthatsz keretet." }, { status: 403 });
+    // Visszavenni CSAK a létrehozó tud; a kiosztó jogú vezető csak adhat.
+    if (delta < 0 && !isOwner) return NextResponse.json({ error: "Kreditet visszavenni csak az iroda létrehozója tud." }, { status: 403 });
     if (delta < 0 && target.allowance + delta < 0) {
       return NextResponse.json({ error: `Legfeljebb ${target.allowance} kredit vehető vissza.` }, { status: 422 });
     }

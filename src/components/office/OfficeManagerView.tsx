@@ -1,9 +1,12 @@
 // OfficeManagerView — az Irodai TWINX fiók felülete a létrehozónak és a vezetőknek
 // (megjelenési terv: twinx-irodai-fiok-vezetoi). Minden adat a /api/office/overview-ból jön.
-//   • sötét fejléc-sáv: iroda neve + szerep, Egyenleg feltöltése (csak létrehozó), csatlakozási kód
+//   • sötét fejléc-sáv: iroda neve + szerep, Egyenleg feltöltése (csak létrehozó), Kredit kiosztása
+//     (létrehozó + kiosztó jogú vezető, felugró ablakban az összes tag), csatlakozási kód
 //     (Másolás; Új kód csak a létrehozónak), KPI-k (egyenleg, szabad, kiosztva, felhasználva, tagok)
 //   • üzenetek sora (fix magasság): fogadott (kredit-kérések) + üzenet küldése („Hamarosan")
-//   • Tagok és felhasználás (időszak-választóval) + jobb oszlop: közös mappák, kredit-mozgások
+//   • Tagok és felhasználás (időszak-választóval)
+//   • Munkáim — a vezető SAJÁT munkái, megosztás a közös mappákba (ugyanaz a kártya, mint a kollégáknál)
+//   • közös mappák + kredit-mozgások
 // Minden blokk MINDIG látszik (üresen is, szép üres állapottal), és fix magasságú: a tartalom
 // a kártyán belül görget, az új mappa / mappa tartalma / feltöltés felugró ablakban nyílik.
 "use client";
@@ -18,7 +21,9 @@ import OfficeMessagesRow from "@/components/office/OfficeMessagesRow";
 import { EmptyState, Icons, OfficeDialog } from "@/components/office/OfficeUi";
 import OfficeFolders from "@/components/office/OfficeFolders";
 import OfficeTopup from "@/components/office/OfficeTopup";
+import OfficeAllocateDialog from "@/components/office/OfficeAllocateDialog";
 import OfficeModuleShelf from "@/components/office/OfficeModuleShelf";
+import OfficeMyWorks from "@/components/office/OfficeMyWorks";
 
 type Overview = {
   view: "manager";
@@ -41,6 +46,9 @@ export default function OfficeManagerView() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [allocateOpen, setAllocateOpen] = useState(false);
+  // a Munkáim saját időszakot kap — a váltása ne töltse újra a tagtáblát
+  const [worksRange, setWorksRange] = useState<OverviewRange>("30d");
 
   const load = useCallback(async (r: OverviewRange) => {
     try {
@@ -63,7 +71,7 @@ export default function OfficeManagerView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <HeroBand data={data} onTopup={() => setTopupOpen(true)} onCodeChanged={refresh} spentLabel={SPENT_LABEL[range]} />
+      <HeroBand data={data} onTopup={() => setTopupOpen(true)} onAllocate={() => setAllocateOpen(true)} onCodeChanged={refresh} spentLabel={SPENT_LABEL[range]} />
 
       <OfficeMessagesRow canDecide reloadKey={reloadKey} onDecided={refresh} />
 
@@ -96,6 +104,9 @@ export default function OfficeManagerView() {
             ) : undefined} />
       </section>
 
+      {/* Munkáim — a vezető is dolgozik a modulokkal, és közösen a kollégákkal (megosztás közös mappába) */}
+      <OfficeMyWorks range={worksRange} onRange={setWorksRange} />
+
       {/* Közös mappák + kredit-mozgások egymás mellett, azonos fix magassággal */}
       <div className="grid gap-4 md:grid-cols-2">
         <OfficeFolders height={340} />
@@ -110,6 +121,13 @@ export default function OfficeManagerView() {
           <OfficeTopup />
         </OfficeDialog>
       )}
+
+      {allocateOpen && (
+        <OfficeDialog title="Kredit kiosztása a kollégáknak" onClose={() => setAllocateOpen(false)} wide>
+          <OfficeAllocateDialog members={data.members} meId={data.me.userId} isOwner={data.me.roleLabel === "owner"}
+            free={kpi.free} joinCode={office.joinCode} onDone={() => { setAllocateOpen(false); refresh(); }} />
+        </OfficeDialog>
+      )}
     </div>
   );
 }
@@ -117,8 +135,8 @@ export default function OfficeManagerView() {
 // ---------------------------------------------------------------------------
 // Sötét fejléc-sáv
 // ---------------------------------------------------------------------------
-function HeroBand({ data, onTopup, onCodeChanged, spentLabel }: {
-  data: Overview; onTopup: () => void; onCodeChanged: () => void; spentLabel: string;
+function HeroBand({ data, onTopup, onAllocate, onCodeChanged, spentLabel }: {
+  data: Overview; onTopup: () => void; onAllocate: () => void; onCodeChanged: () => void; spentLabel: string;
 }) {
   const { office, kpi, me } = data;
   const [regen, setRegen] = useState(false);
@@ -176,14 +194,19 @@ function HeroBand({ data, onTopup, onCodeChanged, spentLabel }: {
             </div>
             <p className="text-sm" style={{ color: "#A89E94" }}>{subtitle}</p>
           </div>
-          {office.canTopup && (
-            <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2.5">
+            {office.canTopup && (
               <button type="button" onClick={onTopup} className="inline-flex h-[42px] items-center gap-1.5 rounded-full px-[18px] text-[13px] font-semibold"
                 style={{ background: "#F08A68", color: "#1C1A17" }}>
                 + Egyenleg feltöltése
               </button>
-            </div>
-          )}
+            )}
+            {/* a vezetői nézetet csak a létrehozó és a kiosztó jogú vezető látja — mindketten adhatnak */}
+            <button type="button" onClick={onAllocate} className="inline-flex h-[42px] items-center gap-1.5 rounded-full px-[18px] text-[13px] font-semibold"
+              style={{ border: "1px solid rgba(240,138,104,0.6)", color: "#F6F1EA", background: "rgba(240,138,104,0.08)" }}>
+              Kredit kiosztása
+            </button>
+          </div>
         </div>
 
         {/* csatlakozási kód */}
