@@ -1,9 +1,9 @@
 // ModuleAnalysisView — Admin → Felhasználók → „Modul elemzés" fül (ME1; látványterv: design/admin-modul-elemzes-latvanyterv.html).
 // Maga a MODUL elemzése — felhasználó-szintű adat nincs. Adat: GET /api/admin/module-analysis.
-//   • szűrők (mint a Modul-használat fülön) + Eszköz (Hamarosan — ME2)
+//   • szűrők (mint a Modul-használat fülön) + Eszköz (mobil / tablet / asztali — az eseménynaplóra hat, ME2d)
 //   • TOP 3 modul (futtatás szerint) · Modulok egészsége (közlekedési lámpa) · egy modul mély elemzése
-// ME1: a meglévő adatokból. A Tölcsér, a hibás futtatás, a futási idő (ME2) és az elégedettség, „Mi hiányzik?" (ME3)
-// helye „Hamarosan" címkével, szép üres állapotban látszik. Minden blokk fix méretű.
+// ME1: a meglévő adatokból · ME2d: Tölcsér, hibás futtatás, futási idő, eszköz (eseménynapló, egyelőre az 5 fő modul).
+// Az elégedettség és a „Mi hiányzik?" (ME3) helye „Hamarosan" címkével, szép üres állapotban látszik. Minden blokk fix méretű.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +13,7 @@ type Range = "7d" | "30d" | "90d" | "all";
 type Health = {
   href: string; label: string; runs: number; users: number; change: number | "new" | null; returningPct: number | null; spark: number[];
   conversionPct: number | null; secondPct: number | null; within30Pct: number | null;
-  failurePct: number | null; satisfactionPct: number | null; avgSeconds: number | null;
+  failurePct: number | null; satisfactionPct: number | null; avgSeconds: number | null; tracked: boolean;
 };
 type Overview = { top3: Health[]; health: Health[] };
 type Deep = {
@@ -22,7 +22,10 @@ type Deep = {
     curve: { day: number; pct: number | null; n: number }[]; avgCurve: { day: number; pct: number | null }[] };
   heat: { weekdays: string[]; slots: string[]; cells: number[][] };
   links: { before: { label: string; pct: number }[]; after: { label: string; pct: number }[]; firstOfDayPct: number | null; onlyThisPct: number | null };
-  quality: { items: { label: string; value: string; hint?: string }[]; reasons: { reason: string; at: string }[] };
+  quality: { items: { label: string; value: string; hint?: string }[]; reasons: { reason: string; at: string }[]; topErrors: { code: string; n: number }[] };
+  funnel: { step: string; users: number }[] | null;
+  devices: { mobile: number; tablet: number; desktop: number };
+  tracked: boolean;
 };
 
 const DARK = "#12100e", MUTED = "#6E655C", CARD = { background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" } as const;
@@ -32,6 +35,14 @@ const RANGES: { v: Range; t: string }[] = [{ v: "7d", t: "7 nap" }, { v: "30d", 
 const LIGHTS: Record<"conversionPct" | "secondPct" | "within30Pct", [number, number]> = {
   conversionPct: [55, 35], secondPct: [55, 35], within30Pct: [40, 25],
 };
+// hibás futtatás: fordított skála (kevesebb = jobb) — ≤ 3% zöld, ≤ 8% sárga, felette piros
+function failLight(v: number | null): string { return v === null ? "" : v <= 3 ? "#2E9E5E" : v <= 8 ? "#E0A526" : "#D2492F"; }
+function fmtSec(sec: number | null): string {
+  if (sec === null) return "—";
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? `${m} p${s ? ` ${s} mp` : ""}` : `${s} mp`;
+}
+
 function light(key: keyof typeof LIGHTS, v: number | null): string {
   if (v === null) return "";
   const [g, y] = LIGHTS[key];
@@ -43,13 +54,14 @@ export default function ModuleAnalysisView() {
   const [source, setSource] = useState("all");
   const [mode, setMode] = useState("all");
   const [staff, setStaff] = useState(false);
+  const [device, setDevice] = useState("all");
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort] = useState<keyof Health>("runs");
 
-  const query = useMemo(() => new URLSearchParams({ range, source, mode, staff: staff ? "1" : "0" }).toString(), [range, source, mode, staff]);
+  const query = useMemo(() => new URLSearchParams({ range, source, mode, staff: staff ? "1" : "0", device }).toString(), [range, source, mode, staff, device]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -83,9 +95,9 @@ export default function ModuleAnalysisView() {
           options={[{ value: "all", label: "Forrás: mind" }, { value: "direct", label: "Forrás: közvetlen" }, { value: "landing", label: "Forrás: ingatlan landing" }]} />
         <SelectField size="sm" className="w-[200px]" ariaLabel="Mód" value={mode} onChange={setMode}
           options={[{ value: "all", label: "Mód: mind" }, { value: "private", label: "Mód: privát" }, { value: "office", label: "Mód: irodai fiók" }, { value: "team", label: "Mód: közös munkatér" }]} />
-        <span title="Az eszköz (mobil / asztali) mérése a következő lépésben indul." className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-lg px-3 text-xs opacity-50"
-          style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
-          Eszköz: mind <Soon />
+        <span title="Az eszköz-szűrő a tölcsérre, a hibás futtatásra és a futási időre hat (az eseménynaplóból).">
+          <SelectField size="sm" className="w-[170px]" ariaLabel="Eszköz" value={device} onChange={setDevice}
+            options={[{ value: "all", label: "Eszköz: mind" }, { value: "desktop", label: "Eszköz: asztali" }, { value: "mobile", label: "Eszköz: mobil" }, { value: "tablet", label: "Eszköz: tablet" }]} />
         </span>
         <button type="button" onClick={() => setStaff((s) => !s)} aria-pressed={staff} className="inline-flex items-center gap-2 text-xs font-semibold">
           <span className="relative h-5 w-[34px] rounded-full transition-colors" style={{ background: staff ? "#F08A68" : "#D9CFC3" }}>
@@ -140,9 +152,9 @@ export default function ModuleAnalysisView() {
             <HeadBtn label="Megnyitásból futtatás" right on={sort === "conversionPct"} onClick={() => setSort("conversionPct")} />
             <HeadBtn label="Második futtatás" right on={sort === "secondPct"} onClick={() => setSort("secondPct")} />
             <HeadBtn label="Visszatér 30 napon belül" right on={sort === "within30Pct"} onClick={() => setSort("within30Pct")} />
-            <span className="text-right">Hibás futtatás <Soon dark /></span>
+            <HeadBtn label="Hibás futtatás" right on={sort === "failurePct"} onClick={() => setSort("failurePct")} />
             <span className="text-right">Elégedett (👍) <Soon dark /></span>
-            <span className="text-right">Átl. futási idő <Soon dark /></span>
+            <HeadBtn label="Medián futási idő" right on={sort === "avgSeconds"} onClick={() => setSort("avgSeconds")} />
           </div>
           {!data && <p className="p-5 text-sm" style={{ color: MUTED }}>{loading ? "Betöltés…" : "Nincs adat."}</p>}
           {rows.map((h) => (
@@ -154,15 +166,19 @@ export default function ModuleAnalysisView() {
               <Light v={h.conversionPct} c={light("conversionPct", h.conversionPct)} label="Megnyitásból futtatás" />
               <Light v={h.secondPct} c={light("secondPct", h.secondPct)} label="Második futtatás" />
               <Light v={h.within30Pct} c={light("within30Pct", h.within30Pct)} label="Visszatér 30 napon belül" />
-              <Light v={null} c="" label="Hibás futtatás" />
+              <Light v={h.failurePct} c={failLight(h.failurePct)} label="Hibás futtatás" untracked={!h.tracked} />
               <Light v={null} c="" label="Elégedett" />
-              <Light v={null} c="" label="Átl. futási idő" />
+              <span className="tabular-nums lg:text-right" title={h.tracked ? undefined : "Ezt a modult még nem mérjük (egyelőre az 5 fő modul)."}>
+                <span className="lg:hidden" style={{ color: MUTED }}>Medián futási idő: </span>
+                {h.tracked && h.avgSeconds !== null ? <b>{fmtSec(h.avgSeconds)}</b> : <span style={{ color: "#B2A89D" }}>—</span>}
+              </span>
             </button>
           ))}
         </div>
       </section>
       <p className="text-xs" style={{ color: MUTED }}>
-        Határok: megnyitásból futtatás és második futtatás ≥ 55% zöld, 35–55% sárga · visszatérés 30 napon belül ≥ 40% zöld, 25–40% sárga.
+        Határok: megnyitásból futtatás és második futtatás ≥ 55% zöld, 35–55% sárga · visszatérés 30 napon belül ≥ 40% zöld, 25–40% sárga ·
+        hibás futtatás ≤ 3% zöld, ≤ 8% sárga. A hibás futtatást és a futási időt egyelőre az 5 fő modulban mérjük (2026. okt. 12-től).
         A „második futtatás” és a „visszatérés” azokra vonatkozik, akik az időszakban próbálták ki először a modult.
       </p>
 
@@ -211,8 +227,10 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
 
       <div className="grid gap-3.5 lg:grid-cols-2">
         {/* 1 · Tölcsér — ME2 */}
-        <Panel title="1 · Tölcsér — hol esnek ki?" tag="soon" h={300}>
-          <Empty text="A tölcsér lépései (megnyitás → űrlap → indítás → siker → letöltés / megosztás) a következő lépésben induló eseménynaplóból töltődnek." />
+        <Panel title="1 · Tölcsér — hol esnek ki?" h={300}>
+          {!d && <p className="text-sm" style={{ color: MUTED }}>Betöltés…</p>}
+          {d && !d.funnel && <Empty text="Ennél a modulnál még nincs tölcsér-mérés — egyelőre az 5 fő modulban mérünk (értékbecslés, hirdetéskép, képjavító, videó, látványtervező)." />}
+          {d?.funnel && <Funnel steps={d.funnel} />}
         </Panel>
 
         {/* 2 · Visszatérés */}
@@ -246,8 +264,16 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
               ))}
             </div>
           )}
+          {d && d.quality.topErrors.length > 0 && (
+            <div className="text-[12px]">
+              <p className="mb-1 font-bold">Leggyakoribb hibák</p>
+              {d.quality.topErrors.map((e) => (
+                <div key={e.code} className="flex justify-between gap-2 py-0.5"><code className="truncate text-[11.5px]">{e.code}</code><b className="tabular-nums">{e.n}</b></div>
+              ))}
+            </div>
+          )}
           <div className="mt-auto flex items-center justify-between rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "#F8F3EC" }}>
-            <span>Hibás futtatás · Elégedettség (👍/👎)</span><Soon />
+            <span>Elégedettség (👍/👎)</span><Soon />
           </div>
         </Panel>
 
@@ -273,9 +299,7 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
             </tbody>
           </table>
           {!d && <p className="text-sm" style={{ color: MUTED }}>Betöltés…</p>}
-          <div className="mt-auto flex items-center justify-between rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "#F8F3EC" }}>
-            <span>Eszköz (mobil / asztali)</span><Soon />
-          </div>
+          <DeviceBar d={d} />
           <p className="text-[11px]" style={{ color: MUTED }}>Futtatások a hét napjai × napszak szerint, budapesti idő (sötétebb = több).</p>
         </Panel>
       </div>
@@ -293,6 +317,59 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
 }
 
 // ---------------------------------------------------------------------------
+function Funnel({ steps }: { steps: { step: string; users: number }[] }) {
+  const top = Math.max(1, steps[0]?.users ?? 1, ...steps.map((s) => s.users));
+  // a legnagyobb kiesés (az előző lépéshez képest) kiemelve
+  let worst = -1, worstDrop = 0;
+  steps.forEach((s, i) => {
+    if (!i) return;
+    const prev = steps[i - 1].users;
+    const drop = prev ? (prev - s.users) / prev : 0;
+    if (drop > worstDrop) { worstDrop = drop; worst = i; }
+  });
+  return (
+    <div className="flex flex-col gap-2">
+      {steps.map((s, i) => {
+        const prev = i ? steps[i - 1].users : null;
+        const drop = prev ? Math.round(((prev - s.users) / prev) * 100) : null;
+        return (
+          <div key={s.step} className="grid grid-cols-[140px_1fr_44px_50px] items-center gap-2.5 rounded-lg px-1 text-[12.5px]"
+            style={i === worst && worstDrop > 0 ? { boxShadow: "0 0 0 2px #D2492F inset" } : undefined}>
+            <span className="truncate">{s.step}</span>
+            <span className="relative h-[24px] overflow-hidden rounded-md" style={{ background: "#F1EAE1" }}>
+              <i className="absolute inset-y-0 left-0 rounded-md" style={{ width: `${(s.users / top) * 100}%`, background: "linear-gradient(90deg,#E3683F,#F4A48A)" }} />
+            </span>
+            <b className="text-right tabular-nums">{s.users}</b>
+            <span className="text-right text-[11px] font-bold" style={{ color: "#B3261E" }}>{drop !== null && drop > 0 ? `−${drop}%` : ""}</span>
+          </div>
+        );
+      })}
+      <p className="text-[11.5px]" style={{ color: MUTED }}>
+        Különböző felhasználók lépésenként.{worst > 0 && worstDrop > 0 ? <> Legnagyobb kiesés: <b style={{ color: "var(--twx-ink)" }}>{steps[worst - 1].step} → {steps[worst].step}</b>.</> : ""}
+      </p>
+    </div>
+  );
+}
+
+function DeviceBar({ d }: { d: Deep | null }) {
+  const v = d?.devices ?? { mobile: 0, tablet: 0, desktop: 0 };
+  const total = v.mobile + v.tablet + v.desktop;
+  const p = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+  return (
+    <div className="mt-auto flex flex-col gap-1.5 text-[12px]">
+      <div className="flex justify-between gap-2">
+        <span>Eszköz</span>
+        <span>{total ? <><b>Asztali {p(v.desktop)}%</b> · <span style={{ color: MUTED }}>Mobil {p(v.mobile)}% · Tablet {p(v.tablet)}%</span></> : <span style={{ color: MUTED }}>{d && !d.tracked ? "nem mért modul" : "még nincs adat"}</span>}</span>
+      </div>
+      <span className="flex h-3 overflow-hidden rounded-full" style={{ background: "#F1EAE1" }}>
+        <i className="block h-full" style={{ width: `${p(v.desktop)}%`, background: DARK }} />
+        <i className="block h-full" style={{ width: `${p(v.mobile)}%`, background: "#C9B8A8" }} />
+        <i className="block h-full" style={{ width: `${p(v.tablet)}%`, background: "#2F7F86" }} />
+      </span>
+    </div>
+  );
+}
+
 function Panel({ title, tag, h, children }: { title: string; tag?: "soon" | "partial"; h: number; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2.5 overflow-auto rounded-2xl px-[18px] py-4" style={{ ...CARD, height: h }}>
@@ -325,9 +402,10 @@ function HeadBtn({ label, onClick, on, right }: { label: string; onClick: () => 
   return <button type="button" onClick={onClick} className={`uppercase ${right ? "text-right" : "text-left"}`} style={{ color: on ? "#F4A48A" : "#BFB4A8" }}>{label}{on ? " ▾" : ""}</button>;
 }
 
-function Light({ v, c, label }: { v: number | null; c: string; label: string }) {
+function Light({ v, c, label, untracked }: { v: number | null; c: string; label: string; untracked?: boolean }) {
   return (
-    <span className="flex items-center gap-1.5 tabular-nums lg:justify-end" title={v === null ? "Még nincs elég adat" : undefined}>
+    <span className="flex items-center gap-1.5 tabular-nums lg:justify-end"
+      title={untracked ? "Ezt a modult még nem mérjük (egyelőre az 5 fő modul)." : v === null ? "Még nincs elég adat" : undefined}>
       <span className="lg:hidden" style={{ color: MUTED }}>{label}: </span>
       {v === null ? <span style={{ color: "#B2A89D" }}>—</span> : <><i className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: c }} /><b>{v}%</b></>}
     </span>

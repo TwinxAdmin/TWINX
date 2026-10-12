@@ -256,9 +256,9 @@ Döntések: fül neve „Modul elemzés” · tölcsér: megnyitás → űrlap �
 adatkezelési tájékoztató +1 mondat (visszajelzések).
 - [x] ME1 — (2026-10-12; `lib/module-analysis.ts`, `/api/admin/module-analysis`, `ModuleAnalysisView`, /admin/users?tab=elemzes) 1. kör (meglévő adatokból): fül + TOP 3 modul (futtatás szerint) + „Modulok egészsége” (megnyitásból futtatás, 2. futtatás, 30 napos visszatérés)
       + mély elemzés: Visszatérés (megtartási görbe), Mikor és min (hőtérkép), Kapcsolódások, Minőség (szerkesztés / újragenerálás / visszatérítés)
-- [ ] ME2 — 2. kör: eseménynapló az 5 fő modulban (értékbecslés, hirdetéskép, képjavító, videó, látványtervező; a többi később)
+- [x] ME2 — 2. kör: eseménynapló az 5 fő modulban (értékbecslés, hirdetéskép, képjavító, videó, látványtervező; a többi később)
   - [x] ME2a — SQL: `module_events` (`20261012191016_module-events.sql`, lefuttatva 2026-10-12)
   - [x] ME2b — `POST /api/track/module-event` + kliens-segéd `useModuleTracker` (eszköz a User-Agentből, szerveroldalon) — 2026-10-12
   - [x] ME2c — bekötés az 5 modulba: form_start, run_start, run_success / run_error (+ futási idő), download, share (FolderLibrary: közös mappába tétel = share) — 2026-10-12
-  - [ ] ME2d — Modul elemzés: Tölcsér, Hibás futtatás, Átl. futási idő, Eszköz szűrő + mobil/asztali arány
+  - [x] ME2d — Modul elemzés: Tölcsér, Hibás futtatás, Medián futási idő, Eszköz szűrő + eszköz-arány, leggyakoribb hibák — 2026-10-12
 - [ ] ME3 — 3. kör: `work_feedback` (👍/👎 + ok) a kész munka alatt + `module_asks` („Mi hiányzik?”) → Elégedettség, 👎 okai, „Mi hiányzik?” panel

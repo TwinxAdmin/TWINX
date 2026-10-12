@@ -46,7 +46,7 @@ type Person = { id: string; email: string; name: string; role: string; source: s
 type Office = { id: string; name: string; kind: "office" | "team"; ownerId: string | null };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: unknown }>): Promise<T[]> {
+export async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: unknown }>): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; from < MAX_ROWS; from += PAGE) {
     const { data, error } = await build(from, from + PAGE - 1);

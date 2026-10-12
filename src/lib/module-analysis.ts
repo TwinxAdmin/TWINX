@@ -7,26 +7,59 @@
 //   • visszatér 30 napon = a kohorsz hány %-a futtatta újra az első futtatás utáni 30 napon belül
 //   • megtartási görbe   = a kohorszból hányan futtatták MÉG a modult az első után 1 / 7 / 14 / 21 / 30 nap elteltével
 //   • kapcsolódások      = ugyanazon a (budapesti) napon a felhasználó mely más modult használta előtte / utána
-// A hibás futtatás, a futási idő, az eszköz (ME2) és az elégedettség (ME3) később töltődik — addig null.
+// ME2 (eseménynapló, 20261012191016_module-events.sql — egyelőre az 5 fő modulban):
+//   • tölcsér   = lépésenként hány KÜLÖNBÖZŐ felhasználó jutott el: megnyitás → űrlap → indítás → siker → letöltés/megosztás
+//   • hibás     = run_error / (run_success + run_error) · futási idő = a sikeres futtatások MEDIÁN ideje
+//   • eszköz    = a szerver állapítja meg (mobile / tablet / desktop); az eszköz-szűrő az eseményekre hat
+// Az elégedettség (ME3) később töltődik — addig null.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { selectableModules } from "@/lib/module-favorites";
-import { DAY, loadBase, modeFilter, userFilter, windowOf, type Run, type UsageFilters } from "@/lib/module-usage";
+import { DAY, fetchAll, loadBase, modeFilter, userFilter, windowOf, type Run, type UsageFilters } from "@/lib/module-usage";
+
+export type DeviceFilter = "all" | "mobile" | "tablet" | "desktop";
+type Ev = { user: string; href: string; event: string; ms: number | null; device: string | null; detail: string | null; at: number };
 
 const MIN_SAMPLE = 5;           // ennél kevesebb esetből nem mutatunk arányt („—")
 const RET_DAYS = [1, 7, 14, 21, 30];
 
 type Ctx = Awaited<ReturnType<typeof prepare>>;
 
-async function prepare(f: UsageFilters) {
+async function prepare(f: UsageFilters, device: DeviceFilter = "all") {
   const now = Date.now();
   const { start, prevStart } = windowOf(f.range, now);
-  const base = await loadBase(f.range === "all" ? null : new Date(prevStart ?? start).toISOString());
+  const admin = createAdminClient();
+  const [base, rawEvents] = await Promise.all([
+    loadBase(f.range === "all" ? null : new Date(prevStart ?? start).toISOString()),
+    // eseménynapló — csak az időszakra; ha a tábla még nincs, üres (a felület „—"-t mutat)
+    fetchAll<{ user_id: string; module_href: string; event: string; duration_ms: number | null; device: string | null; detail: string | null; created_at: string }>((a, b) => {
+      let q = admin.from("module_events").select("user_id, module_href, event, duration_ms, device, detail, created_at");
+      if (start) q = q.gte("created_at", new Date(start).toISOString());
+      return q.range(a, b);
+    }),
+  ]);
   const kindOf = new Map(base.offices.map((o) => [o.id, o.kind]));
   const keepUser = userFilter(f), keepMode = modeFilter(f, kindOf);
   const runs = base.runs.filter((r) => keepUser(base.people.get(r.user)) && keepMode(r));
   const views = base.views.filter((v) => keepUser(base.people.get(v.user)));
   const modules = selectableModules().map((m) => ({ href: m.href, label: m.label }));
-  return { now, start, prevStart, runs, views, modules, base };
+  const eventsAll: Ev[] = rawEvents
+    .filter((e) => keepUser(base.people.get(e.user_id)))
+    .map((e) => ({ user: e.user_id, href: e.module_href, event: e.event, ms: e.duration_ms, device: e.device, detail: e.detail, at: Date.parse(e.created_at) }));
+  const events = device === "all" ? eventsAll : eventsAll.filter((e) => e.device === device);
+  return { now, start, prevStart, runs, views, modules, base, events, eventsAll, device };
+}
+
+/** Hibaarány és medián futási idő egy modulra (az eseménynaplóból). */
+function runStats(events: Ev[], href: string) {
+  const ok = events.filter((e) => e.href === href && e.event === "run_success");
+  const bad = events.filter((e) => e.href === href && e.event === "run_error");
+  const times = ok.map((e) => e.ms).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
+  return {
+    finished: ok.length + bad.length,
+    failurePct: pct(bad.length, ok.length + bad.length),
+    avgSeconds: times.length >= MIN_SAMPLE ? Math.round(times[Math.floor(times.length / 2)] / 1000) : null,
+    errors: bad,
+  };
 }
 
 const pct = (a: number, b: number) => (b >= MIN_SAMPLE ? Math.round((a / b) * 100) : null);
@@ -65,8 +98,8 @@ function retention(ctx: Ctx, href: string) {
 // ---------------------------------------------------------------------------
 // ÁTTEKINTŐ: TOP 3 + Modulok egészsége
 // ---------------------------------------------------------------------------
-export async function moduleAnalysisOverview(f: UsageFilters) {
-  const ctx = await prepare(f);
+export async function moduleAnalysisOverview(f: UsageFilters, device: DeviceFilter = "all") {
+  const ctx = await prepare(f, device);
   const runsIn = ctx.runs.filter((r) => r.at >= ctx.start);
   const runsPrev = ctx.prevStart === null ? [] : ctx.runs.filter((r) => r.at >= ctx.prevStart! && r.at < ctx.start);
   const viewsIn = ctx.views.filter((v) => v.at >= ctx.start);
@@ -85,11 +118,13 @@ export async function moduleAnalysisOverview(f: UsageFilters) {
       const d0 = ctx.now - (days - i) * DAY;
       return mr.filter((r) => r.at >= d0 && r.at < d0 + DAY).length;
     });
+    const stats = runStats(ctx.events, m.href);
     const returning = runUsers.size ? Math.round(([...runUsers].filter((u) => mr.filter((r) => r.user === u).length >= 2).length / runUsers.size) * 100) : null;
     return {
       href: m.href, label: m.label, runs: mr.length, users: runUsers.size, change, returningPct: returning, spark,
       conversionPct: conv, secondPct: ret.secondPct, within30Pct: ret.within30Pct,
-      failurePct: null as number | null, satisfactionPct: null as number | null, avgSeconds: null as number | null,
+      failurePct: stats.failurePct, satisfactionPct: null as number | null, avgSeconds: stats.avgSeconds,
+      tracked: ctx.eventsAll.some((e) => e.href === m.href),
     };
   });
 
@@ -112,8 +147,8 @@ function bp(ts: number) {
   return { day: `${get("year")}-${get("month")}-${get("day")}`, weekday: wd < 0 ? 0 : wd, hour: Number(get("hour")) % 24 };
 }
 
-export async function moduleAnalysisDeep(href: string, f: UsageFilters) {
-  const ctx = await prepare(f);
+export async function moduleAnalysisDeep(href: string, f: UsageFilters, device: DeviceFilter = "all") {
+  const ctx = await prepare(f, device);
   const mod = ctx.modules.find((m) => m.href === href);
   if (!mod) return null;
   const labelOf = new Map(ctx.modules.map((m) => [m.href, m.label]));
@@ -159,8 +194,35 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters) {
   const rank = (m: Map<string, number>) => [...m.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4)
     .map(([h, n]) => ({ label: labelOf.get(h) ?? h, pct: mine.length ? Math.round((n / mine.length) * 100) : 0 }));
 
-  // --- minőség (a meglévő jelekből) ---
+  // --- tölcsér (különböző felhasználók lépésenként) ---
+  const ev = ctx.events.filter((e) => e.href === href);
+  const usersOf = (types: string[]) => new Set(ev.filter((e) => types.includes(e.event)).map((e) => e.user)).size;
+  const viewUsers = new Set(ctx.views.filter((v) => v.href === href && v.at >= ctx.start).map((v) => v.user)).size;
+  const tracked = ctx.eventsAll.some((e) => e.href === href);
+  const funnel = tracked ? [
+    { step: "Megnyitás", users: viewUsers },
+    { step: "Űrlap elkezdése", users: usersOf(["form_start"]) },
+    { step: "Futtatás indítása", users: usersOf(["run_start"]) },
+    { step: "Sikeres eredmény", users: usersOf(["run_success"]) },
+    { step: "Letöltés / megosztás", users: usersOf(["download", "share"]) },
+  ] : null;
+
+  // --- eszközök (különböző felhasználók; az eszköz-szűrőtől függetlenül) ---
+  const devUsers = (d: string) => new Set(ctx.eventsAll.filter((e) => e.href === href && e.device === d).map((e) => e.user)).size;
+  const devices = { mobile: devUsers("mobile"), tablet: devUsers("tablet"), desktop: devUsers("desktop") };
+
+  // --- minőség (a meglévő jelek + az eseménynapló) ---
   const quality = await qualitySignals(href, ctx.start, mine.length);
+  const stats = runStats(ctx.events, href);
+  if (tracked) {
+    quality.items.unshift(
+      { label: "Hibás futtatás", value: stats.failurePct === null ? "—" : `${stats.failurePct}%`, hint: `${stats.errors.length} hiba / ${stats.finished} lezárult futtatás` },
+      { label: "Medián futási idő", value: stats.avgSeconds === null ? "—" : fmtSec(stats.avgSeconds) },
+    );
+  }
+  const errCount = new Map<string, number>();
+  for (const e of stats.errors) errCount.set(e.detail ?? "ismeretlen", (errCount.get(e.detail ?? "ismeretlen") ?? 0) + 1);
+  const topErrors = [...errCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, n }));
 
   return {
     module: mod,
@@ -173,8 +235,17 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters) {
       firstOfDayPct: mine.length ? Math.round((firstOfDay / mine.length) * 100) : null,
       onlyThisPct: mine.length ? Math.round((onlyThis / mine.length) * 100) : null,
     },
-    quality,
+    quality: { ...quality, topErrors },
+    funnel,
+    devices,
+    tracked,
   };
+}
+
+/** Másodperc → „48 mp" / „3 p 40 mp". */
+export function fmtSec(sec: number): string {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? `${m} p${s ? ` ${s} mp` : ""}` : `${s} mp`;
 }
 
 /** Modul-specifikus minőségi jelek, amik már most is rögzülnek. */
