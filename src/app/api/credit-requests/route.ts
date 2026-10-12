@@ -14,7 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCreditRequestNotification } from "@/lib/email";
 import { getPackage } from "@/lib/packages";
 import { validateBilling, BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
-import { getMembership } from "@/lib/office-server";
+import { getMembership, officeKind } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -64,6 +64,9 @@ export async function POST(request: Request) {
     const m = await getMembership(user.id);
     if (!m || m.role !== "owner") {
       return NextResponse.json({ error: "Irodai egyenleget csak az irodai fiók létrehozója tölthet fel." }, { status: 403 });
+    }
+    if ((await officeKind(m.office_id)) === "team") {
+      return NextResponse.json({ error: "Közös munkatérnek nincs közös egyenlege — mindenki a saját kreditjét tölti fel." }, { status: 403 });
     }
     officeId = m.office_id as string;
   }

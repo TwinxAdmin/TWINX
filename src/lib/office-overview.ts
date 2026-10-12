@@ -247,3 +247,89 @@ export async function ledger(officeId: string, scope: { kind: "office" } | { kin
     memberName: r.member_id ? names.get(r.member_id as string) ?? "Ismeretlen" : null,
   }));
 }
+
+// ---------------------------------------------------------------------------
+// KÖZÖS MUNKATÉR (offices.kind = team) — 20261012105023_team-workspace.sql
+// Mindenki a saját kreditjéből dolgozik: a „felhasználás" a saját, ebben a munkatérben készült
+// munkák levont kreditje (usage_history.credits_charged); a társak egymásét nem látják.
+// ---------------------------------------------------------------------------
+
+export type TeamMate = { userId: string; name: string; email: string; joinedAt: string; opener: boolean };
+
+export type TransferRow = {
+  id: number;
+  direction: "out" | "in";   // én adtam / én kaptam
+  otherName: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+};
+
+/** Társ-összesítő: saját egyenleg, saját felhasználás a munkatérben, átadások összege, társak. */
+export async function teamOverview(officeId: string, userId: string, range: OverviewRange) {
+  const admin = createAdminClient();
+  const from = rangeStart(range);
+
+  let worksQ = admin.from("usage_history").select("credits_charged")
+    .eq("office_id", officeId).eq("user_id", userId).limit(MAX_ROWS);
+  if (from) worksQ = worksQ.gte("created_at", from);
+
+  const [members, { data: works }, { data: wallet }, { data: outs }, { data: ins }] = await Promise.all([
+    listMembers(officeId),
+    worksQ,
+    admin.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
+    admin.from("office_transfers").select("amount").eq("office_id", officeId).eq("from_user", userId).limit(MAX_ROWS),
+    admin.from("office_transfers").select("amount").eq("office_id", officeId).eq("to_user", userId).limit(MAX_ROWS),
+  ]);
+
+  const sum = (rows: { amount: unknown }[] | null) => (rows ?? []).reduce((s, r) => s + ((r.amount as number) ?? 0), 0);
+  const mates: TeamMate[] = members.map((m) => ({
+    userId: m.userId, name: m.name, email: m.email, joinedAt: m.joinedAt, opener: m.role === "owner",
+  }));
+
+  return {
+    kpi: {
+      wallet: (wallet?.balance as number | undefined) ?? 0,
+      spent: (works ?? []).reduce((s, r) => s + ((r.credits_charged as number) ?? 0), 0),
+      works: (works ?? []).length,
+      given: sum(outs),
+      received: sum(ins),
+      members: mates.length,
+    },
+    members: mates,
+  };
+}
+
+/** A felhasználó SAJÁT átadásai ebben a munkatérben (amit adott / kapott), legújabb elöl. */
+export async function teamTransfers(officeId: string, userId: string, limit = 50): Promise<TransferRow[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("office_transfers").select("id, from_user, to_user, amount, note, created_at")
+    .eq("office_id", officeId).or(`from_user.eq.${userId},to_user.eq.${userId}`)
+    .order("created_at", { ascending: false }).limit(limit);
+  if (error || !data) return [];
+
+  const otherIds = [...new Set(data.map((r) => (r.from_user === userId ? r.to_user : r.from_user) as string).filter(Boolean))];
+  const names = new Map<string, string>();
+  if (otherIds.length) {
+    const { data: profiles } = await admin.from("profiles").select("id, full_name").in("id", otherIds);
+    for (const p of profiles ?? []) names.set(p.id as string, (p.full_name as string) || "");
+    await Promise.all(otherIds.filter((id) => !names.get(id)).map(async (id) => {
+      const { data: u } = await admin.auth.admin.getUserById(id);
+      names.set(id, u.user?.email ?? "—");
+    }));
+  }
+
+  return data.map((r) => {
+    const out = r.from_user === userId;
+    const other = (out ? r.to_user : r.from_user) as string | null;
+    return {
+      id: r.id as number,
+      direction: out ? "out" : "in",
+      otherName: other ? names.get(other) || "—" : "volt társ",
+      amount: r.amount as number,
+      note: (r.note as string) ?? null,
+      createdAt: r.created_at as string,
+    };
+  });
+}

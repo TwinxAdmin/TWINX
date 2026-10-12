@@ -1,8 +1,10 @@
 // Irodai mappák — CSAK szerveroldali segédek (service_role kliens).
 // Láthatóság: az „everyone" mappát az iroda minden tagja látja; a többit csak a
 // létrehozója, a kiválasztott tagok és az iroda létrehozója (aki minden mappát kezelhet).
+// KÖZÖS MUNKATÉR (offices.kind = team): nincs „létrehozói" többletjog — a megnyitó is csak egy társ.
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OfficeFolder } from "@/lib/office";
+import { officeKind } from "@/lib/office-server";
 
 type FolderRow = { id: string; office_id: string; name: string; created_by: string | null; everyone: boolean; created_at: string };
 
@@ -28,7 +30,7 @@ export async function folderAccess(folderId: string, userId: string) {
   const { data: m } = await admin
     .from("office_members").select("role").eq("user_id", userId).eq("office_id", f.office_id).maybeSingle();
   if (!m) return null; // nem tagja az irodának
-  const isOfficeOwner = m.role === "owner";
+  const isOfficeOwner = m.role === "owner" && (await officeKind(f.office_id as string)) !== "team";
   const isCreator = f.created_by === userId;
   let isMember = false;
   if (!f.everyone && !isOfficeOwner && !isCreator) {
@@ -41,8 +43,9 @@ export async function folderAccess(folderId: string, userId: string) {
 }
 
 /** Az irodában a felhasználó által látható mappák. */
-export async function listFolders(officeId: string, userId: string, isOfficeOwner: boolean): Promise<OfficeFolder[]> {
+export async function listFolders(officeId: string, userId: string, ownerRole: boolean): Promise<OfficeFolder[]> {
   const admin = createAdminClient();
+  const isOfficeOwner = ownerRole && (await officeKind(officeId)) !== "team";
   const { data: rows } = await admin
     .from("office_folders").select("id, office_id, name, created_by, everyone, created_at")
     .eq("office_id", officeId).order("created_at", { ascending: false });

@@ -1,6 +1,7 @@
 // CreditDock — lebegő kredit-sáv a képernyő alján, középen (minden dashboard oldalon).
 //   • Alap: a kredit-egyenleg + „Feltöltés" (megnyitja a csomagválasztót).
 //   • Irodai tagnak: „Privát | Irodai" váltó; ha több irodának tagja, irodaválasztó is.
+//     Közös munkatérben (team) az „Irodai" fél halvány, magyarázattal: ott mindenki saját kreditből dolgozik.
 //     Mindig a kiválasztott forrás egyenlege látszik (irodai módban a tag kerete).
 // FIX MÉRETŰ: minden rész rögzített szélességű (a hosszabb szöveg levágódik „…"-al),
 // így váltáskor a sáv nem szélesedik és nem ugrál.
@@ -14,7 +15,8 @@ type OfficeState = {
   mode: WorkMode;
   label: string;                         // a tag kerete a kiválasztott irodában („12 kredit" / „Korlátlan")
   officeId: string;
-  offices: { id: string; name: string }[];
+  team?: boolean;                        // a kiválasztott iroda közös munkatér → nincs irodai mód
+  offices: { id: string; name: string; team?: boolean }[];
 };
 
 type Props = {
@@ -27,6 +29,7 @@ export default function CreditDock({ balance, unlimited = false, office = null }
   const router = useRouter();
   const [mode, setMode] = useState<WorkMode | null>(office?.mode ?? null);
   const [officeId, setOfficeId] = useState<string | null>(office?.officeId ?? null);
+  const isTeam = !!office?.offices.find((o) => o.id === officeId)?.team || (!!office?.team && officeId === office.officeId);
   const [busy, setBusy] = useState(false);
 
   // Az Irodai fiók oldal „Miből fizetek?" kapcsolója ugyanezt állítja → kövessük azonnal.
@@ -70,7 +73,8 @@ export default function CreditDock({ balance, unlimited = false, office = null }
     if (!id || id === officeId || busy) return;
     const prevId = officeId, prevMode = mode;
     setOfficeId(id);
-    setMode("office");
+    // közös munkatérre váltva saját kreditből dolgozik (ott nincs irodai mód)
+    setMode(office?.offices.find((o) => o.id === id)?.team ? "private" : "office");
     void save({ officeId: id }, () => { setOfficeId(prevId); setMode(prevMode); });
   }
 
@@ -101,10 +105,12 @@ export default function CreditDock({ balance, unlimited = false, office = null }
               style={{ left: mode === "private" ? 4 : 74, background: "var(--twx-coral)" }} />
             {(["private", "office"] as WorkMode[]).map((m) => {
               const on = mode === m;
+              const locked = isTeam && m === "office";
               return (
-                <button key={m} type="button" onClick={() => changeMode(m)} disabled={busy} aria-pressed={on}
-                  className="relative z-10 h-7 w-[66px] rounded-full text-xs font-semibold transition-colors disabled:opacity-60"
-                  style={{ color: on ? "#1c1005" : "rgba(255,255,255,0.72)" }}>
+                <button key={m} type="button" onClick={() => changeMode(m)} disabled={busy || locked} aria-pressed={on}
+                  title={locked ? "Közös munkatérben mindenki a saját kreditjéből dolgozik." : undefined}
+                  className="relative z-10 h-7 w-[66px] rounded-full text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ color: on ? "#1c1005" : locked ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.72)" }}>
                   {m === "private" ? "Privát" : "Irodai"}
                 </button>
               );

@@ -223,9 +223,9 @@ Mikrolépések (sorrendben):
 - [x] KM1 — SQL (`20261012105023_team-workspace.sql`, lefuttatva 2026-10-12): `offices.kind` + max. 5 tag (trigger) + kredit-átadás (`team_wallet_transfer` + `office_transfers` napló) + 30 napos olvashatóság (`office_folder_items.expires_at`) + munka-átadás (`team_handover_works` + `office_work_handovers`) + kilépés (`team_leave`)
 - [x] KM2 — Igénylő űrlap (2026-10-12, Márk tesztje hátra): típusválasztó kártyák (validáció), közös munkatérnél név + létszám, nincs telefon
 - [x] KM3 — Azonnali létrehozás (+ levonás-védelem: team → mindig saját kredit; mód-váltó, csatlakozás, kódcsere tiltva; átmeneti nézet a KM5-ig) (API: típus=team → rögtön offices sor + állandó kód; jóváhagyás nélkül)
-- [ ] KM4 — Admin: típus-címke az irodák listáján (a közös munkaterek külön fülön, csak megtekintés)
-- [ ] KM5 — Társ nézet (OfficeTeamView): fejléc (türkiz), KPI-k, Munkáim, Társak, közös mappák, Kredit-átadások, alul Kedvenc modulok (OfficeModuleShelf, látványterv nélkül); jogosultságok a szerveren (`kind` szerinti ágak)
-- [ ] KM6 — „Kredit adása társnak" ablak (saját pénztárcából, megerősítéssel) + napló
+- [x] KM4 — Admin (fülek: Irodák / Közös munkaterek; team-nél nincs egyenleg-jóváírás, szerveren is tiltva + irodai feltöltés-kérés tiltva): típus-címke az irodák listáján (a közös munkaterek külön fülön, csak megtekintés)
+- [x] KM5 — Társ nézet (2026-10-12, Márk tesztje hátra; üzenetek a KM7-ben, Kilépés gomb „Hamarosan” a KM8-ig) (OfficeTeamView): fejléc (türkiz), KPI-k, Munkáim, Társak, közös mappák, Kredit-átadások, alul Kedvenc modulok (OfficeModuleShelf, látványterv nélkül); jogosultságok a szerveren (`kind` szerinti ágak)
+- [x] KM6 — „Kredit adása társnak" ablak (POST/GET /api/office/transfers, TeamTransferDialog) (saját pénztárcából, megerősítéssel) + napló
 - [ ] KM7 — Üzenetek a munkatérben (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
 - [ ] KM8 — Kilépés ablak: munkák + társak kipipálása → átadás (saját példány) → kilépés; 30 napos olvashatóság
 - [ ] KM9 — „Mi az irodai fiók?" oldal: két forma szekció + GYIK

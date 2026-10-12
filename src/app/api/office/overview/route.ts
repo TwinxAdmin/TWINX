@@ -2,11 +2,13 @@
 //   • Létrehozó / vezető (kiosztó jogú): egyenleg, szabad / kiosztott rész, felhasználás, tagonkénti statisztika,
 //     csatlakozási kód. (Feltölteni és új kódot kérni csak a létrehozó tud — ezt a canTopup / canRegenerate jelzi.)
 //   • Kolléga: csak a SAJÁT kerete, saját kreditje, saját felhasználása — az irodai egyenleget nem kapja meg.
+//   • KÖZÖS MUNKATÉR (kind = team): view „team" — saját egyenleg, saját felhasználás, átadások összege,
+//     a társak listája és az állandó kód (mindenkinek). Előnézet / szerepek itt nincsenek.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMembership, getWorkContext } from "@/lib/office-server";
-import { managerOverview, memberOverview, parseRange, roleLabelOf } from "@/lib/office-overview";
+import { getMembership, getWorkContext, officeKind } from "@/lib/office-server";
+import { managerOverview, memberOverview, parseRange, roleLabelOf, teamOverview } from "@/lib/office-overview";
 import { officeMemberPreview } from "@/lib/view-as";
 
 export const runtime = "nodejs";
@@ -27,6 +29,17 @@ export async function GET(request: Request) {
     getWorkContext(user.id),
   ]);
   if (!office) return NextResponse.json({ office: null });
+
+  if ((await officeKind(me.office_id)) === "team") {
+    const data = await teamOverview(me.office_id, user.id, range);
+    return NextResponse.json({
+      view: "team",
+      range,
+      office: { id: office.id, name: office.name, joinCode: office.join_code },
+      me: { userId: user.id, name: (profile?.full_name as string) || "" },
+      ...data,
+    });
+  }
 
   const roleLabel = roleLabelOf(me);
   // Kolléga-nézet előnézete (vezetőnek): a kolléga-összesítőt kapja — csak megjelenítés.

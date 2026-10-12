@@ -15,7 +15,7 @@ import CreditDock from "@/components/CreditDock";
 import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
-import { getMembershipIn, getWorkContext, listMyOffices } from "@/lib/office-server";
+import { getMembershipIn, getWorkContext, listMyOffices, officeKind } from "@/lib/office-server";
 
 export default async function DashboardLayout({
   children,
@@ -148,14 +148,18 @@ async function loadDockState(userId: string) {
     const ctx = await getWorkContext(userId);
     const selected = offices.find((o) => o.id === ctx.officeId) ?? offices[0];
     const m = await getMembershipIn(userId, selected.id);
+    // Közös munkatér (kind = team): nincs irodai keret és nincs vezetői előnézet — mindig saját kredit.
+    const kinds = await Promise.all(offices.map((o) => officeKind(o.id)));
+    const team = kinds[offices.indexOf(selected)] === "team";
     const label = !m ? "0 kredit" : m.role === "owner" || m.unlimited ? "Korlátlan" : `${m.allowance ?? 0} kredit`;
     return {
-      mode: (ctx.useOffice && ctx.officeId === selected.id ? "office" : "private") as "office" | "private",
+      mode: (!team && ctx.useOffice && ctx.officeId === selected.id ? "office" : "private") as "office" | "private",
       label,
       officeId: selected.id,
-      offices: offices.map((o) => ({ id: o.id, name: o.name })),
+      team,
+      offices: offices.map((o, i) => ({ id: o.id, name: o.name, team: kinds[i] === "team" })),
       // Létrehozó / vezető a kiválasztott irodában → használhatja a „Kolléga-nézet" előnézetet.
-      isManager: !!m && (m.role === "owner" || !!m.can_allocate),
+      isManager: !team && !!m && (m.role === "owner" || !!m.can_allocate),
     };
   } catch {
     return null;

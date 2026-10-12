@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { officeKind } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,9 @@ export async function PATCH(request: Request) {
   const note = String(body.note ?? "").trim().slice(0, 200);
 
   const admin = createAdminClient();
+  if ((await officeKind(officeId)) === "team") {
+    return NextResponse.json({ error: "Közös munkatérnek nincs közös egyenlege — a társak saját kreditjét töltsd fel." }, { status: 422 });
+  }
   const { error } = await admin.rpc("office_add", {
     p_office: officeId, p_amount: amount, p_actor: user.id, p_kind: "adjust",
     p_note: `Admin jóváírás (${user.email ?? "admin"})${note ? ` — ${note}` : ""}`,
