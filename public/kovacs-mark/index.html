@@ -32,20 +32,6 @@
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --maxw: 1000px;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #14120E; --surface: #1D1A14; --surface-2: #26221A;
-      --ink: #F2EDE3; --muted: #ABA393; --faint: #726B5C;
-      --rule: #2E2A20; --accent: #E0863F; --accent-deep: #C96A26;
-      --accent-soft: #2A2013; --on-air: #F2603F; color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #14120E; --surface: #1D1A14; --surface-2: #26221A;
-    --ink: #F2EDE3; --muted: #ABA393; --faint: #726B5C;
-    --rule: #2E2A20; --accent: #E0863F; --accent-deep: #C96A26;
-    --accent-soft: #2A2013; --on-air: #F2603F; color-scheme: dark;
-  }
 
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
