@@ -17,6 +17,7 @@ import IngatlanHero from "@/components/IngatlanHero";
 import IngatlanServiceTicker from "@/components/IngatlanServiceTicker";
 import IngatlanConsultModal, { IngatlanConsultButton } from "@/components/IngatlanConsultModal";
 import EstateIcons from "@/components/landing/EstateIcons";
+import LandingTeamwork from "@/components/landing/LandingTeamwork";
 import HeroShowcase from "@/components/landing/HeroShowcase";
 import LandingIntroVideo from "@/components/landing/LandingIntroVideo";
 import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
@@ -250,31 +251,50 @@ export default function IngatlanLanding() {
       </section>
 
       {/* ===================== 3) ELÉRHETŐ ALKALMAZÁSOK ===================== */}
-      <section className="px-6 py-16 sm:py-20" style={{ background: "var(--twx-cream-card)" }}>
+      {/* Kompakt: 4 oszlop, kisebb kártyák; a 8. hely a lenti „Csapatban is" blokkra mutat. */}
+      <section className="px-6 py-12 sm:py-14" style={{ background: "var(--twx-cream-card)" }}>
         <div className="mx-auto w-full max-w-6xl">
           <Reveal>
-            <h2 className="font-display text-3xl font-semibold sm:text-4xl">Elérhető alkalmazások</h2>
-            <p className="mt-3 max-w-2xl text-base" style={{ color: "var(--twx-ink-muted)" }}>
+            <h2 className="font-display text-2xl font-semibold sm:text-3xl">Elérhető alkalmazások</h2>
+            <p className="mt-2 max-w-2xl text-sm sm:text-base" style={{ color: "var(--twx-ink-muted)" }}>
               Egy platform, több célalkalmazás — mindegyik a mindennapi ingatlanos munkára szabva.
             </p>
           </Reveal>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {APPS.map((a, i) => (
-              <Reveal key={a.title} delay={i * 0.05}>
-                <div className="h-full rounded-2xl p-6" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-coral)" }}>
-                      <ModuleIcon name={a.icon} className="h-5 w-5" />
+              <Reveal key={a.title} delay={i * 0.04}>
+                <div className="h-full rounded-xl p-4" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-coral)" }}>
+                      <ModuleIcon name={a.icon} className="h-4 w-4" />
                     </div>
-                    <h3 className="font-display text-lg font-medium">{a.title}</h3>
+                    <h3 className="font-display text-[15px] font-semibold leading-tight">{a.title}</h3>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>{a.desc}</p>
+                  <p className="mt-2 text-[13px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{a.desc}</p>
                 </div>
               </Reveal>
             ))}
+            <Reveal delay={APPS.length * 0.04}>
+              <a href="#csapat" className="flex h-full flex-col justify-between gap-2 rounded-xl p-4 transition-colors hover:opacity-90"
+                style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(239,122,90,0.18)", color: "var(--twx-coral)" }}>
+                    <ModuleIcon name="office" className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-display text-[15px] font-semibold leading-tight">Csapatban is</h3>
+                </div>
+                <p className="text-[13px] leading-snug" style={{ color: "var(--twx-on-dark-muted)" }}>
+                  Irodai fiók és közös munkatér — közös mappák, közös munka.
+                </p>
+                <span className="text-[13px] font-semibold" style={{ color: "var(--twx-coral)" }}>Megnézem ↓</span>
+              </a>
+            </Reveal>
           </div>
         </div>
       </section>
+
+      {/* 3a) CSAPATBAN IS — irodai fiók és közös munkatér a TWINX-en belül (ábrákkal) */}
+      <LandingTeamwork signupSource={LANDING_SIGNUP_SOURCE} />
 
       {/* 3b) „Egy ingatlan, 7 kész anyag" — IDEIGLENESEN KIVÉVE, amíg a
           bemutató-ingatlan valódi kimenetei elkészülnek (docs/showcase-anyagok.md).
