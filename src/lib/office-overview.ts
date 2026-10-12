@@ -285,7 +285,8 @@ export async function teamOverview(officeId: string, userId: string, range: Over
 
   const sum = (rows: { amount: unknown }[] | null) => (rows ?? []).reduce((s, r) => s + ((r.amount as number) ?? 0), 0);
   const mates: TeamMate[] = members.map((m) => ({
-    userId: m.userId, name: m.name, email: m.email, joinedAt: m.joinedAt, opener: m.role === "owner",
+    // „nyitotta": aki létrehozta (gazdaváltás után a szerep már nem erre utal)
+    userId: m.userId, name: m.name, email: m.email, joinedAt: m.joinedAt, opener: m.joinedVia === "owner",
   }));
 
   return {

@@ -163,6 +163,8 @@ export type OfficeMember = {
   unlimited: boolean;
   canAllocate: boolean;
   joinedAt: string;
+  /** Hogyan került be: „owner" = ő nyitotta, „code" = kóddal csatlakozott. */
+  joinedVia?: string | null;
 };
 
 /** Egyszerre kiosztható / visszavehető keret felső határa (elütés elleni védelem). */

@@ -229,4 +229,5 @@ Mikrolépések (sorrendben):
 - [x] KM7 — Üzenetek a munkatérben (2026-10-12; OFFICE_COMPOSE_EVENT; a ⋯ menü és a nézegető gombja az irodai nézetekben is működik) (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
 - [x] KM8 — Kilépés ablak (2026-10-12; POST /api/office/leave, TeamLeaveDialog; lejárt elemek kiszűrve mindenhol, a kilépett társ munkája csak olvasható): munkák + társak kipipálása → átadás (saját példány) → kilépés; 30 napos olvashatóság
 - [x] KM9 — „Mi az irodai fiók?" oldal (2026-10-12; „Két forma” szekció ?forma= előválasztással, 2 új GYIK, CTA-k): két forma szekció + GYIK
-- [ ] KM10 — Teszt: két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)
+- [x] KM8b — Gazdaváltás kilépéskor: a legrégebbi megmaradt társ lesz a gazda (`20261012180016_team-owner-handover.sql`, lefuttatva 2026-10-12)
+- [~] KM10 — Teszt (2026-10-12: létrehozás, csatlakozás, saját kreditből fizetés OK — a teljes tesztet ELÖLRŐL kezdjük, teszt-munkatér: „KM10 teszt”, TWX-6ETXHE): két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)

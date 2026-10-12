@@ -75,7 +75,7 @@ export default function AdminOfficeList({ items: initial }: { items: AdminOffice
               <span className="rounded-full px-2 py-[2px] text-[11px] font-bold" style={{ background: "#DCEFF0", color: "#1F5F65" }}>Közös munkatér</span>
             </div>
             <p style={{ color: "var(--twx-ink-muted)" }}>
-              Megnyitotta: {o.ownerEmail} · {o.memberCount} / 5 társ · létrejött: {new Date(o.createdAt).toLocaleDateString("hu-HU")}
+              Gazda: {o.ownerEmail} · {o.memberCount} / 5 társ · létrejött: {new Date(o.createdAt).toLocaleDateString("hu-HU")}
             </p>
           </div>
           <p className="max-w-[260px] text-right text-xs" style={{ color: "var(--twx-ink-muted)" }}>

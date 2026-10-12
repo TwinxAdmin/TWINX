@@ -147,6 +147,7 @@ export async function listMembers(officeId: string): Promise<OfficeMember[]> {
     unlimited: !!r.unlimited,
     canAllocate: !!r.can_allocate,
     joinedAt: r.joined_at as string,
+    joinedVia: (r.joined_via as string) ?? null,
   }));
 }
 
