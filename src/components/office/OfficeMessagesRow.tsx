@@ -1,16 +1,18 @@
 // OfficeMessagesRow — az irodai felület üzenet-sora (megjelenési terv):
 //   BAL  (világos): Fogadott / Elküldött üzenetek — szűrő: Mind · Feladat · Kész munka · Üzenet · Kreditkérés
 //   JOBB (sötét):   Üzenet küldése — típus, címzett (egy kolléga vagy „Mindenki" egy gombnyomással),
-//                   szöveg, feladatnál határidő + modul, mappa csatolása; kollégánál Kreditkérés is.
+//                   szöveg, feladatnál határidő + modul, mappa csatolása; kollégánál Kreditkérés is
+//                   (közös munkatérben — team — nincs kreditkérés). „Üzenet ehhez a munkához" (⋯ menü,
+//                   nézegető) → OFFICE_COMPOSE_EVENT: a panel a munka csatolásával nyílik.
 // Mindkét kártya FIX magasságú (a tartalom belül görget), üresen is szép üres állapottal.
 // Feladat: „Elvállalom" (Mindenkinél az első vállaló nyer) → „Késznek jelölöm". Olvasatlan: korall pötty.
 // Minden változás után „twx-office-messages" esemény → a Feladataim kártya és a fejléc-jelzés is frissül.
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OfficeCreditRequest, OfficeFolder } from "@/lib/office";
 import { ALLOCATE_MAX } from "@/lib/office";
-import { MESSAGE_BODY_MAX, MESSAGE_KIND_LABEL, type MessageKind, type OfficeMessage } from "@/lib/office-messages-shared";
+import { MESSAGE_BODY_MAX, MESSAGE_KIND_LABEL, OFFICE_COMPOSE_EVENT, type ComposeAboutWork, type MessageKind, type OfficeMessage } from "@/lib/office-messages-shared";
 import { selectableModules } from "@/lib/module-favorites";
 import { avatarColor, fmtDue, fmtFull, fmtWhen, initials } from "@/lib/office-format";
 import { showToast } from "@/components/Toast";
@@ -37,8 +39,8 @@ const KIND_CHIP: Record<MessageKind | "credit", { bg: string; fg: string }> = {
   credit: { bg: "#FBE1D6", fg: "#A8411F" },
 };
 
-export default function OfficeMessagesRow({ canDecide, reloadKey = 0, onDecided }: {
-  canDecide: boolean; reloadKey?: number; onDecided?: () => void;
+export default function OfficeMessagesRow({ canDecide, team = false, reloadKey = 0, onDecided }: {
+  canDecide: boolean; team?: boolean; reloadKey?: number; onDecided?: () => void;
 }) {
   const [box, setBox] = useState<Box>("inbox");
   const [filter, setFilter] = useState<Filter>("all");
@@ -207,7 +209,8 @@ export default function OfficeMessagesRow({ canDecide, reloadKey = 0, onDecided 
       )}
 
       {/* ===================== ÜZENET KÜLDÉSE ===================== */}
-      <SendPanel members={members.filter((m) => m.userId !== meId)} folders={folders} canAskCredit={!canDecide}
+      {/* közös munkatérben nincs kreditkérés (ott mindenki saját kreditből dolgozik, és adhat a társának) */}
+      <SendPanel members={members.filter((m) => m.userId !== meId)} folders={folders} canAskCredit={!canDecide && !team}
         replyTo={replyTo} onClearReply={() => setReplyTo(null)}
         onSent={() => { setBox("sent"); notifyChanged(); }} />
     </div>
@@ -542,6 +545,25 @@ function SendPanel({ members, folders, canAskCredit, replyTo, onClearReply, onSe
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // „Üzenet ehhez a munkához": a csatolt munka (a ⋯ menüből / a nézegetőből érkezik)
+  const [work, setWork] = useState<ComposeAboutWork | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const on = (e: Event) => {
+      const w = (e as CustomEvent<ComposeAboutWork>).detail;
+      if (!w?.historyId) return;
+      setWork(w);
+      setKind((k) => (k === "credit" ? "message" : k));
+      onClearReply();
+      setError(null);
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => bodyRef.current?.focus(), 350);
+    };
+    window.addEventListener(OFFICE_COMPOSE_EVENT, on);
+    return () => window.removeEventListener(OFFICE_COMPOSE_EVENT, on);
+  }, [onClearReply]);
 
   // Válasz: a címzett a feladó, a típus üzenet, kapcsolódik az eredetihez.
   useEffect(() => {
@@ -587,6 +609,7 @@ function SendPanel({ members, folders, canAskCredit, replyTo, onClearReply, onSe
           dueDate: kind === "task" ? due || null : null,
           moduleHref: kind === "task" ? moduleHref || null : null,
           folderId: folderId || null,
+          historyId: work?.historyId ?? null,
           parentId: replyTo?.id ?? null,
         }),
       });
@@ -597,7 +620,7 @@ function SendPanel({ members, folders, canAskCredit, replyTo, onClearReply, onSe
         return;
       }
       showToast(kind === "task" ? "Feladat kiadva." : "Üzenet elküldve.", "success");
-      setBody(""); setDue(""); setModuleHref(""); setFolderId(""); onClearReply();
+      setBody(""); setDue(""); setModuleHref(""); setFolderId(""); setWork(null); onClearReply();
       onSent();
     } catch { setError("Hálózati hiba."); } finally { setBusy(false); }
   }
@@ -605,7 +628,7 @@ function SendPanel({ members, folders, canAskCredit, replyTo, onClearReply, onSe
   const fieldStyle = { background: "#1B1815", border: "1px solid #2E2723", color: "#F3EDE6" } as const;
 
   return (
-    <section className="flex min-w-0 flex-[2_1_380px] flex-col overflow-hidden rounded-2xl"
+    <section ref={panelRef} data-office-composer className="flex min-w-0 flex-[2_1_380px] flex-col overflow-hidden rounded-2xl"
       style={{
         height: HEIGHT,
         background: "#121110",
@@ -681,7 +704,16 @@ function SendPanel({ members, folders, canAskCredit, replyTo, onClearReply, onSe
                 options={members.map((m) => ({ value: m.userId, label: m.name }))} />
             </div>
 
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={MESSAGE_BODY_MAX} rows={3}
+            {work && (
+              <span className="inline-flex max-w-full items-center gap-2 self-start rounded-lg px-2.5 py-1 text-xs font-semibold"
+                style={{ background: "rgba(127,200,206,0.12)", border: "1px solid rgba(127,200,206,0.4)", color: "#BFE6E9" }}>
+                <span aria-hidden>📎</span>
+                <span className="truncate" title={work.title}>{work.title}</span>
+                <button type="button" onClick={() => setWork(null)} aria-label="Csatolt munka eltávolítása" className="flex-none" style={{ color: "#8F857B" }}>×</button>
+              </span>
+            )}
+
+            <textarea ref={bodyRef} value={body} onChange={(e) => setBody(e.target.value)} maxLength={MESSAGE_BODY_MAX} rows={3}
               placeholder={kind === "task" ? "Pl. Kérlek, készíts értékbecslést a Hungária krt. 112-höz péntekig." : kind === "done" ? "Pl. Kész a Thököly úti videó, betettem a mappába." : "Írd ide az üzenetet…"}
               className="min-h-[72px] flex-1 resize-none rounded-lg px-2.5 py-2 text-[13px] outline-none" style={fieldStyle} />
 

@@ -2,6 +2,7 @@
 //   • kép / videó / PDF az ablakban jelenik meg (a videó itt játszódik le, nem új lapon)
 //   • lapozás: ‹ › gombok és ←/→ billentyű; Esc bezár
 //   • alsó művelet-sáv: Letöltés · (irodai tagnak, saját munkánál) Áthelyezés · Küldés kollégának
+//     · Üzenet ehhez a munkához (csak ha az oldalon van irodai üzenetküldő — kolléga munkájánál is)
 // A felugró választók (mappa, kolléga) a gomb FÖLÖTT nyílnak, így semmi nem mozdul el.
 "use client";
 
@@ -10,6 +11,7 @@ import { createPortal } from "react-dom";
 import { toDownloadUrl } from "@/lib/files";
 import { fmtFull } from "@/lib/office-format";
 import { showToast } from "@/components/Toast";
+import { composeAboutWork, composerAvailable } from "@/lib/office-messages-shared";
 import type { WorkFolderLink } from "@/lib/work-folders";
 
 export type ViewerWork = {
@@ -156,6 +158,13 @@ export default function WorkViewer({ works, index, onIndex, onClose, canShare = 
             </button>
             {pop === "send" && <SendPop key={w.id} work={w} onDone={() => setPop(null)} />}
           </div>
+        )}
+        {composerAvailable() && (
+          <button type="button" onClick={() => { composeAboutWork({ historyId: w.id, title: w.title }); onClose(); }}
+            className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold" style={ghost}>
+            <Svg><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Svg>
+            Üzenet ehhez a munkához
+          </button>
         )}
         {!w.mine && (
           <span className="text-xs" style={{ color: "#8F857B" }}>Ez egy kollégád munkája — csak a sajátodat teheted mappába vagy küldheted tovább.</span>

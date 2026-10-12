@@ -2,9 +2,12 @@
 // A saját munkák (privát + irodai) fix 5 soros, belül görgethető listában; kattintásra a közös
 // WorkViewer nyílik, a „+ megosztás" gombbal a munka egy közös irodai mappába tehető — így a
 // vezető is ugyanúgy dolgozhat közösen a kollégákkal, mint ők egymással. Adat: /api/office/works/list.
+// Soronként „⋯" menü (jobb klikkre is): Megnyitás · Megosztás közös mappába · Üzenet ehhez a munkához.
 "use client";
 
 import { useEffect, useState } from "react";
+import { composeAboutWork, composerAvailable } from "@/lib/office-messages-shared";
+import { ActionMenu, MI, MenuDots, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import type { OverviewRange, WorkRow } from "@/lib/office-overview";
 import { fmtWhen } from "@/lib/office-format";
 import { EmptyState } from "@/components/office/OfficeUi";
@@ -24,6 +27,8 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
   const [view, setView] = useState<{ index: number; pop: "folder" | "send" | null } | null>(null);
   const [picker, setPicker] = useState<{ id: string; folders: string[]; anchor: DOMRect } | null>(null);
   const [tick, setTick] = useState(0);
+  const menu = useActionMenu();
+  const [menuFor, setMenuFor] = useState<{ index: number; anchor: DOMRect } | null>(null);
 
   // mappába tétel után frissítjük a „Mappa" oszlopot
   useEffect(() => {
@@ -46,7 +51,22 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
     id: w.id, title: w.title, typeLabel: w.moduleLabel, url: w.fileUrl ?? null, createdAt: w.createdAt, mine: true, folders: w.folders,
   }));
 
-  const COLS = "md:grid md:grid-cols-[120px_minmax(0,1fr)_minmax(0,170px)_80px_56px] md:items-center md:gap-3";
+  const COLS = "md:grid md:grid-cols-[120px_minmax(0,1fr)_minmax(0,170px)_80px_56px_28px] md:items-center md:gap-3";
+
+  function openMenu(e: React.MouseEvent<HTMLElement>, index: number, how: "button" | "event") {
+    setMenuFor({ index, anchor: e.currentTarget.getBoundingClientRect() });
+    if (how === "button") menu.openAtButton(e); else menu.openAtEvent(e);
+  }
+
+  const menuWork = menuFor && works ? works[menuFor.index] : null;
+  const menuItems: MenuItem[] = !menuWork ? [] : [
+    { label: "Megnyitás", icon: MI.open, onClick: () => setView({ index: menuFor!.index, pop: null }) },
+    { label: "Megosztás közös mappába", icon: MI.folder,
+      onClick: () => setPicker({ id: menuWork.id, folders: menuWork.folders ?? [], anchor: menuFor!.anchor }) },
+    composerAvailable()
+      ? { label: "Üzenet ehhez a munkához", icon: MI.send, onClick: () => composeAboutWork({ historyId: menuWork.id, title: menuWork.title }) }
+      : { label: "Üzenet ehhez a munkához", icon: MI.send, onClick: () => {}, disabled: true, hint: "Az irodai fiók oldalán érhető el." },
+  ];
 
   return (
     <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl" style={{ background: "#FCFAF7", border: "1px solid #E9E0D5" }}>
@@ -65,7 +85,7 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
       </div>
 
       <div className={`hidden px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] ${COLS}`} style={{ background: "#1B1815", color: "#BFB4A8" }}>
-        <span>Modul</span><span>Munka</span><span>Mappa</span><span>Dátum</span><span className="text-right">Kredit</span>
+        <span>Modul</span><span>Munka</span><span>Mappa</span><span>Dátum</span><span className="text-right">Kredit</span><span />
       </div>
 
       {/* fix magasság: 5 sor — a többi a dobozon belül görget */}
@@ -83,6 +103,7 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
         {works && works.map((w, i) => (
           <div key={w.id} role="button" tabIndex={0}
             onClick={() => setView({ index: i, pop: null })}
+            onContextMenu={(e) => openMenu(e, i, "event")}
             onKeyDown={(e) => { if (e.key === "Enter") setView({ index: i, pop: null }); }}
             className={`flex cursor-pointer flex-col gap-1 px-4 py-2.5 text-[13px] transition-colors hover:bg-[#FBF6F0] md:h-12 md:py-0 ${COLS}`} style={{ borderBottom: "1px solid #EFE7DD" }}>
             <span className="truncate text-xs md:text-[13px]" style={{ color: "#6B6258" }}>{w.moduleLabel}</span>
@@ -108,6 +129,9 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
             </span>
             <span className="text-xs" style={{ color: "#6B6258" }}>{fmtWhen(w.createdAt, false)}</span>
             <strong className="tabular-nums md:text-right">{w.credits > 0 ? `−${w.credits}` : "0"}</strong>
+            <span className="flex justify-end" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              <MenuDots onClick={(e) => openMenu(e, i, "button")} label={`Műveletek: ${w.title}`} />
+            </span>
           </div>
         ))}
       </div>
@@ -116,6 +140,8 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
         <span>{works ? `${works.length}${works.length >= 50 ? "+" : ""} munka ebben az időszakban` : " "}</span>
         <a href="/dashboard/munkaim" className="font-semibold" style={{ color: "#C2512F" }}>Összes munkám →</a>
       </div>
+
+      {menu.open && <ActionMenu at={menu.at} items={menuItems} onClose={() => { menu.close(); }} />}
 
       {picker && <FolderPicker work={{ id: picker.id, folders: picker.folders }} anchor={picker.anchor} onClose={() => setPicker(null)} />}
 

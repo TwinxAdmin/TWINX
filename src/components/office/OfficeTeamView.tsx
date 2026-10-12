@@ -2,7 +2,8 @@
 // Adat: /api/office/overview (team-ág) + /api/office/transfers.
 //   • türkiz fejléc-sáv: név, „Társ", Kredit adása társnak, Kredit vásárlása magamnak, ÁLLANDÓ kód (mindenkinek),
 //     KPI-k: saját kreditem, felhasználásom (30 nap), társaimnak adtam / kaptam, társak
-//   • Munkáim (közös OfficeMyWorks — megosztás közös mappába)
+//   • Üzenetek (OfficeMessagesRow team módban: üzenet / feladat / kész munka, kreditkérés NÉLKÜL)
+//   • Munkáim (közös OfficeMyWorks — megosztás közös mappába, „⋯" → Üzenet ehhez a munkához)
 //   • Társak · Közös mappák · Kredit-átadások — azonos fix magassággal
 //   • Kedvenc modulok sáv; alul: Kilépés (Hamarosan — KM8)
 // Mindenki egyenrangú; mindenki a SAJÁT kreditjéből dolgozik. Egymás egyenlegét / költését senki nem látja.
@@ -16,6 +17,7 @@ import { showToast } from "@/components/Toast";
 import OfficeMyWorks from "@/components/office/OfficeMyWorks";
 import OfficeFolders from "@/components/office/OfficeFolders";
 import OfficeModuleShelf from "@/components/office/OfficeModuleShelf";
+import OfficeMessagesRow from "@/components/office/OfficeMessagesRow";
 import TeamTransferDialog from "@/components/office/TeamTransferDialog";
 import { EmptyState, Icons, OfficeCard, OfficeDialog, SoonBadge } from "@/components/office/OfficeUi";
 
@@ -66,6 +68,8 @@ export default function OfficeTeamView() {
   return (
     <div className="flex flex-col gap-4">
       <HeroBand data={data} canGive={canGive} onGive={() => setTransfer({ preselect: null })} />
+
+      <OfficeMessagesRow canDecide={false} team />
 
       <OfficeMyWorks range={worksRange} onRange={setWorksRange} />
 

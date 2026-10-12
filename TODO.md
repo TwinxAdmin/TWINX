@@ -226,7 +226,7 @@ Mikrolépések (sorrendben):
 - [x] KM4 — Admin (fülek: Irodák / Közös munkaterek; team-nél nincs egyenleg-jóváírás, szerveren is tiltva + irodai feltöltés-kérés tiltva): típus-címke az irodák listáján (a közös munkaterek külön fülön, csak megtekintés)
 - [x] KM5 — Társ nézet (2026-10-12, Márk tesztje hátra; üzenetek a KM7-ben, Kilépés gomb „Hamarosan” a KM8-ig) (OfficeTeamView): fejléc (türkiz), KPI-k, Munkáim, Társak, közös mappák, Kredit-átadások, alul Kedvenc modulok (OfficeModuleShelf, látványterv nélkül); jogosultságok a szerveren (`kind` szerinti ágak)
 - [x] KM6 — „Kredit adása társnak" ablak (POST/GET /api/office/transfers, TeamTransferDialog) (saját pénztárcából, megerősítéssel) + napló
-- [ ] KM7 — Üzenetek a munkatérben (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
+- [x] KM7 — Üzenetek a munkatérben (2026-10-12; OFFICE_COMPOSE_EVENT; a ⋯ menü és a nézegető gombja az irodai nézetekben is működik) (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
 - [ ] KM8 — Kilépés ablak: munkák + társak kipipálása → átadás (saját példány) → kilépés; 30 napos olvashatóság
 - [ ] KM9 — „Mi az irodai fiók?" oldal: két forma szekció + GYIK
 - [ ] KM10 — Teszt: két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)

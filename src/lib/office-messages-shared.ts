@@ -78,3 +78,19 @@ export function validateSend(input: Record<string, unknown>): { ok: true; value:
   };
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value };
 }
+
+// ---------------------------------------------------------------------------
+// „Üzenet ehhez a munkához" — a munkák ⋯ menüje és a munka-nézegető ezzel nyitja meg
+// az oldalon lévő üzenetküldőt (OfficeMessagesRow) a munka csatolásával.
+// ---------------------------------------------------------------------------
+export const OFFICE_COMPOSE_EVENT = "twx-office-compose";
+export type ComposeAboutWork = { historyId: string; title: string };
+
+export function composeAboutWork(w: ComposeAboutWork) {
+  window.dispatchEvent(new CustomEvent<ComposeAboutWork>(OFFICE_COMPOSE_EVENT, { detail: w }));
+}
+
+/** Van-e az oldalon üzenetküldő (irodai / közös munkatér felület)? Csak ott kínáljuk fel a menüpontot. */
+export function composerAvailable(): boolean {
+  return typeof document !== "undefined" && !!document.querySelector("[data-office-composer]");
+}
