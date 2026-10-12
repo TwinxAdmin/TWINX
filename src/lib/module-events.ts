@@ -35,6 +35,9 @@ function newRunId(): string {
   });
 }
 
+/** Sikeres futtatás után a közös visszajelzés-gazda (ModuleFeedbackHost) erre figyel: kell-e csillagos értékelés. */
+export const MODULE_RUN_DONE_EVENT = "twx-module-run-done";
+
 export type RunHandle = { runId: string; succeeded: () => void; failed: (detail?: string) => void };
 
 export function useModuleTracker(module: string) {
@@ -55,6 +58,7 @@ export function useModuleTracker(module: string) {
       if (done) return;
       done = true;
       sendModuleEvent(module, event, { runId, durationMs: Math.round(performance.now() - t0), detail });
+      if (event === "run_success") window.dispatchEvent(new CustomEvent(MODULE_RUN_DONE_EVENT, { detail: { module } }));
     };
     return { runId, succeeded: () => finish("run_success"), failed: (detail?: string) => finish("run_error", detail) };
   }, [module]);

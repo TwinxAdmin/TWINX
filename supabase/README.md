@@ -118,6 +118,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261012180016_team-owner-handover.sql` | Közös munkatér: gazdaváltás kilépéskor (legrégebbi társ) + meglévők javítása |
 | `20261012183311_module-views.sql` | Modul-megnyitások naplója (admin Modul-használat, fejenként naponta egy sor) |
 | `20261012191016_module-events.sql` | Modul-eseménynapló (tölcsér, hibák, futási idő, eszköz — admin Modul elemzés) |
+| `20261012192545_module-feedback.sql` | Modul-visszajelzés: csillagos értékelés (3. / 6. futtatás) + „Mi hiányzik?” |
 
 ## Egyszeri szkriptek (`one-off/`)
 

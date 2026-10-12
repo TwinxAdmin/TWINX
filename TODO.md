@@ -261,4 +261,11 @@ adatkezelési tájékoztató +1 mondat (visszajelzések).
   - [x] ME2b — `POST /api/track/module-event` + kliens-segéd `useModuleTracker` (eszköz a User-Agentből, szerveroldalon) — 2026-10-12
   - [x] ME2c — bekötés az 5 modulba: form_start, run_start, run_success / run_error (+ futási idő), download, share (FolderLibrary: közös mappába tétel = share) — 2026-10-12
   - [x] ME2d — Modul elemzés: Tölcsér, Hibás futtatás, Medián futási idő, Eszköz szűrő + eszköz-arány, leggyakoribb hibák — 2026-10-12
-- [ ] ME3 — 3. kör: `work_feedback` (👍/👎 + ok) a kész munka alatt + `module_asks` („Mi hiányzik?”) → Elégedettség, 👎 okai, „Mi hiányzik?” panel
+- [ ] ME3 — 3. kör (MÓDOSÍTVA 2026-10-12): 👍/👎 helyett CSILLAGOS értékelés (1–5) — a 3. sikeres futtatás után modulonként EGYSZER;
+      ha bezárja, a 6. futtatásnál még egyszer, utoljára · 1–3 csillagnál nem kötelező ok + megjegyzés · „Mi hiányzik?” marad
+      (3. futtatás nélküli megnyitás, modulonként egyszer) · adatkezelési tájékoztató +1 mondat
+  - [x] ME3a — SQL: `module_ratings` + `module_asks` (`20261012192545_module-feedback.sql`, lefuttatva 2026-10-12)
+  - [x] ME3b — API + megjelenési szabály: GET /api/feedback/prompt, POST /api/feedback/rating, POST /api/feedback/ask (`lib/module-feedback.ts`) — 2026-10-12
+  - [x] ME3c — közös `ModuleFeedbackHost` a dashboard layoutban: csillagos kártya (az 5 mért modulban, sikeres futtatás után) + „Mi hiányzik?” kártya (minden modul-oldalon) — 2026-10-12
+  - [ ] ME3e — Adatkezelési tájékoztató: +1 mondat a visszajelzésekről (a repóban NINCS tájékoztató oldal — Márk külső dokumentuma)
+  - [ ] ME3d — Modul elemzés: Elégedettség oszlop (★ átlag), csillag-eloszlás, megjegyzések, „Mi hiányzik?” panel

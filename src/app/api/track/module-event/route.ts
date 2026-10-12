@@ -10,16 +10,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { moduleForPath } from "@/lib/module-favorites";
 import { MODULE_EVENTS, type ModuleEvent } from "@/lib/module-events-shared";
+import { deviceOf } from "@/lib/device";
 
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function deviceOf(ua: string): "mobile" | "tablet" | "desktop" {
-  if (/iPad|Tablet|Nexus 7|Nexus 10|SM-T|Kindle|Silk/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) return "tablet";
-  if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone/i.test(ua)) return "mobile";
-  return "desktop";
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();

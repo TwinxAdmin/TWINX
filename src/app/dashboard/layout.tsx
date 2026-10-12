@@ -16,6 +16,7 @@ import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
 import ModuleViewTracker from "@/components/ModuleViewTracker";
+import ModuleFeedbackHost from "@/components/ModuleFeedbackHost";
 import { getMembershipIn, getWorkContext, listMyOffices, officeKind } from "@/lib/office-server";
 
 export default async function DashboardLayout({
@@ -124,6 +125,8 @@ export default async function DashboardLayout({
       <OfficeModals />
       {/* modul-megnyitások mérése (admin „Modul-használat") — láthatatlan */}
       <ModuleViewTracker />
+      {/* csillagos értékelés (3. / 6. futtatás) és „Mi hiányzik?” — kis, bezárható kártyák (ME3c) */}
+      <ModuleFeedbackHost />
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
       <CreditDock
