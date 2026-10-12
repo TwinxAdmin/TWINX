@@ -3,7 +3,7 @@
 //   • szűrők (mint a Modul-használat fülön) + Eszköz (mobil / tablet / asztali — az eseménynaplóra hat, ME2d)
 //   • TOP 3 modul (futtatás szerint) · Modulok egészsége (közlekedési lámpa) · egy modul mély elemzése
 // ME1: a meglévő adatokból · ME2d: Tölcsér, hibás futtatás, futási idő, eszköz (eseménynapló, egyelőre az 5 fő modul).
-// Az elégedettség és a „Mi hiányzik?" (ME3) helye „Hamarosan" címkével, szép üres állapotban látszik. Minden blokk fix méretű.
+// ME3d: Elégedettség (★ átlag, eloszlás, okok, megjegyzések) és „Mi hiányzik?" válaszok — név nélkül. Minden blokk fix méretű.
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +13,7 @@ type Range = "7d" | "30d" | "90d" | "all";
 type Health = {
   href: string; label: string; runs: number; users: number; change: number | "new" | null; returningPct: number | null; spark: number[];
   conversionPct: number | null; secondPct: number | null; within30Pct: number | null;
-  failurePct: number | null; satisfactionPct: number | null; avgSeconds: number | null; tracked: boolean;
+  failurePct: number | null; satisfaction: number | null; ratingsN: number; avgSeconds: number | null; tracked: boolean;
 };
 type Overview = { top3: Health[]; health: Health[] };
 type Deep = {
@@ -26,6 +26,10 @@ type Deep = {
   funnel: { step: string; users: number }[] | null;
   devices: { mobile: number; tablet: number; desktop: number };
   tracked: boolean;
+  rating: { n: number; avg: number | null; dist: { stars: number; n: number }[]; reasons: { label: string; n: number }[];
+    comments: { stars: number; comment: string | null; reasons: string[]; at: string; source: string }[] };
+  missing: { n: number; dismissed: number; choices: { value: string; label: string; n: number }[];
+    items: { choice: string | null; label: string; comment: string | null; device: string | null; at: string; source: string }[] };
 };
 
 const DARK = "#12100e", MUTED = "#6E655C", CARD = { background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" } as const;
@@ -35,6 +39,11 @@ const RANGES: { v: Range; t: string }[] = [{ v: "7d", t: "7 nap" }, { v: "30d", 
 const LIGHTS: Record<"conversionPct" | "secondPct" | "within30Pct", [number, number]> = {
   conversionPct: [55, 35], secondPct: [55, 35], within30Pct: [40, 25],
 };
+// elégedettség (★ átlag): ≥ 4,2 zöld, ≥ 3,5 sárga, alatta piros
+function starLight(v: number | null): string { return v === null ? "" : v >= 4.2 ? "#2E9E5E" : v >= 3.5 ? "#E0A526" : "#D2492F"; }
+const fmtStar = (v: number) => v.toFixed(1).replace(".", ",");
+const DEVICE_TEXT: Record<string, string> = { mobile: "mobil", tablet: "tablet", desktop: "asztali" };
+
 // hibás futtatás: fordított skála (kevesebb = jobb) — ≤ 3% zöld, ≤ 8% sárga, felette piros
 function failLight(v: number | null): string { return v === null ? "" : v <= 3 ? "#2E9E5E" : v <= 8 ? "#E0A526" : "#D2492F"; }
 function fmtSec(sec: number | null): string {
@@ -153,7 +162,7 @@ export default function ModuleAnalysisView() {
             <HeadBtn label="Második futtatás" right on={sort === "secondPct"} onClick={() => setSort("secondPct")} />
             <HeadBtn label="Visszatér 30 napon belül" right on={sort === "within30Pct"} onClick={() => setSort("within30Pct")} />
             <HeadBtn label="Hibás futtatás" right on={sort === "failurePct"} onClick={() => setSort("failurePct")} />
-            <span className="text-right">Elégedett (👍) <Soon dark /></span>
+            <HeadBtn label="Elégedettség (★)" right on={sort === "satisfaction"} onClick={() => setSort("satisfaction")} />
             <HeadBtn label="Medián futási idő" right on={sort === "avgSeconds"} onClick={() => setSort("avgSeconds")} />
           </div>
           {!data && <p className="p-5 text-sm" style={{ color: MUTED }}>{loading ? "Betöltés…" : "Nincs adat."}</p>}
@@ -167,7 +176,12 @@ export default function ModuleAnalysisView() {
               <Light v={h.secondPct} c={light("secondPct", h.secondPct)} label="Második futtatás" />
               <Light v={h.within30Pct} c={light("within30Pct", h.within30Pct)} label="Visszatér 30 napon belül" />
               <Light v={h.failurePct} c={failLight(h.failurePct)} label="Hibás futtatás" untracked={!h.tracked} />
-              <Light v={null} c="" label="Elégedett" />
+              <span className="flex items-center gap-1.5 tabular-nums lg:justify-end"
+                title={h.satisfaction === null ? (h.ratingsN ? `Még csak ${h.ratingsN} értékelés (legalább 3 kell)` : "Még nincs értékelés") : `${h.ratingsN} értékelés átlaga`}>
+                <span className="lg:hidden" style={{ color: MUTED }}>Elégedettség: </span>
+                {h.satisfaction === null ? <span style={{ color: "#B2A89D" }}>—</span>
+                  : <><i className="inline-block h-[9px] w-[9px] rounded-full" style={{ background: starLight(h.satisfaction) }} /><b>★ {fmtStar(h.satisfaction)}</b></>}
+              </span>
               <span className="tabular-nums lg:text-right" title={h.tracked ? undefined : "Ezt a modult még nem mérjük (egyelőre az 5 fő modul)."}>
                 <span className="lg:hidden" style={{ color: MUTED }}>Medián futási idő: </span>
                 {h.tracked && h.avgSeconds !== null ? <b>{fmtSec(h.avgSeconds)}</b> : <span style={{ color: "#B2A89D" }}>—</span>}
@@ -178,7 +192,8 @@ export default function ModuleAnalysisView() {
       </section>
       <p className="text-xs" style={{ color: MUTED }}>
         Határok: megnyitásból futtatás és második futtatás ≥ 55% zöld, 35–55% sárga · visszatérés 30 napon belül ≥ 40% zöld, 25–40% sárga ·
-        hibás futtatás ≤ 3% zöld, ≤ 8% sárga. A hibás futtatást és a futási időt egyelőre az 5 fő modulban mérjük (2026. okt. 12-től).
+        hibás futtatás ≤ 3% zöld, ≤ 8% sárga · elégedettség ≥ ★ 4,2 zöld, ≥ ★ 3,5 sárga (legalább 3 értékelésből).
+        A hibás futtatást, a futási időt és az értékelést egyelőre az 5 fő modulban mérjük (2026. okt. 12-től).
         A „második futtatás” és a „visszatérés” azokra vonatkozik, akik az időszakban próbálták ki először a modult.
       </p>
 
@@ -249,7 +264,7 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
 
       <div className="grid gap-3.5 lg:grid-cols-[1.2fr_1fr_1fr]">
         {/* 3 · Minőség */}
-        <Panel title="3 · Minőség" tag="partial" h={330}>
+        <Panel title="3 · Minőség és elégedettség" h={420}>
           {d && d.quality.items.length === 0 && <p className="text-[12.5px]" style={{ color: MUTED }}>Ennél a modulnál még nincs külön minőségi jel — a hibás futtatás és az elégedettség a következő lépésekben jön.</p>}
           {d?.quality.items.map((q) => (
             <div key={q.label} className="flex items-baseline justify-between gap-2 border-b py-1.5 text-[12.5px]" style={{ borderColor: "#F3EDE6" }}>
@@ -272,18 +287,16 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
               ))}
             </div>
           )}
-          <div className="mt-auto flex items-center justify-between rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "#F8F3EC" }}>
-            <span>Elégedettség (👍/👎)</span><Soon />
-          </div>
+          <RatingBlock d={d} />
         </Panel>
 
         {/* 4 · Mi hiányzik — ME3 */}
-        <Panel title="4 · „Mi hiányzik?”" tag="soon" h={330}>
-          <Empty text="A partnerek válaszai („Mi hiányzik ahhoz, hogy kipróbáld?”) és a modulhoz kötött Ötletláda-bejegyzések itt jelennek meg — név nélkül." />
+        <Panel title="4 · „Mi hiányzik?”" h={420}>
+          <MissingBlock d={d} />
         </Panel>
 
         {/* 5 · Mikor és min */}
-        <Panel title="5 · Mikor és min?" h={330}>
+        <Panel title="5 · Mikor és min?" h={420}>
           <table className="w-full border-separate border-spacing-[3px] text-[10px]">
             <thead><tr><th />{(d?.heat.weekdays ?? ["H", "K", "Sze", "Cs", "P", "Szo", "V"]).map((w) => <th key={w} className="font-semibold" style={{ color: MUTED }}>{w}</th>)}</tr></thead>
             <tbody>
@@ -317,6 +330,86 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
 }
 
 // ---------------------------------------------------------------------------
+function RatingBlock({ d }: { d: Deep | null }) {
+  if (!d) return null;
+  const r = d.rating;
+  if (!r.n) {
+    return (
+      <div className="mt-1 rounded-lg px-2.5 py-2 text-[12px]" style={{ background: "#F8F3EC", color: MUTED }}>
+        {d.tracked ? "Még nincs csillagos értékelés — a 3. futtatás után kérdezzük meg a partnereket." : "Ennél a modulnál még nem kérünk értékelést (egyelőre az 5 fő modul)."}
+      </div>
+    );
+  }
+  const max = Math.max(1, ...r.dist.map((x) => x.n));
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2 border-t pt-2" style={{ borderColor: "#F3EDE6" }}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12.5px] font-bold">Elégedettség</span>
+        <span className="text-[12px]" style={{ color: MUTED }}>
+          {r.avg !== null ? <b className="text-[15px]" style={{ color: starLight(r.avg) }}>★ {fmtStar(r.avg)}</b> : "kevés adat"} · {r.n} értékelés
+        </span>
+      </div>
+      {r.dist.map((x) => (
+        <div key={x.stars} className="grid grid-cols-[34px_1fr_24px] items-center gap-2 text-[11.5px]">
+          <span style={{ color: "#F0A23B" }}>{x.stars}★</span>
+          <span className="h-2 overflow-hidden rounded-full" style={{ background: "#F1EAE1" }}><i className="block h-full rounded-full" style={{ width: `${(x.n / max) * 100}%`, background: x.stars >= 4 ? "#2E9E5E" : x.stars === 3 ? "#E0A526" : "#D2492F" }} /></span>
+          <b className="text-right tabular-nums">{x.n}</b>
+        </div>
+      ))}
+      {r.reasons.length > 0 && (
+        <p className="text-[11.5px]"><b>Okok (1–3★):</b> {r.reasons.map((x) => `${x.label} (${x.n})`).join(" · ")}</p>
+      )}
+      {r.comments.length > 0 && (
+        <div className="min-h-[60px] flex-1 overflow-y-auto rounded-lg" style={{ background: "#fff", border: "1px solid #EFE7DD" }}>
+          {r.comments.map((c, i) => (
+            <p key={i} className="px-2.5 py-1.5 text-[12px]" style={{ borderBottom: "1px solid #F3EDE6" }}>
+              <b style={{ color: "#F0A23B" }}>{c.stars}★</b> {c.comment ? `„${c.comment}”` : <span style={{ color: MUTED }}>{c.reasons.join(", ")}</span>}
+              <span className="block text-[10.5px]" style={{ color: MUTED }}>{new Date(c.at).toLocaleDateString("hu-HU", { month: "short", day: "numeric" })} · {c.source}{c.comment && c.reasons.length ? ` · ${c.reasons.join(", ")}` : ""}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MissingBlock({ d }: { d: Deep | null }) {
+  const [f, setF] = useState<string>("all");
+  if (!d) return <p className="text-sm" style={{ color: MUTED }}>Betöltés…</p>;
+  const m = d.missing;
+  if (!m.n) {
+    return <Empty text={`Még nincs válasz. Akkor kérdezzük, ha valaki legalább 3 napon megnyitotta a modult, de nem futtatta.${m.dismissed ? ` (${m.dismissed} partner bezárta a kérdést.)` : ""}`} />;
+  }
+  const items = f === "all" ? m.items : m.items.filter((x) => x.choice === f);
+  return (
+    <>
+      <div className="flex flex-wrap gap-1.5">
+        <Chip on={f === "all"} onClick={() => setF("all")}>Mind · {m.n}</Chip>
+        {m.choices.filter((c) => c.n > 0).map((c) => <Chip key={c.value} on={f === c.value} onClick={() => setF(c.value)}>{c.label} · {c.n}</Chip>)}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg" style={{ background: "#fff", border: "1px solid #EFE7DD" }}>
+        {items.map((x, i) => (
+          <div key={i} className="px-2.5 py-2 text-[12.5px] leading-snug" style={{ borderBottom: "1px solid #F3EDE6" }}>
+            <span className="mr-1.5 rounded-full px-1.5 py-[1px] text-[9.5px] font-extrabold uppercase" style={{ background: "#FFF0D6", color: "#8A5A00" }}>{x.label}</span>
+            {x.comment ?? <span style={{ color: MUTED }}>—</span>}
+            <span className="block text-[10.5px]" style={{ color: MUTED }}>
+              {new Date(x.at).toLocaleDateString("hu-HU", { month: "short", day: "numeric" })} · {x.source}{x.device ? ` · ${DEVICE_TEXT[x.device] ?? x.device}` : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px]" style={{ color: MUTED }}>Név nélkül — csak forrás és eszköz.{m.dismissed ? ` ${m.dismissed} partner bezárta válasz nélkül.` : ""}</p>
+    </>
+  );
+}
+
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className="h-[26px] rounded-full px-2.5 text-[11px] font-semibold"
+      style={on ? { background: DARK, color: "#fff" } : { background: "#F1EAE1", color: "#4A433C" }}>{children}</button>
+  );
+}
+
 function Funnel({ steps }: { steps: { step: string; users: number }[] }) {
   const top = Math.max(1, steps[0]?.users ?? 1, ...steps.map((s) => s.users));
   // a legnagyobb kiesés (az előző lépéshez képest) kiemelve

@@ -11,12 +11,19 @@
 //   • tölcsér   = lépésenként hány KÜLÖNBÖZŐ felhasználó jutott el: megnyitás → űrlap → indítás → siker → letöltés/megosztás
 //   • hibás     = run_error / (run_success + run_error) · futási idő = a sikeres futtatások MEDIÁN ideje
 //   • eszköz    = a szerver állapítja meg (mobile / tablet / desktop); az eszköz-szűrő az eseményekre hat
-// Az elégedettség (ME3) később töltődik — addig null.
+// ME3 (visszajelzés, 20261012192545_module-feedback.sql):
+//   • elégedettség = az időszakban adott csillagos értékelések átlaga (legalább 3 értékelésből), eloszlás, okok, megjegyzések
+//   • „Mi hiányzik?" = a válaszok kategóriánként + szövegesen — név nélkül (csak forrás és eszköz)
 import { createAdminClient } from "@/lib/supabase/admin";
 import { selectableModules } from "@/lib/module-favorites";
+import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
+import { ASK_CHOICES, RATING_REASONS } from "@/lib/module-feedback-shared";
 import { DAY, fetchAll, loadBase, modeFilter, userFilter, windowOf, type Run, type UsageFilters } from "@/lib/module-usage";
 
 export type DeviceFilter = "all" | "mobile" | "tablet" | "desktop";
+const MIN_RATINGS = 3;           // ennyi értékelés alatt nem mutatunk átlagot
+type Rating = { user: string; href: string; stars: number; reasons: string[]; comment: string | null; at: number };
+type Ask = { user: string; href: string; status: string; choice: string | null; comment: string | null; device: string | null; at: number };
 type Ev = { user: string; href: string; event: string; ms: number | null; device: string | null; detail: string | null; at: number };
 
 const MIN_SAMPLE = 5;           // ennél kevesebb esetből nem mutatunk arányt („—")
@@ -28,12 +35,24 @@ async function prepare(f: UsageFilters, device: DeviceFilter = "all") {
   const now = Date.now();
   const { start, prevStart } = windowOf(f.range, now);
   const admin = createAdminClient();
-  const [base, rawEvents] = await Promise.all([
+  const sinceIso = start ? new Date(start).toISOString() : null;
+  const [base, rawEvents, rawRatings, rawAsks] = await Promise.all([
     loadBase(f.range === "all" ? null : new Date(prevStart ?? start).toISOString()),
     // eseménynapló — csak az időszakra; ha a tábla még nincs, üres (a felület „—"-t mutat)
     fetchAll<{ user_id: string; module_href: string; event: string; duration_ms: number | null; device: string | null; detail: string | null; created_at: string }>((a, b) => {
       let q = admin.from("module_events").select("user_id, module_href, event, duration_ms, device, detail, created_at");
       if (start) q = q.gte("created_at", new Date(start).toISOString());
+      return q.range(a, b);
+    }),
+    // csillagos értékelések (csak a ténylegesen értékelt sorok) és „Mi hiányzik?" válaszok — az időszakban
+    fetchAll<{ user_id: string; module_href: string; stars: number; reasons: string[] | null; comment: string | null; updated_at: string }>((a, b) => {
+      let q = admin.from("module_ratings").select("user_id, module_href, stars, reasons, comment, updated_at").eq("status", "rated");
+      if (sinceIso) q = q.gte("updated_at", sinceIso);
+      return q.range(a, b);
+    }),
+    fetchAll<{ user_id: string; module_href: string; status: string; choice: string | null; comment: string | null; device: string | null; created_at: string }>((a, b) => {
+      let q = admin.from("module_asks").select("user_id, module_href, status, choice, comment, device, created_at");
+      if (sinceIso) q = q.gte("created_at", sinceIso);
       return q.range(a, b);
     }),
   ]);
@@ -46,7 +65,17 @@ async function prepare(f: UsageFilters, device: DeviceFilter = "all") {
     .filter((e) => keepUser(base.people.get(e.user_id)))
     .map((e) => ({ user: e.user_id, href: e.module_href, event: e.event, ms: e.duration_ms, device: e.device, detail: e.detail, at: Date.parse(e.created_at) }));
   const events = device === "all" ? eventsAll : eventsAll.filter((e) => e.device === device);
-  return { now, start, prevStart, runs, views, modules, base, events, eventsAll, device };
+  const ratings: Rating[] = rawRatings.filter((r) => keepUser(base.people.get(r.user_id)))
+    .map((r) => ({ user: r.user_id, href: r.module_href, stars: r.stars, reasons: r.reasons ?? [], comment: r.comment, at: Date.parse(r.updated_at) }));
+  const asks: Ask[] = rawAsks.filter((r) => keepUser(base.people.get(r.user_id)))
+    .map((r) => ({ user: r.user_id, href: r.module_href, status: r.status, choice: r.choice, comment: r.comment, device: r.device, at: Date.parse(r.created_at) }));
+  return { now, start, prevStart, runs, views, modules, base, events, eventsAll, device, ratings, asks };
+}
+
+/** Átlagos csillag egy modulra (legalább MIN_RATINGS értékelésből), egy tizedesre. */
+function ratingAvg(ratings: Rating[], href: string): { avg: number | null; n: number } {
+  const r = ratings.filter((x) => x.href === href);
+  return { avg: r.length >= MIN_RATINGS ? Math.round((r.reduce((s, x) => s + x.stars, 0) / r.length) * 10) / 10 : null, n: r.length };
 }
 
 /** Hibaarány és medián futási idő egy modulra (az eseménynaplóból). */
@@ -123,7 +152,7 @@ export async function moduleAnalysisOverview(f: UsageFilters, device: DeviceFilt
     return {
       href: m.href, label: m.label, runs: mr.length, users: runUsers.size, change, returningPct: returning, spark,
       conversionPct: conv, secondPct: ret.secondPct, within30Pct: ret.within30Pct,
-      failurePct: stats.failurePct, satisfactionPct: null as number | null, avgSeconds: stats.avgSeconds,
+      failurePct: stats.failurePct, satisfaction: ratingAvg(ctx.ratings, m.href).avg, ratingsN: ratingAvg(ctx.ratings, m.href).n, avgSeconds: stats.avgSeconds,
       tracked: ctx.eventsAll.some((e) => e.href === m.href),
     };
   });
@@ -224,6 +253,31 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters, device: 
   for (const e of stats.errors) errCount.set(e.detail ?? "ismeretlen", (errCount.get(e.detail ?? "ismeretlen") ?? 0) + 1);
   const topErrors = [...errCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, n }));
 
+  // --- elégedettség (csillagok) ---
+  const rs = ctx.ratings.filter((r) => r.href === href).sort((a, b) => b.at - a.at);
+  const reasonLabel = new Map<string, string>(RATING_REASONS.map((r) => [r.value, r.label]));
+  const reasonCount = new Map<string, number>();
+  for (const r of rs) for (const x of r.reasons) reasonCount.set(x, (reasonCount.get(x) ?? 0) + 1);
+  const sourceOf = (u: string) => { const p = ctx.base.people.get(u); return p?.source ? SIGNUP_SOURCE_LABEL[p.source] ?? p.source : "Közvetlen"; };
+  const rating = {
+    n: rs.length,
+    avg: ratingAvg(ctx.ratings, href).avg,
+    dist: [5, 4, 3, 2, 1].map((st) => ({ stars: st, n: rs.filter((r) => r.stars === st).length })),
+    reasons: [...reasonCount.entries()].sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ label: reasonLabel.get(v) ?? v, n })),
+    comments: rs.filter((r) => r.comment || r.reasons.length).slice(0, 30)
+      .map((r) => ({ stars: r.stars, comment: r.comment, reasons: r.reasons.map((x) => reasonLabel.get(x) ?? x), at: new Date(r.at).toISOString(), source: sourceOf(r.user) })),
+  };
+
+  // --- „Mi hiányzik?" (név nélkül: forrás + eszköz) ---
+  const askLabel = new Map<string, string>(ASK_CHOICES.map((c) => [c.value, c.label]));
+  const as = ctx.asks.filter((a) => a.href === href && a.status === "answered").sort((a, b) => b.at - a.at);
+  const missing = {
+    n: as.length,
+    dismissed: ctx.asks.filter((a) => a.href === href && a.status === "dismissed").length,
+    choices: ASK_CHOICES.map((c) => ({ value: c.value, label: c.label, n: as.filter((a) => a.choice === c.value).length })),
+    items: as.slice(0, 50).map((a) => ({ choice: a.choice, label: a.choice ? askLabel.get(a.choice) ?? a.choice : "—", comment: a.comment, device: a.device, at: new Date(a.at).toISOString(), source: sourceOf(a.user) })),
+  };
+
   return {
     module: mod,
     runs: mine.length,
@@ -236,6 +290,8 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters, device: 
       onlyThisPct: mine.length ? Math.round((onlyThis / mine.length) * 100) : null,
     },
     quality: { ...quality, topErrors },
+    rating,
+    missing,
     funnel,
     devices,
     tracked,

@@ -268,4 +268,4 @@ adatkezelési tájékoztató +1 mondat (visszajelzések).
   - [x] ME3b — API + megjelenési szabály: GET /api/feedback/prompt, POST /api/feedback/rating, POST /api/feedback/ask (`lib/module-feedback.ts`) — 2026-10-12
   - [x] ME3c — közös `ModuleFeedbackHost` a dashboard layoutban: csillagos kártya (az 5 mért modulban, sikeres futtatás után) + „Mi hiányzik?” kártya (minden modul-oldalon) — 2026-10-12
   - [ ] ME3e — Adatkezelési tájékoztató: +1 mondat a visszajelzésekről (a repóban NINCS tájékoztató oldal — Márk külső dokumentuma)
-  - [ ] ME3d — Modul elemzés: Elégedettség oszlop (★ átlag), csillag-eloszlás, megjegyzések, „Mi hiányzik?” panel
+  - [x] ME3d — Modul elemzés: Elégedettség oszlop (★ átlag), csillag-eloszlás, okok, megjegyzések, „Mi hiányzik?” panel — 2026-10-12
