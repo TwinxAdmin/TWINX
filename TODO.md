@@ -173,3 +173,27 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
 ## 8. fázis — Élesítés
 - [ ] GitHub → Hostinger deploy
 - [ ] `.env` környezeti változók beállítása éles környezetben
+
+---
+
+## ▶ INNEN FOLYTATJUK — Claude Code (2026-10-12)
+A fejlesztés a Cowork után Claude Code-ban folytatódik. Minden SQL eddig lefuttatva (Márk, 2026-10-12).
+
+### Kész az utolsó Cowork-körben
+- [x] Korábbi munkák fájlkezelő: saját mappák (`work-folders.sql`), típus szerinti bontás, irodai mappák, drag & drop
+- [x] „⋯" menü minden munkakártyán (ActionMenu) + kinyíló „Áthelyezés" almenü, több mappa
+- [x] Törlés = elrejtés (`usage-history-hidden.sql`, `library-hidden.sql`) + „Elrejtett munkák" nézet
+- [x] Modulkönyvtárakból is: Korábbi munkák saját mappái + közös irodai mappák
+- [x] Közös WorkViewer (videó az ablakban), munkák automatikus neve (videó: ingatlan címe; képjavítás: mód + idő)
+- [x] Nézetváltó: Iroda — Vezető / Kolléga / **Ki** (mintha nem lenne irodai tagság)
+
+### Következő lépések (javasolt sorrend)
+1. [ ] **Rendrakás:** a gyökérben lévő ~80 `.sql` fájl áthelyezése `supabase/migrations/` alá, sorszámozva
+       (a hibaüzenetekben szereplő fájlnevek frissítésével) + rövid `supabase/README.md` arról, mi futott le.
+2. [ ] **Portál Központ új nyitóoldal** — látványterv: `design/portal-kozpont-latvanyterv.html`
+       (új partner: „Első csomag" + „Ezt is tudja" galéria; visszatérő: munkaasztal). CSAK Márk jóváhagyása után fejleszthető.
+3. [ ] **Üdvözlő levelek** OB2–OB7: napló SQL + leiratkozás mező → küldő route (Resend) → Vercel cron → leiratkozás oldal → admin nézet → teszt.
+4. [ ] IF4 vége: közös mappák „új" jelzése (amit a tag még nem nézett meg).
+5. [ ] Később: iparág-független „Ügy / Munkalap" (egy megbízás = egy hely, a modulok onnan dolgoznak) — terv előbb.
+6. [ ] Alap végponttól-végpontig tesztek (Playwright): belépés, egy modul futtatása, kreditlevonás.
+

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TWINX — Portál Központ látványterv (régi vs. új)</title>
+<style>
+  :root{
+    --dark:#12100e; --dark2:#1B1815; --cream:#F7F3EC; --card:#FDFBF6; --ink:#1C1815; --muted:#6E655C;
+    --line:#E8E1D6; --coral:#EF7A5A; --coral2:#F08A68; --soft:#F9C9B6; --green:#1F7A4D;
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  body{background:#2a2420;color:var(--ink)}
+  .display{font-family:"Manrope","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+  button{font:inherit;cursor:pointer;border:0}
+  /* ---------- kapcsoló a látványterv tetején ---------- */
+  .switch{position:sticky;top:0;z-index:50;display:flex;gap:10px;align-items:center;justify-content:center;padding:12px;background:#0c0b0a;border-bottom:1px solid #2E2723}
+  .switch span{color:#A89E94;font-size:12px;margin-right:6px}
+  .switch button{height:34px;padding:0 16px;border-radius:99px;background:#1B1815;color:#E8DED3;font-size:13px;font-weight:600;border:1px solid #3A322C}
+  .switch button.on{background:var(--coral2);color:#1C1A17;border-color:var(--coral2)}
+  .note{max-width:1180px;margin:14px auto 0;color:#BFB4A8;font-size:12px;text-align:center}
+  /* ---------- app keret ---------- */
+  .app{max-width:1180px;margin:18px auto 60px;background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .nav{height:60px;background:var(--dark);display:flex;align-items:center;padding:0 24px;gap:26px;color:#F4EFE7;font-size:14px}
+  .nav .logo{font-weight:800;font-size:20px;letter-spacing:.02em}
+  .nav .logo b{color:var(--coral)}
+  .nav .sp{flex:1}
+  .nav .m{opacity:.85}
+  .page{padding:34px 40px 50px}
+  .view{display:none}.view.on{display:block}
+  /* ---------- RÉGI ---------- */
+  .old h1{font-size:34px;font-weight:700}
+  .balance{margin-top:18px;background:var(--dark);color:#F4EFE7;border-radius:16px;padding:22px 24px;display:flex;justify-content:space-between;align-items:center}
+  .balance .n{font-size:44px;font-weight:700}
+  .btn{height:40px;padding:0 18px;border-radius:99px;background:var(--coral);color:#1c1005;font-weight:600;font-size:13px}
+  .ghost{height:40px;padding:0 18px;border-radius:99px;background:#fff;border:1px solid var(--line);font-weight:600;font-size:13px;color:var(--ink)}
+  .old .steps{margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .old .pill{display:inline-block;margin:4px 6px 0 0;padding:6px 12px;border-radius:99px;background:var(--card);border:1px solid var(--line);font-size:12px}
+  .old .cats{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .muted{color:var(--muted)}
+  /* ---------- ÚJ ---------- */
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--coral)}
+  .hero{position:relative;border-radius:22px;padding:34px 36px;color:#F3EDE6;background:var(--dark);
+        background-image:radial-gradient(ellipse 620px 320px at 90% 0%,rgba(238,123,91,.28),transparent 70%),linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:auto,40px 40px,40px 40px;overflow:hidden}
+  .hero h1{font-size:38px;line-height:1.08;font-weight:800;margin-top:10px;max-width:640px}
+  .hero p.lead{margin-top:12px;color:#BFB4A8;font-size:15px;max-width:600px;line-height:1.55}
+  .chips{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .chip{height:30px;padding:0 12px;border-radius:99px;font-size:12px;font-weight:600;background:rgba(255,255,255,.08);color:#E8DED3;border:1px solid rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:6px}
+  .chip.on{background:var(--coral2);color:#1C1A17;border-color:var(--coral2)}
+  .credit{float:right;margin:0 0 10px 20px;text-align:right}
+  .credit .n{font-size:40px;font-weight:800;color:#fff}
+  .credit small{display:block;color:#A89E94;font-size:12px}
+  /* induló csomag */
+  .pack{margin-top:26px;display:grid;grid-template-columns:1.15fr .85fr;gap:20px}
+  .form{background:#1B1815;border:1px solid #2E2723;border-radius:18px;padding:22px}
+  .form h3{font-size:18px;font-weight:700;color:#fff}
+  .form .sub{color:#A89E94;font-size:12px;margin-top:4px}
+  .f{margin-top:12px}
+  .f label{display:block;font-size:11px;font-weight:600;color:#A89E94;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+  .f input,.f select{width:100%;height:42px;border-radius:12px;background:#0E0C0B;border:1px solid #2E2723;color:#F3EDE6;padding:0 14px;font-size:14px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .drop{margin-top:12px;border:1.5px dashed #5A5048;border-radius:14px;padding:16px;display:flex;gap:10px;align-items:center;color:#BFB4A8;font-size:13px}
+  .thumbs{display:flex;gap:6px}
+  .tb{width:54px;height:42px;border-radius:8px;background:linear-gradient(135deg,#5b4636,#9c7a5c)}
+  .tb.b{background:linear-gradient(135deg,#6c6052,#b9a58c)}.tb.c{background:linear-gradient(135deg,#40342b,#7d6550)}
+  .go{margin-top:16px;display:flex;gap:10px;align-items:center}
+  .go .btn{height:46px;padding:0 22px;font-size:14px}
+  .what{background:rgba(255,255,255,.04);border:1px solid #2E2723;border-radius:18px;padding:20px}
+  .what h4{font-size:13px;color:#E8DED3;font-weight:700}
+  .what li{list-style:none;display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13px;color:#D9CEC2;line-height:1.45}
+  .what li i{flex:none;width:26px;height:26px;border-radius:8px;background:rgba(238,123,91,.16);color:#F4A48A;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px}
+  .what .cost{margin-top:14px;padding-top:12px;border-top:1px solid #2E2723;font-size:12px;color:#A89E94}
+  .what .cost b{color:#9FD8B3}
+  /* folyamat + eredmény */
+  .progress{display:none;margin-top:26px;background:#1B1815;border:1px solid #2E2723;border-radius:18px;padding:26px}
+  .progress h3{color:#fff;font-size:18px}
+  .pstep{display:flex;gap:12px;align-items:center;margin-top:14px;color:#A89E94;font-size:14px}
+  .pstep .dot{width:22px;height:22px;border-radius:99px;border:2px solid #5A5048;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  .pstep.done{color:#F3EDE6}.pstep.done .dot{background:#6FBF8E;border-color:#6FBF8E;color:#0E0C0B}
+  .pstep.run{color:#fff}.pstep.run .dot{border-color:var(--coral);border-top-color:transparent;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .result{display:none;margin-top:26px}
+  .result .top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+  .result h2{font-size:28px;font-weight:800}
+  .rgrid{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .rcard{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;position:relative}
+  .rcard .lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .price{font-size:34px;font-weight:800;margin-top:6px}
+  .bar{margin-top:12px;height:10px;border-radius:99px;background:linear-gradient(90deg,#DDF0E4,#9FD8B3,#1F7A4D);position:relative}
+  .bar i{position:absolute;top:-5px;left:58%;width:4px;height:20px;background:var(--ink);border-radius:2px}
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .ph{aspect-ratio:4/3;border-radius:12px;position:relative;overflow:hidden}
+  .ph.before{background:linear-gradient(135deg,#3a3129,#6b5a49);filter:saturate(.6) brightness(.8)}
+  .ph.after{background:linear-gradient(135deg,#d9c6ad,#f6ecdf)}
+  .ph em{position:absolute;left:8px;top:8px;font-style:normal;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff}
+  .txt{margin-top:8px;font-size:13px;line-height:1.6;color:#2E2A25;background:var(--cream);border-radius:12px;padding:12px}
+  .fb{margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .fb .h{display:flex;gap:8px;align-items:center;padding:10px;font-size:12px;font-weight:700}
+  .fb .h i{width:28px;height:28px;border-radius:99px;background:var(--coral);display:inline-block}
+  .fb .img{height:120px;background:linear-gradient(135deg,#d9c6ad,#a88d6d)}
+  .fb p{padding:10px;font-size:12px;color:#4A433C}
+  .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .acts .s{height:32px;padding:0 12px;border-radius:99px;font-size:12px;font-weight:600;background:#F1EAE1;color:#4A433C}
+  .next{margin-top:16px;background:var(--dark);color:#F3EDE6;border-radius:18px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .next b{color:#F4A48A}
+  /* „Ezt is tudja" galéria */
+  .sec{margin-top:40px}
+  .sec h2{font-size:24px;font-weight:800;margin-top:6px}
+  .sec .sub{color:var(--muted);font-size:14px;margin-top:6px;max-width:680px}
+  .gallery{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .g{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:transform .2s,box-shadow .2s}
+  .g:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(28,24,21,.12)}
+  .g .v{aspect-ratio:4/3;position:relative;display:flex;align-items:center;justify-content:center}
+  .g .v.video{background:linear-gradient(135deg,#1b2433,#3d4a63)}
+  .g .v.video .play{width:52px;height:52px;border-radius:99px;background:rgba(240,138,104,.95);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .g .v.pdf{background:linear-gradient(160deg,#EFE7DD,#E4D8CA);align-items:flex-end}
+  .g .v.pdf .paper{width:58%;height:88%;background:#fff;border-radius:6px 6px 0 0;box-shadow:0 6px 20px rgba(28,24,21,.18);padding:12px}
+  .g .v.pdf .paper i{display:block;height:4px;border-radius:9px;background:#EAE2D8;margin-top:6px}
+  .g .v.pdf .paper i:first-child{width:30%;background:var(--coral)}
+  .g .v.flyer{background:linear-gradient(135deg,#0f1b2d,#24476B)}
+  .g .v.flyer .t{color:#fff;font-weight:800;font-size:18px;text-align:center;line-height:1.2}
+  .g .v.flyer .t small{display:block;color:#E9C46A;font-size:22px;margin-top:6px}
+  .g .v.text{background:var(--cream);padding:16px;align-items:flex-start}
+  .g .v.text p{font-size:12px;line-height:1.55;color:#4A433C}
+  .g .b{padding:12px 14px}
+  .g .b strong{font-size:14px}
+  .g .b span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .tag{position:absolute;left:10px;top:10px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff}
+  /* gyors indítás */
+  .quick{margin-top:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .q{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;gap:12px;align-items:center}
+  .q i{flex:none;width:40px;height:40px;border-radius:12px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-style:normal}
+  .q b{font-size:14px}.q span{display:block;font-size:12px;color:var(--muted)}
+  /* keskeny képernyő */
+  @media (max-width:900px){
+    .page{padding:22px 18px 40px}.hero{padding:24px 20px}
+    .hero h1{font-size:28px}.credit{float:none;margin:0 0 12px;text-align:left}
+    .pack,.rgrid,.desk{grid-template-columns:1fr}
+    .gallery{grid-template-columns:1fr 1fr}.quick{grid-template-columns:1fr}
+    .nav{gap:14px;font-size:12px;padding:0 14px}.nav .m:nth-child(n+3){display:none}
+    .old .steps,.old .cats{grid-template-columns:1fr}
+  }
+  /* visszatérő */
+  .desk{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:20px}
+  .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  .mini div{aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,#d9c6ad,#a88d6d)}
+  .mini div:nth-child(2){background:linear-gradient(135deg,#1b2433,#3d4a63)}
+  .mini div:nth-child(3){background:linear-gradient(160deg,#EFE7DD,#E4D8CA)}
+</style>
+</head>
+<body>
+
+<div class="switch">
+  <span>LÁTVÁNYTERV — nézet:</span>
+  <button data-v="old">Régi Portál Központ</button>
+  <button data-v="new" class="on">Új — első belépés</button>
+  <button data-v="ret">Új — visszatérő partner</button>
+</div>
+<p class="note">Kattintható minta, nem éles kód. Az „Elkészítem” és a „Kipróbálom egy mintaingatlannal” gomb végigjátssza a folyamatot. A képek helyőrzők.</p>
+
+<div class="app">
+  <div class="nav"><span class="logo">TWIN<b>X</b></span><span class="m">Tartalomgyártás ▾</span><span class="m">Elemzés &amp; kutatás ▾</span><span class="m">Egyedi modulok ▾</span><span class="m">Korábbi munkák</span><span class="sp"></span><span class="m">Fiók ▾</span></div>
+
+  <!-- ============================ RÉGI ============================ -->
+  <div class="page view old" id="v-old">
+    <h1 class="display">Portál Központ</h1>
+    <div class="balance"><div><p class="muted" style="color:#A89E94;font-size:13px">Egyenleged — bármelyik modulban felhasználható</p><p class="n display">10</p></div><button class="btn">Egyenleg feltöltése</button></div>
+    <div class="card" style="margin-top:18px"><h3 class="display">Szia, Márk! Itt az első 3 lépésed</h3>
+      <div class="steps"><div class="card">1. Állítsd be az arculatod</div><div class="card">2. Próbáld ki a képjavítót</div><div class="card">3. Készíts egy hirdetést</div></div>
+    </div>
+    <div class="card" style="margin-top:18px"><h3 class="display">Folytasd, ahol abbahagytad</h3><p class="muted" style="margin-top:6px;font-size:13px">Még nincs elkészült munkád.</p></div>
+    <h3 class="display" style="margin-top:22px">Mit szeretnél csinálni?</h3>
+    <div class="cats">
+      <div class="card"><b>Tartalomgyártás</b><p class="muted" style="font-size:13px;margin-top:6px">Hirdetések, videók, képek…</p><span class="pill">Hirdetéskészítő</span><span class="pill">Videó</span><span class="pill">Képjavító</span><span class="pill">Látványterv</span></div>
+      <div class="card"><b>Elemzés &amp; kutatás</b><p class="muted" style="font-size:13px;margin-top:6px">Értékbecslés, ellenőrzés…</p><span class="pill">Értékbecslés</span><span class="pill">Telek</span><span class="pill">Hirdetés-ellenőrző</span></div>
+    </div>
+    <div class="card" style="margin-top:24px;background:#FFF6F1;border-color:#F3C9B8">
+      <b>Mi a gond vele?</b>
+      <p style="font-size:13px;margin-top:6px;line-height:1.6">Ugyanazt mutatja annak, aki ma regisztrált, és annak, aki fél éve használja. Egy új partner üres egyenleg-kártyát, üres „Folytasd” blokkot és menülistát lát: van mit választania, de nem kap semmit. Nincs „következő lépés” a landing oldal után, és nem derül ki, mennyivel többet tud a TWINX annál, amit a bemutató mutatott.</p>
+    </div>
+  </div>
+
+  <!-- ============================ ÚJ — ELSŐ BELÉPÉS ============================ -->
+  <div class="page view on" id="v-new">
+    <section class="hero">
+      <div class="credit"><span class="n display">10</span><small>induló kredit — ennyiből elkészül az első csomagod</small></div>
+      <p class="kicker">Üdv a TWINX-ben, Márk</p>
+      <h1 class="display">Amit a bemutatóban láttál, most a saját ingatlanoddal.</h1>
+      <p class="lead">Adj meg egy címet és 2–3 fotót. Néhány perc alatt kész a teljes piacra vivő csomag: becsült ár, feljavított fotók, hirdetésszöveg és Facebook-poszt — egy helyen, a saját arculatoddal.</p>
+      <div class="chips"><span style="color:#A89E94;font-size:12px;align-self:center">Mivel foglalkozol?</span><span class="chip on">🏠 Ingatlan</span><span class="chip">🍽 Vendéglátás</span><span class="chip">＋ Más terület</span></div>
+
+      <div class="pack" id="pack">
+        <div class="form">
+          <h3 class="display">Első csomagod</h3>
+          <p class="sub">Egy kitöltés — négy kész anyag. Bármikor szerkesztheted.</p>
+          <div class="f"><label>Ingatlan címe</label><input value="Budapest XIII., Visegrádi utca 120." /></div>
+          <div class="row3">
+            <div class="f"><label>Típus</label><select><option>Lakás</option><option>Ház</option></select></div>
+            <div class="f"><label>Alapterület</label><input value="62 m²" /></div>
+            <div class="f"><label>Szobák</label><input value="2,5" /></div>
+          </div>
+          <div class="drop"><div class="thumbs"><span class="tb"></span><span class="tb b"></span><span class="tb c"></span></div><span>3 fotó feltöltve · <u>továbbiak</u></span></div>
+          <div class="go"><button class="btn" id="run">Elkészítem a csomagot →</button><button class="ghost" id="sample" style="background:transparent;color:#E8DED3;border-color:#3A322C">Kipróbálom egy mintaingatlannal</button></div>
+        </div>
+        <div class="what">
+          <h4>Ezt kapod egy oldalon</h4>
+          <ul>
+            <li><i>€</i><span><b>Becsült ártartomány</b> összehasonlító ingatlanokkal, letölthető PDF-ben</span></li>
+            <li><i>✦</i><span><b>Feljavított fotók</b> — világosabb, egyenesebb, hirdetésre kész</span></li>
+            <li><i>¶</i><span><b>Hirdetésszöveg</b> portálra, a stílusodban</span></li>
+            <li><i>f</i><span><b>Facebook-poszt</b> képpel és szöveggel</span></li>
+          </ul>
+          <p class="cost">Költség: <b>az induló kreditedből</b>. Utána bármelyik elemből videó is készülhet.</p>
+        </div>
+      </div>
+
+      <div class="progress" id="progress">
+        <h3 class="display">Készül a csomagod…</h3>
+        <div class="pstep" data-i="0"><span class="dot"></span>Ár becslése összehasonlító ingatlanokkal</div>
+        <div class="pstep" data-i="1"><span class="dot"></span>Fotók feljavítása</div>
+        <div class="pstep" data-i="2"><span class="dot"></span>Hirdetésszöveg megírása</div>
+        <div class="pstep" data-i="3"><span class="dot"></span>Facebook-poszt összeállítása</div>
+        <p style="margin-top:16px;color:#8F857B;font-size:12px">Nyugodtan nézz körül közben — a kész csomag a Korábbi munkák között is megmarad.</p>
+      </div>
+    </section>
+
+    <div class="result" id="result">
+      <div class="top">
+        <div><p class="kicker" id="rk">Kész · a saját ingatlanod</p><h2 class="display">Budapest XIII., Visegrádi utca 120.</h2><p class="muted" style="font-size:13px;margin-top:4px">4 anyag · a Korábbi munkák között egy mappában</p></div>
+        <div class="acts"><button class="btn">Minden letöltése</button><button class="ghost">Áthelyezés mappába</button></div>
+      </div>
+      <div class="rgrid">
+        <div class="rcard"><p class="lbl">Becsült ár</p><p class="price display">58,5 – 63,9 M Ft</p><p class="muted" style="font-size:12px">7 hasonló ingatlan alapján · 960 000 Ft/m² körül</p><div class="bar"><i></i></div><div class="acts"><button class="s">PDF megnyitása</button><button class="s">Részletek</button></div></div>
+        <div class="rcard"><p class="lbl">Feljavított fotók</p><div class="ba"><div class="ph before"><em>előtte</em></div><div class="ph after"><em>utána</em></div></div><div class="acts"><button class="s">Mind a 3 fotó</button><button class="s">Videó készítése ebből →</button></div></div>
+        <div class="rcard"><p class="lbl">Hirdetésszöveg</p><p class="txt">Világos, 62 m²-es, 2,5 szobás lakás a XIII. kerület kedvelt részén, a Visegrádi utcában. Felújított fürdő, csendes, udvari szobák, pár perc a Duna-part és a metró…</p><div class="acts"><button class="s">Másolás</button><button class="s">Más hangnem</button></div></div>
+        <div class="rcard"><p class="lbl">Facebook-poszt</p><div class="fb"><div class="h"><i></i>Kovács Márk · Ingatlan</div><div class="img"></div><p>🏡 Új a kínálatban! Napfényes 2,5 szobás lakás a Visegrádi utcában…</p></div><div class="acts"><button class="s">Másolás</button><button class="s">Kép letöltése</button></div></div>
+      </div>
+      <div class="next"><span>Következő lépés: <b>bemutató videó</b> ugyanezekből a fotókból — egy kattintás.</span><button class="btn">Videó készítése →</button></div>
+    </div>
+
+    <section class="sec">
+      <p class="kicker">Ezt is tudja</p>
+      <h2 class="display">Egy mintaingatlan teljes anyaga — amit a bemutató nem mutatott.</h2>
+      <p class="sub">Valódi TWINX-kimenetek. Kattints bármelyikre, és megnézheted vagy elindíthatod a sajátodat.</p>
+      <div class="gallery">
+        <div class="g"><div class="v video"><span class="tag">Videó · 9:16</span><span class="play">▶</span></div><div class="b"><strong>Bemutató videó</strong><span>Fotókból, zenével, a saját arculatoddal</span></div></div>
+        <div class="g"><div class="v pdf"><span class="tag" style="background:rgba(36,71,107,.85)">Értékbecslés · PDF</span><div class="paper"><i></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i></div></div><div class="b"><strong>Értékbecslés</strong><span>Ügyfélnek átadható, levezetéssel</span></div></div>
+        <div class="g"><div class="v flyer"><span class="tag">Hirdetéskép</span><div class="t">Eladó lakás<small>79,9 M Ft</small></div></div><div class="b"><strong>Hirdetéskép</strong><span>Posztolásra kész, több méretben</span></div></div>
+        <div class="g"><div class="v text"><span class="tag">Hirdetés-ellenőrzés</span><p style="margin-top:22px"><b>78/100</b> · A cím túl általános, hiányzik az alapterület az első sorból. 3 javaslat a gyorsabb eladásért…</p></div><div class="b"><strong>Hirdetés-ellenőrző</strong><span>Meglévő hirdetésed értékelése</span></div></div>
+      </div>
+    </section>
+
+    <section class="quick">
+      <div class="q"><i>🎬</i><div><b>Videó 3 fotóból</b><span>kb. 2 perc · 3 kredit</span></div></div>
+      <div class="q"><i>📊</i><div><b>Értékbecslés egy címre</b><span>kb. 1 perc · 2 kredit</span></div></div>
+      <div class="q"><i>🎨</i><div><b>Arculat beállítása</b><span>logó, színek — minden anyagodon</span></div></div>
+    </section>
+  </div>
+
+  <!-- ============================ ÚJ — VISSZATÉRŐ ============================ -->
+  <div class="page view" id="v-ret">
+    <section class="hero" style="padding:26px 30px">
+      <div class="credit"><span class="n display">42</span><small>kredit</small></div>
+      <p class="kicker">Szia, Márk</p>
+      <h1 class="display" style="font-size:30px">Mivel folytassuk ma?</h1>
+      <div class="chips" style="margin-top:14px"><span class="chip on">＋ Új ingatlan csomag</span><span class="chip">🎬 Videó</span><span class="chip">📊 Értékbecslés</span><span class="chip">✦ Képjavítás</span><span class="chip">¶ Hirdetésszöveg</span></div>
+    </section>
+    <div class="desk">
+      <div class="card"><div style="display:flex;justify-content:space-between"><b class="display">Legutóbbi munkáid</b><span class="muted" style="font-size:12px">Összes →</span></div><div class="mini"><div></div><div></div><div></div><div></div></div></div>
+      <div class="card"><b class="display">Folyamatban</b><p style="font-size:13px;margin-top:10px">🎬 Videó — Székesfehérvár, Visegrádi u. 212.<br/><span class="muted">kb. 1 perc van hátra</span></p><p style="font-size:13px;margin-top:12px">📁 Közös mappa: <b>Kiss család</b> — 2 új anyag a kollégáktól</p></div>
+    </div>
+    <div class="card" style="margin-top:16px;background:#FFF6F1;border-color:#F3C9B8"><b>Megjegyzés a tervhez</b><p style="font-size:13px;margin-top:6px;line-height:1.6">A visszatérő partner munkaasztalt lát: gyors indítás, legutóbbi munkák, futó folyamatok, irodai újdonságok. Az „Első csomag” és az „Ezt is tudja” galéria itt már nem jelenik meg, legfeljebb egy kis „Új funkció” sávban.</p></div>
+  </div>
+</div>
+
+<script>
+  // nézetváltó
+  document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".switch button").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("on", v.id === "v-" + b.dataset.v));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
+  // csomag-folyamat végigjátszása
+  function play(sample) {
+    document.getElementById("pack").style.display = "none";
+    const pr = document.getElementById("progress"); pr.style.display = "block";
+    const steps = [...pr.querySelectorAll(".pstep")];
+    steps.forEach((s) => s.className = "pstep");
+    let i = 0;
+    const tick = () => {
+      if (i > 0) { steps[i - 1].className = "pstep done"; steps[i - 1].querySelector(".dot").textContent = "✓"; }
+      if (i < steps.length) { steps[i].className = "pstep run"; i++; setTimeout(tick, 900); }
+      else setTimeout(() => {
+        pr.style.display = "none";
+        document.getElementById("rk").textContent = sample ? "Kész · mintaingatlan (ingyenes bemutató)" : "Kész · a saját ingatlanod";
+        const r = document.getElementById("result"); r.style.display = "block"; r.scrollIntoView({ behavior: "smooth" });
+      }, 500);
+    };
+    tick();
+  }
+  document.getElementById("run").addEventListener("click", () => play(false));
+  document.getElementById("sample").addEventListener("click", () => play(true));
+</script>
+</body>
+</html>
