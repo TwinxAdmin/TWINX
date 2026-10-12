@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidJoinCode, normalizeJoinCode } from "@/lib/office";
-import { loadMyOffice, setWorkContext } from "@/lib/office-server";
+import { loadMyOffice, officeErrorMessage, officeKind, setWorkContext } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     joined_via: "code",
   });
   if (error) {
+    if (/TEAM_FULL/.test(error.message)) return NextResponse.json({ error: officeErrorMessage(error.message) }, { status: 409 });
     const dup = /office_members_user_id_key/i.test(error.message);
     return NextResponse.json(
       { error: dup ? "Több irodához csatlakozáshoz futtasd le a 20261008083230_office-multi.sql migrációt." : /duplicate key|pkey/i.test(error.message) ? "Ennek az irodának már tagja vagy." : error.message },
@@ -52,8 +53,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // A most csatlakozott iroda lesz a kiválasztott, irodai módban.
-  await setWorkContext(user.id, { officeId: office.id as string, useOffice: true });
+  // A most csatlakozott iroda lesz a kiválasztott — irodai módban; közös munkatérnél saját kreditből.
+  const kind = await officeKind(office.id as string);
+  await setWorkContext(user.id, { officeId: office.id as string, useOffice: kind !== "team" });
 
   return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
 }

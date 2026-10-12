@@ -114,6 +114,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261008121637_work-folders.sql` | Saját munka-mappák (Korábbi munkák) |
 | `20261008121638_usage-history-hidden.sql` | Törlés = elrejtés a Korábbi munkákban |
 | `20261008121639_library-hidden.sql` | Törlés = elrejtés a videó- és hirdetés-ellenőrző könyvtárban |
+| `20261012105023_team-workspace.sql` | Közös munkatér (KM1): `offices.kind`, kredit-átadás társnak, kilépés + munka-átadás |
 
 ## Egyszeri szkriptek (`one-off/`)
 

@@ -1,4 +1,5 @@
-// dashboard/iroda/igenyles — irodai fiók igénylése a TWINX-től (admin hagyja jóvá).
+// dashboard/iroda/igenyles — irodai fiók létrehozása: vezetős iroda (igénylés, admin hagyja jóvá)
+// vagy közös munkatér (azonnal létrejön).
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ModuleIntro from "@/components/ModuleIntro";
@@ -13,8 +14,8 @@ export default async function OfficeRequestPage() {
     <main className="space-y-6">
       <ModuleIntro
         eyebrow="Irodai TWINX fiók"
-        title="Irodai fiók igénylése"
-        subtitle="Add meg az iroda nevét és a létszámot. Jóváhagyás után megnyithatod az irodai fiókot, és kóddal hívhatod meg a kollégákat."
+        title="Irodai fiók létrehozása"
+        subtitle="Vezetős iroda közös kerettel (jóváhagyás után nyitható) — vagy közös munkatér egyenrangú társaknak, ami azonnal létrejön. A kollégákat mindkettőnél egy kóddal hívod meg."
         icon="office"
       />
       <OfficeRequestFlow />

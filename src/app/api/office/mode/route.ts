@@ -2,10 +2,11 @@
 // body: { mode?: "office" | "private", officeId?: string }
 //   • mode: „office" = a kiválasztott iroda keretéből dolgozik, „private" = a saját kreditjéből
 //   • officeId: másik irodára váltás (csak ha tagja) — egyben irodai módba is kapcsol
+//     (közös munkatérnél nem: ott mindig a saját kreditből dolgozik)
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMembershipIn, getWorkContext, setWorkContext } from "@/lib/office-server";
+import { getMembershipIn, getWorkContext, officeKind, setWorkContext } from "@/lib/office-server";
 
 export const runtime = "nodejs";
 
@@ -25,8 +26,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Ennek az irodának nem vagy tagja." }, { status: 403 });
   }
 
+  // Közös munkatérben nincs irodai mód: oda váltva (vagy ott) mindig a saját kreditből dolgozik.
+  const targetId = officeId ?? (await getWorkContext(user.id)).officeId;
+  const isTeam = !!targetId && (await officeKind(targetId)) === "team";
+  if (isTeam && mode === "office") {
+    return NextResponse.json({ error: "Közös munkatérben mindenki a saját kreditjéből dolgozik." }, { status: 422 });
+  }
+
   const error = await setWorkContext(user.id, {
-    ...(officeId ? { officeId, useOffice: true } : {}),
+    ...(officeId ? { officeId, useOffice: !isTeam } : {}),
     ...(mode ? { useOffice: mode === "office" } : {}),
   });
   if (error) {

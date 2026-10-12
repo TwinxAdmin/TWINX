@@ -2,11 +2,13 @@
 //        Az egyenleget, a csatlakozási kódot és a létszámot CSAK a létrehozó kapja meg.
 // POST /api/office — iroda megnyitása a JÓVÁHAGYOTT igénylés alapján. body: { name }
 //        A megnyitó lesz a létrehozó (owner) és az első tag; a rendszer csatlakozási kódot generál.
+//      — KÖZÖS MUNKATÉR: body: { kind: "team", name, teamSize } — AZONNAL létrejön, jóváhagyás nélkül,
+//        állandó kóddal; a megnyitó is „Társ" (technikailag owner sor), saját kreditből dolgozik.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { generateJoinCode, validateOfficeName } from "@/lib/office";
-import { getMembership, listMyOffices, loadMyOffice, setWorkContext } from "@/lib/office-server";
+import { generateJoinCode, TEAMS_PER_USER_MAX, validateOfficeName, validateTeamCreate } from "@/lib/office";
+import { getMembership, listMyOffices, loadMyOffice, officeKind, setWorkContext } from "@/lib/office-server";
 import { officeMemberPreview, officeNonePreview } from "@/lib/view-as";
 
 export const runtime = "nodejs";
@@ -31,8 +33,10 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { name?: unknown };
+  let body: { name?: unknown; kind?: unknown; teamSize?: unknown };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Érvénytelen kérés." }, { status: 400 }); }
+
+  if (body.kind === "team") return createTeam(user.id, body);
 
   const { name, error: nameError } = validateOfficeName(body.name);
   if (!name) return NextResponse.json({ errors: { name: nameError } }, { status: 422 });
@@ -86,6 +90,60 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
 }
 
+/**
+ * Közös munkatér azonnali létrehozása: validáció → offices sor (kind = team, egyedi kód) → a megnyitó
+ * az első tag → kiválasztott iroda, saját kreditből. Nincs igénylés és nincs admin-jóváhagyás.
+ */
+async function createTeam(userId: string, body: Record<string, unknown>) {
+  const check = validateTeamCreate(body);
+  if (!check.valid || !check.value) return NextResponse.json({ errors: check.errors }, { status: 422 });
+  const { name } = check.value;
+
+  const admin = createAdminClient();
+
+  // Visszaélés ellen: egy felhasználó legfeljebb TEAMS_PER_USER_MAX közös munkateret nyithat.
+  const { count, error: countError } = await admin
+    .from("offices").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("kind", "team");
+  if (countError) {
+    return NextResponse.json({
+      error: /kind/.test(countError.message)
+        ? "A közös munkatérhez futtasd le a 20261012105023_team-workspace.sql migrációt."
+        : countError.message,
+    }, { status: 500 });
+  }
+  if ((count ?? 0) >= TEAMS_PER_USER_MAX) {
+    return NextResponse.json({ error: `Legfeljebb ${TEAMS_PER_USER_MAX} közös munkateret nyithatsz.` }, { status: 409 });
+  }
+
+  // Iroda létrehozása — egyedi, ÁLLANDÓ kóddal (ütközéskor új kódot próbálunk).
+  let officeId: string | null = null;
+  for (let attempt = 0; attempt < 5 && !officeId; attempt++) {
+    const { data, error } = await admin
+      .from("offices")
+      .insert({ owner_id: userId, request_id: null, name, join_code: generateJoinCode(), kind: "team" })
+      .select("id")
+      .single();
+    if (data) officeId = data.id as string;
+    else if (error && !/join_code|duplicate key/i.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+  if (!officeId) return NextResponse.json({ error: "Nem sikerült kódot generálni, próbáld újra." }, { status: 500 });
+
+  const { error: memberError } = await admin.from("office_members").insert({
+    office_id: officeId, user_id: userId, role: "owner", joined_via: "owner",
+  });
+  if (memberError) {
+    await admin.from("offices").delete().eq("id", officeId);
+    return NextResponse.json({ error: memberError.message }, { status: 500 });
+  }
+
+  // A közös munkatér lesz a kiválasztott — saját kreditből (ott nincs irodai mód).
+  await setWorkContext(userId, { officeId, useOffice: false });
+
+  return NextResponse.json({ ok: true, office: await loadMyOffice(userId) });
+}
+
 // PATCH /api/office — { action: "regenerateCode" }: új csatlakozási kód (CSAK a létrehozó).
 // A régi kód azonnal érvénytelen lesz; a már csatlakozott tagokat nem érinti.
 export async function PATCH(request: Request) {
@@ -101,6 +159,9 @@ export async function PATCH(request: Request) {
   const me = await getMembership(user.id);
   if (!me || me.role !== "owner") {
     return NextResponse.json({ error: "Kódot csak az irodai fiók létrehozója generálhat." }, { status: 403 });
+  }
+  if ((await officeKind(me.office_id)) === "team") {
+    return NextResponse.json({ error: "A közös munkatér kódja állandó, nem cserélhető." }, { status: 403 });
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {

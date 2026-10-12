@@ -65,6 +65,41 @@ export function validateOfficeRequest(input: Record<string, unknown>): {
 }
 
 // ---------------------------------------------------------------------
+// Közös munkatér (KM) — az irodai fiók második formája
+// ---------------------------------------------------------------------
+
+/** Az irodai fiók formája: „office" = vezetős iroda, „team" = közös munkatér (egyenrangú társak). */
+export type OfficeKind = "office" | "team";
+
+export const TEAM_MEMBERS_MIN = 2;
+export const TEAM_MEMBERS_MAX = 5;
+/** Ennyi közös munkateret nyithat egy felhasználó (visszaélés ellen). */
+export const TEAMS_PER_USER_MAX = 5;
+
+export type TeamCreateInput = { name: string; teamSize: number | string };
+
+/** Közös munkatér létrehozása — név + várható létszám (2–5). Telefon nem kell, jóváhagyás nincs. */
+export function validateTeamCreate(input: Record<string, unknown>): {
+  valid: boolean;
+  errors: Partial<Record<keyof TeamCreateInput, string>>;
+  value?: { name: string; teamSize: number };
+} {
+  const errors: Partial<Record<keyof TeamCreateInput, string>> = {};
+
+  const name = String(input.name ?? "").trim();
+  if (name.length < OFFICE_NAME_MIN) errors.name = "Add meg a munkatér nevét.";
+  else if (name.length > OFFICE_NAME_MAX) errors.name = `Legfeljebb ${OFFICE_NAME_MAX} karakter.`;
+
+  const teamSize = Number(input.teamSize);
+  if (!Number.isInteger(teamSize) || teamSize < TEAM_MEMBERS_MIN || teamSize > TEAM_MEMBERS_MAX) {
+    errors.teamSize = `Közös munkatér ${TEAM_MEMBERS_MIN}–${TEAM_MEMBERS_MAX} társnak való.`;
+  }
+
+  const valid = Object.keys(errors).length === 0;
+  return { valid, errors, value: valid ? { name, teamSize } : undefined };
+}
+
+// ---------------------------------------------------------------------
 // Iroda megnyitása + csatlakozási kód
 // ---------------------------------------------------------------------
 
@@ -99,6 +134,8 @@ export type MyOffice = {
   id: string;
   name: string;
   role: "owner" | "member";
+  /** Forma: vezetős iroda vagy közös munkatér (20261012105023_team-workspace.sql; addig „office"). */
+  kind: OfficeKind;
   allowance: number;
   unlimited: boolean;
   canAllocate: boolean;

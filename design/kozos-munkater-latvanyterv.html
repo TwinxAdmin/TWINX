@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TWINX — Közös munkatér látványterv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --dark:#12100e; --dark2:#1B1815; --cream:#F7F3EC; --card:#FCFAF7; --ink:#1C1815; --muted:#6B6258;
+    --line:#E9E0D5; --line2:#EFE7DD; --coral:#EF7A5A; --coral2:#F08A68; --soft:#FBE1D6; --green:#1F7A4D;
+    --teal:#2F7F86; --teal-soft:#DCEFF0; --teal-ink:#1F5F65;
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  body{background:#2a2420;color:var(--ink)}
+  .display{font-family:"Manrope","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+  button{font:inherit;cursor:pointer;border:0}
+  .muted{color:var(--muted)}
+
+  /* ---------- váltó a látványterv tetején ---------- */
+  .switch{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:12px 16px;background:#0c0b0a;border-bottom:1px solid #2E2723}
+  .switch span{color:#A89E94;font-size:12px;margin-right:6px}
+  .switch button{height:34px;padding:0 14px;border-radius:99px;background:#1B1815;color:#E8DED3;font-size:13px;font-weight:600;border:1px solid #3A322C}
+  .switch button.on{background:var(--coral2);color:#1C1A17;border-color:var(--coral2)}
+  .note{max-width:1180px;margin:14px auto 0;padding:0 16px;color:#BFB4A8;font-size:12px;text-align:center;line-height:1.5}
+
+  /* ---------- app keret ---------- */
+  .app{max-width:1180px;margin:18px auto 60px;background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .nav{height:60px;background:var(--dark);display:flex;align-items:center;padding:0 24px;gap:26px;color:#F4EFE7;font-size:14px}
+  .nav .logo{font-weight:800;font-size:20px;letter-spacing:.02em}
+  .nav .logo b{color:var(--coral)}
+  .nav .sp{flex:1}
+  .nav .m{opacity:.8}
+  .nav .m.on{opacity:1;color:var(--coral2);font-weight:600}
+  .page{padding:30px 36px 46px}
+  .view{display:none}.view.on{display:block}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--coral)}
+  .btn{height:42px;padding:0 18px;border-radius:99px;background:var(--coral2);color:#1C1A17;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn-o{height:42px;padding:0 18px;border-radius:99px;background:#fff;border:1px solid #E1D6C9;color:var(--ink);font-weight:600;font-size:13px}
+  .btn-dark-o{height:42px;padding:0 18px;border-radius:99px;border:1px solid rgba(127,200,206,.55);background:rgba(127,200,206,.08);color:#F6F1EA;font-weight:600;font-size:13px}
+  .pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:99px;font-size:11px;font-weight:700}
+  .annot{margin-top:10px;display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.45;color:#7A4A2E;background:#FFF3EC;border:1px dashed #E8B9A6;border-radius:10px;padding:8px 10px}
+  .annot b{color:#A8411F}
+
+  /* ---------- 1. IGÉNYLÉS ---------- */
+  .req{display:grid;grid-template-columns:1.25fr .75fr;gap:22px}
+  .req h2{font-size:24px;font-weight:700}
+  .req .lead{margin-top:6px;font-size:14px;color:var(--muted);line-height:1.5}
+  .step{margin-top:22px}
+  .step-h{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700}
+  .step-h i{font-style:normal;display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--dark);color:#fff;font-size:11px;align-items:center;justify-content:center}
+  .types{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .type{position:relative;text-align:left;height:292px;padding:18px;border-radius:16px;background:#fff;border:1.5px solid #E1D6C9;display:flex;flex-direction:column;gap:10px;transition:border-color .15s, box-shadow .15s}
+  .type:hover{border-color:#D9C7B6}
+  .type.on{border-color:var(--coral2);box-shadow:0 0 0 4px rgba(240,138,104,.16)}
+  .type .radio{position:absolute;top:16px;right:16px;width:20px;height:20px;border-radius:50%;border:2px solid #D3C5B6;background:#fff}
+  .type.on .radio{border-color:var(--coral2);background:radial-gradient(circle,var(--coral2) 45%,#fff 50%)}
+  .type .ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+  .type h3{font-size:17px;font-weight:700}
+  .type p{font-size:13px;color:var(--muted);line-height:1.45}
+  .type ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:5px;margin-top:auto}
+  .type li{font-size:12px;display:flex;gap:7px;align-items:flex-start;line-height:1.35}
+  .type li::before{content:"✓";color:var(--green);font-weight:800}
+  .type .when{position:absolute;top:18px;right:46px}
+  .fields{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .f label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+  .f .in{height:42px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:0 12px;display:flex;align-items:center;font-size:14px;color:#9A9087}
+  .f .in.val{color:var(--ink)}
+  .f .in.off{background:#F5F0E9;color:#B2A89D}
+  .f .hint{margin-top:4px;font-size:11px;color:var(--muted);min-height:15px}
+  .f.full{grid-column:1/-1}
+  .infobox{margin-top:16px;border-radius:14px;padding:14px;font-size:13px;line-height:1.5;background:var(--cream);border:1px solid var(--line);color:var(--muted);min-height:118px}
+  .infobox strong{color:var(--ink)}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .side .card{padding:18px}
+  .side h4{font-size:14px;font-weight:700}
+  .flow{margin-top:12px;display:flex;flex-direction:column;gap:10px;min-height:150px}
+  .flow div{display:flex;gap:10px;font-size:13px;line-height:1.4}
+  .flow b{flex:none;width:22px;height:22px;border-radius:50%;background:var(--soft);color:#A8411F;font-size:11px;display:flex;align-items:center;justify-content:center}
+  .instant{display:flex;gap:10px;align-items:center;border-radius:12px;padding:10px 12px;background:var(--teal-soft);color:var(--teal-ink);font-size:13px;font-weight:600;min-height:44px}
+
+  /* ---------- 2. BEMUTATÓ ---------- */
+  .sc-hero{border-radius:20px;padding:30px;color:#F3EDE6;background:#121110;background-image:radial-gradient(ellipse 600px 300px at 90% 0%,rgba(238,123,91,.25),transparent 70%)}
+  .sc-hero h1{font-size:32px;font-weight:800;margin-top:8px}
+  .sc-hero p{margin-top:8px;color:#BFB4A8;font-size:15px;max-width:640px;line-height:1.55}
+  .forms{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .form{border-radius:18px;padding:22px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-height:330px}
+  .form h3{font-size:20px;font-weight:800}
+  .form .who{font-size:13px;color:var(--muted)}
+  .form ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:7px;margin-top:4px}
+  .form li{font-size:13px;display:flex;gap:8px;line-height:1.4}
+  .form li::before{content:"•";font-weight:800}
+  .form.o li::before{color:var(--coral)}
+  .form.t li::before{color:var(--teal)}
+  .form .foot{margin-top:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+  /* ---------- 3. KÖZÖS MUNKATÉR ---------- */
+  .hero{border-radius:20px;padding:26px 28px;color:#F3EDE6;background:#121110;
+        background-image:radial-gradient(ellipse 520px 300px at 88% 0%,rgba(47,127,134,.32),transparent 70%),linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+        background-size:auto,40px 40px,40px 40px;border:1px solid #2A2420}
+  .hero-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px}
+  .hero h1{font-size:32px;font-weight:800;color:#F6F1EA;line-height:1.1}
+  .hero .sub{margin-top:6px;color:#A89E94;font-size:14px}
+  .hero .kicker{color:#7FC8CE}
+  .rolechip{background:rgba(47,127,134,.2);color:#9ED6DB;border:1px solid rgba(127,200,206,.45)}
+  .codebox{min-width:270px;align-self:flex-start;border-radius:14px;padding:12px 14px;background:#1B1815;border:1px solid rgba(127,200,206,.45)}
+  .codebox .lbl{font-size:11px;font-weight:700;letter-spacing:.1em;color:#9ED6DB;display:flex;justify-content:space-between}
+  .codebox .code{font-family:ui-monospace,Menlo,monospace;font-size:18px;font-weight:700;letter-spacing:.08em;color:#7FC8CE;margin-top:6px}
+  .codebox .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid #2E2723;font-size:11px;color:#8F857B}
+  .codebox .row button{height:26px;padding:0 10px;border-radius:99px;border:1px solid #3A322C;background:transparent;color:#F3EDE6;font-size:11px;font-weight:600}
+  .acts{margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .kpis{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .kpi{border-radius:12px;padding:13px 15px;background:#1B1815;border:1px solid #2E2723}
+  .kpi.acc{background:rgba(47,127,134,.14);border-color:rgba(127,200,206,.38)}
+  .kpi p{font-size:12px;color:#8F857B}
+  .kpi.acc p{color:#9ED6DB}
+  .kpi .n{margin-top:2px;font-size:24px;font-weight:800;color:#F6F1EA;font-variant-numeric:tabular-nums}
+  .kpi .n small{font-size:12px;font-weight:500;color:#A89E94;margin-left:4px}
+  .grid2{margin-top:16px;display:grid;grid-template-columns:1.25fr .75fr;gap:16px}
+  .grid3{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .cardh{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 10px}
+  .cardh h2{font-size:17px;font-weight:700}
+  .mate{display:flex;align-items:center;gap:12px;padding:0 18px;height:58px;border-top:1px solid var(--line2)}
+  .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
+  .mate .nm{font-size:13px;font-weight:600}
+  .mate .em{font-size:12px;color:var(--muted)}
+  .mate .sp{flex:1}
+  .mini{height:30px;padding:0 12px;border-radius:99px;font-size:12px;font-weight:600;background:var(--teal-soft);color:var(--teal-ink)}
+  .wk{display:grid;grid-template-columns:110px 1fr 140px 70px;gap:12px;align-items:center;padding:0 18px;height:48px;border-top:1px solid var(--line2);font-size:13px}
+  .wk .mod{color:var(--muted);font-size:12px}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:20px;border-radius:6px;font-size:9px;font-weight:800;margin-right:8px;background:#F1EAE1;color:var(--muted)}
+  .badge.v{background:#1C1A17;color:var(--coral2)}
+  .fold{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:99px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--teal-soft);color:var(--teal-ink)}
+  .share{display:inline-flex;border-radius:99px;padding:3px 8px;font-size:11px;font-weight:700;color:#C2512F;border:1px dashed #E8B9A6}
+  .folder{display:flex;align-items:center;gap:12px;padding:0 18px;height:56px;border-top:1px solid var(--line2)}
+  .folder .fi{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--teal-soft);color:var(--teal)}
+  .new{background:var(--coral2);color:#1C1A17;font-size:10px;font-weight:800;border-radius:99px;padding:2px 7px}
+  .ledger{display:flex;justify-content:space-between;gap:10px;padding:0 18px;height:50px;align-items:center;border-top:1px solid var(--line2);font-size:13px}
+  .ledger small{display:block;font-size:11px;color:var(--muted)}
+  .plus{color:var(--green);font-weight:700}
+  .minus{color:#B3261E;font-weight:700}
+  .leave{margin-top:16px;display:flex;justify-content:flex-end}
+  .leave button{height:34px;padding:0 14px;border-radius:99px;font-size:12px;font-weight:600;background:transparent;color:#8A3A25;border:1px solid #E8B9A6}
+
+  /* ---------- üzenetek (3. nézet) ---------- */
+  .msgs{margin-top:16px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  .msgbox{height:380px;display:flex;flex-direction:column;overflow:hidden}
+  .filters{display:flex;gap:6px;padding:0 18px 10px;flex-wrap:wrap}
+  .filters span{height:26px;padding:0 10px;border-radius:99px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;background:#F1EAE1;color:#4A433C}
+  .filters span.on{background:var(--dark);color:#fff}
+  .mlist{flex:1;overflow:auto;border-top:1px solid var(--line2)}
+  .msg{display:flex;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line2)}
+  .msg .body{flex:1;min-width:0}
+  .msg .top{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+  .msg .top b{color:var(--ink);font-size:13px}
+  .msg .txt{margin-top:3px;font-size:13px;line-height:1.45}
+  .msg .att{margin-top:6px;display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:4px 8px;background:#F8F3EC;border:1px solid var(--line2);font-size:12px;font-weight:600}
+  .msg .row2{margin-top:7px;display:flex;gap:6px;align-items:center}
+  .msg .row2 button{height:26px;padding:0 10px;border-radius:99px;font-size:11px;font-weight:700}
+  .kind{font-size:10px;font-weight:800;border-radius:99px;padding:2px 7px;letter-spacing:.02em}
+  .k-task{background:#FFF0D6;color:#8A5A00}
+  .k-msg{background:#F1EAE1;color:#4A433C}
+  .k-done{background:#DDF0E4;color:#1F5C38}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--coral2);flex:none;margin-top:6px}
+  .send{height:380px;border-radius:18px;padding:18px;background:#1B1815;border:1px solid #2E2723;color:#F3EDE6;display:flex;flex-direction:column;gap:10px}
+  .send h2{font-size:17px;font-weight:700;color:#fff}
+  .seg3{display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border-radius:99px;background:#12100e;border:1px solid #2E2723}
+  .seg3 span{height:30px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#A89E94}
+  .seg3 span.on{background:#F6F1EA;color:#1C1A17}
+  .dk{height:38px;border-radius:10px;background:#12100e;border:1px solid #3A322C;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#E8DED3}
+  .dk.ta{height:78px;align-items:flex-start;padding-top:10px;color:#8F857B}
+  .dk small{color:#8F857B}
+  .chip-w{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:5px 9px;background:rgba(127,200,206,.12);border:1px solid rgba(127,200,206,.4);font-size:12px;font-weight:600;color:#BFE6E9}
+  .wkmsg{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid #E1D6C9;background:#fff;color:var(--muted);font-size:13px}
+
+  /* ---------- 4. ABLAKOK ---------- */
+  .dlgs{display:grid;grid-template-columns:.9fr 1.1fr;gap:20px;align-items:start}
+  .dlg{border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.18);overflow:hidden}
+  .dlg-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:20px 22px 10px}
+  .dlg-h h3{font-size:19px;font-weight:700}
+  .dlg-h .x{width:32px;height:32px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .dlg-b{padding:0 22px 22px;display:flex;flex-direction:column;gap:12px}
+  .strip{display:flex;justify-content:space-between;align-items:center;border-radius:12px;padding:10px 14px;background:#F8F3EC;border:1px solid var(--line2);font-size:12px;color:var(--muted)}
+  .strip b{color:var(--ink);font-size:13px}
+  .list{border-radius:12px;background:#fff;border:1px solid var(--line2);overflow:auto}
+  .li{display:flex;align-items:center;gap:12px;padding:0 14px;height:52px;border-bottom:1px solid #F3EDE6;font-size:13px}
+  .li:last-child{border-bottom:0}
+  .li .sp{flex:1;min-width:0}
+  .li .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .li .s{font-size:12px;color:var(--muted)}
+  .cb{width:20px;height:20px;border-radius:6px;border:2px solid #D3C5B6;background:#fff;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
+  .cb.on{background:var(--teal);border-color:var(--teal)}
+  .qty{display:flex;gap:6px;align-items:center}
+  .qty span{border-radius:99px;padding:3px 9px;font-size:11px;font-weight:700;background:#F1EAE1;color:#4A433C}
+  .qty span.on{background:#1C1A17;color:#fff}
+  .qty .box{width:64px;height:32px;border-radius:8px;border:1px solid var(--teal);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-weight:700;font-size:14px}
+  .in2{height:38px;border-radius:10px;border:1px solid #E1D6C9;background:#fff;padding:0 12px;display:flex;align-items:center;font-size:13px;color:#9A9087}
+  .sec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+  .sec a{color:var(--teal);text-transform:none;letter-spacing:0;font-weight:600}
+  .warn{border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.45;background:#FFF6EE;border:1px solid #F1D3BF;color:#7A4A2E}
+  .bigbtn{height:44px;border-radius:99px;font-size:13px;font-weight:700;background:var(--coral2);color:#1C1A17}
+  .ghostbtn{height:40px;border-radius:99px;font-size:13px;font-weight:600;background:transparent;color:var(--muted);border:1px solid var(--line)}
+
+  /* ---------- 5. ÖSSZEHASONLÍTÁS ---------- */
+  .cmp{border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--card)}
+  .cmp .r{display:grid;grid-template-columns:1fr 1.3fr 1.3fr;gap:16px;padding:13px 20px;border-bottom:1px solid var(--line2);font-size:13px;line-height:1.45}
+  .cmp .r.h{background:var(--dark2);color:#F3EDE6;font-weight:700;font-size:13px;align-items:center}
+  .cmp .r .k{font-weight:600}
+  .cmp .r.new{background:#F2FAFA}
+  .done{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .q{padding:16px 18px}
+  .q h4{font-size:14px;font-weight:700}
+  .q p{margin-top:6px;font-size:13px;color:var(--muted);line-height:1.5}
+  .q .ok{margin-top:8px;font-size:12px;font-weight:700;color:var(--green)}
+  .q .rec{margin-top:8px;font-size:12px;font-weight:600;color:#A8411F}
+
+  @media (max-width:880px){
+    .page{padding:20px 16px 32px}
+    .req,.grid2,.grid3,.done,.forms,.dlgs{grid-template-columns:1fr}
+    .types,.fields{grid-template-columns:1fr}
+    .type{height:auto;min-height:250px}
+    .kpis{grid-template-columns:1fr 1fr}
+    .cmp .r{grid-template-columns:1fr}
+    .nav .m{display:none}
+    .wk{grid-template-columns:1fr 70px}
+    .wk .mod,.wk .fcol{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="switch">
+  <span>Látványterv:</span>
+  <button class="on" data-v="v1">1 · Igénylés</button>
+  <button data-v="v2">2 · „Mi az irodai fiók?"</button>
+  <button data-v="v3">3 · Közös munkatér</button>
+  <button data-v="v4">4 · Kredit adása + Kilépés</button>
+  <button data-v="v5">5 · Összehasonlítás</button>
+</div>
+<p class="note">Az irodai fiók igénylésének első lépése egy döntés: <b>Iroda vezetővel</b> (jóváhagyással, közös irodai kerettel) vagy
+  <b>Közös munkatér</b> (azonnal létrejön, mindenki a saját kreditjéből dolgozik, de adhat a társainak). A szaggatott narancs dobozok tervezői megjegyzések.</p>
+
+<div class="app">
+  <div class="nav">
+    <span class="logo">TWIN<b>X</b></span>
+    <span class="m">Modulok</span><span class="m">Korábbi munkák</span><span class="m on">Irodai fiók</span><span class="m">Kreditek</span>
+    <span class="sp"></span>
+    <span class="m">Kovács Anna</span>
+  </div>
+
+  <div class="page">
+
+    <!-- ===================================================== 1. IGÉNYLÉS -->
+    <section class="view on" id="v1">
+      <div class="req">
+        <div class="card" style="padding:24px">
+          <h2 class="display">Irodai fiók létrehozása</h2>
+          <p class="lead">Válaszd ki, hogyan dolgoztok együtt. A forma a fiók része — később nem kell külön beállítani.</p>
+
+          <div class="step">
+            <div class="step-h"><i>1</i>Hogyan dolgoztok együtt?</div>
+            <div class="types">
+              <button type="button" class="type" data-type="office">
+                <span class="radio"></span>
+                <span class="pill when" style="background:#F1EAE1;color:#6B6258">jóváhagyással</span>
+                <span class="ico" style="background:#FBE1D6;color:#C2512F">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+                </span>
+                <h3 class="display">Iroda vezetővel</h3>
+                <p>Egy közös irodai keret: a vezető tölti fel és osztja ki a kollégáknak, ők abból dolgoznak.</p>
+                <ul>
+                  <li>Létrehozó + vezetők + kollégák</li>
+                  <li>Közös irodai egyenleg, keretkiosztás</li>
+                  <li>Kredithasználat kollégánként és modulonként</li>
+                  <li>Felhívunk, egyeztetünk, jóváhagyjuk</li>
+                </ul>
+              </button>
+              <button type="button" class="type on" data-type="team">
+                <span class="radio"></span>
+                <span class="pill when" style="background:var(--teal-soft);color:var(--teal-ink)">⚡ azonnal</span>
+                <span class="ico" style="background:var(--teal-soft);color:var(--teal)">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"/><circle cx="16" cy="8" r="3.2"/><path d="M2.5 20c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><path d="M12.5 15.6c.9-.4 2-.6 3.5-.6 2.6 0 4.9 1.8 5.5 5"/></svg>
+                </span>
+                <h3 class="display">Közös munkatér</h3>
+                <p>Egyenrangú társak, akik együtt dolgoznak — mindenki a saját kreditjéből, közös mappákkal.</p>
+                <ul>
+                  <li>Mindenki „Társ" — nincs vezető</li>
+                  <li>Saját kredit, de adhatsz a társaidnak</li>
+                  <li>Közös mappák, közös szerkesztés</li>
+                  <li>Azonnal létrejön, nincs jóváhagyás</li>
+                </ul>
+              </button>
+            </div>
+            <div class="annot">✎ <span><b>Fix méret:</b> a két kártya mindig azonos magas, a választás csak a keretet és a pöttyöt váltja. Alapból egyik sincs kiválasztva; a gomb addig halvány: „Válaszd ki, hogyan dolgoztok".</span></div>
+          </div>
+
+          <div class="step">
+            <div class="step-h"><i>2</i>Adatok</div>
+            <div class="fields">
+              <div class="f full">
+                <label id="nameLbl">Munkatér neve</label>
+                <div class="in val" id="nameVal">Kovács &amp; Szabó — közös projektek</div>
+                <div class="hint" id="nameHint">Ez látszik a fejlécben és a csatlakozó társaknak.</div>
+              </div>
+              <div class="f">
+                <label id="sizeLbl">Hányan lesztek?</label>
+                <div class="in val" id="sizeVal">2</div>
+                <div class="hint" id="sizeHint">Közös munkatér: 2–5 társ.</div>
+              </div>
+              <div class="f">
+                <label>Telefonszám</label>
+                <div class="in off" id="phoneVal">nem szükséges</div>
+                <div class="hint" id="phoneHint">Közös munkatérnél nem hívunk fel.</div>
+              </div>
+            </div>
+
+            <div class="infobox" id="infoBox">
+              <strong>A munkák mindig a készítőjüknél maradnak.</strong> A társak csak azt látják, amit valaki közös mappába tesz.
+              Mindenki a saját kreditjéből dolgozik, és bárki <strong>adhat</strong> kreditet egy társának — visszavenni nem lehet.
+              A munkatér egyetlen, állandó csatlakozási kódot kap.
+            </div>
+          </div>
+
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+            <div class="instant" id="instant">⚡ A közös munkatér azonnal létrejön — utána rögtön megkapod a csatlakozási kódot.</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn" id="sendBtn">Közös munkatér létrehozása</button>
+            </div>
+          </div>
+          <div class="annot">✎ <span>A zöldes sáv mindkét típusnál a helyén van (fix magasság): vezetős irodánál ugyanitt áll: „Jóváhagyás után nyithatod meg — felhívunk a megadott számon."</span></div>
+        </div>
+
+        <aside class="side">
+          <div class="card">
+            <h4 class="display" id="flowTitle">Így lesz meg a közös munkatér</h4>
+            <div class="flow" id="flowList">
+              <div><b>1</b><span>Kiválasztod a „Közös munkatér" formát, és megadod a nevét.</span></div>
+              <div><b>2</b><span>Azonnal létrejön — megkapod az állandó kódot (TWX-XXXXXX).</span></div>
+              <div><b>3</b><span>A társad beírja a kódot, és már bent is van, egyenrangúként.</span></div>
+              <div><b>4</b><span>Közös mappákban dolgoztok, ki-ki a saját kreditjéből.</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h4 class="display" id="payTitle">Miből fizettek?</h4>
+            <p class="muted" id="payText" style="font-size:13px;margin-top:8px;line-height:1.5;min-height:80px">
+              Mindenki a <b style="color:var(--ink)">saját kreditjéből</b>. Ha valakinek elfogy, egy társa átadhat neki a saját kreditjéből — egy kattintással, a munkatér felületén.
+            </p>
+          </div>
+          <div class="annot">✎ <span>A jobb oldal a kiválasztott formához igazodik (próbáld: kattints a bal oldali kártyákra). A vezetős iroda szövegei a mostaniak maradnak.</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================================================== 2. BEMUTATÓ -->
+    <section class="view" id="v2">
+      <div class="sc-hero">
+        <p class="kicker">Mi az irodai fiók?</p>
+        <h1 class="display">Dolgozzatok együtt a TWINX-ben</h1>
+        <p>Két formában nyithatsz irodai fiókot: vezetővel, közös irodai kerettel — vagy egyenrangú társakkal, mindenki a saját kreditjéből.</p>
+      </div>
+      <div class="annot">✎ <span>Új, rövid szekció a meglévő „Mi az irodai fiók?" oldalon, közvetlenül a hero alatt. A többi szekció (előnyök, folyamat, GYIK) marad, egy-két mondattal kiegészítve.</span></div>
+
+      <div class="forms">
+        <div class="form o">
+          <span class="pill" style="background:var(--soft);color:#A8411F;align-self:flex-start">⌂ Iroda vezetővel</span>
+          <h3 class="display">Egy iroda, egy közös keret</h3>
+          <p class="who">Ingatlanirodáknak, ahol egy vezető fizet és oszt ki kreditet.</p>
+          <ul>
+            <li>A vezető tölti fel az irodai egyenleget</li>
+            <li>Kollégánként keretet oszt ki (vissza is veheti)</li>
+            <li>Látja, ki, melyik modulban, mennyit költött</li>
+            <li>Igénylés után felhívunk, és jóváhagyjuk</li>
+          </ul>
+          <div class="foot"><button class="btn">Iroda igénylése</button><span class="muted" style="font-size:12px">1–2 munkanap</span></div>
+        </div>
+        <div class="form t">
+          <span class="pill" style="background:var(--teal-soft);color:var(--teal-ink);align-self:flex-start">⚭ Közös munkatér</span>
+          <h3 class="display">Társak, közös mappák</h3>
+          <p class="who">2–5 egyenrangú kollégának, akik együtt dolgoznak egy-egy ügyön.</p>
+          <ul>
+            <li>Mindenki a saját kreditjéből dolgozik</li>
+            <li>Kreditet adhatsz a társaidnak (visszavétel nincs)</li>
+            <li>Közös mappák, közös szerkesztés, egy állandó kód</li>
+            <li>Kilépéskor a munkáidat átadhatod a társaidnak</li>
+          </ul>
+          <div class="foot"><button class="btn" style="background:var(--teal);color:#fff">Közös munkatér létrehozása</button><span class="muted" style="font-size:12px">⚡ azonnal</span></div>
+        </div>
+      </div>
+      <div class="annot">✎ <span>A GYIK-be két új kérdés kerül: <b>„Mi a különbség az iroda és a közös munkatér között?"</b> és <b>„Mi lesz a munkáimmal, ha kilépek egy közös munkatérből?"</b></span></div>
+    </section>
+
+    <!-- ===================================================== 3. KÖZÖS MUNKATÉR -->
+    <section class="view" id="v3">
+      <div class="hero">
+        <div class="hero-top">
+          <div>
+            <p class="kicker">Közös munkatér</p>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
+              <h1 class="display">Kovács &amp; Szabó</h1>
+              <span class="pill rolechip">Társ</span>
+            </div>
+            <p class="sub">Egyenrangú társak, közös mappák. Mindenki a saját kreditjéből dolgozik.</p>
+            <div class="acts">
+              <button class="btn" style="background:#7FC8CE;color:#0F2A2C">Kredit adása társnak</button>
+              <button class="btn-dark-o">+ Kredit vásárlása magamnak</button>
+            </div>
+          </div>
+          <div class="codebox">
+            <div class="lbl"><span>CSATLAKOZÁSI KÓD</span><span style="color:#8F857B;font-weight:600;letter-spacing:0">állandó</span></div>
+            <div class="code">TWX-4K8Q2M</div>
+            <div class="row"><span>Add át a társaidnak (2 / 5)</span><button>Másolás</button></div>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi acc"><p>Saját kreditem</p><div class="n">27<small>kredit</small></div></div>
+          <div class="kpi"><p>Felhasználtam (30 nap)</p><div class="n">18<small>· 6 munka</small></div></div>
+          <div class="kpi"><p>Társaimnak adtam / kaptam</p><div class="n">10<small>/ 0 kredit</small></div></div>
+          <div class="kpi"><p>Társak</p><div class="n">2<small>fő</small></div></div>
+        </div>
+      </div>
+      <div class="annot">✎ <span>Türkiz kiemelés = közös munkatér (a vezetős iroda korall marad). Nincs „Miből fizetek?" kapcsoló, nincs közös egyenleg és nincs „Új kód" — a kód állandó.</span></div>
+
+      <!-- ÜZENETEK — ugyanaz a sor, mint az irodánál, kreditkérés nélkül -->
+      <div class="msgs">
+        <section class="card msgbox">
+          <div class="cardh"><h2 class="display">Üzenetek</h2>
+            <div class="filters" style="padding:0"><span class="on">Fogadott · 2 új</span><span>Elküldött</span></div>
+          </div>
+          <div class="filters"><span class="on">Mind</span><span>Feladat</span><span>Kész munka</span><span>Üzenet</span></div>
+          <div class="mlist">
+            <div class="msg">
+              <span class="dot"></span>
+              <span class="av" style="background:var(--teal-soft);color:var(--teal-ink)">SZP</span>
+              <div class="body">
+                <div class="top"><span><b>Szabó Péter</b> <span class="kind k-task">FELADAT</span></span><span>ma 10:12 · határidő: okt. 14.</span></div>
+                <div class="txt">Átnéznéd a becslést? A konyha felújított, szerintem 3–4%-kal feljebb mehetünk.</div>
+                <span class="att"><span class="badge" style="margin:0">PDF</span>Thököly út 12. — becslés</span>
+                <div class="row2"><button style="background:var(--coral2);color:#1C1A17">Elvállalom</button><button style="background:#F1EAE1;color:#4A433C">Válasz</button></div>
+              </div>
+            </div>
+            <div class="msg">
+              <span class="dot"></span>
+              <span class="av" style="background:var(--teal-soft);color:var(--teal-ink)">SZP</span>
+              <div class="body">
+                <div class="top"><span><b>Szabó Péter</b> <span class="kind k-done">KÉSZ MUNKA</span></span><span>ma 09:40</span></div>
+                <div class="txt">Kész a bemutató videó, betettem a közös mappába.</div>
+                <span class="att"><span class="badge v" style="margin:0">▶</span>Thököly út 12. — bemutató</span>
+              </div>
+            </div>
+            <div class="msg">
+              <span class="av" style="background:#E8E1F5;color:#4B3B7A">NB</span>
+              <div class="body">
+                <div class="top"><span><b>Nagy Bence</b> → Mindenki <span class="kind k-msg">ÜZENET</span></span><span>tegnap</span></div>
+                <div class="txt">Holnap 10-kor helyszíni bejárás a Thökölyn, ha valaki jön, szóljon.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="send">
+          <h2 class="display">Üzenet küldése</h2>
+          <div class="seg3"><span class="on">Üzenet</span><span>Feladat</span><span>Kész munka</span></div>
+          <div class="dk"><span>Címzett: <b>Szabó Péter</b></span><small>vagy Mindenki ▾</small></div>
+          <div class="dk ta">Írd le röviden, mire gondolsz…</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="chip-w"><span class="badge" style="margin:0">PDF</span>Thököly út 12. — becslés ×</span>
+            <span style="font-size:12px;color:#8F857B">+ munka vagy mappa csatolása</span>
+          </div>
+          <button class="btn" style="margin-top:auto;justify-content:center;background:#7FC8CE;color:#0F2A2C">Küldés</button>
+        </section>
+      </div>
+      <div class="annot">✎ <span><b>Ugyanaz a komponens</b>, mint a vezetős irodánál (OfficeMessagesRow), csak <b>nincs „Kreditkérés"</b> típus és szűrő. Feladatnál: határidő + „Elvállalom" → „Késznek jelölöm". Csatolni csak olyan munkát lehet, ami közös mappában van (vagy a sajátodat — ilyenkor felajánlja a megosztást), hogy a címzett meg is tudja nyitni.</span></div>
+
+      <div class="grid2">
+        <section class="card" style="overflow:hidden">
+          <div class="cardh"><h2 class="display">Munkáim</h2><span class="muted" style="font-size:12px">30 nap</span></div>
+          <div class="wk"><span class="mod">Videó</span><span><span class="badge v">▶</span><b>Thököly út 12. — bemutató</b></span><span class="fcol"><span class="fold">Thököly út projekt</span></span><b style="text-align:right">−6</b></div>
+          <div class="wk" style="background:#FFFBF8"><span class="mod">Értékbecslés</span><span style="display:flex;align-items:center;gap:6px"><span class="badge">PDF</span><b>Thököly út 12. — becslés</b><span class="wkmsg" title="Műveletek" style="margin-left:auto">⋯</span></span><span class="fcol"><span class="fold">Thököly út projekt</span></span><b style="text-align:right">−4</b></div>
+          <div class="wk"><span class="mod">Képjavítás</span><span><span class="badge">IMG</span><b>Nappali — világosítás</b></span><span class="fcol"><span class="share">+ megosztás</span></span><b style="text-align:right">−1</b></div>
+          <div class="wk"><span class="mod">Hirdetés</span><span><span class="badge">IMG</span><b>Facebook poszter — Thököly</b></span><span class="fcol"><span class="share">+ megosztás</span></span><b style="text-align:right">−2</b></div>
+          <div class="wk"><span class="mod">Hirdetés-ellenőrző</span><span><span class="badge">·</span><b>Ingatlan.com szöveg</b></span><span class="fcol"><span class="share">+ megosztás</span></span><b style="text-align:right">−1</b></div>
+          <div class="annot" style="margin:8px 18px 14px">✎ <span>A sor „⋯" menüjében (és a munka-nézegetőben) új pont: <b>„Üzenet ehhez a munkához"</b> — megnyitja az üzenetküldőt a munka csatolva. A menü a közös ActionMenu, nincs külön ikonsor.</span></div>
+        </section>
+
+        <section class="card" style="overflow:hidden">
+          <div class="cardh"><h2 class="display">Társak</h2><span class="muted" style="font-size:12px">2 / 5</span></div>
+          <div class="mate">
+            <span class="av" style="background:#FBE1D6;color:#A8411F">KA</span>
+            <div><div class="nm">Kovács Anna (te)</div><div class="em">nyitotta · okt. 12.</div></div>
+          </div>
+          <div class="mate">
+            <span class="av" style="background:var(--teal-soft);color:var(--teal-ink)">SZP</span>
+            <div><div class="nm">Szabó Péter</div><div class="em">csatlakozott · okt. 12.</div></div>
+            <span class="sp"></span>
+            <button class="mini">Kredit adása</button>
+          </div>
+          <div class="mate" style="opacity:.55">
+            <span class="av" style="background:#F1EAE1;color:#6B6258">+</span>
+            <div><div class="nm">Még 3 társ csatlakozhat</div><div class="em">add át nekik a kódot</div></div>
+          </div>
+          <div class="annot" style="margin:6px 18px 16px">✎ <span>A társak egymás egyenlegét és költését <b>nem látják</b> — mindenki a saját pénztárcájából fizet. Csak az átadások látszanak (lent).</span></div>
+        </section>
+      </div>
+
+      <div class="grid3">
+        <section class="card" style="overflow:hidden">
+          <div class="cardh"><h2 class="display">Közös mappák</h2><button class="btn-o" style="height:32px;font-size:12px">+ Új mappa</button></div>
+          <div class="folder"><span class="fi">▣</span><div style="flex:1"><div style="font-size:13px;font-weight:600">Thököly út projekt <span class="new">2 új</span></div><div class="muted" style="font-size:12px">4 munka · mindkét társ</div></div></div>
+          <div class="folder"><span class="fi">▣</span><div style="flex:1"><div style="font-size:13px;font-weight:600">Közös sablonok</div><div class="muted" style="font-size:12px">2 munka · mindkét társ</div></div></div>
+          <div class="folder" style="opacity:.55"><span class="fi">+</span><div style="flex:1"><div style="font-size:13px;font-weight:600">Új közös mappa</div><div class="muted" style="font-size:12px">bárki létrehozhat</div></div></div>
+        </section>
+        <section class="card" style="overflow:hidden">
+          <div class="cardh"><h2 class="display">Kredit-átadások</h2><span class="muted" style="font-size:12px">csak a te átadásaid</span></div>
+          <div class="ledger"><span>Te → Szabó Péter<small>okt. 12. · „a Thököly videóhoz"</small></span><span class="minus">−10</span></div>
+          <div class="ledger"><span>Szabó Péter → te<small>okt. 3. · „köszi a múltkorit"</small></span><span class="plus">+5</span></div>
+          <div class="ledger" style="opacity:.55"><span>Itt látod, kinek adtál és kitől kaptál kreditet<small>visszavétel nincs</small></span><span></span></div>
+        </section>
+      </div>
+
+      <div class="leave"><button>Kilépés a munkatérből…</button></div>
+    </section>
+
+    <!-- ===================================================== 4. ABLAKOK -->
+    <section class="view" id="v4">
+      <div class="dlgs">
+        <!-- Kredit adása -->
+        <div>
+          <p class="kicker" style="margin-bottom:10px">Felugró ablak · „Kredit adása társnak"</p>
+          <div class="dlg">
+            <div class="dlg-h"><h3 class="display">Kredit adása társnak</h3><span class="x">×</span></div>
+            <div class="dlg-b">
+              <div class="strip"><span>Saját kreditem: <b>27</b></span><span>Átadás után: <b>17</b></span></div>
+              <div class="list" style="height:170px">
+                <div class="li">
+                  <span class="av" style="background:var(--teal-soft);color:var(--teal-ink)">SZP</span>
+                  <div class="sp"><div class="t">Szabó Péter</div><div class="s">Társ</div></div>
+                  <div class="qty"><span>+5</span><span class="on">+10</span><span>+20</span><div class="box">10</div></div>
+                </div>
+                <div class="li">
+                  <span class="av" style="background:#E8E1F5;color:#4B3B7A">NB</span>
+                  <div class="sp"><div class="t">Nagy Bence</div><div class="s">Társ</div></div>
+                  <div class="qty"><span>+5</span><span>+10</span><span>+20</span><div class="box" style="border-color:#E1D6C9;color:#B2A89D">0</div></div>
+                </div>
+                <div class="li" style="opacity:.5">
+                  <span class="av" style="background:#FBE1D6;color:#A8411F">KA</span>
+                  <div class="sp"><div class="t">Kovács Anna (te)</div><div class="s">magadnak nem adhatsz</div></div>
+                  <span class="muted">—</span>
+                </div>
+              </div>
+              <div class="in2">Megjegyzés (nem kötelező, pl. „a Thököly videóhoz")</div>
+              <div class="warn">A kredit a <b>saját egyenlegedből</b> megy át a társad egyenlegébe. <b>Visszavenni nem lehet.</b></div>
+              <button class="bigbtn">Átadás — 1 társ, összesen 10 kredit</button>
+            </div>
+          </div>
+          <div class="annot">✎ <span>Ugyanaz a felépítés, mint a vezetői „Kredit kiosztása" ablaké — csak a forrás a <b>saját pénztárca</b>, nem az irodai keret. Megerősítés: „Biztosan átadsz 10 kreditet Szabó Péternek? Ez nem vonható vissza."</span></div>
+        </div>
+
+        <!-- Kilépés -->
+        <div>
+          <p class="kicker" style="margin-bottom:10px">Felugró ablak · „Kilépés a munkatérből"</p>
+          <div class="dlg">
+            <div class="dlg-h"><h3 class="display">Kilépés: Kovács &amp; Szabó</h3><span class="x">×</span></div>
+            <div class="dlg-b">
+              <div class="warn">Kilépés után a közös mappákba tett munkáid <b>30 napig</b> még olvashatók a társaidnak, utána kikerülnek. Ha szeretnéd, előtte <b>átadhatod</b> őket — akkor az övék lesznek.</div>
+
+              <div class="sec"><span>1 · Mely munkákat adod át?</span><a>Mind kijelölése</a></div>
+              <div class="list" style="height:208px">
+                <div class="li"><span class="cb on">✓</span><span class="badge v">▶</span><div class="sp"><div class="t">Thököly út 12. — bemutató</div><div class="s">Videó · Thököly út projekt</div></div></div>
+                <div class="li"><span class="cb on">✓</span><span class="badge">PDF</span><div class="sp"><div class="t">Thököly út 12. — becslés</div><div class="s">Értékbecslés · Thököly út projekt</div></div></div>
+                <div class="li"><span class="cb"></span><span class="badge">IMG</span><div class="sp"><div class="t">Nappali — világosítás</div><div class="s">Képjavítás · nincs megosztva</div></div></div>
+                <div class="li"><span class="cb"></span><span class="badge">IMG</span><div class="sp"><div class="t">Facebook poszter — Thököly</div><div class="s">Hirdetés · nincs megosztva</div></div></div>
+              </div>
+
+              <div class="sec"><span>2 · Kiknek adod át?</span><span style="text-transform:none;letter-spacing:0;font-weight:600">2 munka kijelölve</span></div>
+              <div class="list">
+                <div class="li"><span class="cb on">✓</span><span class="av" style="background:var(--teal-soft);color:var(--teal-ink)">SZP</span><div class="sp"><div class="t">Szabó Péter</div></div></div>
+                <div class="li"><span class="cb"></span><span class="av" style="background:#E8E1F5;color:#4B3B7A">NB</span><div class="sp"><div class="t">Nagy Bence</div></div></div>
+              </div>
+
+              <button class="bigbtn">2 munka átadása 1 társnak, és kilépés</button>
+              <button class="ghostbtn">Kilépés átadás nélkül</button>
+            </div>
+          </div>
+          <div class="annot">✎ <span>A lista csak a kilépő <b>saját</b> munkáit mutatja (max. 50, belül görget). Az átadás: minden kijelölt társ <b>saját példányt</b> kap (új bejegyzés a Korábbi munkáiban, ugyanarra a fájlra mutat — tárhelyről semmi nem törlődik). Lásd az 5. nézet kérdését.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== 5. ÖSSZEHASONLÍTÁS -->
+    <section class="view" id="v5">
+      <p class="kicker">Mi a különbség?</p>
+      <h2 class="display" style="font-size:24px;font-weight:700;margin:4px 0 16px">Iroda vezetővel vs. Közös munkatér</h2>
+      <div class="cmp">
+        <div class="r h"><span></span><span>⌂ Iroda vezetővel (mostani)</span><span>⚭ Közös munkatér (új)</span></div>
+        <div class="r new"><span class="k">Létrehozás</span><span>Igénylés → telefonos egyeztetés → admin jóváhagyás → megnyitás</span><span>Azonnal, egy lépésben</span></div>
+        <div class="r"><span class="k">Szerepek</span><span>Létrehozó · Vezető (kioszthat) · Kolléga</span><span>Mindenki „Társ" — egyenrangú</span></div>
+        <div class="r new"><span class="k">Miből fizetnek?</span><span>Irodai keretből (amit a vezető kioszt) vagy saját kreditből</span><span>Csak saját kreditből — nincs közös egyenleg</span></div>
+        <div class="r new"><span class="k">Kredit adása</span><span>Létrehozó + vezető, az irodai keretből</span><span>Bármelyik társ, a saját kreditjéből</span></div>
+        <div class="r"><span class="k">Visszavétel</span><span>Csak a létrehozó</span><span>Nincs</span></div>
+        <div class="r"><span class="k">Láthatóság</span><span style="grid-column:2/4">Mindkettőnél ugyanaz: a munka a készítőjénél marad, csak a közös mappába tett látszik</span></div>
+        <div class="r"><span class="k">Ki mit lát a költésből?</span><span>A létrehozó: ki, melyik modulban, mennyit</span><span>Senki a másikét — csak a saját átadásaidat</span></div>
+        <div class="r new"><span class="k">Csatlakozási kód</span><span>Egy kód az egész irodának; a létrehozó lecserélheti (biztonsági csere)</span><span>Egy állandó kód, nincs csere</span></div>
+        <div class="r"><span class="k">Létszám</span><span>1–500</span><span>2–5</span></div>
+        <div class="r new"><span class="k">Üzenetek</span><span>Üzenet · Feladat · Kész munka · Kreditkérés</span><span>Üzenet · Feladat · Kész munka — kreditkérés nincs; „Üzenet ehhez a munkához" a munkák menüjében</span></div>
+        <div class="r new"><span class="k">Kilépés</span><span>A létrehozó eltávolít; irodai munka marad, privát megosztás kikerül</span><span>Önkéntes kilépés; megosztott munkák 30 napig olvashatók; előtte átadhatók a társaknak</span></div>
+        <div class="r" style="border-bottom:0"><span class="k">Technika</span><span style="grid-column:2/4">Ugyanaz a tábla (<code>offices</code>) egy új <code>kind</code> oszloppal: <code>office</code> / <code>team</code>. A felület és a szerveroldali jogosultság-ellenőrzés ágazik el.</span></div>
+      </div>
+
+      <h3 class="display" style="font-size:18px;font-weight:700;margin-top:26px">Döntések (2026-10-12)</h3>
+      <div class="done">
+        <div class="card q"><h4>Jóváhagyás</h4><p>Közös munkatérnél nincs admin-jóváhagyás, azonnal létrejön. Ez az igénylő felületen és a „Mi az irodai fiók?" oldalon is látszik.</p><p class="ok">✓ eldöntve</p></div>
+        <div class="card q"><h4>Kredit</h4><p>Mindenki csak a saját kreditjéből gazdálkodik, de adhat a társainak. Visszavétel nincs.</p><p class="ok">✓ eldöntve</p></div>
+        <div class="card q"><h4>Kilépés</h4><p>A megosztott munkák 30 napig olvashatók. Kilépés előtt a munkák kipipálhatók, és kipipálható, kiknek adja át.</p><p class="ok">✓ eldöntve</p></div>
+        <div class="card q"><h4>Kód</h4><p>Közös munkatér: egy állandó kód, nincs generálás. Vezetős iroda: egy kód mindenkinek (ma is így van), a csere csak biztonsági célú.</p><p class="ok">✓ eldöntve</p></div>
+        <div class="card q"><h4>Átadás több társnak</h4><p>Minden kipipált társ saját példányt kap (ugyanaz a fájl, külön bejegyzés — ki-ki a sajátját szerkeszti). A kilépő a saját privát példányát megtartja.</p><p class="ok">✓ eldöntve</p></div>
+        <div class="card q"><h4>Üzenetek</h4><p>A munkatérben is van üzenetküldő: üzenet, feladat, kész munka, munka/mappa csatolással. Kreditkérés nincs.</p><p class="ok">✓ eldöntve</p></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+  // nézetváltó
+  document.querySelectorAll(".switch button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".switch button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      document.querySelectorAll(".view").forEach(function (v) { v.classList.toggle("on", v.id === b.dataset.v); });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  // típusválasztás az igénylésnél — a szövegek a kiválasztott formához igazodnak
+  var TXT = {
+    office: {
+      nameLbl: "Iroda neve", nameVal: "Belvárosi Ingatlaniroda", nameHint: "Ez látszik a fejlécben és a csatlakozó kollégáknak.",
+      sizeLbl: "Hányan használnátok?", sizeVal: "8", sizeHint: "1–500 fő.",
+      phoneVal: "+36 30 123 4567", phoneOff: false, phoneHint: "Ezen a számon egyeztetünk veled.",
+      info: "<strong>A munkák mindig a készítőjüknél maradnak.</strong> Másik kolléga — az irodai fiók létrehozója is — csak azt látja, amit a készítője közös irodai mappába tesz. A létrehozó a kreditfelhasználást látja: ki, melyik modulban, mennyi kreditet használt.",
+      instant: "☎ Jóváhagyás után nyithatod meg — felhívunk a megadott számon.", instantStyle: "background:#F1EAE1;color:#6B6258",
+      btn: "Iroda igénylése", flowTitle: "Így lesz meg az irodai fiók",
+      flow: ["Elküldöd az igénylést „Iroda vezetővel\" formában.", "Felhívunk, egyeztetünk, jóváhagyjuk.", "Megnyitod, és kapsz egy kódot (TWX-XXXXXX) — ez mindenkinek jó.", "A kollégák csatlakoznak, te kiosztod nekik a keretet."],
+      payTitle: "Miből dolgoznak a kollégák?",
+      payText: "Az <b style=\"color:var(--ink)\">irodai keretből</b>, amit te töltesz fel és osztasz ki — vagy, ha elfogy, a saját kreditjükből."
+    },
+    team: {
+      nameLbl: "Munkatér neve", nameVal: "Kovács & Szabó — közös projektek", nameHint: "Ez látszik a fejlécben és a csatlakozó társaknak.",
+      sizeLbl: "Hányan lesztek?", sizeVal: "2", sizeHint: "Közös munkatér: 2–5 társ.",
+      phoneVal: "nem szükséges", phoneOff: true, phoneHint: "Közös munkatérnél nem hívunk fel.",
+      info: "<strong>A munkák mindig a készítőjüknél maradnak.</strong> A társak csak azt látják, amit valaki közös mappába tesz. Mindenki a saját kreditjéből dolgozik, és bárki <strong>adhat</strong> kreditet egy társának — visszavenni nem lehet. A munkatér egyetlen, állandó csatlakozási kódot kap.",
+      instant: "⚡ A közös munkatér azonnal létrejön — utána rögtön megkapod a csatlakozási kódot.", instantStyle: "",
+      btn: "Közös munkatér létrehozása", flowTitle: "Így lesz meg a közös munkatér",
+      flow: ["Kiválasztod a „Közös munkatér\" formát, és megadod a nevét.", "Azonnal létrejön — megkapod az állandó kódot (TWX-XXXXXX).", "A társad beírja a kódot, és már bent is van, egyenrangúként.", "Közös mappákban dolgoztok, ki-ki a saját kreditjéből."],
+      payTitle: "Miből fizettek?",
+      payText: "Mindenki a <b style=\"color:var(--ink)\">saját kreditjéből</b>. Ha valakinek elfogy, egy társa átadhat neki a saját kreditjéből — egy kattintással, a munkatér felületén."
+    }
+  };
+  function $(id) { return document.getElementById(id); }
+  function pick(t) {
+    var d = TXT[t];
+    document.querySelectorAll(".type").forEach(function (x) { x.classList.toggle("on", x.dataset.type === t); });
+    $("nameLbl").textContent = d.nameLbl; $("nameVal").textContent = d.nameVal; $("nameHint").textContent = d.nameHint;
+    $("sizeLbl").textContent = d.sizeLbl; $("sizeVal").textContent = d.sizeVal; $("sizeHint").textContent = d.sizeHint;
+    $("phoneVal").textContent = d.phoneVal; $("phoneVal").className = "in " + (d.phoneOff ? "off" : "val"); $("phoneHint").textContent = d.phoneHint;
+    $("infoBox").innerHTML = d.info;
+    $("instant").textContent = d.instant; $("instant").setAttribute("style", d.instantStyle);
+    $("sendBtn").textContent = d.btn;
+    $("flowTitle").textContent = d.flowTitle;
+    $("flowList").innerHTML = d.flow.map(function (s, i) { return "<div><b>" + (i + 1) + "</b><span>" + s + "</span></div>"; }).join("");
+    $("payTitle").textContent = d.payTitle; $("payText").innerHTML = d.payText;
+  }
+  document.querySelectorAll(".type").forEach(function (x) { x.addEventListener("click", function () { pick(x.dataset.type); }); });
+</script>
+</body>
+</html>

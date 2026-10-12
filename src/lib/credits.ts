@@ -8,7 +8,7 @@
 // dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMembershipIn, getWorkContext, officeFree } from "@/lib/office-server";
+import { getMembershipIn, getWorkContext, officeFree, officeKind } from "@/lib/office-server";
 
 export type CreditSource = "wallet" | "office";
 
@@ -35,6 +35,8 @@ async function officeMode(userId: string): Promise<{ allowance: number; unlimite
   if (!ctx.useOffice || !ctx.officeId) return null;
   const m = await getMembershipIn(userId, ctx.officeId);
   if (!m) return null;
+  // Közös munkatérben nincs irodai keret — mindig a saját pénztárcából vonunk.
+  if ((await officeKind(m.office_id)) === "team") return null;
   return { officeId: m.office_id, allowance: m.allowance ?? 0, unlimited: !!m.unlimited, owner: m.role === "owner" };
 }
 

@@ -1,9 +1,19 @@
 // Irodai fiók — CSAK szerveroldali segédek (service_role kliens).
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { MyOffice, OfficeMember } from "@/lib/office";
+import type { MyOffice, OfficeKind, OfficeMember } from "@/lib/office";
 
 type MemberRow = { office_id: string; user_id: string; role: "owner" | "member"; allowance: number; unlimited: boolean; can_allocate: boolean };
 const MEMBER_COLS = "office_id, user_id, role, allowance, unlimited, can_allocate";
+
+/**
+ * Az iroda formája (vezetős iroda / közös munkatér). Ha a 20261012105023_team-workspace.sql még nem
+ * futott le (nincs kind oszlop), minden iroda „office" — így a régi működés nem törik el.
+ */
+export async function officeKind(officeId: string): Promise<OfficeKind> {
+  const { data, error } = await createAdminClient().from("offices").select("kind").eq("id", officeId).maybeSingle();
+  if (error || !data) return "office";
+  return data.kind === "team" ? "team" : "office";
+}
 
 /** Az összes iroda, amelynek a felhasználó tagja (név szerint), csatlakozás sorrendjében. */
 export async function listMyOffices(userId: string): Promise<{ id: string; name: string; role: "owner" | "member" }[]> {
@@ -79,17 +89,25 @@ export async function loadMyOffice(userId: string): Promise<MyOffice | null> {
     .from("offices").select("id, name, balance, join_code").eq("id", m.office_id).single();
   if (!o) return null;
 
-  const ctx = await getWorkContext(userId);
+  const [ctx, kind] = await Promise.all([getWorkContext(userId), officeKind(m.office_id)]);
   const isOwner = m.role === "owner";
   const base: MyOffice = {
-    workMode: ctx.useOffice && ctx.officeId === m.office_id ? "office" : "private",
+    // közös munkatérben mindenki a saját kreditjéből dolgozik — ott nincs irodai mód
+    workMode: kind === "office" && ctx.useOffice && ctx.officeId === m.office_id ? "office" : "private",
     id: o.id as string,
     name: o.name as string,
     role: isOwner ? "owner" : "member",
+    kind,
     allowance: m.allowance ?? 0,
     unlimited: !!m.unlimited,
     canAllocate: !!m.can_allocate,
   };
+  // Közös munkatér: a kódot minden társ látja (bárki meghívhat), egyenleg nincs.
+  if (kind === "team") {
+    const { count } = await admin
+      .from("office_members").select("user_id", { count: "exact", head: true }).eq("office_id", o.id);
+    return { ...base, joinCode: o.join_code as string, memberCount: count ?? 1 };
+  }
   // A létrehozó ÉS a vezető (kiosztó jogú tag) látja az egyenleget és a csatlakozási kódot.
   if (!(isOwner || m.can_allocate)) return base;
 
@@ -152,6 +170,13 @@ export function officeErrorMessage(raw: string | undefined | null): string {
   if (m.includes("OFFICE_ALLOWANCE_LOW")) return "Ennyit nem lehet visszavenni — a kolléga kerete 0 alá menne.";
   if (m.includes("OFFICE_TARGET_UNLIMITED")) return "A létrehozónak és a korlátlan tagnak nem kell keret — ők a szabad részből dolgoznak.";
   if (m.includes("OFFICE_NOT_ALLOWED")) return "Ehhez nincs jogod (magadnak sem oszthatsz keretet).";
+  if (m.includes("TEAM_FULL")) return "Ez a közös munkatér betelt — legfeljebb 5 társ lehet benne.";
+  if (m.includes("TEAM_NO_FUNDS")) return "Nincs ennyi kredited az átadáshoz.";
+  if (m.includes("TEAM_SELF")) return "Magadnak nem adhatsz kreditet.";
+  if (m.includes("TEAM_AMOUNT")) return "1 és 9999 közötti egész számot adj meg.";
+  if (m.includes("TEAM_NOT_MEMBER")) return "Csak a munkatér társai között lehet átadni.";
+  if (m.includes("TEAM_NOT_FOUND")) return "Ez nem közös munkatér.";
+  if (m.includes("TEAM_HANDOVER_LIMIT")) return "Egyszerre legfeljebb 50 munka és 4 társ választható.";
   if (m.includes("OFFICE_WRITE_FORBIDDEN") || m.includes("OFFICE_ROLE_LOCKED") || m.includes("OFFICE_OWNER_LOCKED")) return "A művelet nem engedélyezett.";
   return m || "Ismeretlen hiba.";
 }

@@ -191,10 +191,42 @@ A fejlesztés a Cowork után Claude Code-ban folytatódik. Minden SQL eddig lefu
 1. [x] **Rendrakás:** a 79 `.sql` fájl a `supabase/` alá került (2026-10-12): 77 migráció
        `supabase/migrations/<időbélyeg>_<nev>.sql`, `supabase/seed.sql`, `supabase/one-off/`;
        hivatkozások frissítve, leírás: `supabase/README.md`.
-2. [ ] **Portál Központ új nyitóoldal** — látványterv: `design/portal-kozpont-latvanyterv.html`
-       (új partner: „Első csomag" + „Ezt is tudja" galéria; visszatérő: munkaasztal). CSAK Márk jóváhagyása után fejleszthető.
+2. [—] **Portál Központ új nyitóoldal** — ELENGEDVE egyelőre (2026-10-12, később visszatérünk).
+       Látványterv: `design/portal-kozpont-latvanyterv.html`.
 3. [ ] **Üdvözlő levelek** OB2–OB7: napló SQL + leiratkozás mező → küldő route (Resend) → Vercel cron → leiratkozás oldal → admin nézet → teszt.
 4. [ ] IF4 vége: közös mappák „új" jelzése (amit a tag még nem nézett meg).
 5. [ ] Később: iparág-független „Ügy / Munkalap" (egy megbízás = egy hely, a modulok onnan dolgoznak) — terv előbb.
 6. [ ] Alap végponttól-végpontig tesztek (Playwright): belépés, egy modul futtatása, kreditlevonás.
 
+
+### Irodai fiók — apróságok (2026-10-12)
+- [x] „Kredit kiosztása" gomb + ablak a vezetői fejlécben (több kolléga egyszerre, csak adás); visszavétel CSAK a létrehozó (szerver + felület)
+- [x] „Munkáim" kártya a vezetői nézetben is (közös `OfficeMyWorks` komponens)
+
+## KM — Közös munkatér (az irodai fiók második formája)
+Látványterv (jóváhagyva 2026-10-12): `design/kozos-munkater-latvanyterv.html`.
+Döntések:
+- Az igénylés első lépése egy döntés: **Iroda vezetővel** (mostani, jóváhagyással) vagy **Közös munkatér**.
+- Közös munkatér: NINCS admin-jóváhagyás, azonnal létrejön; nem kell telefonszám; 2–5 társ; mindenki „Társ" (egyenrangú).
+- Kredit: mindenki CSAK a saját kreditjéből; nincs közös egyenleg, nincs „Miből fizetek?" kapcsoló.
+  Bármelyik társ ADHAT a saját kreditjéből egy másik társnak; visszavétel NINCS. A társak egymás egyenlegét/költését nem látják, csak a saját átadásaikat.
+- Kód: egy ÁLLANDÓ csatlakozási kód, nincs csere. (Vezetős iroda: egy kód mindenkinek — ma is így —, a csere csak biztonsági célú.)
+- Kilépés: önkéntes; a közös mappákba tett munkák 30 napig olvashatók, utána kikerülnek. Előtte átadás: pipálós lista a SAJÁT munkákról +
+  pipálós lista a társakról; minden kipipált társ SAJÁT PÉLDÁNYT kap (új usage_history sor, ugyanaz a fájl; tárhelyről semmi nem törlődik).
+- Üzenetek: ugyanaz az üzenetsor, mint az irodánál (üzenet / feladat / kész munka, munka- és mappacsatolás), KREDITKÉRÉS NÉLKÜL;
+  a munkák „⋯" menüjében és a WorkViewerben új pont: „Üzenet ehhez a munkához".
+- Az oldal alján a Kedvenc modulok sáv (ugyanaz, mint az irodánál).
+- „Mi az irodai fiók?" oldal: rövid szekció a két formáról + 2 új GYIK.
+- Technika: ugyanaz az `offices` tábla, új `kind` oszlop (`office` / `team`); a felület és a szerveroldali jogosultság ágazik el.
+
+Mikrolépések (sorrendben):
+- [x] KM1 — SQL (`20261012105023_team-workspace.sql`, lefuttatva 2026-10-12): `offices.kind` + max. 5 tag (trigger) + kredit-átadás (`team_wallet_transfer` + `office_transfers` napló) + 30 napos olvashatóság (`office_folder_items.expires_at`) + munka-átadás (`team_handover_works` + `office_work_handovers`) + kilépés (`team_leave`)
+- [x] KM2 — Igénylő űrlap (2026-10-12, Márk tesztje hátra): típusválasztó kártyák (validáció), közös munkatérnél név + létszám, nincs telefon
+- [x] KM3 — Azonnali létrehozás (+ levonás-védelem: team → mindig saját kredit; mód-váltó, csatlakozás, kódcsere tiltva; átmeneti nézet a KM5-ig) (API: típus=team → rögtön offices sor + állandó kód; jóváhagyás nélkül)
+- [ ] KM4 — Admin: típus-címke az irodák listáján (a közös munkaterek külön fülön, csak megtekintés)
+- [ ] KM5 — Társ nézet (OfficeTeamView): fejléc (türkiz), KPI-k, Munkáim, Társak, közös mappák, Kredit-átadások, alul Kedvenc modulok (OfficeModuleShelf, látványterv nélkül); jogosultságok a szerveren (`kind` szerinti ágak)
+- [ ] KM6 — „Kredit adása társnak" ablak (saját pénztárcából, megerősítéssel) + napló
+- [ ] KM7 — Üzenetek a munkatérben (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
+- [ ] KM8 — Kilépés ablak: munkák + társak kipipálása → átadás (saját példány) → kilépés; 30 napos olvashatóság
+- [ ] KM9 — „Mi az irodai fiók?" oldal: két forma szekció + GYIK
+- [ ] KM10 — Teszt: két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)
