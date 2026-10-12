@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Kovács Márk — Xeropan</title>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<script>window.__PORTRAIT__="/kovacs-mark/assets/portre.png";</script>
+</head>
+<body>
+<style>
+  /* Layout: editorial, left-aligned, warm. One bold move: a showreel band of the applicant's own
+     motion work. Palette: cream/paper + burnt amber (deeper than the generic terracotta) + charcoal
+     ink. Classic broadcast meets generative AI; real moving work carries the page, not decoration. */
+  :root {
+    --bg: #F7F4EE;
+    --surface: #EFE9DF;
+    --surface-2: #E7DFD2;
+    --ink: #1C1A16;
+    --muted: #5E584D;
+    --faint: #968E7E;
+    --rule: #DED6C7;
+    --accent: #B4571E;        /* burnt amber, not terracotta */
+    --accent-deep: #8A3F14;
+    --accent-soft: #F3E6D5;
+    --on-air: #C7391F;
+    color-scheme: light;
+
+    --sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --body: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --maxw: 1000px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14120E; --surface: #1D1A14; --surface-2: #26221A;
+      --ink: #F2EDE3; --muted: #ABA393; --faint: #726B5C;
+      --rule: #2E2A20; --accent: #E0863F; --accent-deep: #C96A26;
+      --accent-soft: #2A2013; --on-air: #F2603F; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14120E; --surface: #1D1A14; --surface-2: #26221A;
+    --ink: #F2EDE3; --muted: #ABA393; --faint: #726B5C;
+    --rule: #2E2A20; --accent: #E0863F; --accent-deep: #C96A26;
+    --accent-soft: #2A2013; --on-air: #F2603F; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding-inline: 24px; }
+  h1,h2,h3,.label,.btn,.chip,.knum,.mono,.tag,.mark { font-family: var(--sans); }
+  h1,h2,h3 { margin: 0; text-wrap: balance; letter-spacing: -0.015em; }
+  p { margin: 0; }
+  .mono { font-family: var(--mono); }
+  .label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  a { color: var(--accent-deep); }
+  img, video { max-width: 100%; display: block; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  /* top bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding-block: 20px; border-bottom: 1px solid var(--rule); }
+  .mark { font-weight: 700; font-size: 17px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+  .mark .sq { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; letter-spacing: 0; }
+  .topbar .where { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* ---------- HERO ---------- */
+  .hero { position: relative; display: grid; grid-template-columns: 1fr minmax(170px, 230px); gap: 30px; align-items: end; border-bottom: 1px solid var(--rule); padding-block: 48px 0; overflow: hidden; }
+  .hero-fx { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .hero-fx canvas { width: 100%; height: 100%; display: block; }
+  .hero > .hero-copy, .hero > .portrait-cell { position: relative; z-index: 1; }
+  .hero-copy { padding-bottom: 50px; }
+  /* production-chain ribbon under the headline */
+  .chain { display: flex; align-items: center; gap: 0; margin: 22px 0 2px; flex-wrap: wrap; }
+  .chain .node { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .03em; color: var(--muted); }
+  .chain .node .bulb { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); position: relative; }
+  .chain .node.lit .bulb { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .chain .seg { flex: 0 0 26px; height: 2px; margin: 0 8px; background: var(--rule); position: relative; overflow: hidden; border-radius: 2px; }
+  .chain .seg::after { content:""; position:absolute; inset:0; left:-40%; width:40%; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: flow 3.6s linear infinite; }
+  @media (prefers-reduced-motion: reduce){ .chain .seg::after{ animation:none; opacity:.4; left:0; width:100% } }
+  @keyframes flow { to { left: 120%; } }
+  @media (max-width: 480px){ .chain .node span { display:none; } .chain .seg { flex-basis: 18px; } }
+  .on-air { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 26px; }
+  .on-air .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--on-air); animation: beacon 2s ease-out infinite; }
+  @keyframes beacon { 0%{box-shadow:0 0 0 0 rgba(199,57,31,.45)} 70%{box-shadow:0 0 0 7px rgba(199,57,31,0)} 100%{box-shadow:0 0 0 0 rgba(199,57,31,0)} }
+  @media (prefers-reduced-motion: reduce){ .on-air .dot{animation:none} }
+  .hero h1 { font-weight: 600; font-size: clamp(40px, 7.5vw, 72px); line-height: 1.0; letter-spacing: -0.035em; margin-bottom: 18px; }
+  .hero .thesis { font-size: clamp(19px, 2.4vw, 25px); line-height: 1.38; font-style: italic; max-width: 19ch; }
+  /* intro line sits lower, on a soft frosted panel so the moving waveform doesn't read through */
+  .hero .sub {
+    margin-top: 30px; font-size: 16.5px; color: var(--ink); max-width: 44ch;
+    padding: 14px 18px; border-radius: 10px; border: 1px solid var(--rule);
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px rgba(40,25,10,0.10);
+  }
+  /* portrait: bust lifted up, a tilted skill-panel behind the figure, badges kept off the body */
+  .portrait-cell { position: relative; align-self: end; padding-top: 24px; }
+  .portrait-cell .pwrap { position: relative; margin-top: -24px; margin-bottom: -2px; }
+  /* badge rail sits over the image's transparent headroom (top ~20%), above the head */
+  .badge-rail { position: absolute; left: -10%; right: -10%; top: 0; height: 20%; z-index: 3; pointer-events: none; }
+  .portrait-cell img { position: relative; z-index: 2; width: 100%; filter: drop-shadow(0 14px 22px rgba(40,25,10,0.20)); }
+  /* the tilted panel that runs behind the arm/shoulder */
+  .skillpanel {
+    position: absolute; z-index: 1; left: -10%; right: -6%; top: 34%; height: 46%;
+    border-radius: 18px; transform: rotate(-9deg);
+    background: linear-gradient(135deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--rule);
+    box-shadow: 0 10px 30px rgba(40,25,10,0.12);
+    overflow: hidden;
+  }
+  .skillpanel .ic {
+    position: absolute; color: var(--accent-deep); opacity: 0.16;
+    animation: driftp 9s ease-in-out infinite;
+  }
+  .skillpanel .ic svg { width: 100%; height: 100%; display: block; }
+  .skillpanel .ic.p1 { width: 40px; height: 40px; left: 6%;  top: 18%; animation-delay: 0s; }
+  .skillpanel .ic.p2 { width: 32px; height: 32px; left: 26%; top: 58%; animation-delay: 1.4s; }
+  .skillpanel .ic.p3 { width: 44px; height: 44px; left: 50%; top: 24%; animation-delay: 2.6s; }
+  .skillpanel .ic.p4 { width: 30px; height: 30px; left: 70%; top: 62%; animation-delay: .8s; }
+  .skillpanel .ic.p5 { width: 36px; height: 36px; left: 84%; top: 30%; animation-delay: 3.4s; }
+  @keyframes driftp { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-8px) } }
+  @media (prefers-reduced-motion: reduce){ .skillpanel .ic{ animation: none } }
+  /* two small crisp badges kept clear of the figure (upper-left gap + lower-right gap) */
+  .badge {
+    position: absolute; z-index: 3; width: 44px; height: 44px; border-radius: 12px;
+    background: var(--bg); border: 1px solid var(--rule);
+    box-shadow: 0 6px 16px rgba(40,25,10,0.14);
+    display: grid; place-items: center; color: var(--accent-deep);
+    opacity: 0; animation: floaty 5s ease-in-out infinite, pop .5s ease forwards;
+  }
+  .badge svg { width: 22px; height: 22px; display: block; }
+  .badge .ai { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent); }
+  /* scattered within the headroom zone, above the head — varied heights & sizes */
+  /* all anchored from the left; the rightmost one ends inside the hero edge (rail visible area ≈ 8–92%) */
+  .badge.b1 { bottom: 4px;  left: 2%;  width: 40px; height: 40px; animation-delay: 0s, .15s; }
+  .badge.b2 { bottom: 34px; left: 22%; width: 46px; height: 46px; animation-delay: .7s, .35s; }
+  .badge.b3 { bottom: 6px;  left: 44%; width: 36px; height: 36px; animation-delay: 1.5s, .55s; }
+  .badge.b4 { bottom: 32px; left: 60%; width: 44px; height: 44px; animation-delay: 2.1s, .75s; }
+  .badge.b5 { bottom: 4px;  left: 78%; width: 34px; height: 34px; animation-delay: 1.0s, .95s; }
+  @keyframes floaty { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-7px) } }
+  @keyframes pop { from{ opacity:0; transform: scale(.6) } to{ opacity:1; transform: scale(1) } }
+  @media (prefers-reduced-motion: reduce){ .badge{ animation: none; opacity:1 } }
+  @media (max-width: 720px) {
+    .hero { grid-template-columns: 1fr; align-items: start; }
+    .hero-copy { padding-bottom: 18px; }
+    .portrait-cell { max-width: 220px; margin: 0 0 0 auto; padding-top: 74px; }
+    .badge-rail { height: 64px; }
+    .badge { width: 32px !important; height: 32px !important; } .badge svg { width:17px; height:17px; }
+  }
+
+  /* ---------- STAT STRIP ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border-bottom: 1px solid var(--rule); }
+  .stat { background: var(--bg); padding: 22px 18px; }
+  .knum { font-size: clamp(26px, 4vw, 38px); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; color: var(--accent-deep); }
+  .knum.txt { font-size: clamp(17px, 2vw, 21px); line-height: 1.15; letter-spacing: -0.015em; min-height: clamp(26px, 4vw, 38px); display: flex; align-items: flex-end; white-space: nowrap; }
+  @media (max-width: 620px) { .knum.txt { white-space: normal; } }
+  .stat .cap { font-family: var(--sans); font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.35; }
+  @media (max-width: 620px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---------- SHOWREEL BAND ---------- */
+  .reel { background: var(--surface); border-bottom: 1px solid var(--rule); }
+  .reel .wrap { padding-block: 40px; }
+  .reel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .reel-head h2 { font-size: clamp(22px, 3.2vw, 30px); font-weight: 600; }
+  .reel-head .label { color: var(--accent); }
+  .reel-grid { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 14px; align-items: stretch; }
+  .reel-item { position: relative; border-radius: 6px; overflow: hidden; background: #000; border: 1px solid var(--rule); }
+  .reel-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .reel-item.sq { aspect-ratio: 1 / 1; }
+  .reel-item.wide { aspect-ratio: 16 / 9; }
+  .reel-item .cap { position: absolute; left: 10px; bottom: 10px; z-index: 2; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: #fff; background: rgba(0,0,0,.55); padding: 4px 8px; border-radius: 3px; }
+  @media (max-width: 720px) { .reel-grid { grid-template-columns: 1fr; } .reel-item.wide, .reel-item.sq { aspect-ratio: 16/9; } }
+
+  /* ---------- SECTIONS ---------- */
+  section { padding-block: 54px; border-bottom: 1px solid var(--rule); }
+  .sec-head { margin-bottom: 26px; }
+  .sec-head .label { display: block; margin-bottom: 10px; }
+  .sec-head h2 { font-size: clamp(23px, 3.3vw, 31px); font-weight: 600; }
+  .lead { font-size: 17.5px; line-height: 1.62; max-width: 64ch; }
+  .lead + .lead { margin-top: 14px; }
+
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+  @media (max-width: 720px) { .modes { grid-template-columns: 1fr; } }
+  .mode { border: 1px solid var(--rule); border-radius: 5px; padding: 20px; background: var(--bg); }
+  .mode .n { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .mode h3 { font-size: 16.5px; font-weight: 600; margin: 9px 0 7px; }
+  .mode p { font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+
+  .job { display: grid; grid-template-columns: 128px 1fr; gap: 24px; padding: 22px 0; border-top: 1px solid var(--rule); }
+  .job:first-child { border-top: none; }
+  .job .when { font-family: var(--mono); font-size: 13px; color: var(--faint); padding-top: 3px; }
+  .job h3 { font-size: 18px; font-weight: 600; }
+  .job .eyebrow { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--faint); margin-bottom: 4px; }
+  .job .org { font-family: var(--sans); font-size: 14px; color: var(--accent); margin-top: 2px; }
+  .job p { font-size: 15.5px; line-height: 1.55; color: var(--muted); margin-top: 8px; }
+  .job .hi { color: var(--ink); font-style: italic; }
+  @media (max-width: 560px) { .job { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* HERO WORK: left tall video, right two stacked images — media blocks equal height */
+  /* column ratio chosen so the 9:16 video height == two stacked squares + gap */
+  /* three columns: video | two stacked images | captions — video kept compact */
+  .showcase { display: grid; grid-template-columns: minmax(0,.62fr) minmax(0,.53fr) minmax(0,1fr); grid-template-rows: auto; column-gap: 20px; row-gap: 14px; margin-bottom: 28px; align-items: start; }
+  .sc-caps { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; align-self: stretch; padding-block: 4px; }
+  .sc-video, .sc-stack .im { position: relative; overflow: hidden; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface-2); }
+  .sc-video { aspect-ratio: 9 / 16; }
+  .sc-video video { width: 100%; height: 100%; object-fit: contain; }
+  .sc-video .live { position: absolute; top: 10px; left: 10px; z-index: 2; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; background: rgba(0,0,0,.6); color: #fff; padding: 3px 8px; border-radius: 3px; display: inline-flex; align-items: center; gap: 6px; }
+  .sc-video .live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--on-air); }
+  .sc-stack { display: grid; grid-template-rows: 1fr 1fr; gap: 20px; min-height: 0; align-self: stretch; }
+  .sc-stack .im { min-height: 0; }
+  .sc-stack img { width: 100%; height: 100%; object-fit: cover; }
+  .sc-cap { display: flex; flex-direction: column; gap: 7px; }
+  .sc-cap .tag { font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: .03em; }
+  .sc-cap h3 { font-size: 17.5px; font-weight: 600; }
+  .sc-cap p { font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+  .sc-cap a { font-family: var(--sans); font-size: 13.5px; font-weight: 500; text-decoration: none; }
+  @media (max-width: 720px) {
+    .showcase { grid-template-columns: minmax(0,1fr) minmax(0,.88fr); column-gap: 12px; }
+    .sc-stack { gap: 12px; }
+    .sc-caps { grid-column: 1 / -1; }
+  }
+
+  /* remaining works below, full-width row */
+  .works { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .works { grid-template-columns: 1fr; } }
+
+  .work { border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+  .work .media { position: relative; overflow: hidden; background: var(--surface); border-bottom: 1px solid var(--rule); }
+  .work .media.wide { aspect-ratio: 16 / 10; }
+  .work .media.tall { flex: 1; min-height: 240px; background: var(--surface-2); }
+  .work .media.fill { flex: 1; min-height: 0; background: var(--surface-2); }
+  .work .media video, .work .media img { width: 100%; height: 100%; object-fit: cover; }
+  .work .media.tall video, .work .media.tall img { object-fit: contain; }
+  .work .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 7px; }
+  .showcase .work { height: 100%; }
+  .work .media .live { position: absolute; top: 10px; left: 10px; z-index: 2; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; background: rgba(0,0,0,.6); color: #fff; padding: 3px 8px; border-radius: 3px; display: inline-flex; align-items: center; gap: 6px; }
+  .work .media .live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--on-air); }
+  .work .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+  .work .tag { font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: 0.03em; }
+  .work h3 { font-size: 17.5px; font-weight: 600; }
+  .work p { font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+  .work .foot { margin-top: auto; padding-top: 10px; }
+  .work .foot a { font-family: var(--sans); font-size: 13.5px; font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .work .foot a .arr { transition: transform .2s ease; }
+  .work .foot a:hover .arr { transform: translateX(3px); }
+
+  /* DJ OTI: photo <-> line-drawn stage with two screens rendering to 100% */
+  .stagecard { --stage-bg: #17130E; --stage-line: #E0863F; --stage-dim: rgba(224,134,63,.22); }
+  /* soft crossfade: the photo always stays underneath (no light flash between layers);
+     only the drawing fades over it, while the photo gently blurs and drifts */
+  .stagecard { background: var(--stage-bg); }
+  .stagecard .sc-photo, .stagecard .sc-draw { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stagecard .sc-photo { object-fit: cover; transform: scale(1); filter: blur(0); transition: transform 2.2s cubic-bezier(.4,0,.2,1), filter 1.8s cubic-bezier(.4,0,.2,1); }
+  .stagecard .sc-draw { background: var(--stage-bg); opacity: 0; filter: blur(6px); transition: opacity 1.8s cubic-bezier(.4,0,.2,1), filter 1.8s cubic-bezier(.4,0,.2,1); }
+  .stagecard.show-draw .sc-photo { transform: scale(1.04); filter: blur(5px); }
+  .stagecard.show-draw .sc-draw { opacity: 1; filter: blur(0); }
+  .sc-draw svg { width: 100%; height: 100%; display: block; }
+  /* countdown before the animation: top-right, clear of the photo's logos */
+  .stagecard .cdown { position: absolute; top: 12px; right: 12px; z-index: 3; width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(20,16,12,.72); display: grid; place-items: center; opacity: 0; transform: scale(.85);
+    transition: opacity .6s ease, transform .6s ease; pointer-events: none; }
+  .stagecard.counting .cdown { opacity: 1; transform: scale(1); }
+  .stagecard .cdown svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .stagecard .cdown circle { fill: none; stroke-width: 3; }
+  .stagecard .cdown .trk { stroke: rgba(255,255,255,.18); }
+  .stagecard .cdown .prog { stroke: #E0863F; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+  .stagecard.counting .cdown .prog { animation: cd-ring 3s linear forwards; }
+  @keyframes cd-ring { to { stroke-dashoffset: 1; } }
+  .stagecard .cdown .num { position: relative; font-family: var(--mono); font-size: 17px; font-weight: 700; color: #fff; }
+  .stagecard .cdown .num.tick { animation: cd-tick .35s ease; }
+  @keyframes cd-tick { from { transform: scale(1.35); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+
+  .stagecard.success { --stage-line: #3DDC84; --stage-dim: rgba(61,220,132,.22); }
+  .sc-draw path { fill: none; stroke: var(--stage-line); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.4s ease, stroke .6s ease; }
+  .sc-draw .beams path { stroke: var(--stage-dim); stroke-width: 26; }
+  .sc-draw.drawn path { stroke-dashoffset: 0; }
+  /* screens */
+  .sc-draw .scr { transform-box: fill-box; transform-origin: center; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+  .sc-draw .scr.active { transform: scale(1.22); }
+  .sc-draw .scr .face { fill: var(--stage-bg); transition: fill .4s ease; }
+  .sc-draw .scr.active .face { fill: #261C11; }
+  .sc-draw .scr.active > .ln { stroke-width: 5; }
+  .sc-draw .scr text { font-family: var(--mono); fill: var(--stage-line); opacity: 0; transition: opacity .4s ease .9s, fill .6s ease; }
+  .sc-draw.drawn .scr text { opacity: 1; }
+  .sc-draw .lbl { font-size: 17px; letter-spacing: .06em; opacity: .8; }
+  .sc-draw .pct { font-size: 38px; font-weight: 700; }
+  .sc-draw .bar-bg { fill: var(--stage-dim); opacity: 0; transition: opacity .4s ease .9s, fill .6s ease; }
+  .sc-draw.drawn .bar-bg { opacity: 1; }
+  .sc-draw .bar { fill: var(--stage-line); transition: fill .6s ease; }
+  .sc-draw .chk { stroke-width: 6; transition: stroke-dashoffset .45s ease, stroke .6s ease; }
+  .sc-draw.drawn .chk { stroke-dashoffset: 1; }
+  .sc-draw.drawn .scr.done .chk { stroke-dashoffset: 0; }
+  /* success */
+  .sc-draw .win { opacity: 0; transition: opacity .5s ease; }
+  .stagecard.success .sc-draw .win { opacity: 1; }
+  .sc-draw .win-bg { fill: var(--stage-bg); stroke: var(--stage-line); stroke-width: 3; opacity: .92; }
+  .sc-draw .win .chk { stroke-width: 9; }
+  .stagecard.success .sc-draw.drawn .win .chk { stroke-dashoffset: 0; transition-delay: .2s; }
+  .sc-draw .win-t { font-family: var(--mono); font-size: 56px; font-weight: 700; letter-spacing: .12em; fill: var(--stage-line); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
+  .chip { font-size: 13px; font-weight: 500; padding: 7px 13px; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); }
+  .chip.on { background: var(--accent-soft); color: var(--accent-deep); border-color: transparent; }
+
+  .contact { padding-block: 54px; }
+  .contact h2 { font-size: clamp(24px, 3.4vw, 32px); font-weight: 600; margin-bottom: 12px; }
+  .contact p { color: var(--muted); max-width: 48ch; margin-bottom: 22px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 13px; align-items: center; }
+  .btn { font-size: 14.5px; font-weight: 600; text-decoration: none; padding: 13px 22px; border-radius: 5px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .btn.solid { background: var(--accent); color: #fff; }
+  .btn.ghost { color: var(--ink); border: 1px solid var(--rule); background: transparent; }
+  .contactline { font-family: var(--mono); font-size: 13.5px; color: var(--muted); margin-top: 20px; }
+  .contactline b { color: var(--ink); font-weight: 600; }
+
+  footer { padding-block: 24px 46px; }
+  .foot-note { font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: 0.04em; }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="mark"><span class="sq">KM</span>Kovács Márk</div>
+    <span class="where">BUDAPEST · 2026</span>
+  </div>
+
+  <header class="hero">
+    <div class="hero-fx"><canvas id="fx"></canvas></div>
+    <div class="hero-copy">
+      <div class="on-air"><span class="dot"></span>JELENTKEZÉS — XEROPAN · KREATÍV</div>
+      <h1>Kovács&nbsp;Márk</h1>
+      <p class="thesis">Klasszikus média alapokon, modern eszközökkel.</p>
+      <div class="chain" id="chain" aria-hidden="true">
+        <span class="node"><span class="bulb"></span><span>FORGATÁS</span></span>
+        <span class="seg"></span>
+        <span class="node"><span class="bulb"></span><span>VÁGÁS</span></span>
+        <span class="seg"></span>
+        <span class="node"><span class="bulb"></span><span>AI</span></span>
+        <span class="seg"></span>
+        <span class="node"><span class="bulb"></span><span>GRADING</span></span>
+        <span class="seg"></span>
+        <span class="node"><span class="bulb"></span><span>KÉSZ</span></span>
+      </div>
+      <p class="sub">10+ év élő televíziós gyártás és generatív AI — otthonosan mozgok a klasszikus és a modern média között, a kampányötlettől a kész anyagig.</p>
+    </div>
+    <div class="portrait-cell">
+      <!-- badges live in a rail ABOVE the photo so they never cover the face -->
+      <div class="badge-rail">
+        <span class="badge b1" title="Forgatás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><path d="M15 10l5-3v10l-5-3"/><circle cx="7.5" cy="12" r="2"/></svg></span>
+        <span class="badge b2" title="AI"><span class="ai">AI</span></span>
+        <span class="badge b3" title="Vágás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8 8.5L20 16M8 15.5L20 8"/></svg></span>
+        <span class="badge b4" title="Color grading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
+        <span class="badge b5" title="Fejlesztés"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/></svg></span>
+      </div>
+      <div class="pwrap">
+        <!-- tilted panel behind the figure, faint pro icons -->
+        <div class="skillpanel" aria-hidden="true">
+          <span class="ic p1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><path d="M15 10l5-3v10l-5-3"/><circle cx="7.5" cy="12" r="2"/></svg></span>
+          <span class="ic p2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8 8.5L20 16M8 15.5L20 8"/></svg></span>
+          <span class="ic p3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></span>
+          <span class="ic p4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/></svg></span>
+          <span class="ic p5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18 9l-3.6 2.4L15 16l-3-2.6L9 16l.6-4.6L6 9l4.2-1.4z"/></svg></span>
+        </div>
+        <img id="portrait" alt="Kovács Márk" />
+      </div>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="knum">10+</div><div class="cap">év élő broadcast és médiaprodukció</div></div>
+    <div class="stat"><div class="knum txt">Saját skillek</div><div class="cap">egyedi AI-munkafolyamatok és modulok építése</div></div>
+    <div class="stat"><div class="knum txt">Briefből → élesbe</div><div class="cap">teljes AI-folyamatok tervezése és végigvitele a koncepciótól a publikálásig</div></div>
+    <div class="stat"><div class="knum">8–10</div><div class="cap">fős csapatok koordinálása</div></div>
+  </div>
+
+  <!-- SHOWREEL -->
+  <div class="reel">
+    <div class="wrap">
+      <div class="reel-head">
+        <h2>Saját mozgó munkáim</h2>
+        <span class="label">Showreel — AI &amp; hibrid</span>
+      </div>
+      <div class="reel-grid">
+        <div class="reel-item sq"><span class="cap">AI · FESZTIVÁL</span><video id="r1" autoplay muted loop playsinline preload="none"></video></div>
+        <div class="reel-item wide"><span class="cap">CINEMATIC · AI MOTION</span><video id="r2" autoplay muted loop playsinline preload="none"></video></div>
+        <div class="reel-item sq"><span class="cap">INGATLAN · REELS</span><video id="r3" autoplay muted loop playsinline preload="none"></video></div>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="label">Bemutatkozás</span><h2>Aki átlátja a teljes gyártást</h2></div>
+    <p class="lead">Egy élő adás gyártása nem különálló feladatok sora, hanem egy szoros folyamat, ahol forgatókönyvnek, nyersanyagnak, vágásnak, hangnak és grafikának a helyén kell lennie — napi 6–7 adás felelősségével. Ezt a strukturált gondolkodást viszem minden kreatív munkába.</p>
+    <p class="lead">Az elmúlt években ehhez társult a generatív AI tudatos használata. Operatőri, vágói és AI-alapú tapasztalatom révén a teljes workflow-t átlátom, és önállóan viszem végig a feladatot a brieftől a kész anyagig — pontosan úgy, ahogy ez a szerep is kéri.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="label">AI a munkámban</span><h2>Háromféleképp dolgozom AI-jal</h2></div>
+    <p class="lead">A vizuális gyártás mellett a Claude ökoszisztéma mindhárom felületét a feladathoz igazítva használom: <b>chat</b> a gyors koncepciókhoz, <b>Cowork</b> a hosszabb, több lépéses munkákhoz, <b>Claude&nbsp;Code</b> a fejlesztéshez. Ezekkel brand designokat és saját skilleket építek — és nemcsak marketinganyagokat gyártok, hanem online működő modulokat is, amelyek cégek hétköznapi munkáját gyorsítják. Erre a legjobb referencia a TWINX.</p>
+    <div class="modes">
+      <div class="mode"><div class="n">01</div><h3>Tisztán AI, nulláról</h3><p>A teljes anyagot generatív eszközökkel építem fel — kép, mozgókép és hang, koncepciótól a kész kreatívig.</p></div>
+      <div class="mode"><div class="n">02</div><h3>Hibrid: forgatás + AI</h3><p>Valódi, leforgatott anyagba építek be AI-generált jeleneteket ott, ahol gyorsít vagy új lehetőséget nyit.</p></div>
+      <div class="mode"><div class="n">03</div><h3>Saját AI-modulok</h3><p>Claude-dal építek egyedi modulokat és skilleket, amelyek a hétköznapi, ismétlődő gyártási lépéseket automatizálják és felgyorsítják.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="label">Szakmai tapasztalat</span><h2>Honnan jövök</h2></div>
+    <div class="tl">
+      <div class="job"><div class="when">2019 –</div><div><h3>Kiemelt szerkesztő</h3><div class="org">MTVA</div><p>Tartalomgyártás televíziós műsorokhoz, stábmunka szervezése, heti és napi feladatok koordinálása élő gyártási környezetben.</p></div></div>
+      <div class="job"><div class="when">2015 – 2019</div><div><h3>Szerkesztő-riporter</h3><div class="org">MTVA</div><p>Sport fókuszú műsorok és riportok készítése, vágás, utómunka. <span class="hi">Fő projektek: 3 labdarúgó Európa-bajnokság, 3 olimpia, több száz televíziós riport.</span></p></div></div>
+      <div class="job"><div class="when">párhuzamosan</div><div><h3>Kreatív tartalomkészítő &amp; producer</h3><div class="org">Egyéni vállalkozás</div><p>Videók forgatása, vágása, utómunka a teljes posztprodukciós láncon át; kreatív és AI-asszisztált videós koncepciók fejlesztése; márka- és ügyfélkommunikáció; valamint a projektek önálló menedzselése a brieftől a kész anyagig.</p></div></div>
+      <div class="job"><div class="when">2012 – 2015</div><div><span class="eyebrow">TANULMÁNYOK</span><h3>Televíziós műsorkészítő</h3><div class="org">Károli Gáspár Református Egyetem</div><p>Televíziós műsorkészítő képzés.</p></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="label">Portfólió</span><h2>Néhány munka, amire büszke vagyok</h2></div>
+    <!-- TOP: tall video (left) + two stacked images (right) at equal media height -->
+    <div class="showcase">
+      <!-- row 1: media, equal height -->
+      <div class="sc-video"><span class="live"><span class="d"></span>ÉLŐ KREATÍV</span><video id="w_ingatlan" autoplay muted loop playsinline preload="none"></video></div>
+      <div class="sc-stack">
+        <div class="im"><img src="/kovacs-mark/assets/twinx_ertekbecsles.jpg" alt="TWINX értékbecslés kreatív" /></div>
+        <div class="im"><img src="/kovacs-mark/assets/twinx_launch.jpg" alt="TWINX launch kreatív" /></div>
+      </div>
+      <!-- captions column -->
+      <div class="sc-caps">
+      <div class="sc-cap">
+        <span class="tag">KAMPÁNY · META / REELS</span><h3>TWINX ingatlan kampány</h3>
+        <p>Vertikális hirdetési kreatív Reels és TikTok felületre, dedikált landing page-re terelve. AI b-roll, magyar narráció, kódból épített motion grafika — forgatás + AI hibrid.</p>
+        <a href="https://twinx.hu/ingatlan" target="_blank" rel="noopener">twinx.hu/ingatlan →</a>
+      </div>
+      <div class="sc-cap">
+        <span class="tag">ONLINE MODUL · AI PIPELINE</span><h3>TWINX</h3>
+        <p>Online működő AI-platform cégeknek — Claude-dal épített modulok (pl. ingatlan-értékbecslés), brand design és a teljes vizuális arculat, koncepciótól a publikált termékig.</p>
+        <a href="https://twinx.hu" target="_blank" rel="noopener">twinx.hu →</a>
+      </div>
+      </div>
+    </div>
+
+    <!-- BELOW: further works -->
+    <div class="works">
+      <div class="work">
+        <div class="media wide stagecard" id="stagecard">
+          <img class="sc-photo" src="/kovacs-mark/assets/djoti.jpg" alt="DJ OTI rendezvény" />
+          <div class="cdown" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><circle class="trk" cx="22" cy="22" r="18"/><circle class="prog" cx="22" cy="22" r="18" pathLength="1"/></svg>
+            <span class="num">3</span>
+          </div>
+          <div class="sc-draw" aria-hidden="true">
+            <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+              <!-- light beams -->
+              <g class="beams">
+                <path pathLength="1" d="M520 170 L380 760"/><path pathLength="1" d="M680 170 L620 760"/>
+                <path pathLength="1" d="M920 170 L980 760"/><path pathLength="1" d="M1080 170 L1220 760"/>
+              </g>
+              <!-- truss: top beam with lattice + two towers -->
+              <g class="ln">
+                <path pathLength="1" d="M240 140 H1360 V178 H240 Z"/>
+                <path pathLength="1" d="M240 178 L282 140 L324 178 L366 140 L408 178 L450 140 L492 178 L534 140 L576 178 L618 140 L660 178 L702 140 L744 178 L786 140 L828 178 L870 140 L912 178 L954 140 L996 178 L1038 140 L1080 178 L1122 140 L1164 178 L1206 140 L1248 178 L1290 140 L1332 178 L1360 152"/>
+                <path pathLength="1" d="M240 178 V760 M276 178 V760 M240 220 L276 260 L240 300 L276 340 L240 380 L276 420 L240 460 L276 500 L240 540 L276 580 L240 620 L276 660 L240 700 L276 740"/>
+                <path pathLength="1" d="M1324 178 V760 M1360 178 V760 M1324 220 L1360 260 L1324 300 L1360 340 L1324 380 L1360 420 L1324 460 L1360 500 L1324 540 L1360 580 L1324 620 L1360 660 L1324 700 L1360 740"/>
+                <!-- stage floor -->
+                <path pathLength="1" d="M200 760 H1400 L1500 850 H100 Z"/>
+                <!-- DJ booth -->
+                <path pathLength="1" d="M660 640 H940 V760 H660 Z"/>
+                <path pathLength="1" d="M735 668 a26 26 0 1 0 0.1 0 M865 668 a26 26 0 1 0 0.1 0"/>
+                <!-- crowd -->
+                <path pathLength="1" d="M60 1000 a42 42 0 0 1 84 0 M170 1000 a46 46 0 0 1 92 0 M290 1000 a40 40 0 0 1 80 0 M400 1000 a48 48 0 0 1 96 0 M530 1000 a42 42 0 0 1 84 0 M650 1000 a46 46 0 0 1 92 0 M780 1000 a40 40 0 0 1 80 0 M890 1000 a48 48 0 0 1 96 0 M1020 1000 a42 42 0 0 1 84 0 M1140 1000 a46 46 0 0 1 92 0 M1270 1000 a40 40 0 0 1 80 0 M1380 1000 a48 48 0 0 1 96 0 M1500 1000 a40 40 0 0 1 80 0"/>
+              </g>
+              <!-- four side screens (2 left, 2 right), generated by script -->
+              <g id="screens"></g>
+              <!-- final success state, centred between the screens -->
+              <g class="win">
+                <rect class="win-bg" x="610" y="300" width="380" height="230" rx="18"/>
+                <path class="chk" pathLength="1" d="M760 375 l30 30 l52 -62"/>
+                <text class="win-t" x="800" y="490" text-anchor="middle">SUCCESS</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+        <div class="body">
+          <span class="tag">RENDEZVÉNY · AI VIZUÁL</span><h3>DJ OTI</h3>
+          <p>AI marketingvideók a kampányhoz és a rendezvény színpadvizuálja. Többszörös SOLD OUT események.</p>
+          <div class="foot"><span class="tag">PRON Agency · Karl Media</span></div>
+        </div>
+      </div>
+      <div class="work">
+        <div class="media wide"><span class="live"><span class="d"></span>MOZGÓKÉP</span><video id="w_landing" autoplay muted loop playsinline preload="none"></video></div>
+        <div class="body">
+          <span class="tag">CINEMATIC · AI MOTION</span><h3>TWINX — mozgó arculati elem</h3>
+          <p>Sötét, atmoszferikus mozgóképi elem a TWINX vizuális világához. AI-generált, posztprodukcióban kézzel finomított.</p>
+          <div class="foot"><a href="https://twinx.hu" target="_blank" rel="noopener">twinx.hu <span class="arr">→</span></a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="label">Eszköztár</span><h2>Amivel dolgozom</h2></div>
+    <p class="lead">Az AI-munka gerince a Claude — chat, Cowork és Claude Code, a feladathoz igazítva: brand designtól a saját skilleken át az online modulokig. A vágás és color grading a DaVinci Resolve és az Adobe Suite; a vizuális generáláshoz Midjourney, Runway, ElevenLabs és folyamatosan tesztelt új eszközök. Mindig az eredmény dönt, nem a tool — ha holnap jobb eszköz jelenik meg, az elsők között próbálom ki.</p>
+    <div class="chips">
+      <span class="chip on">Claude — chat</span><span class="chip on">Claude — Cowork</span><span class="chip on">Claude Code</span>
+      <span class="chip on">DaVinci Resolve</span><span class="chip on">Adobe Suite</span>
+      <span class="chip">Midjourney</span><span class="chip">Runway</span><span class="chip">ElevenLabs</span>
+      <span class="chip">Kling AI</span><span class="chip">Stable Diffusion / FLUX</span>
+    </div>
+  </section>
+
+  <div class="contact">
+    <span class="label">Kapcsolat</span>
+    <h2 style="margin-top:10px;">Beszéljünk</h2>
+    <p>Örülnék, ha átnéznénk, hogyan tudnék a Xeropan brand kreatív jobb keze lenni. Írj egy üzenetet, és egyeztessünk egy beszélgetést.</p>
+    <div class="cta-row">
+      <span class="btn solid" id="mail-copy" role="button" tabindex="0">markkovacs22@gmail.com</span>
+    </div>
+    <p class="contactline"><b>Kovács Márk</b> &nbsp;·&nbsp; +36 20 5630 561 &nbsp;·&nbsp; Budapest</p>
+  </div>
+
+  <footer><span class="foot-note">KÖSZÖNÖM, HOGY VÉGIGNÉZTED</span></footer>
+</div>
+
+<script>
+  var A = {
+    portrait: window.__PORTRAIT__ || '',
+    szemuveg: '/kovacs-mark/assets/szemuveg.mp4',
+    szemuvegP: '/kovacs-mark/assets/poster_szemuveg.jpg',
+    landing: '/kovacs-mark/assets/landing2.mp4',
+    landingP: '/kovacs-mark/assets/poster_landing2.jpg',
+    ingatlan: '/kovacs-mark/assets/ingatlan.mp4',
+    ingatlanP: '/kovacs-mark/assets/poster_ingatlan.jpg'
+  };
+  (function(){ var p=document.getElementById('portrait'); if(A.portrait) p.src=A.portrait; })();
+
+  // ---- Hero FX: a subtle editing-timeline / waveform field (own, code-generated) ----
+  (function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var cv = document.getElementById('fx'); if(!cv) return;
+    var ctx = cv.getContext('2d'); var W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+    function ink(){ return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#B4571E'; }
+    function faint(){ return getComputedStyle(document.documentElement).getPropertyValue('--rule').trim()||'#DED6C7'; }
+    function resize(){ var r=cv.getBoundingClientRect(); W=cv.width=Math.max(1,r.width*DPR); H=cv.height=Math.max(1,r.height*DPR); }
+    resize(); window.addEventListener('resize', resize);
+    var bars = 70, t=0;
+    function hex2rgba(h,a){ h=h.replace('#',''); if(h.length===3) h=h.split('').map(function(c){return c+c;}).join(''); var n=parseInt(h,16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; }
+    function frame(){
+      ctx.clearRect(0,0,W,H);
+      var aColor=ink(), fColor=faint();
+      // horizontal timeline rulers
+      var rows=3;
+      for(var r=0;r<rows;r++){
+        var y=H*(0.30+r*0.22);
+        ctx.strokeStyle=hex2rgba(fColor,0.5); ctx.lineWidth=1*DPR;
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+        // tick marks drifting left
+        var gap=46*DPR, off=(t*(0.4+r*0.15)*DPR)%gap;
+        ctx.strokeStyle=hex2rgba(fColor,0.8);
+        for(var x=-off;x<W;x+=gap){ ctx.beginPath(); ctx.moveTo(x,y-4*DPR); ctx.lineTo(x,y+4*DPR); ctx.stroke(); }
+      }
+      // waveform-ish bars along the bottom third, animated
+      var bw=W/bars, baseY=H*0.80;
+      for(var i=0;i<bars;i++){
+        var ph=i*0.5 + t*0.03;
+        var amp=(Math.sin(ph)*0.5+0.5)*(Math.sin(ph*0.3+1)*0.5+0.5);
+        var h=amp*H*0.22+2*DPR;
+        var x=i*bw+bw*0.25, w=bw*0.5;
+        ctx.fillStyle=hex2rgba(aColor, 0.10+amp*0.12);
+        ctx.fillRect(x, baseY-h, w, h);
+      }
+      t+=1; raf=requestAnimationFrame(frame);
+    }
+    var raf;
+    if(reduce){ frame(); cancelAnimationFrame(raf); } else { frame(); }
+  })();
+
+  // ---- Chain: light up nodes in sequence (forgatás → kész) ----
+  (function(){
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var chain=document.getElementById('chain'); if(!chain) return;
+    var nodes=chain.querySelectorAll('.node');
+    if(reduce){ nodes.forEach(function(n){n.classList.add('lit');}); return; }
+    var i=0;
+    setInterval(function(){
+      nodes.forEach(function(n,k){ n.classList.toggle('lit', k<=i); });
+      i=(i+1)%(nodes.length+2); // pause a beat after full
+    }, 850);
+  })();
+  function vid(id, src, poster){
+    var v=document.getElementById(id); if(!v) return;
+    if(poster) v.poster=poster;
+    v.src=src; v.muted=true; v.setAttribute('muted','');
+    var play=function(){ var pr=v.play(); if(pr&&pr.catch) pr.catch(function(){}); };
+    if(v.readyState>=2) play(); else v.addEventListener('loadeddata', play, {once:true});
+  }
+  // showreel
+  vid('r1', A.szemuveg, A.szemuvegP);
+  vid('r2', A.landing, A.landingP);
+  vid('r3', A.ingatlan, A.ingatlanP);
+  // portfolio
+  vid('w_ingatlan', A.ingatlan, A.ingatlanP);
+  vid('w_landing', A.landing, A.landingP);
+
+  // ---- DJ OTI stage cycle: photo -> drawn stage -> left screen 0-100% ✓ -> right ✓ -> back ----
+  (function(){
+    var card=document.getElementById('stagecard'); if(!card) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce) return; // photo stays
+    var draw=card.querySelector('.sc-draw');
+    var NS='http://www.w3.org/2000/svg', host=card.querySelector('#screens');
+    // order: left top, left bottom, right top, right bottom
+    var spec=[
+      {x:320,  y:215, label:'KONCEPCIÓ'},
+      {x:320,  y:420, label:'AI GENERÁLÁS'},
+      {x:1020, y:215, label:'VÁGÁS · GRADING'},
+      {x:1020, y:420, label:'KIVETÍTÉS'}
+    ];
+    var W=260, H=170, BAR=224;
+    function el(tag, attrs, parent){ var n=document.createElementNS(NS,tag); for(var k in attrs) n.setAttribute(k,attrs[k]); if(parent) parent.appendChild(n); return n; }
+    var scr=spec.map(function(s){
+      var g=el('g',{'class':'scr'},host);
+      el('rect',{'class':'face',x:s.x,y:s.y,width:W,height:H,rx:6},g);
+      el('path',{'class':'ln',pathLength:1,d:'M'+s.x+' '+s.y+' h'+W+' v'+H+' h-'+W+' Z'},g);
+      var lbl=el('text',{'class':'lbl',x:s.x+18,y:s.y+36},g); lbl.textContent=s.label;
+      var pct=el('text',{'class':'pct',x:s.x+18,y:s.y+104},g); pct.textContent='0%';
+      el('rect',{'class':'bar-bg',x:s.x+18,y:s.y+128,width:BAR,height:12,rx:6},g);
+      el('rect',{'class':'bar',x:s.x+18,y:s.y+128,width:0,height:12,rx:6},g);
+      el('path',{'class':'chk',pathLength:1,d:'M'+(s.x+184)+' '+(s.y+80)+' l16 16 l30 -36'},g);
+      g._label=s.label; return g;
+    });
+    var visible=true;
+    function later(fn,ms){ setTimeout(fn,ms); }
+    function reset(){
+      card.classList.remove('success');
+      scr.forEach(function(s){ s.classList.remove('done','active'); s.querySelector('.bar').setAttribute('width','0'); s.querySelector('.pct').textContent='0%'; s.querySelector('.lbl').textContent=s._label; });
+    }
+    function run(s, done){
+      s.parentNode.appendChild(s);            // bring the active screen to the front
+      s.classList.add('active');
+      var bar=s.querySelector('.bar'), pct=s.querySelector('.pct'), t0=null, dur=1700;
+      later(function(){
+        function step(ts){
+          if(t0===null) t0=ts;
+          var p=Math.min(1,(ts-t0)/dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+          bar.setAttribute('width',(BAR*e).toFixed(1)); pct.textContent=Math.round(e*100)+'%';
+          if(p<1) requestAnimationFrame(step);
+          else {
+            pct.textContent='100%'; s.querySelector('.lbl').textContent='KÉSZ'; s.classList.add('done');
+            later(function(){ s.classList.remove('active'); later(done,450); }, 600);   // back to its place
+          }
+        }
+        requestAnimationFrame(step);
+      }, 450);                                 // let it rise first
+    }
+    function cycle(){
+      if(!visible){ later(cycle,1000); return; }
+      reset();
+      // 3-2-1 countdown during the last 3 s of the photo hold
+      var num=card.querySelector('.cdown .num');
+      function show(n){ num.textContent=n; num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick'); }
+      later(function(){ show(3); card.classList.add('counting'); }, 500);
+      later(function(){ show(2); }, 1500);
+      later(function(){ show(1); }, 2500);
+      later(function(){ card.classList.remove('counting'); }, 3500);          // fades out as the drawing fades in
+      later(function(){ card.classList.add('show-draw'); }, 3500);             // photo hold, then 1.8s soft fade
+      later(function(){ draw.classList.add('drawn'); }, 4600);                 // lines draw in as the fade settles
+      later(function(){
+        var i=0;
+        (function next(){
+          if(i<scr.length){ run(scr[i++], next); return; }
+          card.classList.add('success');                                       // all done -> green
+          later(function(){ card.classList.remove('show-draw'); }, 2600);      // soft fade back to photo
+          later(function(){ draw.classList.remove('drawn'); reset(); }, 4600); // only after the fade has fully finished
+          later(cycle, 4700);
+        })();
+      }, 6300);
+    }
+    if('IntersectionObserver' in window){
+      new IntersectionObserver(function(es){ visible=es[0].isIntersecting; }).observe(card);
+    }
+    cycle();
+  })();
+
+  (function(){
+    var el=document.getElementById('mail-copy'); var email='markkovacs22@gmail.com';
+    function flash(t){ var o=el.textContent; el.textContent=t; setTimeout(function(){el.textContent=o;},1400); }
+    function sel(){ var r=document.createRange(); r.selectNodeContents(el); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r); flash('Jelöld ki és másold'); }
+    function copy(){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(email).then(function(){flash('Másolva ✓');}).catch(sel);} else sel(); }
+    el.addEventListener('click',copy);
+    el.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();copy();} });
+  })();
+</script>
+
+</body>
+</html>

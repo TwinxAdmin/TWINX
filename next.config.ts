@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
     "/api/real-estate/video": ["./node_modules/ffmpeg-static/ffmpeg", "./assets/video-fx/*.mp4", "./assets/video-transitions/*.apng"],
     "/api/admin/video-lab": ["./node_modules/ffmpeg-static/ffmpeg", "./assets/video-fx/*.mp4", "./assets/video-transitions/*.apng"],
   },
+  // Kovács Márk jelentkezési oldala: statikus fájl a public/kovacs-mark alatt.
+  // A rewrite miatt a rövid twinx.hu/kovacs-mark cím is működik (az index.html nélkül).
+  async rewrites() {
+    return [{ source: "/kovacs-mark", destination: "/kovacs-mark/index.html" }];
+  },
   // A build ne bukjon el ESLint stílus-szabályokon (a "funkcionális UI a 7. fázisig" elv miatt).
   // A TypeScript típusellenőrzés így is fut és megfog minden valódi hibát.
   eslint: { ignoreDuringBuilds: true },
