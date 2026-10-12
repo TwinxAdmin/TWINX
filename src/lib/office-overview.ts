@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { SERVICE_LABELS, type OfficeMember } from "@/lib/office";
 import { listMembers, officeFree } from "@/lib/office-server";
+import { activeItemFilter } from "@/lib/office-folders";
 
 export type OverviewRange = "7d" | "14d" | "30d" | "all";
 export type OfficeRoleLabel = "owner" | "manager" | "member";
@@ -176,7 +177,7 @@ export async function myWorks(officeId: string, userId: string, range: OverviewR
     const fname = new Map((folders ?? []).map((f) => [f.id as string, f.name as string]));
     if (fname.size) {
       const { data: items } = await admin.from("office_folder_items")
-        .select("history_id, folder_id").in("history_id", ids).in("folder_id", [...fname.keys()]);
+        .select("history_id, folder_id").in("history_id", ids).in("folder_id", [...fname.keys()]).or(activeItemFilter());
       for (const it of items ?? []) {
         const list = folderNames.get(it.history_id as string) ?? [];
         const n = fname.get(it.folder_id as string);

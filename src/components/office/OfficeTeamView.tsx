@@ -5,7 +5,7 @@
 //   • Üzenetek (OfficeMessagesRow team módban: üzenet / feladat / kész munka, kreditkérés NÉLKÜL)
 //   • Munkáim (közös OfficeMyWorks — megosztás közös mappába, „⋯" → Üzenet ehhez a munkához)
 //   • Társak · Közös mappák · Kredit-átadások — azonos fix magassággal
-//   • Kedvenc modulok sáv; alul: Kilépés (Hamarosan — KM8)
+//   • Kedvenc modulok sáv; alul: Kilépés a munkatérből (munkák átadásával — TeamLeaveDialog)
 // Mindenki egyenrangú; mindenki a SAJÁT kreditjéből dolgozik. Egymás egyenlegét / költését senki nem látja.
 "use client";
 
@@ -19,7 +19,8 @@ import OfficeFolders from "@/components/office/OfficeFolders";
 import OfficeModuleShelf from "@/components/office/OfficeModuleShelf";
 import OfficeMessagesRow from "@/components/office/OfficeMessagesRow";
 import TeamTransferDialog from "@/components/office/TeamTransferDialog";
-import { EmptyState, Icons, OfficeCard, OfficeDialog, SoonBadge } from "@/components/office/OfficeUi";
+import TeamLeaveDialog from "@/components/office/TeamLeaveDialog";
+import { EmptyState, Icons, OfficeCard, OfficeDialog } from "@/components/office/OfficeUi";
 
 type TeamOverview = {
   view: "team";
@@ -39,6 +40,7 @@ export default function OfficeTeamView() {
   const [worksRange, setWorksRange] = useState<OverviewRange>("30d");
   const [transfer, setTransfer] = useState<{ preselect: string | null } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -81,16 +83,19 @@ export default function OfficeTeamView() {
 
       <OfficeModuleShelf />
 
-      {/* Kilépés — a munka-átadással együtt a KM8-ban készül; addig halványan, magyarázattal a helyén */}
+      {/* Kilépés — előtte a munkák átadhatók a társaknak */}
       <div className="flex justify-end">
-        <span className="inline-flex items-center gap-2" title="A kilépés (munkák átadásával) hamarosan elérhető.">
-          <button type="button" disabled className="h-[34px] cursor-not-allowed rounded-full px-3.5 text-xs font-semibold opacity-50"
-            style={{ color: "#8A3A25", border: "1px solid #E8B9A6" }}>
-            Kilépés a munkatérből…
-          </button>
-          <SoonBadge />
-        </span>
+        <button type="button" onClick={() => setLeaveOpen(true)} className="h-[34px] rounded-full px-3.5 text-xs font-semibold"
+          style={{ color: "#8A3A25", border: "1px solid #E8B9A6" }}>
+          Kilépés a munkatérből…
+        </button>
       </div>
+
+      {leaveOpen && (
+        <OfficeDialog title={`Kilépés: ${data.office.name}`} onClose={() => setLeaveOpen(false)} wide>
+          <TeamLeaveDialog officeName={data.office.name} mates={data.members} meId={data.me.userId} />
+        </OfficeDialog>
+      )}
 
       {transfer && (
         <OfficeDialog title="Kredit adása társnak" onClose={() => setTransfer(null)} wide>

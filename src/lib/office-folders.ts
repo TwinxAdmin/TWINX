@@ -6,6 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { OfficeFolder } from "@/lib/office";
 import { officeKind } from "@/lib/office-server";
 
+/**
+ * Közös munkatér: a kilépett társ megosztott munkái 30 napig még látszanak (expires_at), utána
+ * kikerülnek a listákból (soft-listing, nem törlünk). Ez a PostgREST-szűrő: lejárat nélküli VAGY még élő.
+ */
+export function activeItemFilter(): string {
+  return `expires_at.is.null,expires_at.gt.${new Date().toISOString()}`;
+}
+
 type FolderRow = { id: string; office_id: string; name: string; created_by: string | null; everyone: boolean; created_at: string };
 
 export async function namesFor(ids: string[]): Promise<Map<string, string>> {
@@ -55,7 +63,7 @@ export async function listFolders(officeId: string, userId: string, ownerRole: b
   const ids = folders.map((f) => f.id);
   const [{ data: fm }, { data: items }] = await Promise.all([
     admin.from("office_folder_members").select("folder_id, user_id").in("folder_id", ids),
-    admin.from("office_folder_items").select("folder_id, added_at").in("folder_id", ids),
+    admin.from("office_folder_items").select("folder_id, added_at").in("folder_id", ids).or(activeItemFilter()),
   ]);
   const membersOf = new Map<string, string[]>();
   for (const r of fm ?? []) membersOf.set(r.folder_id as string, [...(membersOf.get(r.folder_id as string) ?? []), r.user_id as string]);
@@ -96,7 +104,9 @@ export async function canEditWork(historyId: string, userId: string): Promise<{ 
   const { data: h } = await admin.from("usage_history").select("user_id").eq("id", historyId).maybeSingle();
   if (!h) return { ok: false, ownerId: null };
   if (h.user_id === userId) return { ok: true, ownerId: h.user_id as string };
-  const { data: links, error } = await admin.from("office_folder_items").select("folder_id").eq("history_id", historyId);
+  // a kilépett társ (lejárattal megjelölt) munkája a 30 nap alatt csak olvasható — szerkeszteni nem lehet
+  const { data: links, error } = await admin.from("office_folder_items").select("folder_id")
+    .eq("history_id", historyId).is("expires_at", null);
   if (error) return { ok: false, ownerId: h.user_id as string };
   for (const l of links ?? []) {
     const acc = await folderAccess(l.folder_id as string, userId);

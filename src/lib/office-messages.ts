@@ -1,7 +1,7 @@
 // Irodai üzenetek — CSAK szerveroldal (service_role). A jogosultságot itt is, és az RLS is ellenőrzi.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activityTitle, featureLabel } from "@/lib/activity";
-import { folderAccess, namesFor } from "@/lib/office-folders";
+import { activeItemFilter, folderAccess, namesFor } from "@/lib/office-folders";
 import { isSelectableModule, selectableModules } from "@/lib/module-favorites";
 import { MESSAGE_LIST_MAX, type MessageKind, type OfficeMessage, type SendInput } from "@/lib/office-messages-shared";
 
@@ -140,7 +140,7 @@ export async function sendMessage(officeId: string, senderId: string, v: SendInp
     ownWork = w.user_id === senderId;
   }
   if (v.historyId && !ownWork) {
-    const { data: links } = await admin.from("office_folder_items").select("folder_id").eq("history_id", v.historyId);
+    const { data: links } = await admin.from("office_folder_items").select("folder_id").eq("history_id", v.historyId).or(activeItemFilter());
     const folderIds = (links ?? []).map((l) => l.folder_id as string);
     let ok = false;
     for (const fid of folderIds) {

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { WORK_TITLE_MAX, type OfficeFolderItem } from "@/lib/office";
-import { folderAccess, namesFor } from "@/lib/office-folders";
+import { activeItemFilter, folderAccess, namesFor } from "@/lib/office-folders";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   // Melyik közös mappákban van egy adott munka? (a „Mappába teszem" választó pipáihoz)
   const historyId = params.get("historyId");
   if (historyId) {
-    const { data: rows } = await createAdminClient().from("office_folder_items").select("folder_id").eq("history_id", historyId);
+    const { data: rows } = await createAdminClient().from("office_folder_items").select("folder_id").eq("history_id", historyId).or(activeItemFilter());
     const folderIds: string[] = [];
     for (const r of rows ?? []) {
       const a = await folderAccess(r.folder_id as string, user.id);
@@ -42,8 +42,8 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const { data: links } = await admin
-    .from("office_folder_items").select("history_id, added_by, added_at")
-    .eq("folder_id", folderId).order("added_at", { ascending: false }).limit(300);
+    .from("office_folder_items").select("history_id, added_by, added_at, expires_at")
+    .eq("folder_id", folderId).or(activeItemFilter()).order("added_at", { ascending: false }).limit(300);
   const ids = (links ?? []).map((l) => l.history_id as string);
   if (ids.length === 0) return NextResponse.json({ folder: { id: acc.folder.id, name: acc.folder.name }, items: [] });
 
@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       createdAt: h.created_at as string,
       canRemove: acc.canManage || l.added_by === user.id || h.user_id === user.id,
       mine: h.user_id === user.id,
+      expiresAt: (l.expires_at as string) ?? null,
     }];
   });
   return NextResponse.json({ folder: { id: acc.folder.id, name: acc.folder.name }, items });

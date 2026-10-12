@@ -233,6 +233,8 @@ export type OfficeFolderItem = {
   createdAt: string;
   canRemove: boolean;
   mine?: boolean;                // a néző saját munkája (tovább küldhető / más mappába tehető)
+  /** Közös munkatér: kilépett társ munkája — eddig még olvasható, utána kikerül (null = nincs lejárat). */
+  expiresAt?: string | null;
 };
 
 /** Egy munka egyedi neve (átnevezés a közös mappában) — max. hossz. */

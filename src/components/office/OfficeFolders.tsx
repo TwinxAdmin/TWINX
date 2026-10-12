@@ -466,6 +466,12 @@ function FolderWindow({ folder, scope, onClose, onEdit, onDelete, onCountChange 
                       <span className="block truncate text-xs" style={{ color: "#6B6258" }}>
                         {it.mine ? "Te készítetted" : `Készítette: ${it.ownerName}`} · {fmtWhen(it.createdAt, false)}
                         {it.addedByName && it.addedByName !== it.ownerName ? ` · betette: ${it.addedByName}` : ""}
+                        {it.expiresAt && (
+                          <span className="ml-1 rounded-full px-1.5 py-[1px] text-[10px] font-semibold" style={{ background: "#FFF0D6", color: "#8A5A00" }}
+                            title="A készítője kilépett a munkatérből — a munka eddig még olvasható, utána kikerül a mappából.">
+                            kilépett · {new Date(it.expiresAt).toLocaleDateString("hu-HU", { month: "short", day: "numeric" })}-ig
+                          </span>
+                        )}
                         {it.feature === "valuation" && (
                           <>
                             {" · "}
