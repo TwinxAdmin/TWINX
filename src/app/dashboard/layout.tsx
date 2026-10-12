@@ -17,6 +17,8 @@ import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
 import ModuleViewTracker from "@/components/ModuleViewTracker";
 import ModuleFeedbackHost from "@/components/ModuleFeedbackHost";
+import TermsGate from "@/components/TermsGate";
+import { termsStatus } from "@/lib/terms";
 import { getMembershipIn, getWorkContext, listMyOffices, officeKind } from "@/lib/office-server";
 
 export default async function DashboardLayout({
@@ -49,6 +51,8 @@ export default async function DashboardLayout({
   // „Nincs iroda" előnézet: a felület úgy néz ki, mintha nem lenne irodai tagság (csak megjelenítés)
   const officeNone = realDock?.isManager ? await officeNonePreview() : false;
   const dock = officeNone ? null : realDock;
+  // ÁSZF: ha az aktuális változatot még nem fogadta el → kötelező elfogadó ablak (null = migráció előtt, nem kérdezünk)
+  const terms = user ? await termsStatus(user.id) : null;
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
@@ -127,6 +131,7 @@ export default async function DashboardLayout({
       <ModuleViewTracker />
       {/* csillagos értékelés (3. / 6. futtatás) és „Mi hiányzik?” — kis, bezárható kártyák (ME3c) */}
       <ModuleFeedbackHost />
+      {terms && !terms.accepted && <TermsGate updated={terms.updated} />}
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
       <CreditDock

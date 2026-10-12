@@ -267,5 +267,17 @@ adatkezelési tájékoztató +1 mondat (visszajelzések).
   - [x] ME3a — SQL: `module_ratings` + `module_asks` (`20261012192545_module-feedback.sql`, lefuttatva 2026-10-12)
   - [x] ME3b — API + megjelenési szabály: GET /api/feedback/prompt, POST /api/feedback/rating, POST /api/feedback/ask (`lib/module-feedback.ts`) — 2026-10-12
   - [x] ME3c — közös `ModuleFeedbackHost` a dashboard layoutban: csillagos kártya (az 5 mért modulban, sikeres futtatás után) + „Mi hiányzik?” kártya (minden modul-oldalon) — 2026-10-12
-  - [ ] ME3e — Adatkezelési tájékoztató: +1 mondat a visszajelzésekről (a repóban NINCS tájékoztató oldal — Márk külső dokumentuma)
+  - [~] ME3e — Adatkezelési tájékoztató TERVEZETE kész: `docs/adatkezelesi-tajekoztato-tervezet.md` (benne a visszajelzés-bekezdés, 2.9) —
+        szakértői felülvizsgálatra vár; utána `/adatkezeles` oldal + link (lábléc, regisztráció, süti-sáv)
+
+## ADV — Adatvédelmi teendők (a tájékoztató-tervezet „Megállapítások" pontjából, 2026-10-12)
+- [~] ADV1 — Tájékoztató + ÁSZF oldal és elfogadó szöveg a regisztrációnál
+  - [x] ÁSZF 1.0 élesben (`/aszf`, adatok: `lib/legal.ts`), kötelező jelölőnégyzet (felugró ablak + /register + Google), elfogadott változat + időpont a profilon (20261012200044_terms-acceptance.sql), belépés utáni elfogadó ablak (TermsGate: régi fiókok, új változat)
+  - [ ] Adatkezelési tájékoztató (`/adatkezeles`) a szakértői átnézés után + link a jelölőnégyzetbe → ÁSZF új változat
+- [ ] ADV2 — Fióktörlési folyamat (belső útmutató → később „Fiók törlése" kérés), döntés a tárhely-fájlokról
+- [ ] ADV3 — Megőrzési idők a tájékoztató szerint (automatikus anonimizálás / törlés)
+- [ ] ADV4 — Tárhely: nyilvános URL-ek felülvizsgálata, szükség esetén aláírt, lejáró linkek
+- [ ] ADV5 — Google Ads frissítő token titkosított tárolása
+- [ ] ADV6 — Betűtípusok saját tárhelyről (Google Fonts / Fontshare kiváltása az arculat-szerkesztőben)
+- [ ] ADV7 — Adatfeldolgozói szerződések (DPA) összegyűjtése; Supabase régió ellenőrzése
   - [x] ME3d — Modul elemzés: Elégedettség oszlop (★ átlag), csillag-eloszlás, okok, megjegyzések, „Mi hiányzik?” panel — 2026-10-12

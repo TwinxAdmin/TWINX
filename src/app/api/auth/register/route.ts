@@ -1,10 +1,12 @@
 // POST /api/auth/register — regisztráció Supabase Auth-tal.
 // Sorrend: bejövő adat -> szigorú szerveroldali validáció -> Supabase signUp.
 // A profiles rekordot a DB trigger (handle_new_user) hozza létre, 0 kredittel.
+// Az ÁSZF elfogadása KÖTELEZŐ (acceptTerms: true) — sikeres regisztráció után a változat + időpont a profilra kerül.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateRegisterInput } from "@/lib/validation";
 import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
+import { recordTermsAcceptance } from "@/lib/terms";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -15,9 +17,11 @@ export async function POST(request: Request) {
   }
 
   const { name, company, phone, email, password, passwordConfirm, source } = (body ?? {}) as Record<string, string>;
+  const acceptTerms = (body as { acceptTerms?: unknown } | null)?.acceptTerms === true;
 
   const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm, phone });
-  if (!valid) {
+  if (!acceptTerms) errors.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et.";
+  if (!valid || !acceptTerms) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
@@ -45,6 +49,9 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  // ÁSZF-elfogadás rögzítése (a profilt a trigger már létrehozta). Hiba esetén a belépés utáni ablak pótolja.
+  if (data.user?.id) await recordTermsAcceptance(data.user.id).catch(() => null);
 
   // Ha van session -> azonnal belépett (e-mail megerősítés kikapcsolva Supabase-ben).
   // Ha nincs session -> e-mail megerősítés szükséges.

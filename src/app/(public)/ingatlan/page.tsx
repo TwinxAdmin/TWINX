@@ -379,7 +379,8 @@ export default function IngatlanLanding() {
           style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.18)" }}>
           Vissza a főoldalra →
         </a>
-        <div className="mt-4">
+        <div className="mt-4 flex justify-center gap-4">
+          <a href="/aszf" className="text-xs underline-offset-2 hover:underline" style={{ color: "var(--twx-on-dark-muted)" }}>ÁSZF</a>
           <CookieSettingsLink className="text-xs underline-offset-2 hover:underline" style={{ color: "var(--twx-on-dark-muted)" }} />
         </div>
       </footer>

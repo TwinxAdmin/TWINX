@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
+import TermsCheckbox from "@/components/TermsCheckbox";
+import { TERMS_VERSION } from "@/lib/legal";
 import Wordmark from "@/components/Wordmark";
 import { normalizeInviteCode } from "@/lib/invites";
 import { gaEvent } from "@/lib/analytics";
@@ -29,6 +31,7 @@ function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   // Ajándékkód: itt SZÁNDÉKOSAN nem kérjük be. A beváltás a belépés utáni
   // kezdőlapon, az egyenleg mellett történik — így a Google-fiókkal belépőknek
   // és az e-mail-megerősítéses regisztrálóknak is ugyanaz az útja.
@@ -66,8 +69,10 @@ function RegisterForm() {
 
     // 1) Kliensoldali validáció
     const result = validateRegisterInput({ name, email, password, passwordConfirm, phone });
-    setErrors(result.errors);
-    if (!result.valid) return;
+    const errs: Record<string, string> = { ...result.errors };
+    if (!acceptTerms) errs.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et.";
+    setErrors(errs);
+    if (!result.valid || !acceptTerms) return;
 
     // 2) API bekötés
     setLoading(true);
@@ -75,7 +80,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm }),
+        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm, acceptTerms }),
       });
       const data = await res.json();
 
@@ -265,6 +270,8 @@ function RegisterForm() {
               )}
             </div>
 
+            <TermsCheckbox checked={acceptTerms} onChange={(v) => { setAcceptTerms(v); setErrors((e) => ({ ...e, acceptTerms: "" })); }} error={errors.acceptTerms} />
+
             <button type="submit" disabled={loading} className="twx-btn w-full">
               {loading ? "Regisztráció…" : "Regisztráció"}
             </button>
@@ -284,6 +291,9 @@ function RegisterForm() {
             label="Regisztráció Google-fiókkal"
             track={{ name: "sign_up_start", params: { method: "google", source: "direct" } }}
             next={`/register?siker=1${linkCode ? `&kod=${encodeURIComponent(linkCode)}` : ""}`}
+            disabled={!acceptTerms}
+            disabledHint="Előbb fogadd el az ÁSZF-et (fent)."
+            termsVersion={acceptTerms ? TERMS_VERSION : undefined}
           />
 
           <Link href="/login" className="mt-4 block text-sm underline" style={{ color: "var(--twx-coral)" }}>

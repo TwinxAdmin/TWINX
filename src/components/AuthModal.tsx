@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
+import TermsCheckbox from "@/components/TermsCheckbox";
+import { TERMS_VERSION } from "@/lib/legal";
 
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
 import { gaEvent } from "@/lib/analytics";
@@ -26,6 +28,7 @@ export default function AuthModal() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export default function AuthModal() {
       setEmail("");
       setPassword("");
       setPasswordConfirm("");
+      setAcceptTerms(false);
       setOpen(true);
     };
     window.addEventListener("open-auth", onOpen);
@@ -88,8 +92,10 @@ export default function AuthModal() {
 
     if (mode === "register") {
       const result = validateRegisterInput({ name, email, password, passwordConfirm, phone });
-      setErrors(result.errors);
-      if (!result.valid) return;
+      const errs: Record<string, string> = { ...result.errors };
+      if (!acceptTerms) errs.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et.";
+      setErrors(errs);
+      if (!result.valid || !acceptTerms) return;
     } else if (!email || !password) {
       setServerError("Add meg az e-mail címet és a jelszót.");
       return;
@@ -103,7 +109,7 @@ export default function AuthModal() {
         body:
           mode === "login"
             ? JSON.stringify({ email, password })
-            : JSON.stringify({ name, phone, email, password, passwordConfirm, source }),
+            : JSON.stringify({ name, phone, email, password, passwordConfirm, source, acceptTerms }),
       });
       const data = await res.json();
 
@@ -250,6 +256,10 @@ export default function AuthModal() {
             </div>
           )}
 
+          {!isLogin && (
+            <TermsCheckbox checked={acceptTerms} onChange={(v) => { setAcceptTerms(v); setErrors((e) => ({ ...e, acceptTerms: "" })); }} error={errors.acceptTerms} />
+          )}
+
           <button type="submit" disabled={loading} className="twx-btn w-full">
             {loading ? "Egy pillanat…" : isLogin ? "Belépés" : "Regisztráció"}
           </button>
@@ -270,6 +280,9 @@ export default function AuthModal() {
           label={isLogin ? "Belépés Google-fiókkal" : "Regisztráció Google-fiókkal"}
           source={!isLogin && source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : undefined}
           track={isLogin ? undefined : { name: "sign_up_start", params: { method: "google", source: source ?? "direct" } }}
+          disabled={!isLogin && !acceptTerms}
+          disabledHint="Előbb fogadd el az ÁSZF-et (fent)."
+          termsVersion={!isLogin && acceptTerms ? TERMS_VERSION : undefined}
         />
 
         <button

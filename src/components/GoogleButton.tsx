@@ -11,9 +11,13 @@ import { gaEvent } from "@/lib/analytics";
  * — különben a Google-fiókosok egyből a kezdőlapon találnák magukat.
  */
 export default function GoogleButton({
-  label = "Folytatás Google-lel", next, source, track,
+  label = "Folytatás Google-lel", next, source, track, disabled = false, disabledHint, termsVersion,
 }: {
   label?: string; next?: string; source?: string;
+  /** Regisztrációnál: amíg az ÁSZF nincs elfogadva, a gomb halvány (magyarázó tooltippel). */
+  disabled?: boolean; disabledHint?: string;
+  /** Az elfogadott ÁSZF változata — a callback ezzel rögzíti az elfogadást. */
+  termsVersion?: string;
   /** GA-esemény a kattintáskor (pl. regisztráció indítása Google-lel). */
   track?: { name: string; params?: Record<string, string> };
 }) {
@@ -27,6 +31,7 @@ export default function GoogleButton({
     const params = new URLSearchParams();
     if (next) params.set("next", next);
     if (source) params.set("src", source);
+    if (termsVersion) params.set("terms", termsVersion);
     const qs = params.toString();
     const callback = `${window.location.origin}/auth/callback${qs ? `?${qs}` : ""}`;
     const { error } = await supabase.auth.signInWithOAuth({
@@ -40,8 +45,9 @@ export default function GoogleButton({
     <button
       type="button"
       onClick={onClick}
-      disabled={loading}
-      className="flex w-full items-center justify-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
+      disabled={loading || disabled}
+      title={disabled ? disabledHint : undefined}
+      className="flex w-full items-center justify-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       style={{ border: "1px solid var(--twx-line)", background: "#ffffff", color: "#1c1815" }}
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
