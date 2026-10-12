@@ -44,7 +44,10 @@ export default function OfficeRequestFlow() {
       .then((d) => {
         if (d.error) { setLoadError(d.error); return; }
         setReq(d.request ?? null); setRequestUsed(!!d.requestUsed);
-        if (d.request) setKind("office");
+        // a „Mi az irodai fiók?" oldalról érkezve (?forma=office|team) a forma előre ki van választva
+        const forma = new URLSearchParams(window.location.search).get("forma");
+        if (forma === "team" || forma === "office") setKind(forma);
+        else if (d.request) setKind("office");
       })
       .catch(() => setLoadError("Nem sikerült betölteni az állapotot."))
       .finally(() => setLoaded(true));

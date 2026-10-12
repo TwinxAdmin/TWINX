@@ -228,5 +228,5 @@ Mikrolépések (sorrendben):
 - [x] KM6 — „Kredit adása társnak" ablak (POST/GET /api/office/transfers, TeamTransferDialog) (saját pénztárcából, megerősítéssel) + napló
 - [x] KM7 — Üzenetek a munkatérben (2026-10-12; OFFICE_COMPOSE_EVENT; a ⋯ menü és a nézegető gombja az irodai nézetekben is működik) (kreditkérés nélkül) + „Üzenet ehhez a munkához" a ⋯ menüben és a WorkViewerben
 - [x] KM8 — Kilépés ablak (2026-10-12; POST /api/office/leave, TeamLeaveDialog; lejárt elemek kiszűrve mindenhol, a kilépett társ munkája csak olvasható): munkák + társak kipipálása → átadás (saját példány) → kilépés; 30 napos olvashatóság
-- [ ] KM9 — „Mi az irodai fiók?" oldal: két forma szekció + GYIK
+- [x] KM9 — „Mi az irodai fiók?" oldal (2026-10-12; „Két forma” szekció ?forma= előválasztással, 2 új GYIK, CTA-k): két forma szekció + GYIK
 - [ ] KM10 — Teszt: két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)

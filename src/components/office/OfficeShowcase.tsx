@@ -1,5 +1,6 @@
 // „Mi az irodai fiók?" — részletes ismertető oldal (a TWINX-en belül, teljes szélességben).
-// Felépítés az egyedi modul ismertetőjével egységes: sötét hero → világos szekciók → folyamat → GYIK → CTA.
+// Felépítés az egyedi modul ismertetőjével egységes: sötét hero → KÉT FORMA (vezetős iroda / közös munkatér)
+// → világos szekciók → folyamat → GYIK → CTA. A két forma gombja előre kiválasztja a formát (?forma=…).
 import ModuleIcon from "@/components/ModuleIcon";
 import Reveal from "@/components/motion/Reveal";
 import OfficeHandoffScene from "@/components/office/OfficeHandoffScene";
@@ -17,9 +18,27 @@ const BENEFITS: { icon: string; title: string; text: string }[] = [
   { icon: "branding", title: "Egységes, profi kimenet", text: "Közös mappákban a csapat ugyanazokra az anyagokra épít — az ügyfél egységes minőséget kap, bárki is készítette." },
 ];
 
+const TEAL = "#2F7F86";
+
+/** A két forma — rövid összevetés a hero alatt. */
+const FORMS: { kind: "office" | "team"; badge: string; title: string; who: string; points: string[]; cta: string; note: string }[] = [
+  {
+    kind: "office", badge: "⌂ Iroda vezetővel", title: "Egy iroda, egy közös keret",
+    who: "Ingatlanirodáknak, ahol egy vezető fizet és oszt ki kreditet.",
+    points: ["A vezető tölti fel az irodai egyenleget", "Kollégánként keretet oszt ki (vissza is veheti)", "Látja, ki, melyik modulban, mennyit költött", "Igénylés után felhívunk, és jóváhagyjuk"],
+    cta: "Iroda igénylése", note: "1–2 munkanap",
+  },
+  {
+    kind: "team", badge: "⚭ Közös munkatér", title: "Társak, közös mappák",
+    who: "2–5 egyenrangú kollégának, akik együtt dolgoznak egy-egy ügyön.",
+    points: ["Mindenki a saját kreditjéből dolgozik", "Kreditet adhatsz a társaidnak (visszavétel nincs)", "Közös mappák, üzenetek, egy állandó kód", "Kilépéskor a munkáidat átadhatod a társaidnak"],
+    cta: "Közös munkatér létrehozása", note: "⚡ azonnal",
+  },
+];
+
 const STEPS: { title: string; text: string; tag: string }[] = [
   { title: "Igénylés", text: "Az iroda vezetője megadja az iroda nevét és a várható létszámot.", tag: "2 perc" },
-  { title: "Jóváhagyás", text: "A TWINX csapata ellenőrzi és jóváhagyja az igénylést, utána egy kattintással megnyitod az irodai fiókot.", tag: "TWINX" },
+  { title: "Jóváhagyás", text: "A TWINX csapata ellenőrzi és jóváhagyja az igénylést, utána egy kattintással megnyitod az irodai fiókot. (Közös munkatérnél ez a lépés kimarad: azonnal létrejön.)", tag: "TWINX" },
   { title: "Kollégák meghívása", text: "Kapsz egy irodai kódot (pl. TWX-8K4P9R). Ezt küldöd el a kollégáknak — ők a „Csatlakozás kóddal” menüben beírják.", tag: "azonnali" },
   { title: "Kredit és keretek", text: "Feltöltöd az irodai egyenleget, és kiosztod a kereteket. Jogosultságot is adhatsz: helyettes kiosztó, vagy korlátlan használat.", tag: "te döntöd el" },
   { title: "Közös munka", text: "A kollégák irodai módban dolgoznak, a kész munkákat pedig megoszthatják a közös irodai mappákban.", tag: "csapatban" },
@@ -39,6 +58,8 @@ const ROLES: { title: string; text: string; points: string[] }[] = [
 ];
 
 const FAQ: { q: string; a: string }[] = [
+  { q: "Mi a különbség az iroda és a közös munkatér között?", a: "Az irodában van egy vezető: ő tölti fel a közös irodai egyenleget, és ő osztja ki a kollégáknak — a kollégák abból dolgoznak. A közös munkatérben mindenki egyenrangú társ: ki-ki a saját kreditjéből dolgozik, de bárki adhat kreditet a társának (visszavenni nem lehet). Közös mappák, üzenetek és a munkák megosztása mindkettőben ugyanúgy működik. Irodát igényelni kell, közös munkatér azonnal létrejön." },
+  { q: "Mi lesz a munkáimmal, ha kilépek egy közös munkatérből?", a: "Kilépés előtt kiválaszthatod a munkáidat és a társakat, akiknek átadod őket — ők saját példányt kapnak. A közös mappákba tett munkáid még 30 napig olvashatók a társaidnak, utána kikerülnek a mappákból. A saját példányaid és a saját kreditjeid nálad maradnak." },
   { q: "Mi lesz a saját kreditjeimmel?", a: "Megmaradnak. Az irodai fiók egy második forrás: a képernyő alján lévő kapcsolóval választod ki, hogy a saját egyenlegedből vagy az irodai keretedből dolgozol." },
   { q: "Látja a vezető minden munkámat?", a: "Nem. Minden munka a készítőjénél marad. A vezető (és bárki más) csak azt látja, amit egy közös irodai mappába megosztasz. A vezető a kredit-felhasználást látja: ki, melyik modulban, mennyit." },
   { q: "Hogyan tudja a kollégám folytatni a munkámat?", a: "Tedd be a munkát egy közös irodai mappába, aminek ő is tagja. Ott megnyitja, és folytathatja vagy átnézheti. Szerkesztés közben a munka zárolva van, így ketten nem írják felül egymást, és minden mentésből új verzió lesz. A szerkesztés jelenleg az értékbecsléseknél érhető el; a többi modul munkái megoszthatók és megnyithatók." },
@@ -77,12 +98,13 @@ export default function OfficeShowcase() {
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
               Közös kreditegyenleg az egész irodának, keret kollégánként, és közös mappák, ahol a munkát
-              átadhatod egy kollégának: ő folytatja vagy átnézi, mielőtt az ügyfélhez kerül.
+              átadhatod egy kollégának: ő folytatja vagy átnézi, mielőtt az ügyfélhez kerül. Vagy egyszerűen
+              közös munkatér egyenrangú társaknak — mindenki a saját kreditjéből.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a href="/dashboard/iroda/igenyles" className="rounded-xl px-7 py-4 text-base font-semibold transition-opacity hover:opacity-90"
                 style={{ background: CORAL, color: "#1c1005" }}>
-                Irodai fiók igénylése
+                Iroda vagy közös munkatér
               </a>
               <OfficeJoinButton className="rounded-xl px-6 py-4 text-base font-medium transition-colors hover:bg-white/5"
                 style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.2)" }}>
@@ -99,13 +121,59 @@ export default function OfficeShowcase() {
         </div>
       </section>
 
+      {/* ===================== KÉT FORMA ===================== */}
+      <section className="px-6 pt-20">
+        <div className="mx-auto w-full max-w-6xl">
+          <Reveal>
+            <p className="font-display text-sm font-semibold uppercase" style={{ color: CORAL, letterSpacing: "0.2em" }}>Két forma</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">Vezetővel — vagy egyenrangú társakkal</h2>
+            <p className="mt-3 max-w-3xl text-base" style={MUTED}>
+              Az irodai fiókot kétféleképpen nyithatod meg. A közös mappák, az üzenetek és a munkák megosztása mindkettőben ugyanaz —
+              a különbség az, hogy ki fizet, és ki kezeli a krediteket.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {FORMS.map((f, i) => {
+              const accent = f.kind === "team" ? TEAL : CORAL;
+              return (
+                <Reveal key={f.kind} delay={0.08 * i}>
+                  <div className="flex h-full flex-col gap-3 rounded-2xl p-6" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
+                    <span className="self-start rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      style={f.kind === "team" ? { background: "#DCEFF0", color: "#1F5F65" } : { background: "#FBE1D6", color: "#A8411F" }}>
+                      {f.badge}
+                    </span>
+                    <p className="font-display text-2xl font-semibold">{f.title}</p>
+                    <p className="text-sm" style={MUTED}>{f.who}</p>
+                    <ul className="mt-1 space-y-2">
+                      {f.points.map((p) => (
+                        <li key={p} className="flex items-start gap-2 text-sm">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: accent, color: f.kind === "team" ? "#fff" : "#1c1005" }}>✓</span>
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">
+                      <a href={`/dashboard/iroda/igenyles?forma=${f.kind}`} className="rounded-xl px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-90"
+                        style={{ background: accent, color: f.kind === "team" ? "#fff" : "#1c1005" }}>
+                        {f.cta}
+                      </a>
+                      <span className="text-xs" style={MUTED}>{f.note}</span>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ===================== MI EZ + ELŐNYÖK ===================== */}
       <section className="px-6 py-20">
         <div className="mx-auto w-full max-w-6xl">
           <Reveal>
             <h2 className="font-display text-3xl font-semibold sm:text-4xl">Mi az irodai fiók?</h2>
             <p className="mt-4 max-w-3xl text-base leading-relaxed" style={MUTED}>
-              Az irodai fiók egy <strong style={{ color: "var(--twx-ink)" }}>közös munkatér</strong> az irodádnak a TWINX-en belül.
+              Az irodai fiók egy <strong style={{ color: "var(--twx-ink)" }}>közös hely</strong> az irodádnak a TWINX-en belül.
               A vezető kezeli a krediteket és a jogosultságokat, a kollégák a saját keretükből dolgoznak, és a munkákat
               <strong style={{ color: "var(--twx-ink)" }}> tudatosan, mappánként</strong> osztják meg egymással.
             </p>
@@ -252,12 +320,12 @@ export default function OfficeShowcase() {
         <Reveal className="relative mx-auto max-w-2xl text-center">
           <h2 className="font-display text-3xl font-semibold sm:text-5xl">Dolgozzatok együtt</h2>
           <p className="mt-4 text-lg" style={{ color: "var(--twx-on-dark-muted)" }}>
-            Igényeld az irodai fiókot, vagy ha már kaptál kódot a vezetődtől, csatlakozz most.
+            Igényeld az irodai fiókot, hozz létre közös munkateret a társaiddal — vagy ha már kaptál kódot, csatlakozz most.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <a href="/dashboard/iroda/igenyles" className="rounded-xl px-8 py-4 text-base font-semibold transition-opacity hover:opacity-90"
               style={{ background: CORAL, color: "#1c1005" }}>
-              Irodai fiók igénylése
+              Iroda vagy közös munkatér
             </a>
             <OfficeJoinButton className="rounded-xl px-7 py-4 text-base font-medium transition-colors hover:bg-white/5"
               style={{ color: "var(--twx-on-dark)", border: "1px solid rgba(255,255,255,0.2)" }}>
