@@ -232,3 +232,18 @@ Mikrolépések (sorrendben):
 - [x] KM8b — Gazdaváltás kilépéskor: a legrégebbi megmaradt társ lesz a gazda (`20261012180016_team-owner-handover.sql`, lefuttatva 2026-10-12)
 - [x] KM8c — Értesítés munka-átadáskor: címzettenként egy „Kész munka” üzenet a munkatérben, az első átadott munka csatolva (POST /api/office/leave)
 - [~] KM10 — Teszt (2026-10-12: létrehozás, csatlakozás, saját kreditből fizetés OK — a teljes tesztet ELÖLRŐL kezdjük, teszt-munkatér: „KM10 teszt”, TWX-6ETXHE): két teszt-felhasználóval végig (létrehozás, csatlakozás, átadás, üzenet, kilépés)
+
+## MH — Admin: Modul-használat (Felhasználók oldal 2. füle)
+Látványterv (jóváhagyva 2026-10-12): `design/admin-modul-hasznalat-latvanyterv.html`.
+Döntések: minden futtatás számít · „Admin és sales is” kapcsoló (alapból KI) · megnyitás-mérés saját naplóval,
+fejenként naponta EGYSZER modulonként · irodai fiókok és közös munkaterek külön (kétállású váltó) · új regisztrálók sáv
+· felhasználónként TOP 5 modul + részletes felugró ablak · fix méretű ablakok · nincs pénzügy · CSV KÉSŐBB.
+Modul-kulcs: a modul útvonala (katalógus `href`); a futtatásnál `FEATURE_TO_HREF` fordít.
+- [x] MH1 — SQL: `module_views` (felhasználó × modul × nap, csak a szerver ír) — `20261012183311_module-views.sql`, lefuttatva 2026-10-12
+- [x] MH2 — Mérés: `POST /api/track/module-view` + `ModuleViewTracker` a dashboard layoutban (napi egyszer) — 2026-10-12
+- [x] MH3 — Admin API: `/api/admin/module-usage` (időszak / forrás / mód / admin+sales szűrő; ?user= és ?office= részletek) — `lib/module-usage.ts`, 2026-10-12
+- [x] MH4 — Fül + szűrősáv + KPI-k + Új regisztrálók sáv (`ModuleUsageView`, /admin/users?tab=hasznalat) — 2026-10-12, Márk nézze meg
+- [x] MH5 — Modul-rangsor (megnyitás → futtatás, visszatérő, változás, kedvenc, jelzések) + modul részletei ablak (`?module=`) — 2026-10-12
+- [x] MH6 — Felhasználók és kedvenc moduljaik (TOP 5) + részletes felhasználói ablak (`UserModuleTable`) — 2026-10-12
+- [x] MH7 — Irodák és munkaterek (váltó) + iroda részletei ablak (`OfficeUsageCard`) — 2026-10-12
+- [ ] MH8 — (később) CSV-letöltés

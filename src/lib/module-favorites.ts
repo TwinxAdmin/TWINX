@@ -44,3 +44,17 @@ export const FEATURE_TO_HREF: Record<string, string> = {
   profit_plan: "/dashboard/hospitality/costing",
   supplier_search: "/dashboard/hospitality/suppliers",
 };
+
+/**
+ * Melyik modulhoz tartozik egy dashboard-útvonal? (a megnyitás-méréshez — /api/track/module-view)
+ * A leghosszabb egyező modul-útvonal nyer, így az almodul-oldalak (pl. …/valuation/123) is a modulhoz számítanak.
+ * Nem modul-oldal (pl. /dashboard, /dashboard/iroda) → null.
+ */
+export function moduleForPath(path: string): string | null {
+  const clean = path.split("?")[0].replace(/\/+$/, "");
+  let best: string | null = null;
+  for (const m of selectableModules()) {
+    if ((clean === m.href || clean.startsWith(m.href + "/")) && (!best || m.href.length > best.length)) best = m.href;
+  }
+  return best;
+}

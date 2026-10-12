@@ -15,6 +15,7 @@ import CreditDock from "@/components/CreditDock";
 import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
+import ModuleViewTracker from "@/components/ModuleViewTracker";
 import { getMembershipIn, getWorkContext, listMyOffices, officeKind } from "@/lib/office-server";
 
 export default async function DashboardLayout({
@@ -121,6 +122,8 @@ export default async function DashboardLayout({
       {/* Elfogyott irodai keret → „Folytatás saját kreditből?" (minden modulra, egy helyen) */}
       {dock && <OfficeFallbackProvider />}
       <OfficeModals />
+      {/* modul-megnyitások mérése (admin „Modul-használat") — láthatatlan */}
+      <ModuleViewTracker />
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
       <CreditDock

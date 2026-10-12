@@ -63,8 +63,9 @@ export function SoonBadge({ dark = false }: { dark?: boolean }) {
   );
 }
 
-export function OfficeDialog({ title, onClose, children, wide = false }: {
+export function OfficeDialog({ title, onClose, children, wide = false, xwide = false }: {
   title: string; onClose: () => void; children: ReactNode; wide?: boolean;
+  xwide?: boolean;   // extra széles (pl. admin: felhasználó részletei) — a többi ablak változatlan
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -77,7 +78,7 @@ export function OfficeDialog({ title, onClose, children, wide = false }: {
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(12,11,10,0.72)" }}>
       <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}
-        className={`flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl ${wide ? "max-w-2xl" : "max-w-lg"}`}
+        className={`flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl ${xwide ? "max-w-5xl" : wide ? "max-w-2xl" : "max-w-lg"}`}
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: "var(--twx-ink)", boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}>
         <div className="flex flex-none items-start justify-between gap-4 px-6 pb-3 pt-5">
           <h2 className="font-display text-xl font-semibold">{title}</h2>

@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TWINX admin — Modul-használat látványterv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --dark:#12100e; --dark2:#1B1815; --cream:#F7F3EC; --card:#FDFBF6; --ink:#1C1815; --muted:#6E655C;
+    --line:#E8E1D6; --line2:#EFE7DD; --coral:#EF7A5A; --coral2:#F08A68; --soft:#FBE1D6; --green:#1F7A4D; --red:#B3261E;
+    --teal:#2F7F86; --teal-soft:#DCEFF0;
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  body{background:#2a2420;color:var(--ink)}
+  .display{font-family:"Manrope","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+  button{font:inherit;cursor:pointer;border:0}
+  .muted{color:var(--muted)}
+  .note{max-width:1240px;margin:16px auto 0;padding:0 16px;color:#BFB4A8;font-size:12px;text-align:center;line-height:1.5}
+  .app{max-width:1240px;margin:16px auto 60px;background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .nav{height:58px;background:var(--dark);display:flex;align-items:center;padding:0 24px;gap:22px;color:#F4EFE7;font-size:14px}
+  .nav .logo{font-weight:800;font-size:19px}.nav .logo b{color:var(--coral)}
+  .nav .m{opacity:.75}.nav .m.on{opacity:1;color:var(--coral2);font-weight:600}
+  .page{padding:26px 30px 40px}
+  h1{font-size:26px;font-weight:700}
+  .sub{margin-top:4px;font-size:14px;color:var(--muted)}
+  .annot{margin-top:8px;display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.45;color:#7A4A2E;background:#FFF3EC;border:1px dashed #E8B9A6;border-radius:10px;padding:8px 10px}
+  .annot b{color:#A8411F}
+
+  /* fülek */
+  .tabs{margin-top:18px;display:inline-grid;grid-template-columns:220px 220px;padding:4px;border-radius:99px;background:#EFE7DD}
+  .tabs span{height:36px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B6258}
+  .tabs span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+  /* szűrősáv */
+  .filters{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+  .seg{display:inline-flex;padding:3px;border-radius:99px;background:#F1EAE1}
+  .seg span{height:28px;padding:0 12px;border-radius:99px;display:flex;align-items:center;font-size:12px;font-weight:600;color:#4A433C}
+  .seg span.on{background:var(--dark);color:#fff}
+  .sel{height:34px;min-width:150px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}
+  .sel small{color:var(--muted)}
+  .switch{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
+  .sw{width:34px;height:20px;border-radius:99px;background:#D9CFC3;position:relative}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
+  .sw.on{background:var(--coral2)}.sw.on::after{left:16px}
+  .sp{flex:1}
+  .ghost{height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:600}
+
+  /* KPI */
+  .kpis{margin-top:14px;display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .kpi{padding:14px 16px;border-radius:14px;background:var(--dark);color:#F3EDE6}
+  .kpi p{font-size:12px;color:#A89E94}
+  .kpi .n{margin-top:3px;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+  .kpi .n small{font-size:12px;font-weight:600;margin-left:4px}
+  .up{color:#7BD39B}.down{color:#F4A48A}
+
+  /* belső navigáció */
+  .subnav{margin-top:18px;display:flex;gap:8px;position:sticky;top:0;z-index:5;padding:8px 0;background:var(--cream)}
+  .subnav a{height:30px;padding:0 12px;border-radius:99px;display:inline-flex;align-items:center;font-size:12px;font-weight:600;text-decoration:none;color:#4A433C;background:#F1EAE1}
+  .subnav a.on{background:var(--dark);color:#fff}
+
+  .card{margin-top:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);overflow:hidden}
+  .ch{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px 12px}
+  .ch h2{font-size:18px;font-weight:700}
+  .ch .r{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+
+  /* modul-rangsor */
+  .rk{display:grid;grid-template-columns:28px 190px minmax(0,1fr) 78px 78px 78px 92px 78px 70px;gap:12px;align-items:center;padding:0 18px;height:52px;border-top:1px solid var(--line2);font-size:13px}
+  .rk.h{height:36px;background:var(--dark2);color:#BFB4A8;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .rk .num{font-variant-numeric:tabular-nums;text-align:right}
+  .rk .pos{font-weight:800;color:var(--muted);text-align:center}
+  .bar{position:relative;height:10px;border-radius:99px;background:#F1EAE1;overflow:hidden}
+  .bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,#E3683F,#F4A48A)}
+  .bar b{position:absolute;inset:0 auto 0 0;border-radius:99px;background:rgba(227,104,63,.18)}
+  .flag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:99px;font-size:10px;font-weight:800}
+  .f-int{background:#FFF0D6;color:#8A5A00}
+  .f-hot{background:#DDF0E4;color:#1F5C38}
+  .legend{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .lg1{width:18px;height:8px;border-radius:99px;background:linear-gradient(90deg,#E3683F,#F4A48A)}
+  .lg2{width:18px;height:8px;border-radius:99px;background:rgba(227,104,63,.25)}
+
+  /* hőtérkép */
+  .hm{overflow:auto;max-height:360px;border-top:1px solid var(--line2)}
+  table.heat{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
+  .heat th{position:sticky;top:0;background:var(--dark2);color:#BFB4A8;font-size:10.5px;font-weight:700;padding:8px 6px;text-align:center;white-space:nowrap;z-index:2}
+  .heat th:first-child{text-align:left;padding-left:18px;left:0;z-index:3}
+  .heat td{padding:0;height:40px;border-bottom:1px solid var(--line2);text-align:center;font-variant-numeric:tabular-nums}
+  .heat td:first-child{position:sticky;left:0;background:var(--card);text-align:left;padding:0 10px 0 18px;white-space:nowrap;z-index:1;min-width:210px}
+  .heat td .c{display:flex;align-items:center;justify-content:center;margin:3px;height:32px;border-radius:7px;font-weight:700}
+  .who{display:flex;align-items:center;gap:8px}
+  .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex:none}
+  .who small{display:block;font-size:10.5px;color:var(--muted);font-weight:500}
+  .role{font-size:9.5px;font-weight:800;border-radius:99px;padding:1px 6px;margin-left:4px}
+  .r-admin{background:#E8E1F5;color:#4B3B7A}.r-sales{background:#FFF0D6;color:#8A5A00}
+
+  /* felhasználói lista */
+  .ul{display:grid;grid-template-columns:minmax(0,1.6fr) 1.2fr 110px 120px 120px 110px 40px;gap:12px;align-items:center;padding:0 18px;height:54px;border-top:1px solid var(--line2);font-size:13px}
+  .ul.h{height:36px;background:var(--dark2);color:#BFB4A8;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .chipm{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:99px;background:var(--soft);color:#A8411F;font-size:11.5px;font-weight:700}
+  .dots{display:flex;gap:3px}
+  .dots i{width:6px;height:8px;border-radius:2px;background:#EADFD3}
+  .dots i.on{background:#E3683F}
+  .sleep{display:inline-flex;height:22px;align-items:center;padding:0 8px;border-radius:99px;font-size:10.5px;font-weight:800;background:#F1EAE1;color:#6B6258}
+  .dotsbtn{width:30px;height:30px;border-radius:8px;border:1px solid #E1D6C9;background:#fff;color:var(--muted)}
+  .scroll{max-height:290px;overflow:auto}
+
+  /* irodák */
+  .off{display:grid;grid-template-columns:minmax(0,1.5fr) 110px 90px 90px minmax(0,1.6fr) 130px 40px;gap:12px;align-items:center;padding:0 18px;height:58px;border-top:1px solid var(--line2);font-size:13px}
+  .off.h{height:36px;background:var(--dark2);color:#BFB4A8;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .kind{font-size:10px;font-weight:800;border-radius:99px;padding:2px 8px}
+  .k-o{background:var(--soft);color:#A8411F}.k-t{background:var(--teal-soft);color:#1F5F65}
+  .mix{display:flex;height:12px;border-radius:99px;overflow:hidden;background:#F1EAE1}
+  .mix i{display:block;height:100%}
+
+  /* részletek ablak */
+  .dlgwrap{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .dlg{border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+  .dlg-h{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px 8px}
+  .dlg-h h3{font-size:18px;font-weight:700}
+  .x{width:30px;height:30px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center}
+  .dlg-b{padding:4px 20px 20px;display:flex;flex-direction:column;gap:12px}
+  .mini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .mini div{border-radius:10px;background:#F8F3EC;padding:9px 10px}
+  .mini p{font-size:10.5px;color:var(--muted)}.mini b{font-size:17px;font-variant-numeric:tabular-nums}
+  .mrow{display:grid;grid-template-columns:130px 1fr 52px 52px;gap:10px;align-items:center;font-size:12.5px;height:28px}
+  .tl{display:flex;flex-direction:column;gap:0;max-height:170px;overflow:auto;border:1px solid var(--line2);border-radius:10px;background:#fff}
+  .tl div{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:1px solid #F3EDE6;font-size:12px}
+  .tl small{color:var(--muted)}
+  .ev{font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px}
+  .ev-run{background:var(--soft);color:#A8411F}.ev-open{background:#F1EAE1;color:#6B6258}
+
+  /* új regisztrálók sáv */
+  .reg{margin-top:14px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);padding:16px 18px;height:300px}
+  .reg h2{font-size:18px;font-weight:700}
+  .regtiles{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .rt{border-radius:12px;padding:10px 12px;background:#F8F3EC;border:1px solid var(--line2)}
+  .rt.on{background:var(--dark);border-color:var(--dark);color:#fff}
+  .rt p{font-size:11px;color:var(--muted)}.rt.on p{color:#A89E94}
+  .rt b{display:block;margin-top:2px;font-size:22px;font-variant-numeric:tabular-nums}
+  .rt small{font-size:11px;font-weight:600}
+  .split{margin-top:12px;display:flex;flex-direction:column;gap:6px;font-size:12px}
+  .split .row{display:grid;grid-template-columns:120px 1fr 44px;gap:10px;align-items:center}
+  .chart{display:flex;flex-direction:column;min-width:0}
+  .bars{flex:1;display:flex;align-items:flex-end;gap:5px;padding:10px 4px 0;border-bottom:1px solid var(--line)}
+  .bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%}
+  .bars i{display:block;border-radius:4px 4px 0 0}
+  .bars .a{background:#E3683F}.bars .b{background:#2F7F86}
+  .axis{display:flex;gap:5px;padding:4px 4px 0;font-size:9.5px;color:var(--muted)}
+  .axis span{flex:1;text-align:center}
+
+  /* összevont felhasználói táblázat: TOP 5 modul */
+  .ut{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,5.2fr) 84px 64px 86px 78px 30px;gap:10px;align-items:center;padding:0 18px;height:60px;border-top:1px solid var(--line2);font-size:13px;cursor:pointer}
+  .ut:hover{background:#FBF6F0}
+  .ut.h{height:36px;cursor:default;background:var(--dark2);color:#BFB4A8;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .ut.h:hover{background:var(--dark2)}
+  .top5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+  .pill{position:relative;height:34px;border-radius:9px;background:#F8F3EC;border:1px solid var(--line2);display:flex;align-items:center;gap:5px;padding:0 7px;overflow:hidden;font-size:11.5px}
+  .pill .no{flex:none;width:15px;height:15px;border-radius:50%;background:var(--dark);color:#fff;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .pill .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .pill .ct{flex:none;font-weight:800;font-variant-numeric:tabular-nums}
+  .pill .pb{position:absolute;left:0;bottom:0;height:3px;background:#E3683F;border-radius:0 2px 0 0}
+  .pill.first{background:var(--soft);border-color:#F1C7B5}
+  .pill.empty{background:transparent;border-style:dashed;color:#C9B8A8;justify-content:center}
+  .tbody{height:372px;overflow:auto}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+  /* bővített felhasználói ablak */
+  .bigdlg{grid-column:1/-1}
+  .bigdlg .dlg-b{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+  .kp6{grid-column:1/-1;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .kp6 div{border-radius:10px;background:#F8F3EC;padding:9px 10px}
+  .kp6 p{font-size:10.5px;color:var(--muted)}.kp6 b{font-size:17px;font-variant-numeric:tabular-nums}
+  .summary{grid-column:1/-1;border-radius:12px;padding:10px 12px;background:#FFF8F3;border:1px solid #F1D3BF;font-size:13px;line-height:1.5}
+  .mtab{height:300px;overflow:auto;border:1px solid var(--line2);border-radius:10px;background:#fff}
+  .mt{display:grid;grid-template-columns:minmax(0,1.3fr) 44px 44px 92px 66px;gap:8px;align-items:center;padding:0 10px;height:38px;border-bottom:1px solid #F3EDE6;font-size:12.5px}
+  .mt.h{position:sticky;top:0;height:30px;background:var(--dark2);color:#BFB4A8;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;z-index:1}
+  .mt .num{text-align:right;font-variant-numeric:tabular-nums}
+  .side h4{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+  .tl2{height:300px;overflow:auto;border:1px solid var(--line2);border-radius:10px;background:#fff}
+  .tl2 div{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid #F3EDE6;font-size:12px}
+  .tl2 small{color:var(--muted);flex:none}
+
+  /* irodák váltó */
+  .twoseg{display:inline-grid;grid-template-columns:150px 150px;padding:3px;border-radius:99px;background:#F1EAE1}
+  .twoseg span{height:30px;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#4A433C;cursor:pointer}
+  .twoseg span.on{background:var(--dark);color:#fff}
+  .offbody{height:300px;overflow:auto}
+
+  @media (max-width:900px){
+    .reg{grid-template-columns:1fr;height:auto}
+    .page{padding:18px 14px 30px}
+    .kpis{grid-template-columns:1fr 1fr}
+    .rk,.ul,.off{grid-template-columns:1fr 70px;height:auto;padding:10px 14px}
+    .rk>*:nth-child(n+4),.ul>*:nth-child(n+3),.off>*:nth-child(n+3){display:none}
+    .rk.h,.ul.h,.off.h{display:none}
+    .dlgwrap{grid-template-columns:1fr}
+    .tabs{grid-template-columns:1fr 1fr;width:100%}
+    .nav .m{display:none}
+  }
+</style>
+</head>
+<body>
+<p class="note">Látványterv — <b>Admin → Felhasználók</b> oldal MÁSODIK FÜLE: <b>„Modul-használat”</b>. Nincs benne pénzügy (az a Költségfigyelőben marad).
+  Minden futtatás számít; a <b>megnyitásokat</b> új, saját naplózás méri (a bevezetés napjától). A szaggatott narancs dobozok tervezői megjegyzések.</p>
+
+<div class="app">
+  <div class="nav">
+    <span class="logo">TWIN<b>X</b> <span style="font-weight:600;font-size:13px;opacity:.6">admin</span></span>
+    <span class="m">Kezdőlap</span><span class="m">Megkeresések</span><span class="m on">Felhasználók</span><span class="m">Pénzügy</span><span class="m">Tartalom</span>
+  </div>
+
+  <div class="page">
+    <h1 class="display">Admin — Felhasználók</h1>
+    <p class="sub">Ki mit használ, és melyik modul iránt van a legnagyobb érdeklődés.</p>
+
+    <div class="tabs"><span>Egyenlegek és költés</span><span class="on">Modul-használat</span></div>
+    <div class="annot">✎ <span>Az első fül a mostani felhasználói táblázat (egyenleg, szerepkör, költség, bevétel, kredit adása) — változatlan. A két fül <b>azonos méretű</b>, váltáskor semmi nem ugrik.</span></div>
+
+    <!-- SZŰRŐK -->
+    <div class="filters">
+      <div class="seg"><span>7 nap</span><span class="on">30 nap</span><span>90 nap</span><span>Összes</span></div>
+      <div class="sel">Forrás: <b>Mind</b> <small>▾</small></div>
+      <div class="sel">Mód: <b>Mind</b> <small>▾</small></div>
+      <span class="switch"><span class="sw"></span>Admin és sales is</span>
+      <span class="sp"></span>
+      <button class="ghost">CSV letöltés</button>
+    </div>
+    <div class="annot">✎ <span><b>Forrás:</b> Mind / Közvetlen / Ingatlan landing. <b>Mód:</b> Mind / Privát / Irodai fiók / Közös munkatér. Az <b>„Admin és sales is”</b> kapcsoló alapból KI — így a bemutatók és tesztek nem torzítanak. Legördülők: TWINX-stílusú SelectField.</span></div>
+
+    <!-- KPI -->
+    <div class="kpis">
+      <div class="kpi"><p>Futtatások</p><div class="n">1 284 <small class="up">↑ 18%</small></div></div>
+      <div class="kpi"><p>Aktív felhasználók</p><div class="n">63 <small class="up">↑ 9</small></div></div>
+      <div class="kpi"><p>Megnyitásból futtatás</p><div class="n">41% <small class="down">↓ 3 pont</small></div></div>
+      <div class="kpi"><p>Legnépszerűbb modul</p><div class="n" style="font-size:18px">Értékbecslés</div></div>
+      <div class="kpi"><p>Alvó felhasználók (30 nap)</p><div class="n">17 <small class="down">↑ 4</small></div></div>
+    </div>
+    <div class="annot">✎ <span>A ↑/↓ mindig az <b>előző azonos hosszú időszakhoz</b> képest. „Alvó” = volt már futtatása, de 30 napja nincs.</span></div>
+
+    <!-- ÚJ REGISZTRÁLÓK -->
+    <section class="reg" id="reg">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <h2 class="display">Új regisztrálók</h2>
+          <span class="muted" style="font-size:11px">kattints egy időszakra</span>
+        </div>
+        <div class="regtiles">
+          <div class="rt"><p>Ma</p><b>3</b></div>
+          <div class="rt"><p>7 nap</p><b>18 <small style="color:var(--green)">↑ 5</small></b></div>
+          <div class="rt on"><p>30 nap</p><b>64 <small style="color:#7BD39B">↑ 12</small></b></div>
+          <div class="rt"><p>90 nap</p><b>171</b></div>
+          <div class="rt"><p>12 hónap</p><b>486</b></div>
+          <div class="rt"><p>Összes</p><b>512</b></div>
+        </div>
+        <div class="split">
+          <div class="row"><span>Közvetlen</span><div class="bar"><i style="width:58%;background:#E3683F"></i></div><b class="num">37</b></div>
+          <div class="row"><span>Ingatlan landing</span><div class="bar"><i style="width:42%;background:#2F7F86"></i></div><b class="num">27</b></div>
+          <div class="row"><span>Futtatott már</span><div class="bar"><i style="width:69%;background:#1F7A4D"></i></div><b class="num">44</b></div>
+        </div>
+      </div>
+      <div class="chart">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span class="legend"><span><i class="lg1" style="background:#E3683F"></i>közvetlen</span><span><i class="lg1" style="background:#2F7F86"></i>landing</span></span>
+          <div class="seg"><span class="on">Nap</span><span>Hét</span><span>Hónap</span></div>
+        </div>
+        <div class="bars" id="regBars"></div>
+        <div class="axis" id="regAxis"></div>
+      </div>
+    </section>
+    <div class="annot">✎ <span>Fix magasságú sáv. A <b>csempék egyszerre</b> mutatják a különböző időszakokat (Ma / 7 / 30 / 90 nap / 12 hónap / Összes) — a kiválasztott (sötét) adja a jobb oldali grafikont és a bontást.
+      A grafikon <b>Nap / Hét / Hónap</b> szerint csoportosít (30 napnál alapból nap, 12 hónapnál hónap). „Futtatott már” = az új regisztrálók közül hányan futtattak legalább egy modult (aktiválódás).
+      Az „Admin és sales is” kapcsoló itt is érvényes. Forrás: a profil regisztrációs forrása.</span></div>
+
+    <div class="subnav"><a href="#reg">Új regisztrálók</a><a class="on" href="#modulok">Modulok</a><a href="#felhasznalok">Felhasználók</a><a href="#irodak">Irodák és munkaterek</a></div>
+
+    <!-- 1) MODUL-RANGSOR -->
+    <section class="card" id="modulok">
+      <div class="ch">
+        <h2 class="display">Modul-rangsor</h2>
+        <div class="legend"><span><i class="lg1"></i>futtatás</span><span><i class="lg2"></i>megnyitás</span><span>Rendezés: <b>Futtatás ▾</b></span></div>
+      </div>
+      <div class="rk h"><span>#</span><span>Modul</span><span>Megnyitás → futtatás</span><span class="num">Megnyitás</span><span class="num">Futtatás</span><span class="num">Felhasználó</span><span class="num">Visszatérő</span><span class="num">Változás</span><span class="num">Kedvenc</span></div>
+      <div class="rk"><span class="pos">1</span><b>Értékbecslés</b><div class="bar"><b style="width:92%"></b><i style="width:70%"></i></div><span class="num">612</span><span class="num"><b>431</b></span><span class="num">48</span><span class="num">71%</span><span class="num up" style="color:var(--green)">↑ 22%</span><span class="num">19</span></div>
+      <div class="rk"><span class="pos">2</span><span><b>Hirdetéskép</b> <span class="flag f-hot">FELFUTÓ</span></span><div class="bar"><b style="width:60%"></b><i style="width:47%"></i></div><span class="num">398</span><span class="num"><b>290</b></span><span class="num">37</span><span class="num">64%</span><span class="num" style="color:var(--green)">↑ 41%</span><span class="num">14</span></div>
+      <div class="rk"><span class="pos">3</span><b>Képjavító</b><div class="bar"><b style="width:44%"></b><i style="width:33%"></i></div><span class="num">271</span><span class="num"><b>204</b></span><span class="num">29</span><span class="num">58%</span><span class="num" style="color:var(--green)">↑ 6%</span><span class="num">9</span></div>
+      <div class="rk"><span class="pos">4</span><span><b>Videó</b> <span class="flag f-int">ÉRDEKLŐDÉS &gt; HASZNÁLAT</span></span><div class="bar"><b style="width:66%"></b><i style="width:19%"></i></div><span class="num">405</span><span class="num"><b>118</b></span><span class="num">22</span><span class="num">39%</span><span class="num" style="color:var(--red)">↓ 8%</span><span class="num">11</span></div>
+      <div class="rk"><span class="pos">5</span><b>Hirdetés-ellenőrző</b><div class="bar"><b style="width:22%"></b><i style="width:15%"></i></div><span class="num">134</span><span class="num"><b>96</b></span><span class="num">18</span><span class="num">44%</span><span class="num" style="color:var(--green)">↑ 3%</span><span class="num">4</span></div>
+      <div class="rk"><span class="pos">6</span><b>Látványtervező</b><div class="bar"><b style="width:30%"></b><i style="width:13%"></i></div><span class="num">187</span><span class="num"><b>82</b></span><span class="num">15</span><span class="num">33%</span><span class="num" style="color:var(--red)">↓ 12%</span><span class="num">6</span></div>
+      <div class="rk"><span class="pos">7</span><b>Facebook-hirdetés</b><div class="bar"><b style="width:12%"></b><i style="width:6%"></i></div><span class="num">73</span><span class="num"><b>41</b></span><span class="num">11</span><span class="num">27%</span><span class="num" style="color:var(--green)">új</span><span class="num">2</span></div>
+      <div class="annot" style="margin:10px 18px 16px">✎ <span>
+        <b>Megnyitás</b> = a modul oldala megnyílt (bejelentkezett felhasználó, naponta egyszer számolva fejenként). <b>Futtatás</b> = minden lefutott munka.
+        <b>Visszatérő</b> = a felhasználóinak hány %-a használta legalább 2-szer. Jelzések: <b>„Érdeklődés &gt; használat”</b> — sokan nyitják meg, kevesen futtatják
+        (pl. drága / bonyolult / nem érthető) · <b>„Felfutó”</b> — legalább +30% az előző időszakhoz. Kattintás egy modulra → felugró ablak: kik használják a legtöbbet + napi görbe.</span></div>
+    </section>
+
+    <!-- 2) FELHASZNÁLÓK ÉS TOP 5 MODULJUK -->
+    <section class="card" id="felhasznalok">
+      <div class="ch">
+        <h2 class="display">Felhasználók és kedvenc moduljaik</h2>
+        <div class="tools">
+          <div class="sel" style="min-width:210px">⌕ <small>Keresés név / e-mail</small></div>
+          <div class="seg"><span class="on">Mind</span><span>Aktív</span><span>Alvó</span><span>Még nem futtatott</span></div>
+          <div class="sel" style="min-width:150px">Rendezés: <b>Futtatás</b> <small>▾</small></div>
+        </div>
+      </div>
+      <div class="ut h"><span>Felhasználó</span><span>TOP 5 modul (futtatás szerint)</span><span>Fut. / megn.</span><span>Kipróbált</span><span>Utolsó</span><span>Állapot</span><span></span></div>
+      <div class="tbody" id="userRows"></div>
+      <div class="annot" style="margin:10px 18px 16px">✎ <span>A korábbi hőtérkép és a külön felhasználói lista helyett <b>egy</b> táblázat. Soronként a felhasználó <b>TOP 5 modulja</b>: öt fix szélességű, sorszámozott „pirula” (név + futtatás; az alsó vékony sáv az első helyezetthez viszonyít).
+        Ha valaki 5-nél kevesebb modult használt, a maradék hely halvány „—” — a sor sosem ugrik, az oszlopok egy vonalban maradnak. Fix magasság, belül görget.
+        <b>Kattintás a sorra → részletes ablak</b> (lent). „⋯” menü: Részletek · Ugrás az Egyenlegek fülre.</span></div>
+    </section>
+
+    <!-- 4) IRODÁK ÉS MUNKATEREK -->
+    <section class="card" id="irodak">
+      <div class="ch">
+        <h2 class="display">Irodák és munkaterek</h2>
+        <div class="twoseg" id="offSeg"><span class="on" data-k="o">Irodai fiókok · 3</span><span data-k="t">Közös munkaterek · 2</span></div>
+      </div>
+      <!-- IRODAI FIÓKOK -->
+      <div id="offO">
+        <div class="off h"><span>Iroda</span><span>Aktív tag</span><span>Futtatás</span><span>Megnyitásból</span><span>Modul-mix</span><span>Legnépszerűbb</span><span></span></div>
+        <div class="offbody">
+          <div class="off"><span><b>GDN Mandala</b><br><small class="muted">8 tag · gazda: mandala@…</small></span><span>7 / 8</span><span><b>312</b></span><span>48%</span><div class="mix"><i style="width:46%;background:#E3683F"></i><i style="width:24%;background:#F4A48A"></i><i style="width:16%;background:#C9B8A8"></i><i style="width:14%;background:#8B5E4A"></i></div><span>Értékbecslés</span><button class="dotsbtn">⋯</button></div>
+          <div class="off"><span><b>Belvárosi Ingatlaniroda</b><br><small class="muted">5 tag · gazda: iroda@…</small></span><span>3 / 5</span><span><b>141</b></span><span>39%</span><div class="mix"><i style="width:22%;background:#E3683F"></i><i style="width:51%;background:#F4A48A"></i><i style="width:27%;background:#C9B8A8"></i></div><span>Hirdetéskép</span><button class="dotsbtn">⋯</button></div>
+          <div class="off" style="opacity:.6"><span><b>Duna-parti Lakások</b><br><small class="muted">3 tag · gazda: info@…</small></span><span>0 / 3</span><span><b>0</b></span><span>—</span><div class="mix"></div><span class="muted">— nincs futtatás</span><button class="dotsbtn">⋯</button></div>
+        </div>
+      </div>
+      <!-- KÖZÖS MUNKATEREK -->
+      <div id="offT" style="display:none">
+        <div class="off h"><span>Közös munkatér</span><span>Aktív társ</span><span>Futtatás</span><span>Kredit-átadás</span><span>Modul-mix</span><span>Legnépszerűbb</span><span></span></div>
+        <div class="offbody">
+          <div class="off"><span><b>Kovács &amp; Szabó</b><br><small class="muted">2 / 5 társ · gazda: kovacs.anna@…</small></span><span>2 / 2</span><span><b>58</b></span><span>3 db · 25 kr</span><div class="mix"><i style="width:60%;background:#2F7F86"></i><i style="width:40%;background:#7FC8CE"></i></div><span>Videó</span><button class="dotsbtn">⋯</button></div>
+          <div class="off"><span><b>KM10 teszt</b><br><small class="muted">2 / 5 társ · gazda: teszt@…</small></span><span>1 / 2</span><span><b>4</b></span><span>1 db · 5 kr</span><div class="mix"><i style="width:100%;background:#2F7F86"></i></div><span>Szöveg-ellenőrző</span><button class="dotsbtn">⋯</button></div>
+        </div>
+      </div>
+      <div class="annot" style="margin:10px 18px 16px">✎ <span><b>Kétállású váltó</b> (azonos méretű fülek): <b>Irodai fiókok</b> vagy <b>Közös munkaterek</b> — mindkettő az irodai fiók fejlesztéshez tartozik, de külön nézzük őket. A lista fix magasságú, belül görget.
+        Irodánál: aktív tag, irodai módban készült futtatások, megnyitásból futtatás aránya. Munkatérnél: aktív társ, a munkatérben készült futtatások, <b>kredit-átadások</b> (db · összeg — ez nem pénzügy, hanem az együttműködés jele).
+        „⋯” → Részletek: tag × modul hőtérkép.</span></div>
+    </section>
+
+    <!-- 5) RÉSZLETEK ABLAKOK -->
+    <div class="dlgwrap">
+      <div class="dlg bigdlg">
+        <div class="dlg-h">
+          <div>
+            <p class="muted" style="font-size:11px;font-weight:700;letter-spacing:.1em">FELUGRÓ ABLAK · FELHASZNÁLÓ RÉSZLETEI</p>
+            <h3 class="display">Nagy Bence <small class="muted" style="font-size:12px;font-weight:500">· nagy.bence@… · Ingatlan landing · felhasználó · tagja: GDN Mandala (iroda)</small></h3>
+          </div>
+          <span class="x">×</span>
+        </div>
+        <div class="dlg-b">
+          <div class="kp6">
+            <div><p>Futtatás</p><b>46</b></div><div><p>Megnyitás</p><b>81</b></div><div><p>Megnyitásból futtatás</p><b>57%</b></div>
+            <div><p>Kipróbált modul</p><b>7 / 14</b></div><div><p>Utolsó aktivitás</p><b style="font-size:13px">ma 10:12</b></div><div><p>Regisztrált</p><b style="font-size:13px">szept. 14.</b></div>
+          </div>
+          <div class="summary"><b>Összegzés:</b> főleg <b>értékbecslést</b> használ (a futtatásai 48%-a), rendszeresen visszatér. A <b>videót</b> sokszor megnyitja (20×), de ritkán futtatja (5×) — érdemes rákérdezni, mi tartja vissza. Az irodai módban készült munkái: 19.</div>
+          <div>
+            <h4>MIND A 14 MODUL</h4>
+            <div class="mtab" id="userMods"></div>
+          </div>
+          <div class="side">
+            <h4>IDŐVONAL (MAX. 50)</h4>
+            <div class="tl2">
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Értékbecslés · Thököly út 12.</span><small>ma 10:12</small></div>
+              <div><span><span class="ev ev-open">MEGNYITÁS</span> Videó</span><small>ma 09:58</small></div>
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Hirdetéskép · Thököly út 12.</span><small>tegnap</small></div>
+              <div><span><span class="ev ev-open">MEGNYITÁS</span> Videó</span><small>tegnap</small></div>
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Értékbecslés · Hungária krt. 112.</span><small>okt. 9.</small></div>
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Telekelemzés · Pilisborosjenő</span><small>okt. 8.</small></div>
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Képjavító · Nappali</span><small>okt. 7.</small></div>
+              <div><span><span class="ev ev-open">MEGNYITÁS</span> Látványtervező</span><small>okt. 7.</small></div>
+              <div><span><span class="ev ev-run">FUTTATÁS</span> Értékbecslés · Váci út 41.</span><small>okt. 5.</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dlg">
+        <div class="dlg-h"><div><p class="muted" style="font-size:11px;font-weight:700;letter-spacing:.1em">FELUGRÓ ABLAK · IRODA</p><h3 class="display">GDN Mandala <span class="kind k-o">IRODA</span></h3></div><span class="x">×</span></div>
+        <div class="dlg-b">
+          <div class="mini"><div><p>Futtatás</p><b>312</b></div><div><p>Aktív tag</p><b>7 / 8</b></div><div><p>Megnyitásból fut.</p><b>48%</b></div><div><p>Közös mappák</p><b>6</b></div></div>
+          <div class="hm" style="max-height:200px;border:1px solid var(--line2);border-radius:10px">
+            <table class="heat"><thead><tr id="offHead"></tr></thead>
+            <tbody id="officeHeat"></tbody></table>
+          </div>
+          <p class="muted" style="font-size:12px">Irodai módban készült munkák tagonként, mind a 14 modul — a táblázat fix méretű, vízszintesen és függőlegesen belül görget.</p>
+        </div>
+      </div>
+    </div>
+    <div class="annot">✎ <span><b>Felhasználó részletei</b> (széles, FIX méretű felugró ablak): 6 KPI · rövid <b>automatikus összegzés</b> (a számokból áll össze, nem AI-hívás) ·
+      <b>mind a 14 modul</b> táblázatban — futtatás, megnyitás, 30 napos mini-görbe, utolsó használat, ★ ha kedvencnek jelölte; a használtak elöl, a ki nem próbáltak halványan a végén ·
+      <b>idővonal</b> (futtatás + megnyitás, max. 50). A modul-tábla és az idővonal a saját fix dobozában görget — az ablak sosem nő.
+      <b>Iroda részletei:</b> tag × modul, mind a 14 modul, belül görget.</span></div>
+
+    <!-- TECHNIKA -->
+    <section class="card">
+      <div class="ch"><h2 class="display">Technika röviden (döntés után így fejlesztenénk)</h2></div>
+      <div style="padding:0 18px 18px;font-size:13px;line-height:1.6;color:var(--muted)">
+        <b style="color:var(--ink)">1. SQL:</b> új <code>module_views</code> tábla (felhasználó, modul, nap — fejenként naponta egy sor, max. ennyit tárolunk) + RLS; csak a szerver ír.<br>
+        <b style="color:var(--ink)">2. Mérés:</b> a modul-oldalak betöltésekor egy könnyű, natív API-hívás (<code>/api/track/module-view</code>) — külső eszköz nélkül; admin és sales is naplózódik, a szűrő dönt.<br>
+        <b style="color:var(--ink)">3. Lekérdezés:</b> <code>/api/admin/module-usage</code> — a <code>usage_history</code> + <code>module_views</code> + <code>module_favorites</code> + irodai tagságok összesítése, időszak / forrás / mód / szerepkör szűrővel.<br>
+        <b style="color:var(--ink)">4. Felület:</b> második fül a Felhasználók oldalon; Új regisztrálók → Modulok → Felhasználók (TOP 5) → Irodák; részletek felugró ablakban; CSV.
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // mind a 14 modul (SERVICE_LABELS)
+  var MODS = ["Értékbecslés","Hirdetéskép","Képjavító","Videó","Hird.-ellenőrző","Látványtervező","FB-hirdetés","Google Ads","Telekelemzés","Szakember-kereső","Menü generátor","Önköltség & profit","Profit-terv","Beszállító-kereső"];
+  function pad(a){ while (a.length < MODS.length) a.push(0); return a; }
+  // felhasználók TOP 5 modulja — mintaadat: [név, e-mail, forrás, [[modul, futtatás]...], futtatás/megnyitás, kipróbált, utolsó, állapot]
+  var people = [
+    ["Tóth Eszter","toth.eszter@…","GDN Mandala",[["Értékbecslés",31],["Hirdetéskép",12],["Képjavító",10],["Hird.-ellenőrző",6],["Telekelemzés",5]],"73 / 120",10,"tegnap","Aktív"],
+    ["Nagy Bence","nagy.bence@…","Ingatlan landing",[["Értékbecslés",22],["Hirdetéskép",11],["Videó",5],["Képjavító",5],["Telekelemzés",3]],"46 / 81",7,"ma 10:12","Aktív"],
+    ["Kovács Anna","kovacs.anna@…","Kovács & Szabó",[["Videó",14],["Értékbecslés",9],["Menü generátor",4],["Hirdetéskép",4],["Látványtervező",3]],"46 / 70",12,"ma 08:30","Aktív"],
+    ["Horváth Lilla","horvath.lilla@…","Ingatlan landing",[["Hirdetéskép",15],["Képjavító",12],["Látványtervező",7],["FB-hirdetés",2],["Videó",1]],"37 / 52",5,"okt. 9.","Aktív"],
+    ["Kiss Gábor","kiss.gabor@…","Belvárosi Ingatlaniroda",[["Hirdetéskép",21],["FB-hirdetés",6],["Képjavító",4],["Google Ads",3],["Értékbecslés",2]],"37 / 40",6,"okt. 8.","Aktív"],
+    ["Varga Dániel","varga.daniel@…","GDN Mandala",[["Értékbecslés",18],["Hird.-ellenőrző",9],["Hirdetéskép",2]],"29 / 44",3,"okt. 6.","Aktív"],
+    ["Szabó Péter","szabo.peter@…","Kovács & Szabó",[["Videó",9],["Hirdetéskép",8],["Értékbecslés",3],["Képjavító",1]],"21 / 30",4,"okt. 3.","Aktív"],
+    ["Molnár Réka","molnar.reka@…","Közvetlen",[["Értékbecslés",7],["Hird.-ellenőrző",3]],"10 / 31",2,"szept. 2.","Alvó"],
+    ["Fekete Ádám","fekete.adam@…","Ingatlan landing",[],"0 / 6",0,"szept. 20.","Még nem futtatott"]
+  ];
+  function initials(n){return n.split(" ").map(function(x){return x[0]}).slice(0,2).join("")}
+  var SHORT = {"Értékbecslés":"Becslés","Hirdetéskép":"Hird.kép","Képjavító":"Képjavító","Videó":"Videó","Hird.-ellenőrző":"Szöveg-ell.","Látványtervező":"Látványterv","FB-hirdetés":"FB-hird.","Google Ads":"Google Ads","Telekelemzés":"Telek","Szakember-kereső":"Szakember","Menü generátor":"Menü","Önköltség & profit":"Önköltség","Profit-terv":"Profit-terv","Beszállító-kereső":"Beszállító"};
+  var ur = document.getElementById("userRows"), h2 = "";
+  people.forEach(function(p){
+    var top = p[3], max = top.length ? top[0][1] : 1, pills = "";
+    for (var i = 0; i < 5; i++) {
+      var t = top[i];
+      pills += t
+        ? "<span class='pill"+(i===0?" first":"")+"' title='"+t[0]+": "+t[1]+" futtatás'><span class='no'>"+(i+1)+"</span><span class='nm'>"+(SHORT[t[0]]||t[0])+"</span><span class='ct'>"+t[1]+"</span><i class='pb' style='width:"+Math.round(t[1]/max*100)+"%'></i></span>"
+        : "<span class='pill empty'>—</span>";
+    }
+    var st = p[7]==="Aktív" ? "<span class='sleep' style='background:#DDF0E4;color:#1F5C38'>Aktív</span>" : "<span class='sleep'>"+p[7]+"</span>";
+    h2 += "<div class='ut'><span class='who'><span class='av' style='background:#FBE1D6;color:#A8411F'>"+initials(p[0])+"</span><span style='min-width:0'><b>"+p[0]+"</b><small>"+p[2]+"</small></span></span>"
+       + "<div class='top5'>"+pills+"</div><span style='font-variant-numeric:tabular-nums'>"+p[4]+"</span><span style='font-variant-numeric:tabular-nums'>"+p[5]+" / 14</span>"
+       + "<span class='muted'>"+p[6]+"</span><span>"+st+"</span><button class='dotsbtn' onclick='event.stopPropagation()'>⋯</button></div>";
+  });
+  ur.innerHTML = h2;
+
+  var pal = ["#FDF3EE","#FBE1D6","#F7C3AE","#F4A48A","#EE865F","#E3683F"];
+  // iroda tag × modul
+  var oh = document.getElementById("officeHeat"), h3 = "";
+  document.getElementById("offHead").innerHTML = "<th>Tag</th>" + MODS.map(function(m){return "<th>"+m+"</th>"}).join("");
+  [["Tóth Eszter",pad([31,12,10,2,6,4,0,1,5,2])],["Varga Dániel",pad([18,2,0,0,9])],["Szűcs Márton",pad([25,9,3,1,2])],["Balogh Kata",pad([4,18,7,0,0,2,0,0,0,0,0,0,0,1])]].forEach(function(u){
+    var max = Math.max.apply(null,u[1]);
+    h3 += "<tr><td><b>"+u[0]+"</b></td>";
+    u[1].forEach(function(v){ var lvl=v===0?0:Math.min(5,1+Math.round(v/max*4)); h3 += "<td><div class='c' style='background:"+(v===0?"#FAF7F2":pal[lvl])+";color:"+(lvl>=4?"#fff":"#1C1815")+"'>"+(v||"·")+"</div></td>"; });
+    h3 += "</tr>";
+  });
+  oh.innerHTML = h3;
+
+  // új regisztrálók — 30 nap, napi bontás (mintaadat)
+  var bars = "", axis = "";
+  for (var d = 0; d < 30; d++) {
+    var a = Math.round(Math.abs(Math.sin(d * 0.7)) * 3 + (d % 6 === 0 ? 2 : 0)), b = Math.round(Math.abs(Math.cos(d * 0.5)) * 2);
+    bars += "<div title='okt. "+(d+1)+": "+(a+b)+" új'><i class='b' style='height:"+(b*14)+"px'></i><i class='a' style='height:"+(a*14)+"px'></i></div>";
+    axis += "<span>"+(d % 5 === 0 ? (d+1) : "")+"</span>";
+  }
+  document.getElementById("regBars").innerHTML = bars;
+  document.getElementById("regAxis").innerHTML = axis;
+
+  // irodák: kétállású váltó
+  document.querySelectorAll("#offSeg span").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("#offSeg span").forEach(function (x) { x.classList.toggle("on", x === b); });
+      document.getElementById("offO").style.display = b.dataset.k === "o" ? "" : "none";
+      document.getElementById("offT").style.display = b.dataset.k === "t" ? "" : "none";
+    });
+  });
+
+  // felhasználó részletei: mind a 14 modul — [futtatás, megnyitás, utolsó, kedvenc?]
+  var um = [[22,31,"ma",1],[11,15,"tegnap"],[5,8,"okt. 7."],[5,20,"okt. 2."],[2,4,"szept. 30."],[1,3,"szept. 22."],[0,2,"—"],[0,0,"—"],[3,5,"okt. 8."],[0,0,"—"],[0,0,"—"],[0,1,"—"],[0,0,"—"],[0,0,"—"]];
+  function spark(seed, on){
+    if (!on) return "<svg width='92' height='22'></svg>";
+    var pts = [], x = 0;
+    for (var i = 0; i < 12; i++) { var y = 18 - Math.round(Math.abs(Math.sin(seed + i * .9)) * 14); pts.push((i*8)+","+y); }
+    return "<svg width='92' height='22' viewBox='0 0 92 22'><polyline points='"+pts.join(" ")+"' fill='none' stroke='#E3683F' stroke-width='1.6' stroke-linejoin='round'/></svg>";
+  }
+  var order = um.map(function(v,i){return [i,v]}).sort(function(x,y){return y[1][0]-x[1][0] || y[1][1]-x[1][1]});
+  var h4 = "<div class='mt h'><span>Modul</span><span class='num'>Fut.</span><span class='num'>Megn.</span><span>30 nap</span><span>Utolsó</span></div>";
+  order.forEach(function(o){
+    var v = o[1], used = v[0] > 0;
+    h4 += "<div class='mt' style='opacity:"+(used||v[1]?1:.4)+"'><span>"+MODS[o[0]]+(v[3]?" <b style='color:#E3683F'>★</b>":"")+(used?"":(v[1]?" <span class='flag f-int' style='height:16px;font-size:9px'>csak megnyitotta</span>":""))+"</span>"
+        + "<span class='num'><b>"+(v[0]||"·")+"</b></span><span class='num muted'>"+(v[1]||"·")+"</span><span>"+spark(o[0], used)+"</span><span class='muted' style='font-size:11.5px'>"+v[2]+"</span></div>";
+  });
+  document.getElementById("userMods").innerHTML = h4;
+</script>
+</body>
+</html>
