@@ -21,7 +21,7 @@ export type RegWindow = "today" | "7d" | "30d" | "90d" | "12m" | "all";
 export type RegGroup = "day" | "week" | "month";
 export type UsageFilters = { range: UsageRange; source: UsageSource; mode: UsageMode; staff: boolean };
 
-const DAY = 24 * 3600 * 1000;
+export const DAY = 24 * 3600 * 1000;
 const RANGE_DAYS: Record<Exclude<UsageRange, "all">, number> = { "7d": 7, "30d": 30, "90d": 90 };
 const SLEEP_DAYS = 30;
 const PAGE = 1000;
@@ -40,7 +40,7 @@ export function parseFilters(p: URLSearchParams): UsageFilters {
 // ---------------------------------------------------------------------------
 // Alapadatok betöltése (lapozva — a Supabase egyszerre 1000 sort ad)
 // ---------------------------------------------------------------------------
-type Run = { user: string; href: string; at: number; office: string | null };
+export type Run = { user: string; href: string; at: number; office: string | null };
 type View = { user: string; href: string; at: number };
 type Person = { id: string; email: string; name: string; role: string; source: string | null; createdAt: number };
 type Office = { id: string; name: string; kind: "office" | "team"; ownerId: string | null };
@@ -57,7 +57,7 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
   return out;
 }
 
-async function loadBase(sinceIso: string | null) {
+export async function loadBase(sinceIso: string | null) {
   const admin = createAdminClient();
 
   // felhasználók (e-mail, regisztráció) — az auth listából, lapozva
@@ -118,7 +118,7 @@ async function loadBase(sinceIso: string | null) {
 // ---------------------------------------------------------------------------
 // Segédek
 // ---------------------------------------------------------------------------
-function windowOf(range: UsageRange, now: number) {
+export function windowOf(range: UsageRange, now: number) {
   if (range === "all") return { start: 0, prevStart: null as number | null };
   const len = RANGE_DAYS[range] * DAY;
   return { start: now - len, prevStart: now - 2 * len };
@@ -127,7 +127,7 @@ function windowOf(range: UsageRange, now: number) {
 const isLanding = (p: Person) => p.source === LANDING_SIGNUP_SOURCE;
 const isStaff = (p: Person) => p.role === "admin" || p.role === "sales";
 
-function userFilter(f: UsageFilters) {
+export function userFilter(f: UsageFilters) {
   return (p: Person | undefined) => {
     if (!p) return false;
     if (!f.staff && isStaff(p)) return false;
@@ -137,7 +137,7 @@ function userFilter(f: UsageFilters) {
   };
 }
 
-function modeFilter(f: UsageFilters, kindOf: Map<string, "office" | "team">) {
+export function modeFilter(f: UsageFilters, kindOf: Map<string, "office" | "team">) {
   return (r: Run) => {
     if (f.mode === "all") return true;
     if (f.mode === "private") return !r.office;

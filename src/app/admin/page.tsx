@@ -64,9 +64,9 @@ export default async function AdminHomePage() {
   ];
 
   const quick = [
-    { href: "/admin/users", title: "Felhasználók", desc: "név, cég, e-mail, használat, kredit" },
+    { href: "/admin/users", title: "Felhasználók és modulok", desc: "egyenlegek, modul-használat, modul elemzés" },
     { href: "/admin/analytics", title: "Költségfigyelő", desc: "modulonkénti API-önköltség és árrés" },
-    { href: "/admin/users", title: "Kredit jóváírás", desc: "a Felhasználók táblában, a „+” gombbal" },
+    { href: "/admin/users", title: "Kredit jóváírás", desc: "a Felhasználók és modulok → Egyenlegek fülön, a „+” gombbal" },
     {
       href: "/admin/ideas",
       title: "Ötletláda",

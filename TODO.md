@@ -247,3 +247,15 @@ Modul-kulcs: a modul útvonala (katalógus `href`); a futtatásnál `FEATURE_TO_
 - [x] MH6 — Felhasználók és kedvenc moduljaik (TOP 5) + részletes felhasználói ablak (`UserModuleTable`) — 2026-10-12
 - [x] MH7 — Irodák és munkaterek (váltó) + iroda részletei ablak (`OfficeUsageCard`) — 2026-10-12
 - [ ] MH8 — (később) CSV-letöltés
+
+## ME — Admin: Modul elemzés (Felhasználók oldal 3. füle)
+Látványterv: `design/admin-modul-elemzes-latvanyterv.html` (2026-10-12, jóváhagyásra vár).
+Cél: maga a modul elemzése (nem a felhasználóké) — hol esnek ki, visszatérnek-e, elégedettek-e, mi hiányzik.
+Döntések: fül neve „Modul elemzés” · tölcsér: megnyitás → űrlap → indítás → siker → letöltés/megosztás · 👍/👎 a kész munkánál,
+👎 után 4–5 választható ok · „Mi hiányzik?” a 3. futtatás nélküli megnyitáskor, modulonként EGYSZER · eszköz (mobil/asztali) mérése ·
+adatkezelési tájékoztató +1 mondat (visszajelzések).
+- [x] ME1 — (2026-10-12; `lib/module-analysis.ts`, `/api/admin/module-analysis`, `ModuleAnalysisView`, /admin/users?tab=elemzes) 1. kör (meglévő adatokból): fül + TOP 3 modul (futtatás szerint) + „Modulok egészsége” (megnyitásból futtatás, 2. futtatás, 30 napos visszatérés)
+      + mély elemzés: Visszatérés (megtartási görbe), Mikor és min (hőtérkép), Kapcsolódások, Minőség (szerkesztés / újragenerálás / visszatérítés)
+- [ ] ME2 — 2. kör: `module_events` eseménynapló (űrlap, indítás, siker, hiba + futási idő, letöltés/megosztás, eszköz) + bekötés a modulokba
+      → Tölcsér, Hibás futtatás, Futási idő, Eszköz szűrő
+- [ ] ME3 — 3. kör: `work_feedback` (👍/👎 + ok) a kész munka alatt + `module_asks` („Mi hiányzik?”) → Elégedettség, 👎 okai, „Mi hiányzik?” panel
