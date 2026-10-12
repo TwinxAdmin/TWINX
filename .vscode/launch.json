@@ -1,0 +1,42 @@
+{
+  // TWINX — localhost indítók (VS Code: Run and Debug panel, vagy F5)
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Elindítja a fejlesztői szervert, és ha kész, megnyitja a böngészőben.
+      "name": "TWINX: localhost (böngészővel)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "- Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s"
+      }
+    },
+    {
+      // Szerveroldali hibakeresés: töréspont az API route-okban (app/api/...).
+      "name": "TWINX: szerver debug",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      // Teljes debug: szerver + Chrome, töréspont a kliens komponensekben is.
+      "name": "TWINX: teljes debug (szerver + Chrome)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "killOnServerStop": true,
+        "pattern": "- Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s",
+        "webRoot": "${workspaceFolder}"
+      }
+    }
+  ]
+}

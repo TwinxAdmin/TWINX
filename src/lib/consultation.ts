@@ -1,7 +1,7 @@
 // Bővebb tájékoztatás kérése az /ingatlan landingről (kolléga visszahív) — típusok és
 // validáció (kliens + szerver ugyanazt használja).
 //
-// A kérés a közös `leads` táblába megy (b2b.sql), a message mezőben egy ember
+// A kérés a közös `leads` táblába megy (20260703142923_b2b.sql), a message mezőben egy ember
 // által olvasható összefoglalóval — NEM az ingatlan_invites kampány-táblába,
 // hogy az ajándékkód-lista tiszta maradjon.
 

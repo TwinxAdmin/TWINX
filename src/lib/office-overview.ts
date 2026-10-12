@@ -1,7 +1,7 @@
 // Irodai felület — összesítő adatok (CSAK szerveroldal, service_role).
 // A jogosultságot a hívó API route dönti el; itt csak az adat összerakása történik.
 //
-// Fogalmak (foglalásos keret, office-reserve.sql):
+// Fogalmak (foglalásos keret, 20261008104953_office-reserve.sql):
 //   • kiosztva  = a nem korlátlan tagok lefoglalt kereteinek összege
 //   • szabad    = irodai egyenleg − kiosztva
 //   • felhasznált = az időszak 'spend' naplósorai (a visszatérítettek nélkül)

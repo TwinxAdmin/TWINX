@@ -4,7 +4,7 @@
 // DELETE  ?id=&kind=item|folder — becslés vagy mappa törlése
 //
 // BIZTONSÁG: a usage_history-ra nincs user-oldali UPDATE/DELETE (lásd
-// valuation-library.sql). Ezért service_role klienssel dolgozunk, de minden
+// 20260804090436_valuation-library.sql). Ezért service_role klienssel dolgozunk, de minden
 // művelet előtt ellenőrizzük a tulajdonost ÉS hogy a sor tényleg értékbecslés.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";

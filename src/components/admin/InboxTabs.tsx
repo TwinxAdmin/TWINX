@@ -8,7 +8,7 @@
 // Minden megkeresés KIPIPÁLHATÓ: amíg nincs lezárva, „Nyitott" jelzést kap, és
 // beleszámít a fejléc-jelvénybe. Mindegyikhez tartozik egy BELSŐ JEGYZET is —
 // az értékesítő ide írja, mit beszélt meg a megkeresővel; a megkereső ezt soha
-// nem látja. (leads-handled.sql)
+// nem látja. (20260909103310_leads-handled.sql)
 "use client";
 
 import { useEffect, useState } from "react";

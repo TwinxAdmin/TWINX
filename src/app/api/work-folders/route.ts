@@ -17,7 +17,7 @@ async function currentUser() {
   return user;
 }
 
-const migrationHint = (msg: string) => (/work_folder/.test(msg) ? "Futtasd le a work-folders.sql migrációt." : msg);
+const migrationHint = (msg: string) => (/work_folder/.test(msg) ? "Futtasd le a 20261008121637_work-folders.sql migrációt." : msg);
 
 async function listFor(userId: string): Promise<{ folders: WorkFolder[]; links: WorkFolderLink[] }> {
   const admin = createAdminClient();

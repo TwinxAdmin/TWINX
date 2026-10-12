@@ -6,7 +6,7 @@ Ez a jegyzet a következő munkamenet kiindulópontja. Git-ág: `twinx-video-mot
 ## Élesben (twinx.hu)
 - A partnerek videóit a **saját TWINX motor** készíti; a **Shotstack tartalék** (nincs törölve).
 - Kapcsoló: **Admin → Videólabor → „Videógenerálás motorja”** (adatbázis: `app_settings.video_renderer`,
-  SQL: `app-settings.sql`). Kód: `src/lib/video-renderer.ts`, `src/app/api/admin/video-engine/route.ts`.
+  SQL: `20261005172806_app-settings.sql`). Kód: `src/lib/video-renderer.ts`, `src/app/api/admin/video-engine/route.ts`.
 - Partner útvonal: `src/app/api/real-estate/video/route.ts` → `postWithEngine()` (háttér-render `after()`-rel),
   státusz: `.../video/[id]/route.ts` (saját motor: 12 perces időkorlát + kredit-visszatérítés).
 - Közös render-segéd (labor + partner): `src/lib/video-engine/job-node.ts` (`runEngineJob`).
@@ -78,7 +78,7 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - Két méretnél a kliens méretenként külön jobot indít ugyanazokkal a fotókkal (két külön kreditlevonás,
   két külön videó az előzményekben); a Generálás lépés méretenként mutatja az állapotot, a sikertelen
   méret külön újraindítható.
-- Kedvencek: csillag a kártya bal felső sarkában → `video_template_favorites` tábla (`video-favorites.sql`),
+- Kedvencek: csillag a kártya bal felső sarkában → `video_template_favorites` tábla (`20261006122751_video-favorites.sql`),
   API: `src/app/api/real-estate/video/favorites/route.ts`. Ha a tábla hiányzik, a szerkesztő kedvencek nélkül működik.
 
 ## **Polaroid** (5. sablon; korábbi munkanév: Pakli) — ÉLESÍTVE 2026-10-07
@@ -106,7 +106,7 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
 - Előnézetek: `scripts/video-mozaik-preview.mjs` → `public/video-previews/mozaik*-9x16.jpg` (a kártya a színvilág képét mutatja).
 
 ## INNEN FOLYTATJUK (2026-10-06 vége)
-- Élesben: Aurora, Skandi, Prestige, Mozaik (+ Smaragd + arany). Kétméretes gyártás, kedvenc sablonok (video-favorites.sql lefuttatva).
+- Élesben: Aurora, Skandi, Prestige, Mozaik (+ Smaragd + arany). Kétméretes gyártás, kedvenc sablonok (20261006122751_video-favorites.sql lefuttatva).
 - ÉLESÍTVE 2026-10-07: **Polaroid** (bíborpiros / drámai kék) — elfogadott alap: lefújós fotópakli,
   régi film hatás, lendületes feliratok, mozgó díszek. Következő döntés: élesítés (devOnly levétele) vagy további finomítás.
 - Próbák: `node .cache/jobtest.mjs <sablon> <9:16|1:1>` (PH env: fotók), előnézetek: `scripts/video-*-preview.mjs`.

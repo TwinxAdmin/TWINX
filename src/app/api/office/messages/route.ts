@@ -12,7 +12,7 @@ import { validateSend } from "@/lib/office-messages-shared";
 
 export const runtime = "nodejs";
 
-const MIGRATION = "Futtasd le az office-messages.sql migrációt.";
+const MIGRATION = "Futtasd le a 20261008104955_office-messages.sql migrációt.";
 
 async function ctx() {
   const supabase = await createClient();

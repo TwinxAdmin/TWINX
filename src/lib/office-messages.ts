@@ -173,7 +173,7 @@ export async function sendMessage(officeId: string, senderId: string, v: SendInp
     task_status: v.kind === "task" ? "open" : null,
   }).select("id").single();
   if (error) {
-    return { error: /office_messages/.test(error.message) ? "Futtasd le az office-messages.sql migrációt." : error.message, status: 500 };
+    return { error: /office_messages/.test(error.message) ? "Futtasd le a 20261008104955_office-messages.sql migrációt." : error.message, status: 500 };
   }
   return { id: data.id as string };
 }

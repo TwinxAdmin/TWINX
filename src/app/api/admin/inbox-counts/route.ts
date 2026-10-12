@@ -22,7 +22,7 @@ export async function GET() {
   const [invites, pendingSend, leads, credits, ideas, offices] = await Promise.all([
     admin.from("ingatlan_invites").select("id", { count: "exact", head: true }).eq("status", "uj"),
     // Elfogadva, kód megvan, DE a levél még nem ment ki — ez is elintézetlen tétel.
-    // (Ha az invite-code-sent.sql még nem futott le, ez a lekérdezés 0-t ad, nem hibázik.)
+    // (Ha a 20260909105318_invite-code-sent.sql még nem futott le, ez a lekérdezés 0-t ad, nem hibázik.)
     admin.from("ingatlan_invites").select("id", { count: "exact", head: true })
       .not("code", "is", null).is("code_sent_at", null),
     isAdmin ? openLeadsQuery : openLeadsQuery.ilike("message", `%${CONSULTATION_MARKER}%`),
@@ -32,7 +32,7 @@ export async function GET() {
     isAdmin
       ? admin.from("ideas").select("id", { count: "exact", head: true }).eq("status", "new")
       : Promise.resolve({ count: 0 }),
-    // Irodai fiók igénylések elbírálásra várva (ha az office.sql még nem futott le, 0).
+    // Irodai fiók igénylések elbírálásra várva (ha a 20261007123743_office.sql még nem futott le, 0).
     isAdmin
       ? admin.from("office_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
       : Promise.resolve({ count: 0 }),

@@ -1,7 +1,7 @@
 // GET   /api/office/credit-requests — tag: a saját legutóbbi kérése; létrehozó/kiosztó: az iroda függő kérései.
 // POST  /api/office/credit-requests — tag keretet kér. body: { amount, note? }
 // PATCH /api/office/credit-requests — létrehozó/kiosztó dönt. body: { id, action: "approve"|"reject", amount? }
-//   Jóváhagyáskor office_allocate_in növeli a tag keretét — csak a szabad részből (office-reserve.sql).
+//   Jóváhagyáskor office_allocate_in növeli a tag keretét — csak a szabad részből (20261008104953_office-reserve.sql).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -50,7 +50,7 @@ export async function GET() {
     .eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
   if (error) {
     return NextResponse.json(
-      { error: /office_credit_requests/.test(error.message) ? "Futtasd le az office-credit-requests.sql migrációt." : error.message },
+      { error: /office_credit_requests/.test(error.message) ? "Futtasd le a 20261008080622_office-credit-requests.sql migrációt." : error.message },
       { status: 500 }
     );
   }

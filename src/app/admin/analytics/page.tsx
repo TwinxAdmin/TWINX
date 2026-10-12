@@ -171,7 +171,7 @@ export default async function AdminAnalyticsPage({
 
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Megjegyzés: a bevétel csak azoknál a vásárlásoknál jelenik meg, ahol a fizetett
-        összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `metrics.sql`-ben
+        összeg rögzítve van (`amount_huf`). Régi teszt-vásárlásokhoz a `20260704081614_metrics.sql`-ben
         lévő visszatöltő sorral pótolható.
       </p>
     </AdminShell>

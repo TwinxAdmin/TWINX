@@ -4,13 +4,13 @@
 // lássa, MIT fog kapni, MENNYIBE kerül és MENNYI IDŐ. Egy forrásból, hogy a
 // dashboard, a menü és a későbbi árlista ne csússzon szét.
 
-// A regisztrációkor járó próbakredit. Az adatbázisban a `welcome-credits.sql`
+// A regisztrációkor járó próbakredit. Az adatbázisban a `20260819123912_welcome-credits.sql`
 // `handle_new_user` függvénye adja — ha ott változik, itt is írd át.
 export const WELCOME_CREDITS = 3;
 
 // --- Ingatlan landing: azonnali kezdőkredit ---------------------------------
 // Aki a twinx.hu/ingatlan landingről regisztrál, a szokásos 3 helyett ennyivel
-// indul (kód és jóváhagyás nélkül). A DB-oldali logika: `landing-signup-credits.sql`
+// indul (kód és jóváhagyás nélkül). A DB-oldali logika: `20260912003908_landing-signup-credits.sql`
 // `handle_new_user` függvénye — ha ott módosítasz, itt is írd át.
 //
 // A regisztráció a Supabase signUp metaadatában küldi a forrás-jelölést; a

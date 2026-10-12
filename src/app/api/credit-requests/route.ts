@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
     if (billErr) {
       return NextResponse.json(
-        { error: "A számlázási adatok nem olvashatók. Futtasd le a credit-billing.sql migrációt." },
+        { error: "A számlázási adatok nem olvashatók. Futtasd le a 20260819113321_credit-billing.sql migrációt." },
         { status: 500 }
       );
     }

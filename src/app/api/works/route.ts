@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
   if (typeof body.hidden === "boolean") {
     const { error } = await admin.from("usage_history").update({ hidden_at: body.hidden ? new Date().toISOString() : null }).eq("id", id);
     if (error) {
-      return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a usage-history-hidden.sql migrációt." : error.message }, { status: 500 });
+      return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a 20261008121638_usage-history-hidden.sql migrációt." : error.message }, { status: 500 });
     }
     // A modulok saját könyvtárai (videó, hirdetés-ellenőrző) is kövessék — elrejtés és visszahozás egyaránt.
     const url = h.output_file_url as string | null;

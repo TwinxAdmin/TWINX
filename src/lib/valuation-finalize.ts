@@ -73,7 +73,7 @@ export async function finalizeValuation(params: {
   if (params.engineAudit && hist?.id) {
     try {
       await admin.from("usage_history").update({ valuation_audit: params.engineAudit }).eq("id", hist.id);
-    } catch { /* a valuation-engine.sql még nem futott — nem gond */ }
+    } catch { /* a 20260810153431_valuation-engine.sql még nem futott — nem gond */ }
   }
 
   // 3) Nyers API-önköltség logolása (admin-only, best-effort).

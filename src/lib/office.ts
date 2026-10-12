@@ -105,7 +105,7 @@ export type MyOffice = {
   joinCode?: string;
   balance?: number;
   memberCount?: number;
-  /** Munkamód: „office" = irodai keretből, „private" = saját kreditből (office-mode.sql). */
+  /** Munkamód: „office" = irodai keretből, „private" = saját kreditből (20261007130712_office-mode.sql). */
   workMode: WorkMode;
 };
 

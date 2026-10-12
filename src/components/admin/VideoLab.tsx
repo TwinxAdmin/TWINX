@@ -230,7 +230,7 @@ function EngineSwitch() {
       </div>
       {info && info.source !== "database" && (
         <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "#fdf3e2", color: "#8a5a12" }}>
-          A kapcsoló még nincs az adatbázisban — futtasd az <code>app-settings.sql</code>-t a Supabase SQL Editorban,
+          A kapcsoló még nincs az adatbázisban — futtasd az <code>20261005172806_app-settings.sql</code>-t a Supabase SQL Editorban,
           addig {info.source === "env" ? "a VIDEO_RENDERER beállítás" : "az alapértelmezés (saját motor)"} dönt.
         </p>
       )}

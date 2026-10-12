@@ -18,7 +18,7 @@ export default async function AdminOfficesPage() {
 
   const adminDb = createAdminClient();
 
-  // Megnyitott irodák: név, létrehozó, egyenleg, létszám (az office.sql nélkül üres lista).
+  // Megnyitott irodák: név, létrehozó, egyenleg, létszám (a 20261007123743_office.sql nélkül üres lista).
   const { data: officeRows } = await adminDb
     .from("offices").select("id, name, owner_id, balance, created_at").order("created_at", { ascending: false }).limit(100);
   const offices: AdminOffice[] = await Promise.all(
@@ -49,7 +49,7 @@ export default async function AdminOfficesPage() {
         <p className="twx-card p-5 text-sm" style={{ color: "#c0392b" }}>
           Az igénylések nem tölthetők be: {error.message}
           <br />
-          <span style={{ color: "var(--twx-ink-muted)" }}>Ha még nem futott le, futtasd az <code>office.sql</code> migrációt.</span>
+          <span style={{ color: "var(--twx-ink-muted)" }}>Ha még nem futott le, futtasd az <code>20261007123743_office.sql</code> migrációt.</span>
         </p>
       ) : (
         <div className="space-y-8">

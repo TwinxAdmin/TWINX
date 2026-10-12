@@ -4,7 +4,7 @@
 //
 // A kapcsoló az ADATBÁZISBAN van (app_settings.video_renderer), és az admin a
 // Videólaborban állítja — újratelepítés nélkül, azonnal érvényes.
-// Ha a tábla még nincs létrehozva (app-settings.sql), a VIDEO_RENDERER környezeti
+// Ha a tábla még nincs létrehozva (20261005172806_app-settings.sql), a VIDEO_RENDERER környezeti
 // változó dönt; ha az sincs, a saját motor fut.
 //
 // SZERVEROLDALI modul (service_role kulcsot használ).
@@ -66,7 +66,7 @@ export async function setActiveRenderer(value: VideoRendererId, userId: string):
     return {
       ok: false,
       error: /app_settings/.test(error.message)
-        ? "Hiányzik az app_settings tábla — futtasd az app-settings.sql-t a Supabase-ben."
+        ? "Hiányzik az app_settings tábla — futtasd a 20261005172806_app-settings.sql-t a Supabase-ben."
         : error.message,
     };
   }

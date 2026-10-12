@@ -50,7 +50,7 @@ export async function GET() {
     });
   } catch (e) {
     const msg = (e as Error).message;
-    return NextResponse.json({ error: /office_folder/.test(msg) ? "Futtasd le az office-folders.sql migrációt." : msg }, { status: 500 });
+    return NextResponse.json({ error: /office_folder/.test(msg) ? "Futtasd le a 20261008081024_office-folders.sql migrációt." : msg }, { status: 500 });
   }
 }
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     .from("office_folders").insert({ office_id: m.office_id, name, created_by: user.id, everyone })
     .select("id").single();
   if (error) {
-    return NextResponse.json({ error: /office_folders/.test(error.message) ? "Futtasd le az office-folders.sql migrációt." : error.message }, { status: 500 });
+    return NextResponse.json({ error: /office_folders/.test(error.message) ? "Futtasd le a 20261008081024_office-folders.sql migrációt." : error.message }, { status: 500 });
   }
   if (memberIds.length) {
     await admin.from("office_folder_members").insert(memberIds.map((uid) => ({ folder_id: folder.id, user_id: uid })));

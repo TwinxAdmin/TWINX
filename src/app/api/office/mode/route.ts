@@ -30,12 +30,12 @@ export async function PATCH(request: Request) {
     ...(mode ? { useOffice: mode === "office" } : {}),
   });
   if (error) {
-    // Régi séma (office-multi.sql még nincs): a work_mode oszlopot állítjuk.
+    // Régi séma (20261008083230_office-multi.sql még nincs): a work_mode oszlopot állítjuk.
     if (mode) {
       const { error: e2 } = await createAdminClient().from("office_members").update({ work_mode: mode }).eq("user_id", user.id);
       if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
     } else {
-      return NextResponse.json({ error: "Több iroda közti váltáshoz futtasd le az office-multi.sql migrációt." }, { status: 500 });
+      return NextResponse.json({ error: "Több iroda közti váltáshoz futtasd le a 20261008083230_office-multi.sql migrációt." }, { status: 500 });
     }
   }
   const ctx = await getWorkContext(user.id);

@@ -30,7 +30,7 @@ export async function GET() {
       supabase.from("asset_folder_items").select("folder_id, url, created_at").order("created_at", { ascending: false }),
       supabase.from("asset_date_labels").select("date_key, name"),
       supabase.from("asset_hidden_dates").select("date_key"),
-      // A partner saját elnevezései (asset-item-names.sql). Ha a tábla még nincs
+      // A partner saját elnevezései (20260828114903_asset-item-names.sql). Ha a tábla még nincs
       // meg, a hívás hibázik, de a többi adat ettől még megjön.
       supabase.from("asset_item_names").select("url, name"),
     ]);

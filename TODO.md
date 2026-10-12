@@ -7,11 +7,11 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 ## 1. fázis — Alapprojekt + adatbázis
 - [x] Next.js projekt (App Router, TypeScript, Tailwind CSS)
 - [x] Route Group mappaszerkezet: `(public)`, `(auth)`, `dashboard` + modul almappák
-- [x] `schema.sql` — táblák (profiles, services, company_access, user_credits, usage_history)
+- [x] `20260703105450_schema.sql` — táblák (profiles, services, company_access, user_credits, usage_history)
 - [x] `profiles` auto-trigger (`handle_new_user`) + RLS policy-k
 - [x] `.env.local.example` sablon
 - [ ] `npm install` lokálisan, `npm run dev` ellenőrzés
-- [ ] `schema.sql` lefuttatása a Supabase SQL Editorban
+- [ ] `20260703105450_schema.sql` lefuttatása a Supabase SQL Editorban
 
 ## 2. fázis — Supabase Auth + Dashboard alap
 - [x] Supabase kliens bekötése (browser + server)
@@ -57,7 +57,7 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 
 ## 6. fázis — B2B ajánlatkérő + privát modulok
 - [x] Landing page B2B ajánlatkérő űrlap → Resend API (lead mentés + e-mail a vezetőségnek)
-- [x] Egyedi modul igénylése: kötelező telefonszám + opcionális „Mikor kereshetünk?” (`custom-module-request.sql`, leads.phone / callback_time)
+- [x] Egyedi modul igénylése: kötelező telefonszám + opcionális „Mikor kereshetünk?” (`20261007093627_custom-module-request.sql`, leads.phone / callback_time)
 - [x] „Mi az egyedi modul?” — TELJES OLDALAS ismertető a TWINX-en belül: `/dashboard/egyedi-modul`
   (menü, Saját moduljaim oldal és az igénylő ablak linkje ide visz; a felső TWINX menüsor megmarad)
 - [ ] ELTÉVE KÉSŐBBRE: ugyanez önálló, kiküldhető landingként már kész: `/egyedi-modul`
@@ -72,7 +72,7 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 - [x] Privát → publikus modul: `services.status` flag (public/private) — beépítve
 
 **6. fázis élesítése:**
-- [x] `b2b.sql` (leads tábla) lefuttatva
+- [x] `20260703142923_b2b.sql` (leads tábla) lefuttatva
 - [x] `RESEND_API_KEY` + `LEADS_NOTIFY_EMAIL` beállítva (teszt: office@twinx.hu)
 - [ ] Éles: `twinx.hu` domain hitelesítés a Resendben + `RESEND_FROM` a saját domainre
 
@@ -80,7 +80,7 @@ wireframe-first UI a 7. fázisig. Egy működő fázis után → push GitHub-ra.
 Cél: lássuk a valós AI-önköltséget vs. Stripe bevétel (profitmarzs), és védjük a
 rendszert az API egyenleg-hibáktól. Döntések: külön `api_cost_logs` tábla (a userek
 elől TELJESEN rejtve, admin-only RLS), dashboard CSAK admin, riasztás emailben (Resend).
-- [x] 6.5.1 Külön `api_cost_logs` tábla admin-only RLS-sel (`metrics.sql`)
+- [x] 6.5.1 Külön `api_cost_logs` tábla admin-only RLS-sel (`20260704081614_metrics.sql`)
 - [x] 6.5.2 Backend hívások költség-logolása (config-vezérelt egységárak, `costs.ts` + `logCost`)
 - [x] 6.5.3 Védett `/api/admin/metrics` endpoint (admin-only) + webhook `amount_huf` (bevétel)
 - [x] 6.5.4 Admin Dashboard UI (`/admin/analytics`) — bevétel vs. költség, profitmarzs, funkció/API-bontás
@@ -93,7 +93,7 @@ marketing videó. Vágómotor: **Shotstack** (hosted API), aszinkron **webhook**
 Döntések: real-estate **feature** (kredit a meglévő poolból, képszám szerint 2-6),
 zene **stílus-alapú** (random szám a `music/{stílus}/`-ból), formátumot a user választ
 (9:16 / 1:1 / 16:9). Kulcsok (Luma, Shotstack) + teszt: később (webhookhoz tunnel/deploy).
-- [x] 6.6.1 Config + `video_jobs` tábla (`video.sql`)
+- [x] 6.6.1 Config + `video_jobs` tábla (`20260704092435_video.sql`)
 - [x] 6.6.2 Luma kliens + submit endpoint (job, kredit képszám szerint, Luma indítás) + státusz endpoint
 - [x] 6.6.3 Luma webhook: kész snittek mentése Storage-ba, job-állapot
 - [x] 6.6.4 Shotstack render (áttűnés + random zene + formátum) + Shotstack webhook → végleges videó, history, költséglogolás, refund
@@ -104,7 +104,7 @@ zene **stílus-alapú** (random szám a `music/{stílus}/`-ból), formátumot a 
 **6.6 élesítése (teszthez):**
 - [ ] `LUMA_API_KEY` + `SHOTSTACK_API_KEY` + `APP_URL` (publikus/tunnel) + `VIDEO_WEBHOOK_SECRET` a `.env.local`-ba
 - [ ] Publikus `music` bucket + jogtiszta MP3-ak `{stílus}/{hossz-bin}/` mappákba
-- [ ] `video.sql` lefuttatva (megvan)
+- [ ] `20260704092435_video.sql` lefuttatva (megvan)
 - [ ] Webhook-teszthez ngrok tunnel (vagy éles deploy)
 
 ## 6.7. fázis — Irodai TWINX fiók (TERV, még nincs fejlesztve)
@@ -140,31 +140,31 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
   • ok: az irodai fiókot nem csak vezető nyithatja — pl. 3 kolléga egy közös munkára; ott senki ne lásson rá a másik munkáira
   • (az office_requests.leader_view / offices.leader_view oszlop maradhat, nem használjuk)
 - Egyedi modul: az irodához tartozik, futtatása az iroda egyenlegéből (a tag keretéből) von le.
-- ▶ INNEN FOLYTATJUK (2026-10-07): IR1–IR6b + IR5 élesben (office.sql, office-topup.sql, office-mode.sql lefuttatva).
+- ▶ INNEN FOLYTATJUK (2026-10-07): IR1–IR6b + IR5 élesben (20261007123743_office.sql, 20261007130334_office-topup.sql, 20261007130712_office-mode.sql lefuttatva).
   ✔ Az irodai fiók KÉSZ (IR1–IR8; IR4b e-mail-meghívó elengedve). 2026-10-08
 - Fejlesztés mikrolépésekben:
-  - [x] IR1 — SQL alap: `office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
+  - [x] IR1 — SQL alap: `20261007123743_office.sql` (office_requests, offices, office_members, office_ledger + RLS + office_add/allocate/deduct)
   - [x] IR2 — Igénylés: /dashboard/iroda (magyarázó + igénylő űrlap + „Csatlakozás kóddal" fül váz) → /api/office/request → office_requests; admin: /admin/irodak (jóváhagyás/elutasítás)
   - [x] IR3 — Iroda megnyitása (jóváhagyás után, /api/office POST) + csatlakozási kód (TWX-XXXXXX) + saját iroda panel (OfficePanel)
   - [x] IR4a — Csatlakozás kóddal (/api/office/join, azonnali, 0 keret)
-  - [x] IR9 — Több irodai fiók egy felhasználónak (létrehozás + csatlakozás) + váltás köztük (kredit-sáv irodaválasztó, Irodai fiók oldalon váltó); kiválasztott iroda + mód: user_office_context — `office-multi.sql`
+  - [x] IR9 — Több irodai fiók egy felhasználónak (létrehozás + csatlakozás) + váltás köztük (kredit-sáv irodaválasztó, Irodai fiók oldalon váltó); kiválasztott iroda + mód: user_office_context — `20261008083230_office-multi.sql`
   - Irodai felület átépítése (terv: twinx-irodai-fiok-vezetoi / -kollega):
-    - [x] IF1.1 — Foglalásos keret + védő triggerek + vezető olvashatja az egyenleget/kódot — `office-reserve.sql` (lefuttatva)
+    - [x] IF1.1 — Foglalásos keret + védő triggerek + vezető olvashatja az egyenleget/kódot — `20261008104953_office-reserve.sql` (lefuttatva)
     - [x] IF1.2 — Szerver: hibakódok magyarul, megjegyzés a kiosztásnál, szabad részből költés ellenőrzése; API: /api/office/overview, /api/office/works/list, /api/office/ledger
     - [x] IF1.3 — Vezetői nézet (fejléc-sáv, kód, KPI, tagtábla, keret-panel, kredit-mozgások) — OfficeManagerView, OfficeMemberTable, OfficeLedgerCard
     - [x] IF1.4 — Kolléga-nézet (OfficeMemberView: KPI, Miből fizetek, Munkáim, Feladataim [Hamarosan], mappák, Keretem változásai, modulok) + „Iroda: Vezető | Kolléga" előnézet a jobb alsó váltón
     - [x] IF2 — Elfogyott irodai keret → „Folytatás saját kreditből?" (OfficeFallbackProvider + lib/credit-response.ts + payFrom a chargeCredit-ben, 16 modul)
-    - [x] IF3 — Üzenetek és feladatok (`office-messages.sql`, /api/office/messages, OfficeMessagesRow, OfficeTasksCard, fejléc-jelzés)
-    - [~] IF4 — Kedvenc modulok (kész: module-favorites.sql, /api/module-favorites, OfficeModuleShelf a vezetői nézet alján) + mappa „új" jelzés (hátra van)
+    - [x] IF3 — Üzenetek és feladatok (`20261008104955_office-messages.sql`, /api/office/messages, OfficeMessagesRow, OfficeTasksCard, fejléc-jelzés)
+    - [~] IF4 — Kedvenc modulok (kész: 20261008104954_module-favorites.sql, /api/module-favorites, OfficeModuleShelf a vezetői nézet alján) + mappa „új" jelzés (hátra van)
   - [x] Kredit-sáv (CreditDock) alul középen, FIX méretű; nézetváltó a bal alsó sarokban
   - [—] IR4b — E-mail-meghívó: ELENGEDVE (döntés 2026-10-08) — a kóddal csatlakozás a legegyszerűbb, elég.
   - [x] IR6a — Taglista + keretkiosztás (+/−) + jogosultságok (Kioszthat / Korlátlan) + tag eltávolítása + kód újragenerálása
     (/api/office/members, PATCH /api/office; OfficeMembers komponens)
-  - [x] IR6b — Irodai egyenleg feltöltése: létrehozó megrendel (számlás folyamat, credit_requests.office_id) + admin közvetlen jóváírás (/admin/irodak) — `office-topup.sql`
-  - [x] IR6c — „Kredit kérése a vezetőtől" (+e-mail a létrehozónak, jóváhagyás/elutasítás) + kredithasználat-kimutatás (havi, kollégánként és modulonként) — `office-credit-requests.sql`
-  - [x] IR5 — Munkamód-váltó (fejléc, /api/office/mode) + levonás a közös chargeCredit-ben (office_deduct) + refundCredit (oda vissza, ahonnan vontunk) — `office-mode.sql`
-  - [x] IR7 — Irodai munka jelölése (usage_history.office_id, trigger) + közös mappák (egész iroda / kiválasztott tagok) + „Megosztás az irodával" a Korábbi munkákban + mappa tartalma (megnyitás, kivétel); kilépéskor a privát megosztások kikerülnek — `office-folders.sql`
-  - [x] IR8 — Közös mappában lévő értékbecslés szerkesztése a mappa tagjainak (valuation/save jogosultság) + módosítási napló + visszaállítás + „épp szerkeszti" zár (10 perc) — `office-work-edit.sql`. Más munkatípus (kép/videó) nem szöveges → csak megnyitás/letöltés.
+  - [x] IR6b — Irodai egyenleg feltöltése: létrehozó megrendel (számlás folyamat, credit_requests.office_id) + admin közvetlen jóváírás (/admin/irodak) — `20261007130334_office-topup.sql`
+  - [x] IR6c — „Kredit kérése a vezetőtől" (+e-mail a létrehozónak, jóváhagyás/elutasítás) + kredithasználat-kimutatás (havi, kollégánként és modulonként) — `20261008080622_office-credit-requests.sql`
+  - [x] IR5 — Munkamód-váltó (fejléc, /api/office/mode) + levonás a közös chargeCredit-ben (office_deduct) + refundCredit (oda vissza, ahonnan vontunk) — `20261007130712_office-mode.sql`
+  - [x] IR7 — Irodai munka jelölése (usage_history.office_id, trigger) + közös mappák (egész iroda / kiválasztott tagok) + „Megosztás az irodával" a Korábbi munkákban + mappa tartalma (megnyitás, kivétel); kilépéskor a privát megosztások kikerülnek — `20261008081024_office-folders.sql`
+  - [x] IR8 — Közös mappában lévő értékbecslés szerkesztése a mappa tagjainak (valuation/save jogosultság) + módosítási napló + visszaállítás + „épp szerkeszti" zár (10 perc) — `20261008081511_office-work-edit.sql`. Más munkatípus (kép/videó) nem szöveges → csak megnyitás/letöltés.
 
 ## 7. fázis — Dizájn fázis
 - [ ] Végleges prémium arculat az egész platformra (Tailwind, animációk)
@@ -180,16 +180,17 @@ Cél: egy irodában ne kelljen mindenkinek külön kreditet vásárolni. Modell:
 A fejlesztés a Cowork után Claude Code-ban folytatódik. Minden SQL eddig lefuttatva (Márk, 2026-10-12).
 
 ### Kész az utolsó Cowork-körben
-- [x] Korábbi munkák fájlkezelő: saját mappák (`work-folders.sql`), típus szerinti bontás, irodai mappák, drag & drop
+- [x] Korábbi munkák fájlkezelő: saját mappák (`20261008121637_work-folders.sql`), típus szerinti bontás, irodai mappák, drag & drop
 - [x] „⋯" menü minden munkakártyán (ActionMenu) + kinyíló „Áthelyezés" almenü, több mappa
-- [x] Törlés = elrejtés (`usage-history-hidden.sql`, `library-hidden.sql`) + „Elrejtett munkák" nézet
+- [x] Törlés = elrejtés (`20261008121638_usage-history-hidden.sql`, `20261008121639_library-hidden.sql`) + „Elrejtett munkák" nézet
 - [x] Modulkönyvtárakból is: Korábbi munkák saját mappái + közös irodai mappák
 - [x] Közös WorkViewer (videó az ablakban), munkák automatikus neve (videó: ingatlan címe; képjavítás: mód + idő)
 - [x] Nézetváltó: Iroda — Vezető / Kolléga / **Ki** (mintha nem lenne irodai tagság)
 
 ### Következő lépések (javasolt sorrend)
-1. [ ] **Rendrakás:** a gyökérben lévő ~80 `.sql` fájl áthelyezése `supabase/migrations/` alá, sorszámozva
-       (a hibaüzenetekben szereplő fájlnevek frissítésével) + rövid `supabase/README.md` arról, mi futott le.
+1. [x] **Rendrakás:** a 79 `.sql` fájl a `supabase/` alá került (2026-10-12): 77 migráció
+       `supabase/migrations/<időbélyeg>_<nev>.sql`, `supabase/seed.sql`, `supabase/one-off/`;
+       hivatkozások frissítve, leírás: `supabase/README.md`.
 2. [ ] **Portál Központ új nyitóoldal** — látványterv: `design/portal-kozpont-latvanyterv.html`
        (új partner: „Első csomag" + „Ezt is tudja" galéria; visszatérő: munkaasztal). CSAK Márk jóváhagyása után fejleszthető.
 3. [ ] **Üdvözlő levelek** OB2–OB7: napló SQL + leiratkozás mező → küldő route (Resend) → Vercel cron → leiratkozás oldal → admin nézet → teszt.

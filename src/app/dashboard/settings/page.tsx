@@ -36,7 +36,7 @@ export default async function SettingsPage() {
     .from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
   const balance = (wallet?.balance as number) ?? 0;
 
-  // Számlázási adatok KÜLÖN lekérdezéssel: ha a credit-billing.sql még nem futott
+  // Számlázási adatok KÜLÖN lekérdezéssel: ha a 20260819113321_credit-billing.sql még nem futott
   // le, ez a lekérdezés hibázik — az oldal többi része attól még működjön.
   const { data: billingRow } = await supabase
     .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();

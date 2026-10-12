@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     callback_time: callbackTime,
     message: lead.message,
   });
-  // Ha az új oszlopok még nincsenek a táblában (custom-module-request.sql nem futott le),
+  // Ha az új oszlopok még nincsenek a táblában (20261007093627_custom-module-request.sql nem futott le),
   // a telefonszám és az időpont az üzenet végére kerül — így semmi nem vész el.
   if (insertError && /phone|callback_time|column/i.test(insertError.message)) {
     ({ error: insertError } = await admin.from("leads").insert({

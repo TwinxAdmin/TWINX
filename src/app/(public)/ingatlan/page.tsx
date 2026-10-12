@@ -2,7 +2,7 @@
 // Kiküldhető link: bemutatja a TWINX AI modulokat és a 10 kredites indulási
 // ajándékot. A landingről regisztráló partner AZONNAL 10 kredittel kezd (kód és
 // jóváhagyás nélkül) — a signup_source='ingatlan-landing' jelölés viszi át a
-// regisztráción, a DB-trigger adja a keretet (landing-signup-credits.sql).
+// regisztráción, a DB-trigger adja a keretet (20260912003908_landing-signup-credits.sql).
 //
 // A régi, jóváhagyós/ajándékkódos út (IngatlanLeadForm + invites + admin/meghivok)
 // megmarad a kódban mentve, csak már nem ez a fő folyamat. TWINX arculat

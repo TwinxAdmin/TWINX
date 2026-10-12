@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   if ("error" in r) return r.error;
   const { error } = await createAdminClient().from("work_folder_items")
     .upsert({ folder_id: r.folderId, history_id: r.historyId }, { onConflict: "folder_id,history_id", ignoreDuplicates: true });
-  if (error) return NextResponse.json({ error: /work_folder/.test(error.message) ? "Futtasd le a work-folders.sql migrációt." : error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: /work_folder/.test(error.message) ? "Futtasd le a 20261008121637_work-folders.sql migrációt." : error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 

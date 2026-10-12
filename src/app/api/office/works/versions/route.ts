@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     .from("work_versions").select("id, saved_by, kind, output_file_url, created_at")
     .eq("history_id", historyId).order("created_at", { ascending: false }).limit(100);
   if (error) {
-    return NextResponse.json({ error: /work_versions/.test(error.message) ? "Futtasd le az office-work-edit.sql migrációt." : error.message }, { status: 500 });
+    return NextResponse.json({ error: /work_versions/.test(error.message) ? "Futtasd le a 20261008081511_office-work-edit.sql migrációt." : error.message }, { status: 500 });
   }
   const names = await namesFor((data ?? []).map((v) => (v.saved_by as string) ?? ""));
   return NextResponse.json({

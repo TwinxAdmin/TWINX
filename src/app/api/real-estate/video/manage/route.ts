@@ -54,7 +54,7 @@ export async function DELETE(request: Request) {
   const now = new Date().toISOString();
   const { error } = await admin.from("video_jobs").update({ hidden_at: now }).eq("id", id).eq("user_id", job.user_id);
   if (error) {
-    return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a library-hidden.sql migrációt." : error.message }, { status: 500 });
+    return NextResponse.json({ error: /hidden_at/.test(error.message) ? "Futtasd le a 20261008121639_library-hidden.sql migrációt." : error.message }, { status: 500 });
   }
   if (job.output_url) {
     await admin.from("usage_history").update({ hidden_at: now }).eq("output_file_url", job.output_url).eq("user_id", job.user_id);

@@ -10,7 +10,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
   // Csak a saját, NEM elrejtett videók (adminként az RLS mást is átengedne).
-  // Ha a hidden_at oszlop még nincs (library-hidden.sql), szűrés nélkül kérdezünk.
+  // Ha a hidden_at oszlop még nincs (20261008121639_library-hidden.sql), szűrés nélkül kérdezünk.
   const cols = "id, status, output_url, poster_url, title, package, format, image_count, folder_id, created_at, meta";
   const listQ = (hide: boolean) => {
     const q = supabase.from("video_jobs").select(cols).eq("user_id", user.id);

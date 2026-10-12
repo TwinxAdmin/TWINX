@@ -29,7 +29,7 @@ export async function GET() {
   const view = await resolveViewContext(me?.role as string | undefined);
   const role = view.role;
 
-  // Külön lekérdezés: ha a credit-billing.sql még nem futott le, ez hibázik,
+  // Külön lekérdezés: ha a 20260819113321_credit-billing.sql még nem futott le, ez hibázik,
   // de a válasz többi része attól még használható.
   const { data: billingRow } = await supabase
     .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();

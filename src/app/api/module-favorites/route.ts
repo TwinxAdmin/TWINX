@@ -9,7 +9,7 @@ import { FAVORITES_MAX, FEATURE_TO_HREF, isSelectableModule } from "@/lib/module
 
 export const runtime = "nodejs";
 
-const MIGRATION_HINT = "Futtasd le a module-favorites.sql migrációt.";
+const MIGRATION_HINT = "Futtasd le a 20261008104954_module-favorites.sql migrációt.";
 
 async function readHref(request: Request): Promise<string | null> {
   try {

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   if (error) {
     const dup = /office_members_user_id_key/i.test(error.message);
     return NextResponse.json(
-      { error: dup ? "Több irodához csatlakozáshoz futtasd le az office-multi.sql migrációt." : /duplicate key|pkey/i.test(error.message) ? "Ennek az irodának már tagja vagy." : error.message },
+      { error: dup ? "Több irodához csatlakozáshoz futtasd le a 20261008083230_office-multi.sql migrációt." : /duplicate key|pkey/i.test(error.message) ? "Ennek az irodának már tagja vagy." : error.message },
       { status: 409 }
     );
   }

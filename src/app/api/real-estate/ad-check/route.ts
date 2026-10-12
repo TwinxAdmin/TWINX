@@ -163,12 +163,12 @@ export async function POST(request: Request) {
       .select("id, source_url, title, tone, score, result, pdf_url, folder_id, created_at")
       .single();
 
-    // Ha a mentés nem sikerült (pl. az ad-check.sql még nem futott le), az elemzés
+    // Ha a mentés nem sikerült (pl. a 20260729161524_ad-check.sql még nem futott le), az elemzés
     // elveszne — inkább jelezzük, és NE vonjunk kreditet érte.
     if (saveErr || !saved) {
       await refund();
       return NextResponse.json({
-        error: "Az elemzés elkészült, de nem sikerült elmenteni. Futtasd le az ad-check.sql migrációt.",
+        error: "Az elemzés elkészült, de nem sikerült elmenteni. Futtasd le a 20260729161524_ad-check.sql migrációt.",
       }, { status: 500 });
     }
 

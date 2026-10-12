@@ -57,6 +57,8 @@ Minden egyetlen domain alatt fut, Next.js **Route Groups** használatával:
   **a válaszban is másold be teljes egészében**, és mondd meg, melyik fájlban van. Az SQL legyen
   újrafuttatható (`if not exists`, `drop … if exists`). Ha a kód egy még le nem futtatott oszlopra
   épül, legyen tartalék ága (a felület ne törjön el), és a hibaüzenet nevezze meg a migrációt.
+  Új SQL helye: `supabase/migrations/<ÉÉÉÉHHNNÓÓPPMM>_<nev>.sql`; a kódban csak a rövid fájlnévvel
+  hivatkozunk rá. Lefuttatás után kerüljön be a `supabase/README.md` táblázatába.
 - **Nagyobb változtatás előtt:** röviden vázold a tervet (mikrolépésekre bontva) és kérdezz rá,
   ha a döntés üzleti vagy UX-ízlés kérdése. Látványtervet kérésre HTML-mintában a `design/` mappába készíts.
 - A végén **röviden** foglald össze magyarul, mi változott és mit kell Márknak tennie (SQL, teszt).

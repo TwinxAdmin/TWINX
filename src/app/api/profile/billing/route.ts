@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   // RLS: a "profiles_update_own" policy engedi a saját sor módosítását.
   const { error } = await supabase.from("profiles").update(check.value).eq("id", user.id);
   if (error) {
-    // Tipikus ok: még nem futott le a credit-billing.sql migráció.
+    // Tipikus ok: még nem futott le a 20260819113321_credit-billing.sql migráció.
     return NextResponse.json(
       { error: `A mentés nem sikerült: ${error.message}` },
       { status: 500 }

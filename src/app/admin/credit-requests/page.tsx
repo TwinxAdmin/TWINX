@@ -37,7 +37,7 @@ export default async function AdminCreditRequestsPage() {
           A kérések nem tölthetők be: {error.message}
           <br />
           <span style={{ color: "var(--twx-ink-muted)" }}>
-            Ha még nem futott le, futtasd a <code>credit-requests.sql</code> migrációt.
+            Ha még nem futott le, futtasd a <code>20260729181134_credit-requests.sql</code> migrációt.
           </span>
         </p>
       ) : (

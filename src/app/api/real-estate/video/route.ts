@@ -409,7 +409,7 @@ export async function POST(request: Request) {
       const expected = aiClips.filter((c) => !c.failed).length;
       const saved = savedClips.filter((c) => c.requestId).length;
       if (saved < expected) {
-        throw new Error("A beküldési azonosítók mentése nem sikerült (futtasd a video-pro-clips.sql-t).");
+        throw new Error("A beküldési azonosítók mentése nem sikerült (futtasd a 20260729143250_video-pro-clips.sql-t).");
       }
 
       if (service) {

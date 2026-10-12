@@ -71,8 +71,8 @@ Ugyanazt a Supabase projektet használjuk (benne a felhasználók/adatok).
 
 **a) Hiányzó SQL-ek lefuttatása** (SQL Editor). Idempotensek, nyugodtan lefuttathatók:
 
-- `prompts.sql` — a prompt-kezelő táblája (`ai_prompts`).
-- `usage-credits.sql` — a `credits_charged` oszlop (modul-figyelőhöz).
+- `20260711102744_prompts.sql` — a prompt-kezelő táblája (`ai_prompts`).
+- `20260711094633_usage-credits.sql` — a `credits_charged` oszlop (modul-figyelőhöz).
 
 **b) Auth URL-ek** (Authentication → URL Configuration):
 

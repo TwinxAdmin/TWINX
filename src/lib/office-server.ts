@@ -19,7 +19,7 @@ export async function listMyOffices(userId: string): Promise<{ id: string; name:
 
 /**
  * Munkakontextus: melyik iroda van kiválasztva, és irodai módban dolgozik-e.
- * Ha a office-multi.sql még nem futott le, a régi work_mode oszlopból következtet.
+ * Ha a 20261008083230_office-multi.sql még nem futott le, a régi work_mode oszlopból következtet.
  */
 export async function getWorkContext(userId: string): Promise<{ officeId: string | null; useOffice: boolean }> {
   const admin = createAdminClient();
@@ -133,12 +133,12 @@ export async function listMembers(officeId: string): Promise<OfficeMember[]> {
 }
 
 /**
- * Keret kiosztása egy MEGADOTT irodában. Az office-multi.sql-ben lévő office_allocate_in-t
+ * Keret kiosztása egy MEGADOTT irodában. A 20261008083230_office-multi.sql-ben lévő office_allocate_in-t
  * hívja; ha az még nincs lefuttatva, a régi (egy-irodás) office_allocate-re esik vissza.
  * Visszatér: az új keret, vagy null, ha nem engedélyezett; hiba esetén { error }.
  */
 export async function allocateIn(officeId: string, actor: string, member: string, delta: number, note: string | null) {
-  // Foglalásos modell (office-reserve.sql): a szabályokat az adatbázis kényszeríti ki,
+  // Foglalásos modell (20261008104953_office-reserve.sql): a szabályokat az adatbázis kényszeríti ki,
   // a hibát kódként adja vissza (OFFICE_…) — ezt az officeErrorMessage() fordítja le.
   return createAdminClient().rpc("office_allocate_in", {
     p_office: officeId, p_actor: actor, p_member: member, p_delta: delta, p_note: note,

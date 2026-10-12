@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
     if (issueErr) {
       console.error("[admin-credit-requests] Számla-jelölés sikertelen:", id, issueErr.message);
       return NextResponse.json(
-        { error: "A művelet nem sikerült. Futtasd le a credit-billing.sql migrációt." },
+        { error: "A művelet nem sikerült. Futtasd le a 20260819113321_credit-billing.sql migrációt." },
         { status: 500 }
       );
     }
@@ -101,7 +101,7 @@ export async function PATCH(request: Request) {
   if (applyErr) {
     console.error("[admin-credit-requests] Jóváhagyás sikertelen:", id, applyErr.message);
     return NextResponse.json(
-      { error: "A jóváhagyás nem sikerült. Futtatd le a credit-requests.sql migrációt." },
+      { error: "A jóváhagyás nem sikerült. Futtatd le a 20260729181134_credit-requests.sql migrációt." },
       { status: 500 }
     );
   }

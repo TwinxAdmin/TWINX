@@ -1,7 +1,7 @@
 // POST /api/real-estate/assets/name — egy kép saját elnevezése (vagy a név törlése).
 //
 // A képek nem adatbázis-sorok, hanem URL-ek, ezért a nevet külön táblában
-// tároljuk (asset_item_names, lásd asset-item-names.sql). A név csak a felületen
+// tároljuk (asset_item_names, lásd 20260828114903_asset-item-names.sql). A név csak a felületen
 // jelenik meg, a fájl neve a tárhelyen nem változik.
 //
 // BIZTONSÁG: a sima (user) klienssel írunk, így az RLS garantálja, hogy

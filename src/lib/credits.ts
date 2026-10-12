@@ -1,10 +1,10 @@
 // Kredit levonás szerveroldali helper — KÖZÖS (globális) pénztárca.
-// Az egyenleg bármelyik modulban elkölthető (lásd wallet.sql).
+// Az egyenleg bármelyik modulban elkölthető (lásd 20260704161035_wallet.sql).
 // Üzleti szabály: az 'admin' korlátlan (prezentációs mód, nincs levonás). A 'sales' viszont
 // FOGYASZTJA a keretet — az adminisztrátor adja neki a kreditet (/admin/credits), és ő is
 // tölti újra; így az admin korlátozni tudja a sales folyamatait. Minden más: normál levonás.
 //
-// IRODAI MUNKAMÓD (office-mode.sql): ha a felhasználó irodai tag és „Irodai" módban
+// IRODAI MUNKAMÓD (20261007130712_office-mode.sql): ha a felhasználó irodai tag és „Irodai" módban
 // dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -82,7 +82,7 @@ export async function chargeCredit(params: {
 
 /**
  * Visszatérítés sikertelen generálás után — oda, ahonnan levontuk (iroda vagy
- * saját pénztárca). Ha a credit_refund SQL-függvény még nincs (office-mode.sql),
+ * saját pénztárca). Ha a credit_refund SQL-függvény még nincs (20261007130712_office-mode.sql),
  * a régi módon a saját pénztárcába ír vissza.
  */
 export async function refundCredit(userId: string, amount: number, source?: CreditSource): Promise<void> {
@@ -125,7 +125,7 @@ export async function checkCreditAvailable(params: {
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
 
-  // Irodai mód (foglalásos keret, office-reserve.sql):
+  // Irodai mód (foglalásos keret, 20261008104953_office-reserve.sql):
   //   • tag: a saját (lefoglalt) kerete számít;
   //   • létrehozó / korlátlan: csak a SZABADON kiosztható rész (a kollégák foglalását nem érinti).
   const om = payFrom === "wallet" ? null : await officeMode(userId);

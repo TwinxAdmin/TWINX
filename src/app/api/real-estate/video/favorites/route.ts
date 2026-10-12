@@ -1,7 +1,7 @@
 // /api/real-estate/video/favorites — a partner kedvenc videósablonjai.
 //   GET  → { favorites: string[] }          (sablon-azonosítók, pl. ["mozaik"])
 //   POST { templateId, favorite: boolean }   → csillagozás / visszavonás
-// Tábla: video_template_favorites (video-favorites.sql) — RLS: mindenki csak a sajátját.
+// Tábla: video_template_favorites (20261006122751_video-favorites.sql) — RLS: mindenki csak a sajátját.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ENGINE_TEMPLATES } from "@/lib/video-engine/templates/index";
@@ -41,12 +41,12 @@ export async function POST(request: Request) {
     ? await supabase.from("video_template_favorites").upsert({ user_id: user.id, template_id: templateId }, { onConflict: "user_id,template_id", ignoreDuplicates: true })
     : await supabase.from("video_template_favorites").delete().eq("user_id", user.id).eq("template_id", templateId);
   if (error) {
-    // A tábla még nincs létrehozva (video-favorites.sql nem futott le) → érthető üzenet.
+    // A tábla még nincs létrehozva (20261006122751_video-favorites.sql nem futott le) → érthető üzenet.
     const missingTable = error.code === "42P01" || error.code === "PGRST205" || /video_template_favorites/.test(error.message ?? "");
     console.error("[video/favorites]", error.code, error.message);
     return NextResponse.json({
       error: missingTable
-        ? "A kedvencek még nincsenek bekapcsolva (hiányzik az adatbázis-tábla: futtasd a video-favorites.sql-t a Supabase-ben)."
+        ? "A kedvencek még nincsenek bekapcsolva (hiányzik az adatbázis-tábla: futtasd a 20261006122751_video-favorites.sql-t a Supabase-ben)."
         : `A kedvenc mentése nem sikerült (${error.message}).`,
     }, { status: 500 });
   }

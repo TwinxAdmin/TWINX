@@ -32,7 +32,7 @@ export default async function MyWorksPage({ searchParams }: { searchParams: Prom
   if (!user) redirect("/login");
 
   // EXPLICIT saját user-re szűrünk: adminként az RLS mindenkiét visszaadná.
-  // hidden_at: „Törlés" = elrejtés (usage-history-hidden.sql). Ha a migráció még nem futott, nélküle kérdezünk.
+  // hidden_at: „Törlés" = elrejtés (20261008121638_usage-history-hidden.sql). Ha a migráció még nem futott, nélküle kérdezünk.
   const query = (cols: string) => supabase.from("usage_history").select(cols)
     .eq("user_id", user.id).order("created_at", { ascending: false }).limit(300);
   let res = await query("id, feature_used, input_data, output_file_url, created_at, hidden_at");

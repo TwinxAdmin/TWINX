@@ -1,0 +1,20 @@
+{
+  // TWINX — feladatok (Terminal → Run Task…, vagy Cmd+Shift+B a fejlesztői szerverhez)
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "TWINX: fejlesztői szerver (npm run dev)",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "TWINX: típusellenőrzés (tsc)",
+      "type": "shell",
+      "command": "npx tsc --noEmit",
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

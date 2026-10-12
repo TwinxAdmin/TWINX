@@ -1,7 +1,7 @@
 // GET   /api/office/members — az iroda taglistája (csak a létrehozó és a kiosztó jogú tag).
 // PATCH /api/office/members — egy tag kezelése. body: { userId, action, ... }
 //   • action "allocate"    { delta, note? }             — keret +/−  (létrehozó vagy kiosztó; a kiosztó magának nem)
-//                                                         foglalásos modell: csak a szabad részből adható (office-reserve.sql)
+//                                                         foglalásos modell: csak a szabad részből adható (20261008104953_office-reserve.sql)
 //   • action "permissions" { canAllocate?, unlimited? } — jogosultságok (CSAK a létrehozó)
 //   • action "remove"                                   — tag eltávolítása (CSAK a létrehozó; magát nem)
 // A keretkiosztás szabályait az adatbázis (office_allocate_in) kényszeríti ki — egy tranzakcióban, naplózva.
@@ -89,7 +89,7 @@ export async function PATCH(request: Request) {
     // Foglalásos modell: a tag maradék kerete a törléskor magától visszakerül a szabad
     // részbe (office_members_on_delete trigger, naplózva).
     // A közös mappákból kikerülnek a tag SAJÁT (privát módban készült) megosztott munkái;
-    // az irodai módban készültek az irodánál maradnak. (Ha az office-folders.sql még nincs, kihagyjuk.)
+    // az irodai módban készültek az irodánál maradnak. (Ha a 20261008081024_office-folders.sql még nincs, kihagyjuk.)
     try {
       const { data: folders } = await admin.from("office_folders").select("id").eq("office_id", me.office_id);
       const folderIds = (folders ?? []).map((f) => f.id as string);

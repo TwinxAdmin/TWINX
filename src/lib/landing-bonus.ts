@@ -6,7 +6,7 @@
 // ad; ezt a /auth/callback hívja fel 10-re ezzel a helperrel, ha a landingről
 // indult a folyamat.
 //
-// A logika a `landing-signup-credits.sql` trigger párja: forrás mentése +
+// A logika a `20260912003908_landing-signup-credits.sql` trigger párja: forrás mentése +
 // a keret (első 50) erejéig a különbözet jóváírása. Idempotens: ha a
 // profilon már van signup_source, nem csinál semmit (nem ad duplán).
 import { createAdminClient } from "@/lib/supabase/admin";
