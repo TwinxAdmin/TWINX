@@ -38,7 +38,7 @@ export default function VideoLibrary({
   const withCover = items.map((v) => ({ ...v, coverUrl: v.poster_url }));
 
   return (
-    <FolderLibrary<VideoItem>
+    <FolderLibrary<VideoItem> trackModule="/dashboard/real-estate/video"
       historyIdOf={(v) => v.historyId ?? null}
       items={withCover}
       folders={folders}

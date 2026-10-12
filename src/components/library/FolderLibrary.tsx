@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { showToast } from "@/components/Toast";
+import { sendModuleEvent } from "@/lib/module-events";
 import { ActionMenu, MI, MenuDots, useActionMenu, type MenuItem, type SubItem } from "@/components/ui/ActionMenu";
 
 export type LibraryItem = {
@@ -56,6 +57,8 @@ export type FolderLibraryProps<T extends LibraryItem> = {
   historyIdOf?: (item: T) => string | null;
   /** Letöltési URL (ha nincs, nincs letöltés gomb). */
   downloadUrl?: (item: T) => string | null;
+  /** Tölcsér-mérés (ME2): a modul útvonala — a letöltés és a közös irodai mappába tétel (megosztás) mérődik. */
+  trackModule?: string;
   emptyText?: string;
   /** Az elem típusának neve a szövegekhez (pl. „videó", „hirdetés"). */
   noun?: string;
@@ -74,7 +77,7 @@ const GRID_CLASS: Record<2 | 3 | 4, string> = {
 
 export default function FolderLibrary<T extends LibraryItem>({
   items, folders, renderItem, onCreateFolder, onMove, onDelete, downloadUrl,
-  onRenameFolder, onDeleteFolder, onRenameItem, historyIdOf,
+  onRenameFolder, onDeleteFolder, onRenameItem, historyIdOf, trackModule,
   emptyText = "Még nincs elkészült munkád.",
   noun = "elem",
   cols = 2,
@@ -131,6 +134,7 @@ export default function FolderLibrary<T extends LibraryItem>({
       setOfIn((m) => ({ ...m, [hid]: isIn ? (m[hid] ?? []).filter((x) => x !== f.id) : [...(m[hid] ?? []), f.id] }));
     }
     showToast(isIn ? `Kivetted: „${f.name}”.` : `Betéve: „${f.name}”${kind === "office" ? " (közös mappa)" : ""}.`, "success");
+    if (kind === "office" && !isIn && trackModule) sendModuleEvent(trackModule, "share");
     window.dispatchEvent(new CustomEvent("twx-works-changed"));
   }
 
@@ -178,7 +182,8 @@ export default function FolderLibrary<T extends LibraryItem>({
   function itemMenuItems(it: T): MenuItem[] {
     const list: MenuItem[] = [];
     const dl = downloadUrl?.(it) ?? null;
-    if (dl) list.push({ kind: "link", label: "Letöltés", icon: MI.download, href: dl, download: true });
+    if (dl) list.push({ kind: "link", label: "Letöltés", icon: MI.download, href: dl, download: true,
+      onClick: trackModule ? () => sendModuleEvent(trackModule, "download") : undefined });
     const hid = historyIdOf?.(it) ?? null;
     const moduleItems: SubItem[] = [
       { id: "__date", label: "Dátum szerinti mappa", checked: !it.folderId, disabled: busy || !it.folderId,

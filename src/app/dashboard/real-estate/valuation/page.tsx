@@ -16,7 +16,8 @@ import FolderLibrary, {
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { compressImage } from "@/lib/image-compress";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useModuleTracker, type RunHandle } from "@/lib/module-events";
 import {
   parseValuationReport,
   reportTitle,
@@ -96,6 +97,9 @@ export default function ValuationPage() {
   const [result, setResult] = useState<EditorState | null>(null);
   // Aszinkron becslés: a futó job azonosítója + az eltelt idő (folyamatjelzőhöz).
   const [jobId, setJobId] = useState<string | null>(null);
+  // tölcsér-mérés (ME2): űrlap elkezdése → indítás → siker / hiba (+ futási idő) → letöltés
+  const track = useModuleTracker("/dashboard/real-estate/valuation");
+  const runRef = useRef<RunHandle | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   // Indító ablak (arculat + fotók a laphoz) — az űrlap validálása után nyílik.
@@ -214,6 +218,7 @@ export default function ValuationPage() {
         if (data.status === "done") {
           setJobId(null);
           setLoading(false);
+          runRef.current?.succeeded(); runRef.current = null;
           const items = await loadHistory();
           if (data.report) {
             // A megjelenés-adatok (arculat, fotók, levezetés) EGY forrásból: a
@@ -235,6 +240,7 @@ export default function ValuationPage() {
         } else if (data.status === "failed") {
           setJobId(null);
           setLoading(false);
+          runRef.current?.failed("job_failed"); runRef.current = null;
           setServerError(data.error ?? "A becslés nem sikerült. Kredit nem került levonásra.");
         }
       } catch { /* következő kör */ }
@@ -382,6 +388,8 @@ export default function ValuationPage() {
     setStartOpen(false);
     setResult(null);
     setLoading(true);
+    const run = track.runStarted();
+    runRef.current = run;
     try {
       // Mindig multipart: a lap fotói (fájl vagy URL) és az arculat is ebben megy.
       const fd = new FormData();
@@ -396,6 +404,7 @@ export default function ValuationPage() {
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
+        run.failed(`http_${res.status}`); runRef.current = null;
         return;
       }
       // Sikeres beküldés: a szabadszöveges mezők értékének megjegyzése.
@@ -408,7 +417,7 @@ export default function ValuationPage() {
       if (data.async && data.jobId) {
         setJobId(String(data.jobId));
         setMessage("A becslés készül — ez 1–2 percet is igénybe vehet.");
-        return; // a `loading` marad true-n, a polling zárja le
+        return; // a `loading` marad true-n, a polling zárja le (a mérést is ott zárjuk)
       }
 
       // GYORS ÁG (cache-elt comp-ok): a válasz azonnal tartalmazza a riportot.
@@ -427,8 +436,10 @@ export default function ValuationPage() {
         setEditorOpen(true);
       }
       setMessage("Kész! A lap elkészült — nézd át, majd töltsd le.");
+      run.succeeded(); runRef.current = null;
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
+      run.failed("network"); runRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -449,7 +460,8 @@ export default function ValuationPage() {
         chips={["Összehasonlító-alapú", "Friss (1 éves) adatok", "Konzisztens", "PDF-riport"]}
       />
 
-      <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6">
+      <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6"
+        onInputCapture={track.formStarted} onChangeCapture={track.formStarted} onClickCapture={track.formStarted}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
             const fm = fieldMem[field.key];
@@ -840,7 +852,7 @@ export default function ValuationPage() {
               Megnyitás és szerkesztés
             </button>
             {result.url && (
-              <a className="twx-btn-outline" href={toDownloadUrl(result.url)}>
+              <a className="twx-btn-outline" href={toDownloadUrl(result.url)} onClick={track.downloaded}>
                 PDF letöltése
               </a>
             )}
@@ -856,7 +868,7 @@ export default function ValuationPage() {
             Hónap szerinti és saját mappákba rendezve. Nyiss meg egy mappát, ott
             megnyithatod, szerkesztheted, letöltheted, áthelyezheted vagy törölheted a becsléseket.
           </p>
-          <FolderLibrary<ValItem>
+          <FolderLibrary<ValItem> trackModule="/dashboard/real-estate/valuation"
             historyIdOf={(v) => v.id}
             items={libraryItems}
             folders={folders}

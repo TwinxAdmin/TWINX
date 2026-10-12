@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
+import { useModuleTracker } from "@/lib/module-events";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { compressImage } from "@/lib/image-compress";
 import { toDownloadUrl } from "@/lib/files";
@@ -62,6 +63,8 @@ export default function AdWizard({
 }: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void }) {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // tölcsér-mérés (ME2): a varázsló első érintése = űrlap elkezdése; „Elfogadom" = futtatás; letöltés / megosztás
+  const track = useModuleTracker("/dashboard/flyer");
 
   // 1) Arculat — mentett vagy egyszeri
   const [brandMode, setBrandMode] = useState<"saved" | "quick">(profiles.length ? "saved" : "quick");
@@ -324,6 +327,7 @@ export default function AdWizard({
       };
       if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], title: "Ingatlan hirdetés" });
+        track.shared();
       } else {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -332,6 +336,7 @@ export default function AdWizard({
         a.click();
         a.remove();
         URL.revokeObjectURL(a.href);
+        track.downloaded();
         showToast("A böngésző nem támogatja a közvetlen megosztást — a kép letöltődött, töltsd fel a platformra.", "info");
       }
     } catch (e) {
@@ -346,6 +351,7 @@ export default function AdWizard({
     const sizeVal = curSize;
     if (finals[sizeVal]) return; // ez a méret már elfogadva
     setAccepting(true); setError(null);
+    const run = track.runStarted();
     try {
       const { blob } = await buildBlob(false, sizeVal);
       // A nagy felbontású PNG-t minőségi JPEG-ként töltjük fel (nem skálázzuk).
@@ -356,7 +362,8 @@ export default function AdWizard({
       fd.append("title", `${text.title ?? ""} (${getFlyerSize(sizeVal).label})`.trim());
       const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) { run.failed(`http_${res.status}`); throw new Error(data.error); }
+      run.succeeded();
       // AZONNAL mentve: a kép a tárhelyre és az előzményekbe került — nem veszhet el.
       setFinals((prev) => ({ ...prev, [sizeVal]: data.url as string }));
       // A sikeresen elfogadott hirdetés szabadszöveges értékeit megjegyezzük.
@@ -375,6 +382,7 @@ export default function AdWizard({
         "success"
       );
     } catch (e) {
+      run.failed("error"); // ha már lezárult (http_…), ez nem küld újra
       setError((e as Error).message || "Nem sikerült az elfogadás.");
     } finally { setAccepting(false); }
   }
@@ -478,7 +486,8 @@ export default function AdWizard({
     // véletlen mellékattintás miatt. Bezárni csak az × / Esc tud, és ha már van
     // elveszíthető adat, akkor is csak megerősítés után.
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
+      <div onInputCapture={track.formStarted} onChangeCapture={track.formStarted}
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
 
         {/* Fejléc + lépésjelző */}
@@ -1027,7 +1036,7 @@ export default function AdWizard({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" /></svg>
                 {sharing ? "Megosztás…" : "Megosztás"}
               </button>
-              <a href={toDownloadUrl(finalUrl)} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-line)" }}>Letöltés</a>
+              <a href={toDownloadUrl(finalUrl)} onClick={track.downloaded} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ border: "1px solid var(--twx-line)" }}>Letöltés</a>
               <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>
             </div>
           ) : (

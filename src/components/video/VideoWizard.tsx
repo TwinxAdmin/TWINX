@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
+import { useModuleTracker, type RunHandle } from "@/lib/module-events";
 import { readTwxDragUrl } from "@/components/AssetTray";
 import AssetPicker from "@/components/video/AssetPicker";
 import ComboField from "@/components/ComboField";
@@ -71,6 +72,11 @@ export default function VideoWizard({
   /** A SAJÁT TWINX motor fut → a saját sablonok (Aurora, Skandi …) közül lehet választani. */
   engineMode?: boolean;
 }) {
+  // tölcsér-mérés (ME2): a varázsló első érintése = űrlap; MINDEN méret külön futtatás (job), a lezárást a polling
+  // jelzi; letöltés. A Videólabor (admin teszt, `lab`) nem mérődik.
+  const track = useModuleTracker("/dashboard/real-estate/video");
+  const runHandles = useRef(new Map<string, RunHandle>());
+  const formStarted = () => { if (!lab) track.formStarted(); };
   // Saját-motoros sablonválasztó: a Videólaborban mindig, a partnereknél ha a motor „twinx".
   const engine = Boolean(lab) || Boolean(engineMode);
   const [step, setStep] = useState(0);
@@ -277,6 +283,7 @@ export default function VideoWizard({
       const failures: string[] = [];
       let okCount = 0;
       for (const asp of targets) {
+        const run = lab ? null : track.runStarted();
         const fd = new FormData();
         for (const im of images) fd.append("images", im);
         // Fotónkénti szabad feliratok — a képek sorrendjéhez igazítva.
@@ -308,8 +315,10 @@ export default function VideoWizard({
             lab.onResult(data as Record<string, unknown>);
           } else {
             setRuns((rs) => upsertRun(rs, { aspect: asp, jobId: data.jobId as string, status: data.status as string, output_url: null, error: null, debug: null }));
+            if (run) runHandles.current.set(String(data.jobId), run); // a végét a polling jelzi
           }
         } catch (e) {
+          run?.failed("start_failed");
           failures.push(`${ASPECT_LABEL[asp]}: ${(e as Error).message || "nem sikerült elindítani."}`);
         }
       }
@@ -371,8 +380,14 @@ export default function VideoWizard({
             ? { ...r, status: data.status, output_url: data.output_url ?? null, error: data.error ?? null, debug: data.debug ?? null }
             : r)));
           const label = pending.length > 1 || aspects.length > 1 ? ` (${ASPECT_LABEL[asp]})` : "";
-          if (data.status === "done") { onDone?.(); showToast(`A videó${label} elkészült és mentve!`, "success"); }
-          if (data.status === "failed") showToast(`A videó${label} nem készült el — a kredit visszajárt.`, "error");
+          if (data.status === "done") {
+            runHandles.current.get(id)?.succeeded(); runHandles.current.delete(id);
+            onDone?.(); showToast(`A videó${label} elkészült és mentve!`, "success");
+          }
+          if (data.status === "failed") {
+            runHandles.current.get(id)?.failed("job_failed"); runHandles.current.delete(id);
+            showToast(`A videó${label} nem készült el — a kredit visszajárt.`, "error");
+          }
         } catch { /* következő kör */ }
       }
     }, 3000);
@@ -422,7 +437,8 @@ export default function VideoWizard({
   return (
     // A háttérre kattintás NEM zár be — véletlen mellékattintással elveszne a munka.
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
+      <div onInputCapture={formStarted} onChangeCapture={formStarted}
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
         style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
 
         {/* Fejléc + lépésjelző */}
@@ -882,7 +898,7 @@ export default function VideoWizard({
                             {lab ? "Kész! (Videólabor — nem kerül a partner-előzmények közé.)" : "Kész! Elmentve a Korábbi videóim közé."}
                           </p>
                           {runs.length > 1 && (
-                            <a href={toDownloadUrl(r.output_url)} className="mt-2 inline-block rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
+                            <a href={toDownloadUrl(r.output_url)} onClick={() => { if (!lab) track.downloaded(); }} className="mt-2 inline-block rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
                               Letöltés ({r.aspect})
                             </a>
                           )}
@@ -943,7 +959,7 @@ export default function VideoWizard({
                 </button>
               )}
               {runs.length === 1 && runs[0].status === "done" && runs[0].output_url && !missing.length && (
-                <a href={toDownloadUrl(runs[0].output_url)} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Letöltés</a>
+                <a href={toDownloadUrl(runs[0].output_url)} onClick={() => { if (!lab) track.downloaded(); }} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>Letöltés</a>
               )}
               {runs.some((r) => r.status === "done") && (
                 <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium" style={{ border: "1px solid var(--twx-line)" }}>Kész</button>

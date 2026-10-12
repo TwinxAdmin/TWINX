@@ -8,6 +8,7 @@ import { WorkChips, WorkDot, type WorkKind } from "@/components/WorkBadge";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
+import { useModuleTracker } from "@/lib/module-events";
 import { compressImage } from "@/lib/image-compress";
 import {
   ROOM_TYPES,
@@ -30,6 +31,8 @@ type Item = { file: File; url: string; config: RoomConfig };
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 export default function VisualizationPage() {
+  // tölcsér-mérés (ME2): képek / beállítások érintése = űrlap elkezdése; generálás = futtatás; letöltés
+  const track = useModuleTracker("/dashboard/real-estate/visualization");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -173,6 +176,7 @@ export default function VisualizationPage() {
     }
 
     setLoading(true);
+    const run = track.runStarted();
     try {
       // Feltöltés előtt kicsinyítjük a képeket (Vercel ~4,5 MB kérés-limit).
       const compressed = await Promise.all(items.map((it) => compressImage(it.file)));
@@ -187,6 +191,7 @@ export default function VisualizationPage() {
       const data = await res.json();
       if (!res.ok) {
         setServerError(data.error ?? "Hiba történt a generálás során.");
+        run.failed(`http_${res.status}`);
         return;
       }
       if (Array.isArray(data.urls)) {
@@ -194,8 +199,10 @@ export default function VisualizationPage() {
         setResultOriginals(items.map((it) => it.url)); // előtte/utána összevetéshez
       }
       setMessage(`Kész! ${data.urls?.length ?? 0} látványterv elkészült.`);
+      run.succeeded();
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
+      run.failed("network");
     } finally {
       setLoading(false);
     }
@@ -214,7 +221,7 @@ export default function VisualizationPage() {
       />
 
       {/* 4 kép-hely: tallózás vagy a korábbi munkákból ráhúzás */}
-      <div className="twx-card p-5 sm:p-6">
+      <div className="twx-card p-5 sm:p-6" onChangeCapture={track.formStarted} onDropCapture={track.formStarted} onClickCapture={track.formStarted}>
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">Képek ({items.length}/{MAX_IMAGES})</h2>
           <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -559,6 +566,7 @@ export default function VisualizationPage() {
             <div className="flex items-center gap-3">
               <a
                 href={toDownloadUrl(resultUrls[viewer])}
+                onClick={track.downloaded}
                 className="rounded-full px-5 py-2 text-sm font-medium"
                 style={{ background: "var(--twx-coral)", color: "#1c1005" }}
               >

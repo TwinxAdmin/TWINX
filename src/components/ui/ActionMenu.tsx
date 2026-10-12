@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
 
 export type MenuItem =
   | { kind?: "action"; label: string; icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; hint?: string }
-  | { kind: "link"; label: string; icon?: ReactNode; href: string; download?: boolean }
+  | { kind: "link"; label: string; icon?: ReactNode; href: string; download?: boolean; onClick?: () => void }
   | { kind: "sub"; label: string; icon?: ReactNode; title: string; items: SubItem[]; empty?: string }
   | { kind: "divider" };
 
@@ -122,7 +122,7 @@ export function ActionMenu({ at, items, onClose }: { at: At | null; items: MenuI
           if (it.kind === "link") {
             return (
               <a key={it.label} role="menuitem" href={it.href} download={it.download || undefined}
-                onMouseEnter={() => setSub(null)} onClick={() => onClose()} className={rowCls}>
+                onMouseEnter={() => setSub(null)} onClick={() => { it.onClick?.(); onClose(); }} className={rowCls}>
                 <Ico>{it.icon}</Ico><span className="flex-1">{it.label}</span>
               </a>
             );

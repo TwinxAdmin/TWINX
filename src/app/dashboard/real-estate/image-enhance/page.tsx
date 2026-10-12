@@ -11,6 +11,7 @@ import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import BeforeAfterViewer from "@/components/BeforeAfterViewer";
 import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
+import { useModuleTracker } from "@/lib/module-events";
 import { compressImage } from "@/lib/image-compress";
 import { imageMeanDiff, NOOP_DIFF_THRESHOLD, imageBusyness, EXTREME_BUSYNESS_THRESHOLD } from "@/lib/image-diff";
 import {
@@ -35,6 +36,8 @@ const otherMode = (m: EnhanceMode): EnhanceMode => (m === "feljavitas" ? "rendra
 const MAX_FREE_FIX = 1;
 
 export default function ImageEnhancePage() {
+  // tölcsér-mérés (ME2): képfeltöltés = űrlap elkezdése; minden feldolgozás = futtatás; letöltés
+  const track = useModuleTracker("/dashboard/real-estate/image-enhance");
   // Aktív ablak (melyik művelettel indítottunk); null = nincs nyitva.
   const [session, setSession] = useState<EnhanceMode | null>(null);
   const [picks, setPicks] = useState<Pick[]>([]);
@@ -129,6 +132,7 @@ export default function ImageEnhancePage() {
 
   function addFiles(list: FileList | null) {
     if (!list) return;
+    track.formStarted();
     const incoming = Array.from(list).filter((f) => ALLOWED_IMAGE_TYPES.includes(f.type));
     if (!incoming.length) { showToast("Csak JPG, PNG vagy WEBP tölthető fel.", "error"); return; }
     setPicks((prev) => {
@@ -155,6 +159,7 @@ export default function ImageEnhancePage() {
   // Egy feldolgozás lefuttatása a megadott móddal, a megadott fájlokon.
   async function process(m: EnhanceMode, files: File[], extreme = false): Promise<boolean> {
     setLoading(true);
+    const run = track.runStarted();
     try {
       // Rendrakásnál előbb a partner hagyja jóvá — csak utána mentjük az előzményekbe.
       const needsReview = m === "rendrakas";
@@ -166,7 +171,7 @@ export default function ImageEnhancePage() {
       for (const f of files) fd.append("images", await compressImage(f, 1600, 0.85));
       const res = await fetch(API, { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) { showToast(data.error ?? data.errors?.images ?? "A feldolgozás nem sikerült.", "error"); return false; }
+      if (!res.ok) { run.failed(`http_${res.status}`); showToast(data.error ?? data.errors?.images ?? "A feldolgozás nem sikerült.", "error"); return false; }
       setProducedMode(m);
       if (needsReview) {
         setPending(data.items ?? []);
@@ -179,9 +184,11 @@ export default function ImageEnhancePage() {
         if (data.job) setHistory((h) => [data.job as Job, ...h]);
         setAssetsReload((n) => n + 1);
       }
+      run.succeeded();
       showToast(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)", "success");
       return true;
     } catch {
+      run.failed("network");
       showToast("Hálózati hiba. Próbáld újra.", "error");
       return false;
     } finally {
@@ -885,7 +892,7 @@ export default function ImageEnhancePage() {
               <button onClick={() => toggleFav(cur)} aria-label="Kedvenc" className="flex h-9 w-9 items-center justify-center rounded-full" style={{ border: "1px solid rgba(255,255,255,0.35)" }}>
                 <StarIcon filled={isFav(cur)} light />
               </button>
-              <a href={dl(cur.enhanced)} download="twinx-kep.jpg" onClick={(e) => e.stopPropagation()}
+              <a href={dl(cur.enhanced)} download="twinx-kep.jpg" onClick={(e) => { e.stopPropagation(); track.downloaded(); }}
                 className="rounded-full px-4 py-2 text-sm font-medium" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>Letöltés</a>
               <button onClick={() => setLightbox(null)} aria-label="Bezár" className="flex h-9 w-9 items-center justify-center rounded-full text-lg" style={{ border: "1px solid rgba(255,255,255,0.35)", color: "#fff" }}>×</button>
             </div>

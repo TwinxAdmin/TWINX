@@ -9,6 +9,7 @@ import ModuleIntro from "@/components/ModuleIntro";
 import AdWizard from "@/components/flyer/AdWizard";
 import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
 import { toDownloadUrl } from "@/lib/files";
+import { sendModuleEvent } from "@/lib/module-events";
 import type { BrandingProfile } from "@/lib/branding";
 import { MAX_FLYER_IMAGES } from "@/lib/flyer";
 
@@ -85,7 +86,7 @@ export default function FlyerPage() {
         {loading ? (
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>
         ) : (
-          <FolderLibrary<FlyerItem>
+          <FolderLibrary<FlyerItem> trackModule="/dashboard/flyer"
             historyIdOf={(f) => f.id}
             items={items}
             folders={folders}
@@ -135,7 +136,7 @@ export default function FlyerPage() {
           className="fixed inset-0 z-[60] flex flex-col items-center justify-center p-4"
           style={{ background: "rgba(12,11,10,0.9)" }}>
           <div onClick={(e) => e.stopPropagation()} className="mb-3 flex items-center gap-2">
-            <a href={toDownloadUrl(viewUrl)} download className="twx-btn">
+            <a href={toDownloadUrl(viewUrl)} download className="twx-btn" onClick={() => sendModuleEvent("/dashboard/flyer", "download")}>
               Letöltés
             </a>
             <button type="button" onClick={() => setViewUrl(null)} aria-label="Bezárás"
