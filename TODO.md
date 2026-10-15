@@ -303,7 +303,13 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [x] F1g — Nyílászáró-javítás (kiegészítés 2026-10-15): húzás a falon, pontos saroktávolság, szabványos méretlista / egyedi, parapet, ajtó↔ablak, nyitásirány; figyelmeztetések (kilóg, ütközik, sarok, belmagasság)
 - [x] F2e — Utólagos javítás: 3D → „Vissza a 2D javításhoz" → újbóli jóváhagyás (`creditsGeometryFix`, alapból 0), érintett helyiségek (`affectedRooms` → `rebuild_rooms`) — `20261015233808_floorplan-revisions.sql`, lefuttatva 2026-10-15
 - Tanulságnapló: `docs/3d-modul/tanulsagok.md` — MINDEN munkamenet elején olvasni, minden lépés végén bővíteni
-- [ ] ▶ INNEN FOLYTATJUK: F3 terv — bútorforrás (CC0: Poly Haven / Kenney?) egyeztetése, utána japandi anyagok + célkép + építő/kritikus (az újraépítés csak a `rebuild_rooms` helyiségeit érinti)
+- [x] F3a — Japandi anyagok (2026-10-16): CC0-textúrák (Poly Haven, `public/floorplan3d/textures`), anyagkönyvtár (`lib/floorplan3d/materials.ts`), „Berendezetlen | Japandi" váltó, meleg (fehéregyensúlyozott) fény
+- [ ] F3b — Paraméteres bútorkészlet (nappali): kanapé, fotel, dohányzóasztal, nyitott polc, szőnyeg, papírlámpa (+ CC0-növény jóváhagyással)
+- [ ] F3c — Építő (Gemini): berendezési JSON + kódos ellenőrzés (nem lóg ki, nem takar ajtót/ablakot, közlekedőút)
+- [ ] F3d — Célkép: a berendezetlen nappali fotója (böngésző) → Nano Banana (stíluslap + referenciakép), geometria-változtatás nélkül
+- [ ] F3e — Kritikus-ciklus (méret + stílus, legnagyobb hiányosság, max. körszám) + lista a meg nem valósultakról
+- [ ] Szaniterek / konyhasor helye: megvizsgálni az alaprajzokon → megbeszélni Márkkal (nincs döntés)
+- [ ] ▶ INNEN FOLYTATJUK: F3b — paraméteres bútorkészlet a nappalihoz
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

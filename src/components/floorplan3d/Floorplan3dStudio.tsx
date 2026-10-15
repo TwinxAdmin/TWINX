@@ -14,6 +14,7 @@ import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
+import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
 import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
@@ -33,8 +34,9 @@ const STATUS_TEXT: Record<RoomCheck["status"], { t: string; c: string; bg: strin
 const fmt = (n: number, d = 2) => n.toLocaleString("hu-HU", { minimumFractionDigits: d, maximumFractionDigits: d });
 const parseNum = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
 
-export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin }: {
+export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin, styleSheet, styleError }: {
   tolerancePct: number; maxUploadMb: number; creditsCreate: number; creditsGeometryFix: number; sceneOptions: SceneOptions; openingCornerMin: number;
+  styleSheet: StyleSheet | null; styleError: string | null;
 }) {
   // utólagos javítás: már volt jóváhagyva (approved_at) → a díj a geometriai javításé, csak az érintett helyiségek épülnek újra
   const [wasApproved, setWasApproved] = useState(false);
@@ -291,7 +293,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         </div>
       ) : status !== "draft" ? (
         /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
-        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt}
+        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt} styleSheet={styleSheet} styleError={styleError}
           fixPrice={creditsGeometryFix} reopening={reopening} reopenError={reopenError} onReopen={() => void reopen()} />
       ) : (
         /* ---------------- 2. JAVÍTÁS + ELLENŐRZÉS ---------------- */
@@ -414,8 +416,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
-function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen }: {
-  plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null;
+function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError }: {
+  plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
   fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
 }) {
   const measures = useApartmentMeasure(plan, sceneOptions);
@@ -425,7 +427,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: "1px solid var(--twx-line)" }}>
-          <p className="text-sm font-semibold">3D-alap · berendezetlen</p>
+          <p className="text-sm font-semibold">3D-modell</p>
           <span className="text-xs" style={{ color: MUTED }}>Húzással forgatható, görgővel nagyítható.</span>
           <span className="ml-auto" />
           <button type="button" onClick={onReopen} disabled={reopening} className="h-8 rounded-full px-3 text-xs font-semibold disabled:opacity-50"
@@ -433,7 +435,10 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
             style={{ background: "#12100e", color: "#fff" }}>{reopening ? "Megnyitás…" : "Vissza a 2D javításhoz"}</button>
           <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
         </div>
-        <div className="min-h-0 flex-1"><ApartmentViewer plan={plan} opts={sceneOptions} /></div>
+        <div className="relative min-h-0 flex-1">
+          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} />
+          {styleError && <p className="absolute bottom-3 left-3 rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>Stílus nélkül: {styleError}</p>}
+        </div>
       </div>
       <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--twx-line)" }}>

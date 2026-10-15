@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
+import { loadStyleSheet } from "@/lib/floorplan3d/stylesheet";
 import Floorplan3dStudio from "@/components/floorplan3d/Floorplan3dStudio";
 
 export const runtime = "nodejs";
@@ -15,6 +16,8 @@ export default async function Floorplan3dPage() {
   if (me?.role !== "admin") redirect("/dashboard");
 
   const cfg = floorplan3dConfig();
+  // a teszt időszakban csak a japandi (a stíluslap a referenciaképek mellől: references/japandi/stiluslap.json)
+  const style = await loadStyleSheet("japandi");
   return (
     <Floorplan3dStudio
       tolerancePct={cfg.areaTolerancePct}
@@ -23,6 +26,8 @@ export default async function Floorplan3dPage() {
       creditsGeometryFix={cfg.creditsGeometryFix}
       sceneOptions={{ interiorWall: cfg.interiorWallThickness, exteriorWall: cfg.exteriorWallThickness }}
       openingCornerMin={cfg.openingCornerMin}
+      styleSheet={"sheet" in style ? style.sheet : null}
+      styleError={"error" in style ? style.error : null}
     />
   );
 }

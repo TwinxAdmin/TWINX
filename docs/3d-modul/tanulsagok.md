@@ -110,3 +110,30 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
 - Új skill: `.claude/skills/alaprajz-meropad` + `scripts/floorplan3d-meropad.mjs` (digitalizálás + 3D-mérés + átfedő kép + táblázat).
 - Első futás, tesztlakás: 5/7 rendben (előszoba −30,5%, erkély +5,6%), 11 nyílászáró, 2 figyelmeztetés, 19,9 mp, 0,035 $, 3D 0 mm.
   Tanulság: futásonként szór (korábban 6/7) → a mérőpadot kétes esetben 2–3-szor futtassuk.
+
+---
+
+## 2026-10-16 — 3. lépés, F3a: japandi anyagok (CC0-textúrák)
+
+### Döntések
+- Bútorforrás: **(c)** — fő bútorok paraméteresen (kódból), díszek CC0-modellként. Textúrák: Poly Haven CC0, 1k JPG
+  (`wood_floor`, `white_plaster_02`, `rough_linen`, `wool_boucle`; ~10 MB, `public/floorplan3d/textures`, licencjegyzékkel).
+- Szaniterek / konyhasor helye: **még nincs döntés** — megvizsgálni, mennyire szerepelnek az alaprajzokon (nappalit nem érinti).
+- Hatókör: előbb **egy nappali** végig (célkép → építő → kritikus), mérésekkel.
+
+### Mi működött
+- **Stíluslap ↔ anyagkönyvtár szétválasztása:** a stíluslap megnevezi az anyagot (`light_oak_matte`), a `MATERIAL_LIBRARY` mondja meg a
+  3D-megjelenést. A geometria érintetlen; a mérés a semleges modellen fut.
+- **Átszínezés vásznon:** a CC0-textúra világosság-mintázata marad (erezet, deszkahatár), a szín a stílusé (`contrast` anyagonként).
+- **Világ-méteres UV a falakon:** a BoxGeometry lapjai 0–1 UV-t kapnak → minden fal más léptékű lenne; a csúcsok világhelyéből számolt UV egységes.
+
+### Hibák és megoldások
+- **Sárosbarna falak:** a vakolat színtérképe szürkés-foltos, a falszín ezzel szorzódott → a falnál is átszínezés, 6%-os kontraszttal.
+- **Narancsos padló:** a nyers 2850 K-es fény + a tónusleképezés (ACES) telíti és sötétíti → a fény színe 55%-ban fehéregyensúlyozva
+  (mint a fényképezőgép), és világosabb tölgy-alapszín (#CDB596 → #DCC8AA).
+
+### Stíluslap-javaslat (jóváhagyásra — a stíluslapot NEM módosítottam)
+- A fa anyagokhoz nincs HEX a stíluslapban (`primary_wood: "light_oak_matte"`, `secondary_wood: walnut`). 3D-ben a „világos tölgy"
+  sokféle lehet (mézestől a szürkésig) → javaslat: `wood_colors: { light_oak_matte: "#DCC8AA", walnut: "#6B4A33" }` (a 3D-ben jól ható érték).
+- A „meleg, 2700–3000 K" fény nyersen narancsossá teszi a világos tölgyet → javaslat: a stíluslapba „fehéregyensúlyozott meleg fény"
+  megjegyzés (a renderelés és a célkép-prompt is így kezelje).
