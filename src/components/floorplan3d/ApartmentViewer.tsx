@@ -24,7 +24,8 @@ type ViewMode = "dollhouse" | "top";
 
 /** A nézőből kérhető műveletek (a célképhez / kritikushoz): egy helyiség „fotója" adott nézőpontból. */
 export type ViewerApi = {
-  /** JPEG data URL, 4:3; furniture=false: bútor nélkül (a célkép bemenete), true: berendezve (a kritikus bemenete). */
+  /** JPEG data URL, 16:9 (a Nano Banana is 16:9-et ad vissza — így a geometria összevethető); furniture=false: bútor nélkül
+   *  (a célkép bemenete), true: berendezve (a kritikus bemenete). */
   capture: (view: RoomView, opts: { furniture: boolean; width?: number }) => Promise<string>;
 };
 
@@ -123,7 +124,7 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
       capture: async (view, o) => {
         const wasStyled = !!restore;
         await styleRef.current?.(true);
-        const w = o.width ?? 1600, h = Math.round((w * 3) / 4);
+        const w = o.width ?? 1600, h = Math.round((w * 9) / 16);
         const off = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
         off.setSize(w, h, false);
         off.shadowMap.enabled = true; off.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -135,12 +136,12 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
         const ceilings: THREE.Object3D[] = [], doors: THREE.Object3D[] = [];
         built.group.traverse((x) => {
           if (x.userData.kind === "ceiling") { ceilings.push(x); x.visible = true; }
-          if (x.userData.kind === "door") { doors.push(x); x.visible = false; }
+          if (x.userData.kind === "door" || x.userData.kind === "window") { doors.push(x); x.visible = false; } // ablaküveg nélkül: az ablak egyértelmű nyílás
         });
         const fVisible = furnitureGroup?.parent === scene;
         if (furnitureGroup) { if (o.furniture) scene.add(furnitureGroup); else scene.remove(furnitureGroup); }
         const bg = scene.background;
-        scene.background = new THREE.Color(0xdfe7ec); // az ablakon túl: halvány égbolt
+        scene.background = new THREE.Color(0xf2f6f9); // az ablakon túl: világos, nappali égbolt (az ablak egyértelműen nyílás)
         off.render(scene, cam);
         const url = off.domElement.toDataURL("image/jpeg", 0.9);
         scene.background = bg;

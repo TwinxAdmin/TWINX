@@ -89,7 +89,12 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" }); setStatus(d.project.status ?? "draft");
         setWasApproved(!!d.project.approved_at); setRebuilt(Array.isArray(d.project.rebuild_rooms) ? d.project.rebuild_rooms : null);
         setFurnishing((d.project.furnishing as Record<string, Furnishing> | null) ?? {});
-        setRoomImages((d.images as Record<string, RoomImages> | undefined) ?? {});
+        // a képek aláírt linkjei + a célkép geometria-ellenőrzésének eredménye (a mentett rekordból)
+        const imgs: Record<string, RoomImages> = { ...((d.images as Record<string, RoomImages> | undefined) ?? {}) };
+        for (const [rid, f] of Object.entries((d.project.furnishing ?? {}) as Record<string, { target?: { fidelity?: RoomImages["fidelity"]; attempts?: unknown[] } }>)) {
+          if (f?.target?.fidelity) imgs[rid] = { ...imgs[rid], fidelity: f.target.fidelity, attempts: f.target.attempts?.length };
+        }
+        setRoomImages(imgs);
       })
       .catch(() => setError("Nem sikerült betölteni az alaprajzot."))
       .finally(() => setLoadingProject(false));
@@ -426,7 +431,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
 /** Egy helyiség képei (aláírt linkek): berendezetlen 3D-fotó és célkép. */
-type RoomImages = { empty?: string; target?: string };
+type RoomImages = { empty?: string; target?: string; fidelity?: { kept: number; added: number; ok: boolean }; attempts?: number };
 
 /**
  * CÉLKÉP (F3d): a berendezetlen helyiség fotója szemmagasságból (a nézőből) → Nano Banana a stíluslap + referenciakép alapján.
@@ -452,7 +457,7 @@ function TargetCard({ plan, room, projectId, images, canCapture, getApi, onImage
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setError(d.error ?? "A célkép nem készült el."); return; }
-      onImages(room.id, d.images ?? {});
+      onImages(room.id, { ...(d.images ?? {}), fidelity: d.target?.fidelity, attempts: d.target?.attempts?.length });
       if (d.saveError) setError(`Nincs mentve: ${d.saveError}`);
     } catch {
       setError("Hálózati hiba. Próbáld újra.");
@@ -481,10 +486,19 @@ function TargetCard({ plan, room, projectId, images, canCapture, getApi, onImage
         <button type="button" onClick={() => void make()} disabled={busy || !room || !projectId || !canCapture}
           title={!room ? "Nincs nappali" : !canCapture ? "Stíluslap nélkül nem készíthető" : "Fizetős képgenerálás (~0,04 $), kb. fél perc"}
           className="h-9 w-[200px] flex-none rounded-full text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#12100e", color: "#fff" }}>
-          {busy ? "Célkép készül… (~30 mp)" : images.target ? "Új célkép" : "Célkép készítése"}
+          {busy ? "Célkép készül… (15–45 mp)" : images.target ? "Új célkép" : "Célkép készítése"}
         </button>
       </div>
       {error && <p className="rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>{error}</p>}
+      {images.fidelity && (
+        <p className="rounded-lg px-3 py-1.5 text-[12px]"
+          style={images.fidelity.ok ? { background: "rgba(47,158,95,0.12)", color: "#2f7a4f" } : { background: "rgba(224,165,38,0.16)", color: "#8A6416" }}>
+          Geometria-ellenőrzés: a szerkezeti élek {Math.round(images.fidelity.kept * 100)}%-a maradt meg, {Math.round(images.fidelity.added * 100)}% új
+          {images.attempts ? ` · ${images.attempts} próbálkozás` : ""} — {images.fidelity.ok
+            ? "a célkép megtartotta a helyiség geometriáját."
+            : "⚠ a célkép eltér a valós helyiségtől (falak / ablakok), ezért NEM használható mércének."}
+        </p>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row">
         {pane("Berendezetlen (3D-fotó, szemmagasságból)", images.empty, "Itt jelenik meg a helyiség fotója a 3D-modellből, bútor nélkül.")}
         {pane("Célkép (japandi)", images.target, "Itt jelenik meg a berendezett célkép. A kritikus ehhez méri majd a 3D-berendezést.")}

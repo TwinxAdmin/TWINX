@@ -209,3 +209,28 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
   üvegfalat, a hátsó falra beépített polcfalat rajzolt, és 1 helyett 7 függőlámpát. → a „semmi nem lehet megtévesztő" szabály miatt
   a célképet geometriai szempontból ELLENŐRIZNI kell, mielőtt bárki (építő, kritikus) mércének használja.
 - Mért: 12,8 mp, 0,04 $ / célkép, a referenciakép használatával.
+
+## 2026-10-16 — F3d folytatás: geometria-hűség (1 + 2)
+
+### Mi működött
+- **A képarány volt a fő hiba:** a bemenet 4:3, a Nano Banana 1344×768-as (~16:9) képet adott → átkomponált. Megoldás: 16:9-es fotó
+  ÉS `aspectRatio: "16:9"` a kérésben (a közös `nanobanana.ts` kapott egy elhagyható paramétert — a többi modul viselkedése nem változott).
+- **„Csak berendezés" (virtual staging) prompt** + pontos tárgylista darabszámmal + a referenciakép „csak stílus, nem elrendezés" jelölése
+  + jobb bemenet (ablaküveg nélkül, világos égbolt mögötte) → a célkép ugyanazt a szobát mutatja (mennyezetvonal, hátsó fal, ablak a helyén).
+- **Gépi geometria-ellenőrzés** (`fidelity.ts`, Sobel-élek a horizont fölötti sávban): a „megmaradt" arány választja el a jót a rosszat.
+
+### Kalibráció (megmaradt / új él, felső sáv)
+| Képpár | Megmaradt | Új |
+|---|---|---|
+| kép önmagával | 100% | 15–16% |
+| jó célképek (új prompt, 2–3. próba) | 89–90% | 62–63% |
+| rossz célképek (régi prompt + 1. próba) | 34–40% | 82–86% |
+| véletlen pár (más nézet) | 38% | 82% |
+→ küszöb: megmaradt ≥ 70%, új ≤ 75% (config: `fidelityMinKept`, `fidelityMaxAdded`). Az „új" él a horizont fölé nyúló bútortól (polc,
+lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
+
+### Ami még nem tökéletes
+- A Nano Banana NÉHA még mindig „elszáll" (3-ból 1 próba 37%) → az újrapróbálkozás kell (legfeljebb `targetMaxAttempts`, alapból 3).
+- Apró eltérések, amit az élteszt nem fog meg: egy keskeny kitalált ablakcsík a kép szélén; sarokkanapé az „alacsony egyenes" helyett;
+  a nyitott konyha greige kőpadlója a célképen tölgy lett → a KRITIKUS (F3e) dolga, hogy ezeket megnevezze.
+- Mért: ~12–13 mp / próba, 0,04 $ / próba; a 3 próbás kör 0,12 $.

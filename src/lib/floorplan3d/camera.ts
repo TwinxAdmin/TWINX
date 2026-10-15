@@ -9,7 +9,7 @@ import { entrances } from "@/lib/floorplan3d/furniture";
 export type RoomView = { pos: Pt; target: Pt; eye: number; fov: number };
 
 export const VIEW_EYE_HEIGHT = 1.6;
-export const VIEW_FOV = 55; // függőleges látószög (fok) — 4:3 képen ~70° vízszintes: ingatlanfotó-szerű, még nem torzít (68° túl széles volt)
+export const VIEW_FOV = 48; // függőleges látószög (fok) — 16:9 képen ~76° vízszintes: ingatlanfotó-szerű, még nem torzít (68° túl széles volt)
 
 function centroid(room: Room): Pt {
   // területtel súlyozott súlypont (L alakú helyiségnél is a „tömeg" közepe)

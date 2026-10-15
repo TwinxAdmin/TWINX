@@ -306,13 +306,13 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [x] F3a — Japandi anyagok (2026-10-16): CC0-textúrák (Poly Haven, `public/floorplan3d/textures`), anyagkönyvtár (`lib/floorplan3d/materials.ts`), „Berendezetlen | Japandi" váltó, meleg (fehéregyensúlyozott) fény
 - [x] F3b — Paraméteres bútorkészlet (2026-10-16): `furniture.ts` (leírás, ellenőrzés, szabályalapú nappali-elrendezés) + `furniture3d.ts` (kódos japandi bútorok); a növény egyelőre kódos (CC0-modell később, jóváhagyással)
 - [x] F3c — Építő (2026-10-16): `builder.ts` + `walkwayIssues` + `POST .../furnish` + „Berendezés az építővel" gomb; `20261016001943_floorplan-furnishing.sql`, lefuttatva 2026-10-16
-- [~] F3d — Célkép (2026-10-16): nézőpont + böngészős fotó + Nano Banana + mentés + kártya KÉSZ; ⚠ a Nano Banana NEM tartja meg a geometriát (üvegfal, polcfal, 7 lámpa) → geometria-hűség megoldása kell (Márk döntése)
+- [x] F3d — Célkép (2026-10-16): nézőpont + 16:9 böngészős fotó + „csak berendezés" prompt tárgylistával + Nano Banana (16:9) + gépi geometria-ellenőrzés (`fidelity.ts`, legfeljebb 3 próba) + mentés + kártya
 - [ ] F3e — Kritikus-ciklus (méret + stílus, legnagyobb hiányosság, max. körszám) + lista a meg nem valósultakról
 - [ ] Szaniterek / konyhasor helye: megvizsgálni az alaprajzokon → megbeszélni Márkkal (nincs döntés)
 - [ ] Ötletek későbbre (casa-serra elvei, DÖNTÉS NÉLKÜL — kódot nem veszünk át, nincs licence): HDR égbolt környezeti fénynek ·
       alaprajz = a 3D-modell metszete (videó alaprajza, minitérkép) · sima, túllövés nélküli kameraút · eszközfüggő textúrakeret + tartalék ·
       visszafogott utófeldolgozás · helyiségenkénti 1–10 pontszám a kritikusnál
-- [ ] ▶ INNEN FOLYTATJUK: F3d geometria-hűség (döntés után), majd F3e kritikus-ciklus
+- [ ] ▶ INNEN FOLYTATJUK: F3e — kritikus-ciklus (méret + stílus + geometria-eltérések a célképen, legnagyobb hiányosság, max. körszám)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

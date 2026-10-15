@@ -30,6 +30,11 @@ export type Floorplan3dConfig = {
   creditsGeometryFix: number;
   /** Nyílászáró-figyelmeztetés: ennél közelebb a falsarokhoz (m) — csak jelzés, nem tiltás. */
   openingCornerMin: number;
+  /** Célkép: legfeljebb ennyi próbálkozás, amíg a geometria-ellenőrzésen át nem megy (mindegyik fizetős képgenerálás). */
+  targetMaxAttempts: number;
+  /** Geometria-hűség küszöbei: a szerkezeti élek legalább ennyi része maradjon meg / legfeljebb ennyi legyen új (0–1). */
+  fidelityMinKept: number;
+  fidelityMaxAdded: number;
   /** A bejárható link élettartama napokban (lejárat után meghosszabbítható). */
   linkDays: number;
   /** Minőségi ciklus: legfeljebb ennyi kör helyiségenként. */
@@ -53,6 +58,9 @@ export function floorplan3dConfig(): Floorplan3dConfig {
     creditsVideo: num0("FLOORPLAN3D_CREDITS_VIDEO", 5),
     creditsGeometryFix: num0("FLOORPLAN3D_CREDITS_GEOMETRY_FIX", 0),
     openingCornerMin: num0("FLOORPLAN3D_OPENING_CORNER_MIN", 0.1),
+    targetMaxAttempts: num("FLOORPLAN3D_TARGET_MAX_ATTEMPTS", 3),
+    fidelityMinKept: num("FLOORPLAN3D_FIDELITY_MIN_KEPT", 0.7),
+    fidelityMaxAdded: num("FLOORPLAN3D_FIDELITY_MAX_ADDED", 0.75),
     linkDays: num("FLOORPLAN3D_LINK_DAYS", 30),
     maxQualityRounds: num("FLOORPLAN3D_MAX_QUALITY_ROUNDS", 4),
     maxUploadBytes: num("FLOORPLAN3D_MAX_UPLOAD_MB", 15) * 1024 * 1024,

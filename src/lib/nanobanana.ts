@@ -11,6 +11,8 @@ export type GenerateImageParams = {
   reference?: InlineImage; // opcionális stílus-referenciakép
   /** További képek (pl. hirdetés-kompozícióhoz több fotó). A source után jönnek. */
   extra?: InlineImage[];
+  /** Elhagyható: a kimenet képaránya (pl. "16:9"). Ha nincs megadva, a modell dönt (a meglévő hívók így működnek tovább). */
+  aspectRatio?: string;
 };
 
 export async function generateImage(
@@ -48,7 +50,10 @@ export async function generateImage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts }],
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"],
+        ...(params.aspectRatio ? { imageConfig: { aspectRatio: params.aspectRatio } } : {}),
+      },
     }),
   });
 

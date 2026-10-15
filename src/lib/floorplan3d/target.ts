@@ -17,28 +17,38 @@ export function styleBrief(text: string, room: Room): string {
   return [pick(1), pick(2), pick(3), pick(4), row ? `## 5. Ebben a helyiségben\n${row}` : "", pick(6), pick(7), pick(8)].filter(Boolean).join("\n\n");
 }
 
-export function targetPrompt(room: Room, sheet: StyleSheet, brief: string): string {
-  const en = ROOM_TYPES.find((r) => r.value === room.kind)?.en ?? "room";
-  return `This image is a 3D render of an EMPTY ${en} of a real apartment, seen from eye height (1.6 m).
-Turn it into a finished, photorealistic interior photograph furnished in the style described below, in the spirit of the reference image.
-
-STRICT — the result must not be misleading about the real apartment:
-- Keep the camera position, viewing angle and lens EXACTLY the same.
-- Keep every wall, corner, window, door, opening and the ceiling exactly where they are, with the same sizes and proportions.
-- Do NOT add, remove, move or resize any wall, window, door or opening. Do not change the room's shape or size.
-- Walls: matte ${sheet.wall_colors_allowed[0]} (warm off-white). Ceiling: ${sheet.ceiling_color}. Floor: ${sheet.floor.living.replaceAll("_", " ")}.
-- Lighting: soft natural daylight through the existing windows, plus warm ${sheet.light_kelvin[0]}–${sheet.light_kelvin[1]} K lamps, white-balanced (not orange).
-
-STYLE SHEET (Hungarian, authoritative):
-${brief}
-
-Output exactly one photorealistic image of the same room from the same viewpoint.`;
+/** A berendezés tárgylistája darabszámmal („1 Alacsony lenkanapé, 1 Rizspapír függőlámpa…") — hogy ne legyen 1 helyett 7 lámpa. */
+export function itemList(items: { type: string; label?: string }[]): string {
+  const count = new Map<string, number>();
+  for (const it of items) count.set(it.label ?? it.type, (count.get(it.label ?? it.type) ?? 0) + 1);
+  return [...count.entries()].map(([k, n]) => `${n} × ${k}`).join(", ");
 }
 
-export async function makeTargetImage(room: Room, sheet: StyleSheet, styleText: string, empty: { bytes: Uint8Array; mimeType: string }) {
+export function targetPrompt(room: Room, sheet: StyleSheet, brief: string, items: string): string {
+  const en = ROOM_TYPES.find((r) => r.value === room.kind)?.en ?? "room";
+  return `The first image is a 3D render of an EMPTY ${en} of a real apartment, seen from eye height (1.6 m). The bright areas in the walls are real window openings; dark/plain areas are walls.
+
+TASK: ADD FURNITURE AND DECOR ONLY. This is "virtual staging": place objects INTO the existing room and make the photo look photorealistic.
+
+ABSOLUTE RULES (the image must not mislead buyers about the real apartment):
+- Same camera, same framing, same aspect ratio: every wall edge, corner, the ceiling line, every window and door opening must stay at EXACTLY the same position in the image.
+- Do NOT add, remove, enlarge, move or reshape any wall, window, door, opening, column or niche. Do NOT add built-in shelving walls, glass walls or partitions.
+- Do not change the room's size or proportions. Keep the walls matte ${sheet.wall_colors_allowed[0]}, the ceiling ${sheet.ceiling_color}, the floor ${sheet.floor.living.replaceAll("_", " ")}.
+- Place EXACTLY these freestanding items, no more: ${items}. Small decor on them is fine (a few ceramics or books), following the decor density below.
+- Lighting: soft natural daylight through the existing windows, plus warm ${sheet.light_kelvin[0]}–${sheet.light_kelvin[1]} K lamps, white-balanced (not orange).
+
+STYLE SHEET (Hungarian, authoritative — the second image is a style reference only, NOT a layout reference):
+${brief}
+
+Output exactly one photorealistic 16:9 image of the same room from the same viewpoint.`;
+}
+
+export async function makeTargetImage(room: Room, sheet: StyleSheet, styleText: string, empty: { bytes: Uint8Array; mimeType: string }, items: string) {
   const slug = ROOM_TYPES.find((r) => r.value === room.kind)?.slug ?? "nappali";
   const reference = await getReferenceImage(sheet.style_id, slug);
   const t0 = Date.now();
-  const out = await generateImage({ source: empty, prompt: targetPrompt(room, sheet, styleBrief(styleText, room)), reference: reference ?? undefined });
+  const out = await generateImage({
+    source: empty, prompt: targetPrompt(room, sheet, styleBrief(styleText, room), items), reference: reference ?? undefined, aspectRatio: "16:9",
+  });
   return { ...out, seconds: Math.round((Date.now() - t0) / 100) / 10, usedReference: !!reference };
 }

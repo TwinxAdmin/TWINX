@@ -2,16 +2,21 @@
 // Body: { roomId, image: "data:image/jpeg;base64,...", view: { pos, target, eye, fov } } — a böngésző fotója a berendezetlen
 // (de már japandi falú-padlójú) helyiségről. A szerver a Nano Bananával berendezi (stíluslap + referenciakép, geometria változatlan),
 // mindkét képet a privát tárhelyre teszi, és a projekt furnishing[roomId].target mezőjébe menti. Aláírt linkekkel válaszol.
+// GEOMETRIA-HŰSÉG: minden célképet összevetünk a berendezetlen fotóval (fidelity.ts); ha nem tartotta meg a szerkezetet, újra
+// generáljuk (legfeljebb targetMaxAttempts), és a legjobbat tartjuk meg — ha egyik sem jó, „nem használható mércének" jelzéssel.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadStyleSheet } from "@/lib/floorplan3d/stylesheet";
 import { FURNISHABLE_KINDS } from "@/lib/floorplan3d/builder";
-import { makeTargetImage } from "@/lib/floorplan3d/target";
+import { itemList, makeTargetImage } from "@/lib/floorplan3d/target";
+import { geometryFidelity, type Fidelity } from "@/lib/floorplan3d/fidelity";
+import { floorplan3dConfig } from "@/lib/floorplan3d/config";
+import { livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { projectForFurnishing, saveFurnishing, signFurnishingImages, uploadProjectImage } from "@/lib/floorplan3d/projects";
 import { googleImageCostUsd, logCost } from "@/lib/costs";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300; // több próbálkozás (mindegyik ~15 mp)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -45,8 +50,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const mime = m[1] === "png" ? "image/png" : "image/jpeg";
-    const target = await makeTargetImage(room, style.sheet, style.text, { bytes: new Uint8Array(bytes), mimeType: mime });
-    await logCost({ userId: user.id, serviceId: null, feature: "floorplan-3d-target", serviceName: "google-studio", units: 1, estimatedCostUsd: googleImageCostUsd(1) });
+    const cfg = floorplan3dConfig();
+    // a tárgylista: az építő mentett berendezése, ha van; különben a szabályalapú alap-elrendezés
+    const saved = (p.furnishing?.[room.id] as { items?: FurnitureItem[] } | undefined)?.items;
+    const items = itemList(saved?.length ? saved : livingRoomLayout(p.plan, room).items);
+    let best: { img: Awaited<ReturnType<typeof makeTargetImage>>; fid: Fidelity } | null = null;
+    const tries: Fidelity[] = [];
+    for (let i = 0; i < cfg.targetMaxAttempts; i++) {
+      const img = await makeTargetImage(room, style.sheet, style.text, { bytes: new Uint8Array(bytes), mimeType: mime }, items);
+      const fid = await geometryFidelity(new Uint8Array(bytes), new Uint8Array(img.bytes), cfg.fidelityMinKept, cfg.fidelityMaxAdded);
+      tries.push(fid);
+      if (!best || fid.kept - fid.added > best.fid.kept - best.fid.added) best = { img, fid };
+      if (fid.ok) break;
+    }
+    const target = best!.img;
+    await logCost({ userId: user.id, serviceId: null, feature: "floorplan-3d-target", serviceName: "google-studio", units: tries.length, estimatedCostUsd: googleImageCostUsd(tries.length) });
     const stamp = Date.now();
     const ext = target.mimeType === "image/jpeg" ? "jpg" : "png";
     const up1 = await uploadProjectImage(user.id, id, `rooms/${room.id}/empty-${stamp}.${m[1] === "png" ? "png" : "jpg"}`, bytes, mime);
@@ -54,7 +72,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if ("error" in up1 || "error" in up2) return NextResponse.json({ error: `A képek mentése nem sikerült: ${"error" in up1 ? up1.error : (up2 as { error: string }).error}` }, { status: 500 });
     const record = {
       empty_path: up1.path, target_path: up2.path, view, seconds: target.seconds, used_reference: target.usedReference,
-      cost_usd: googleImageCostUsd(1), plan_revision: p.revision, created_at: new Date().toISOString(),
+      cost_usd: googleImageCostUsd(tries.length), attempts: tries, fidelity: best!.fid, usable: best!.fid.ok, items,
+      plan_revision: p.revision, created_at: new Date().toISOString(),
     };
     const saveError = await saveFurnishing(user.id, id, room.id, { target: record });
     const images = await signFurnishingImages({ [room.id]: { target: record } });
