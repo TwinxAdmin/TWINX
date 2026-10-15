@@ -208,3 +208,122 @@ export function leaveGroup(plan: FloorPlan, roomId: string): FloorPlan {
 export function patchGroup(plan: FloorPlan, groupId: string, p: Partial<Pick<AreaGroup, "label" | "declaredArea" | "approved">>): FloorPlan {
   return { ...plan, areaGroups: (plan.areaGroups ?? []).map((g) => (g.id === groupId ? { ...g, ...p } : g)) };
 }
+
+// ---------------------------------------------------------------------------
+// NYÍLÁSZÁRÓK JAVÍTÁSA — mozgatás a falon + figyelmeztetések (JELZÉS, nem tiltás)
+// ---------------------------------------------------------------------------
+/** A nyílászáró közepe a fal elejétől (m) — húzáskor / pontos távolságnál. Nem korlátozzuk: a kilógást a figyelmeztetés jelzi. */
+export function moveOpening(plan: FloorPlan, openingId: string, offset: number): FloorPlan {
+  if (!Number.isFinite(offset)) return plan;
+  return { ...plan, openings: plan.openings.map((o) => (o.id === openingId ? { ...o, offset: round3(offset) } : o)) };
+}
+
+/** A nyílászáró két szélének távolsága a fal két sarkától (m; negatív = kilóg). */
+export function openingGaps(room: Room, o: Opening): { start: number; end: number; wall: number } {
+  const len = roomEdge(room, o.edge).length;
+  // (a „|| 0" a −0-t nullára cseréli, hogy a felületen ne „−0,00" látsszon)
+  return { start: round3(o.offset - o.width / 2) || 0, end: round3(len - (o.offset + o.width / 2)) || 0, wall: round3(len) };
+}
+
+export type OpeningWarning = { openingId: string; kind: "overhang" | "overlap" | "corner" | "tall"; text: string };
+
+/**
+ * Figyelmeztetések nyílászárónként: kilóg a falból · ütközik egy másikkal (a fal túloldaláról felvettel is) ·
+ * túl közel a sarokhoz (cornerMin) · magasabb, mint a belmagasság. Egyik sem tiltja a mentést / jóváhagyást.
+ */
+export function openingWarnings(plan: FloorPlan, cornerMin: number): OpeningWarning[] {
+  const out: OpeningWarning[] = [];
+  const segs = plan.openings.map((o) => {
+    const room = plan.rooms.find((r) => r.id === o.roomId);
+    return room ? { o, room, s: openingSegment(room, o) } : null;
+  }).filter((x): x is NonNullable<typeof x> => !!x);
+  const cm = (v: number) => `${Math.round(v * 100)} cm`;
+
+  for (const { o, room, s } of segs) {
+    const g = openingGaps(room, o);
+    if (g.start < -0.005 || g.end < -0.005) out.push({ openingId: o.id, kind: "overhang", text: `Kilóg a falból (${cm(-Math.min(g.start, g.end))}).` });
+    else if (Math.min(g.start, g.end) < cornerMin) out.push({ openingId: o.id, kind: "corner", text: `Nagyon közel a sarokhoz (${cm(Math.min(g.start, g.end))}).` });
+    if (o.sill + o.height > plan.ceilingHeight + 0.005) out.push({ openingId: o.id, kind: "tall", text: "Magasabb, mint a belmagasság." });
+    // ütközés: ugyanazon a (fizikai) falon — párhuzamos, ≤ 50 cm-re egymástól — átfedő szakasz
+    for (const t of segs) {
+      if (t.o.id === o.id || !s.axis || s.axis !== t.s.axis) continue;
+      const k = s.axis === "x" ? 0 : 1, q = 1 - k;
+      if (Math.abs(s.center[q] - t.s.center[q]) > 0.5) continue;
+      const overlap = Math.min(Math.max(s.a[k], s.b[k]), Math.max(t.s.a[k], t.s.b[k])) - Math.max(Math.min(s.a[k], s.b[k]), Math.min(t.s.a[k], t.s.b[k]));
+      if (overlap > 0.02) {
+        const other = t.o.kind === "door" ? "ajtóval" : "ablakkal";
+        const where = t.room.id === room.id ? "" : ` (${t.room.name || "szomszéd"} felől)`;
+        out.push({ openingId: o.id, kind: "overlap", text: `Ütközik egy másik ${other}${where} — ha ugyanaz, töröld az egyiket.` });
+      }
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// UTÓLAGOS JAVÍTÁS — mely helyiségek épüljenek újra (a korábban jóváhagyott tervhez képest)
+// ---------------------------------------------------------------------------
+/** Két helyiség falszomszéd-e: van-e párhuzamos, ≤ 50 cm-re lévő, átfedő élpárjuk (a közös fal mindkettőjüket érinti). */
+function wallNeighbors(a: Room, b: Room): boolean {
+  for (let i = 0; i < a.polygon.length; i++) {
+    const e = roomEdge(a, i);
+    if (!e.axis) continue;
+    const k = e.axis === "x" ? 0 : 1, q = 1 - k;
+    for (let j = 0; j < b.polygon.length; j++) {
+      const f = roomEdge(b, j);
+      if (f.axis !== e.axis || Math.abs(e.a[q] - f.a[q]) > 0.5) continue;
+      const ov = Math.min(Math.max(e.a[k], e.b[k]), Math.max(f.a[k], f.b[k])) - Math.max(Math.min(e.a[k], e.b[k]), Math.min(f.a[k], f.b[k]));
+      if (ov > 0.05) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Az új terv mely helyiségeit kell újraépíteni a korábban jóváhagyotthoz képest: amelyiknek a körvonala / típusa /
+ * nyitott határa változott, amelyik új, amelyiknek a nyílászárója változott — és ezek falszomszédjai (a közös fal
+ * mindkét oldalon látszik). Belmagasság-változásnál: mind. Előző terv nélkül: mind.
+ */
+export function affectedRooms(prev: FloorPlan | null, next: FloorPlan): string[] {
+  if (!prev || prev.ceilingHeight !== next.ceilingHeight) return next.rooms.map((r) => r.id);
+  const key = (r: Room) => JSON.stringify([r.polygon, r.kind, [...(r.openEdges ?? [])].sort()]);
+  const okey = (o: Opening) => JSON.stringify([o.kind, o.roomId, o.edge, o.offset, o.width, o.height, o.sill, o.hinge ?? null, o.swing ?? null]);
+  const prevRooms = new Map(prev.rooms.map((r) => [r.id, key(r)]));
+  const changed = new Set(next.rooms.filter((r) => prevRooms.get(r.id) !== key(r)).map((r) => r.id));
+  // falváltozás: a helyiség összes falszomszédja is érintett (a közös fal mindkét oldalon látszik)
+  const out = new Set(changed);
+  for (const id of changed) {
+    const r = next.rooms.find((x) => x.id === id);
+    if (!r) continue;
+    for (const other of next.rooms) if (other.id !== id && wallNeighbors(r, other)) out.add(other.id);
+  }
+  // nyílászáró-változás: a saját helyisége + csak a fal TÚLOLDALÁN lévő helyiség (ahol a nyílás ugyanúgy kivágódik)
+  const prevOpen = new Map(prev.openings.map((o) => [o.id, o]));
+  const nextOpen = new Map(next.openings.map((o) => [o.id, o]));
+  const touched: { o: Opening; plan: FloorPlan }[] = [];
+  for (const o of next.openings) if (!prevOpen.has(o.id) || okey(prevOpen.get(o.id)!) !== okey(o)) touched.push({ o, plan: next });
+  for (const o of prev.openings) if (!nextOpen.has(o.id) || okey(nextOpen.get(o.id)!) !== okey(o)) touched.push({ o, plan: prev });
+  for (const { o, plan } of touched) {
+    out.add(o.roomId);
+    const room = plan.rooms.find((r) => r.id === o.roomId);
+    if (!room) continue;
+    const s = openingSegment(room, o);
+    if (!s.axis) continue;
+    const k = s.axis === "x" ? 0 : 1, q = 1 - k;
+    const own = roomEdge(room, o.edge);
+    const ownIn = [-(own.b[1] - own.a[1]), own.b[0] - own.a[0]]; // a saját helyiség felé mutató normális
+    for (const other of next.rooms) {
+      if (other.id === o.roomId) continue;
+      const across = other.polygon.some((_, j) => {
+        const f = roomEdge(other, j);
+        if (f.axis !== s.axis || Math.abs(f.a[q] - s.center[q]) > 0.5) return false;
+        // csak a fal TÚLOLDALA: a szomszéd éle ellentétes irányba néz (az egy vonalban futó, mellette lévő helyiség nem)
+        const fIn = [-(f.b[1] - f.a[1]), f.b[0] - f.a[0]];
+        if (ownIn[0] * fIn[0] + ownIn[1] * fIn[1] >= 0) return false;
+        return Math.min(Math.max(f.a[k], f.b[k]), Math.max(s.a[k], s.b[k])) - Math.max(Math.min(f.a[k], f.b[k]), Math.min(s.a[k], s.b[k])) > 0.02;
+      });
+      if (across) out.add(other.id);
+    }
+  }
+  return next.rooms.map((r) => r.id).filter((id) => out.has(id));
+}

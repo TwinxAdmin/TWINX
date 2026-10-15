@@ -20,7 +20,9 @@ export default async function Floorplan3dPage() {
       tolerancePct={cfg.areaTolerancePct}
       maxUploadMb={Math.round(cfg.maxUploadBytes / 1024 / 1024)}
       creditsCreate={cfg.creditsCreate}
+      creditsGeometryFix={cfg.creditsGeometryFix}
       sceneOptions={{ interiorWall: cfg.interiorWallThickness, exteriorWall: cfg.exteriorWallThickness }}
+      openingCornerMin={cfg.openingCornerMin}
     />
   );
 }

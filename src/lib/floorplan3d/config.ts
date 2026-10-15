@@ -6,6 +6,13 @@ function num(name: string, fallback: number): number {
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
+/** Mint a num(), de a 0 is érvényes érték (pl. ingyenes művelet). */
+function num0(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const v = Number(raw);
+  return raw !== undefined && raw !== "" && Number.isFinite(v) && v >= 0 ? v : fallback;
+}
+
 export type Floorplan3dConfig = {
   /** Megengedett eltérés a számolt és a megadott m² között (%), fölötte figyelmeztetés. */
   areaTolerancePct: number;
@@ -17,6 +24,12 @@ export type Floorplan3dConfig = {
   /** Kredit: 3D-bejárás létrehozása / a link meghosszabbítása. */
   creditsCreate: number;
   creditsExtend: number;
+  /** Kredit: a 9:16-os videó — NEM automatikus, a felhasználó külön kéri a kész link után. */
+  creditsVideo: number;
+  /** Kredit: utólagos geometriai javítás jóváhagyása (a digitalizálás hibáját javítja → alapból ingyenes). */
+  creditsGeometryFix: number;
+  /** Nyílászáró-figyelmeztetés: ennél közelebb a falsarokhoz (m) — csak jelzés, nem tiltás. */
+  openingCornerMin: number;
   /** A bejárható link élettartama napokban (lejárat után meghosszabbítható). */
   linkDays: number;
   /** Minőségi ciklus: legfeljebb ennyi kör helyiségenként. */
@@ -37,6 +50,9 @@ export function floorplan3dConfig(): Floorplan3dConfig {
     exteriorWallThickness: num("FLOORPLAN3D_WALL_EXTERIOR", 0.3),
     creditsCreate: num("FLOORPLAN3D_CREDITS_CREATE", 10),
     creditsExtend: num("FLOORPLAN3D_CREDITS_EXTEND", 3),
+    creditsVideo: num0("FLOORPLAN3D_CREDITS_VIDEO", 5),
+    creditsGeometryFix: num0("FLOORPLAN3D_CREDITS_GEOMETRY_FIX", 0),
+    openingCornerMin: num0("FLOORPLAN3D_OPENING_CORNER_MIN", 0.1),
     linkDays: num("FLOORPLAN3D_LINK_DAYS", 30),
     maxQualityRounds: num("FLOORPLAN3D_MAX_QUALITY_ROUNDS", 4),
     maxUploadBytes: num("FLOORPLAN3D_MAX_UPLOAD_MB", 15) * 1024 * 1024,

@@ -2,11 +2,13 @@
 // Szabály: kreditlevonás és 3D-építés CSAK akkor, ha a felhasználó végigment az ellenőrzésen. Ezért a szerver
 // a mentett tervet ÚJRA ellenőrzi (checkPlan + kézi rajz nyilatkozat), csak utána von (config: creditsCreate) és zár le.
 // Jóváhagyás után a terv nem szerkeszthető (a 3D, a célképek és a videó ebből a változatból készül).
+// UTÓLAGOS JAVÍTÁS (már volt jóváhagyva): a díj a creditsGeometryFix (alapból 0 — a digitalizálás hibáját javítja), és csak
+// az érintett helyiségek épülnek újra (affectedRooms a korábbi pillanatképhez képest → rebuild_rooms).
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkPlan } from "@/lib/floorplan3d/geometry";
+import { affectedRooms, checkPlan } from "@/lib/floorplan3d/geometry";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
-import { markApproved, projectForApproval } from "@/lib/floorplan3d/projects";
+import { REVISIONS_MIGRATION_MSG, markApproved, projectForApproval } from "@/lib/floorplan3d/projects";
 import { chargeCredit, payFromRequest, refundCredit } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 
@@ -32,12 +34,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!check.canBuild) return NextResponse.json({ error: check.issues[0] ?? "Még nem minden helyiség rendben (vagy tudatosan jóváhagyva)." }, { status: 422 });
   if (p.sourceKind === "hand" && !p.handAccepted) return NextResponse.json({ error: "Kézi rajznál el kell fogadnod, hogy a rajz pontossága a te felelősséged." }, { status: 422 });
 
-  const charge = await chargeCredit({ userId: user.id, amount: cfg.creditsCreate, service: "floorplan-3d", payFrom: payFromRequest(request) });
-  if (!charge.ok) return insufficientResponse(user.id, cfg.creditsCreate, charge);
-  const locked = await markApproved(user.id, id);
+  // utólagos javításhoz kellenek az új oszlopok (különben nem tudnánk, mi változott → nem hagyjuk jóvá vakon)
+  if (p.wasApproved && !p.revisionsReady) return NextResponse.json({ error: REVISIONS_MIGRATION_MSG }, { status: 500 });
+
+  const price = p.wasApproved ? cfg.creditsGeometryFix : cfg.creditsCreate;
+  const rebuild = affectedRooms(p.wasApproved ? p.approvedPlan : null, p.plan);
+  let charge: Awaited<ReturnType<typeof chargeCredit>> | null = null;
+  if (price > 0) {
+    charge = await chargeCredit({ userId: user.id, amount: price, service: "floorplan-3d", payFrom: payFromRequest(request) });
+    if (!charge.ok) return insufficientResponse(user.id, price, charge);
+  }
+  const locked = await markApproved(user.id, id, p.revisionsReady ? { plan: p.plan, rebuildRooms: rebuild, revision: p.revision + 1 } : null);
   if (!locked) {
-    if (!charge.bypassed) await refundCredit(user.id, cfg.creditsCreate, charge.source);
+    if (charge?.ok && !charge.bypassed) await refundCredit(user.id, price, charge.source);
     return NextResponse.json({ error: "A jóváhagyás nem sikerült — a kreditet visszaírtuk." }, { status: 409 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, rebuildRooms: rebuild, revision: p.revision + 1, charged: charge && !charge.bypassed ? price : 0 });
 }

@@ -83,6 +83,27 @@ export type FloorPlan = {
 export const DOOR_DEFAULT = { width: 0.9, height: 2.1 };
 export const WINDOW_DEFAULT = { width: 1.2, height: 1.5, sill: 0.9 };
 
+/** Szabványos nyílászáró-méretek a javítófelülethez (szélesség × magasság, m; ablaknál parapet). „Egyedi" is választható. */
+export type OpeningPreset = { id: string; kind: Opening["kind"]; label: string; width: number; height: number; sill: number };
+export const OPENING_PRESETS: OpeningPreset[] = [
+  { id: "d75", kind: "door", label: "Beltéri ajtó 75×210", width: 0.75, height: 2.1, sill: 0 },
+  { id: "d90", kind: "door", label: "Beltéri ajtó 90×210", width: 0.9, height: 2.1, sill: 0 },
+  { id: "d100", kind: "door", label: "Bejárati ajtó 100×210", width: 1.0, height: 2.1, sill: 0 },
+  { id: "t90", kind: "door", label: "Erkély-/teraszajtó 90×240", width: 0.9, height: 2.4, sill: 0 },
+  { id: "t150", kind: "door", label: "Kétszárnyú teraszajtó 150×240", width: 1.5, height: 2.4, sill: 0 },
+  { id: "w60", kind: "window", label: "Kis ablak 60×60 (parapet 150)", width: 0.6, height: 0.6, sill: 1.5 },
+  { id: "w90", kind: "window", label: "Ablak 90×120 (parapet 90)", width: 0.9, height: 1.2, sill: 0.9 },
+  { id: "w120", kind: "window", label: "Ablak 120×150 (parapet 90)", width: 1.2, height: 1.5, sill: 0.9 },
+  { id: "w150", kind: "window", label: "Ablak 150×150 (parapet 90)", width: 1.5, height: 1.5, sill: 0.9 },
+  { id: "w180", kind: "window", label: "Ablak 180×150 (parapet 90)", width: 1.8, height: 1.5, sill: 0.9 },
+];
+
+/** Melyik szabványos méret illik a nyílászáróra (ha egyik sem: egyedi). */
+export function presetOf(o: Pick<Opening, "kind" | "width" | "height" | "sill">): OpeningPreset | null {
+  const eq = (a: number, b: number) => Math.abs(a - b) < 0.005;
+  return OPENING_PRESETS.find((p) => p.kind === o.kind && eq(p.width, o.width) && eq(p.height, o.height) && eq(p.sill, o.sill)) ?? null;
+}
+
 /** Új azonosító (rövid, ütközésmentes a tervben). */
 export function newId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;

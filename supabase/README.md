@@ -121,6 +121,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261012192545_module-feedback.sql` | Modul-visszajelzés: csillagos értékelés (3. / 6. futtatás) + „Mi hiányzik?” |
 | `20261012200044_terms-acceptance.sql` | ÁSZF-elfogadás rögzítése a profilon (változat + időpont) + védelem |
 | `20261015123000_floorplan-projects.sql` | 3D-alaprajz modul: alaprajz-projektek (terv JSON, mérés, státusz) + privát `floorplans` tárhely |
+| `20261015233808_floorplan-revisions.sql` | 3D-alaprajz modul: utólagos javítás (jóváhagyott pillanatkép, újraépítendő helyiségek, változat) |
 
 ## Egyszeri szkriptek (`one-off/`)
 

@@ -14,8 +14,8 @@ import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
-import { ROOM_KINDS, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
-import { addOpening, checkPlan, groupOf, leaveGroup, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type RoomCheck } from "@/lib/floorplan3d/geometry";
+import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
+import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
 
 type Source = "digital" | "hand";
@@ -33,9 +33,14 @@ const STATUS_TEXT: Record<RoomCheck["status"], { t: string; c: string; bg: strin
 const fmt = (n: number, d = 2) => n.toLocaleString("hu-HU", { minimumFractionDigits: d, maximumFractionDigits: d });
 const parseNum = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
 
-export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, sceneOptions }: {
-  tolerancePct: number; maxUploadMb: number; creditsCreate: number; sceneOptions: SceneOptions;
+export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin }: {
+  tolerancePct: number; maxUploadMb: number; creditsCreate: number; creditsGeometryFix: number; sceneOptions: SceneOptions; openingCornerMin: number;
 }) {
+  // utólagos javítás: már volt jóváhagyva (approved_at) → a díj a geometriai javításé, csak az érintett helyiségek épülnek újra
+  const [wasApproved, setWasApproved] = useState(false);
+  const [rebuilt, setRebuilt] = useState<string[] | null>(null);
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("draft");
   const [confirming, setConfirming] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -49,6 +54,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   const [stats, setStats] = useState<Stats | null>(null);
   const [selRoom, setSelRoom] = useState<string | null>(null);
   const [selEdge, setSelEdge] = useState<number | null>(null);
+  const [selOpening, setSelOpening] = useState<string | null>(null);
   const [showUnderlay, setShowUnderlay] = useState(true);
   const [handAccepted, setHandAccepted] = useState(false);
   const [edgeError, setEdgeError] = useState<string | null>(null);
@@ -74,6 +80,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         setProjectId(d.project.id); setPlan(d.project.plan); setStats(d.project.digitize_stats);
         setSource(d.project.source_kind); setHandAccepted(!!d.project.hand_accepted);
         setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" }); setStatus(d.project.status ?? "draft");
+        setWasApproved(!!d.project.approved_at); setRebuilt(Array.isArray(d.project.rebuild_rooms) ? d.project.rebuild_rooms : null);
       })
       .catch(() => setError("Nem sikerült betölteni az alaprajzot."))
       .finally(() => setLoadingProject(false));
@@ -98,6 +105,23 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
     return () => window.clearTimeout(t);
   }, [plan, handAccepted, projectId, status]);
 
+  // utólagos javítás: a kész 3D-ből vissza a 2D javítófelületre (a terv újra szerkeszthető; itt nincs kreditlevonás)
+  async function reopen() {
+    if (!projectId) return;
+    setReopening(true); setReopenError(null);
+    try {
+      const res = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}/revise`, { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setReopenError(d.error ?? "Nem sikerült visszanyitni a javításhoz."); return; }
+      skipSave.current = true;
+      setStatus("draft"); setConfirming(false); setApproveError(null);
+    } catch {
+      setReopenError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setReopening(false);
+    }
+  }
+
   // jóváhagyás: előbb a legfrissebb terv mentése (a késleltetett automatikus mentés ne maradjon le), utána approve
   async function approve() {
     if (!plan || !projectId) return;
@@ -111,7 +135,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setApproveError(d.error ?? "A jóváhagyás nem sikerült."); return; }
       skipSave.current = true;
-      setStatus("approved"); setConfirming(false); setSelRoom(null); setSelEdge(null);
+      setStatus("approved"); setConfirming(false); setSelRoom(null); setSelEdge(null); setSelOpening(null);
+      setWasApproved(true); setRebuilt(Array.isArray(d.rebuildRooms) ? d.rebuildRooms : null);
     } catch {
       setApproveError("Hálózati hiba. Próbáld újra.");
     } finally {
@@ -122,6 +147,14 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   const check = useMemo(() => (plan ? checkPlan(plan, tolerancePct) : null), [plan, tolerancePct]);
   const checks = useMemo(() => new Map((check?.rooms ?? []).map((c) => [c.roomId, c])), [check]);
   const room = plan?.rooms.find((r) => r.id === selRoom) ?? null;
+  const warnings = useMemo(() => (plan ? openingWarnings(plan, openingCornerMin) : []), [plan, openingCornerMin]);
+  const warnedIds = useMemo(() => new Set(warnings.map((w) => w.openingId)), [warnings]);
+  /** Nyílászáró kijelölése (a terven vagy a listában): a helyisége és a fala is kijelölődik. */
+  function selectOpening(id: string) {
+    const o = plan?.openings.find((x) => x.id === id);
+    if (!o) return;
+    setSelRoom(o.roomId); setSelEdge(o.edge); setSelOpening(id); setEdgeError(null);
+  }
   const underlay: Underlay = stats && fileUrl && sourceMime !== "application/pdf"
     ? { url: fileUrl, metersPerPixel: stats.metersPerPixel, size: stats.imageSize, offset: stats.imageOffset } : null;
   const ready = !!check?.canBuild && (source !== "hand" || handAccepted);
@@ -162,6 +195,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   function restart() {
     setPlan(null); setStats(null); setSelRoom(null); setSelEdge(null); setError(null);
     setProjectId(null); setSave({ state: "idle" }); setFile(null); setFileUrl(null); setSourceMime(null);
+    setStatus("draft"); setWasApproved(false); setRebuilt(null); setSelOpening(null);
     window.history.replaceState(null, "", window.location.pathname);
   }
 
@@ -257,10 +291,17 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         </div>
       ) : status !== "draft" ? (
         /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
-        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} />
+        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt}
+          fixPrice={creditsGeometryFix} reopening={reopening} reopenError={reopenError} onReopen={() => void reopen()} />
       ) : (
         /* ---------------- 2. JAVÍTÁS + ELLENŐRZÉS ---------------- */
         <>
+          {wasApproved && (
+            <p className="rounded-xl px-4 py-2.5 text-sm" style={{ background: "rgba(47,127,134,0.10)", border: "1px solid rgba(47,127,134,0.3)" }}>
+              <b>Utólagos javítás.</b> Javítsd a digitalizálás hibáit (pl. ajtó, ablak, falhossz), majd hagyd jóvá újra — {creditsGeometryFix > 0 ? `${creditsGeometryFix} kredit` : "ingyenes"}.
+              A 3D-ben csak az érintett helyiségek épülnek újra; a méret-ellenőrzés újra lefut.
+            </p>
+          )}
           {save.state === "error" && (
             <p className="rounded-xl px-4 py-2.5 text-sm" style={{ background: "#FDECEA", color: "#9B2C1B" }}>
               A terv nincs mentve: {save.msg} A javításokat így is elvégezheted, de újratöltéskor elvesznek.
@@ -285,9 +326,11 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
               </div>
               <div className="min-h-0 flex-1 p-3" style={{ background: "#FBF8F3" }}>
                 <PlanCanvas plan={plan} checks={checks} selectedRoom={selRoom} selectedEdge={selEdge}
-                  onSelectRoom={(id) => { setSelRoom(id); setSelEdge(null); setEdgeError(null); }}
-                  onSelectEdge={(i) => { setSelEdge(i); setEdgeError(null); }}
-                  underlay={underlay} showUnderlay={showUnderlay} />
+                  onSelectRoom={(id) => { setSelRoom(id); setSelEdge(null); setSelOpening(null); setEdgeError(null); }}
+                  onSelectEdge={(i) => { setSelEdge(i); setSelOpening(null); setEdgeError(null); }}
+                  underlay={underlay} showUnderlay={showUnderlay}
+                  selectedOpening={selOpening} warned={warnedIds} onSelectOpening={selectOpening}
+                  onMoveOpening={(id, off) => setPlan((pl) => pl && moveOpening(pl, id, off))} />
               </div>
               {stats && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}>
@@ -309,7 +352,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
                   groupCheck={check?.groups.find((g) => g.groupId === checks.get(room.id)?.groupId) ?? null} checks={checks}
                   onToggleMember={(other) => setPlan((pl) => pl && toggleGroupMember(pl, room.id, other))}
                   onLeaveGroup={() => setPlan((pl) => pl && leaveGroup(pl, room.id))}
-                  onPatchGroup={(gid, p) => setPlan((pl) => pl && patchGroup(pl, gid, p))} />
+                  onPatchGroup={(gid, p) => setPlan((pl) => pl && patchGroup(pl, gid, p))}
+                  warnings={warnings} selOpening={selOpening} onSelectOpening={selectOpening} />
               ) : (
                 <RoomList plan={plan} checks={checks} onSelect={(id) => setSelRoom(id)}
                   onCeiling={(v) => setPlan((pl) => pl && { ...pl, ceilingHeight: v })} />
@@ -341,7 +385,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
                   <button type="button" onClick={() => setConfirming(false)} disabled={approving} className="h-11 flex-none rounded-full px-4 text-sm font-semibold"
                     style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Mégse</button>
                   <button type="button" onClick={() => void approve()} disabled={approving} className="twx-btn h-11 min-w-0 flex-1 px-3">
-                    {approving ? "Jóváhagyás…" : `Jóváhagyom · ${creditsCreate} kredit`}
+                    {approving ? "Jóváhagyás…" : `Jóváhagyom · ${(wasApproved ? creditsGeometryFix : creditsCreate) > 0 ? `${wasApproved ? creditsGeometryFix : creditsCreate} kredit` : "ingyenes"}`}
                   </button>
                 </div>
               ) : (
@@ -351,7 +395,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
                 </button>
               )}
               <p className="h-4 text-[11.5px] leading-4" style={{ color: approveError ? "#C2522D" : MUTED }}>
-                {approveError ?? (confirming ? "Jóváhagyás után a terv nem szerkeszthető." : " ")}
+                {approveError ?? (confirming ? (wasApproved ? "Csak az érintett helyiségek épülnek újra." : "Jóváhagyás után a terv nem szerkeszthető.") : " ")}
               </p>
             </div>
           </div>
@@ -370,7 +414,10 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
-function ModelStage({ plan, sceneOptions, onRestart }: { plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void }) {
+function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen }: {
+  plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null;
+  fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
+}) {
   const measures = useApartmentMeasure(plan, sceneOptions);
   const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
   const cm = (v: number) => v.toFixed(2).replace(".", ",");
@@ -381,6 +428,9 @@ function ModelStage({ plan, sceneOptions, onRestart }: { plan: FloorPlan; sceneO
           <p className="text-sm font-semibold">3D-alap · berendezetlen</p>
           <span className="text-xs" style={{ color: MUTED }}>Húzással forgatható, görgővel nagyítható.</span>
           <span className="ml-auto" />
+          <button type="button" onClick={onReopen} disabled={reopening} className="h-8 rounded-full px-3 text-xs font-semibold disabled:opacity-50"
+            title={`Hibát látsz (pl. rossz helyen egy ajtó)? Javítsd a 2D terven — ${fixPrice > 0 ? `${fixPrice} kredit` : "ingyenes"}, és csak az érintett helyiségek épülnek újra.`}
+            style={{ background: "#12100e", color: "#fff" }}>{reopening ? "Megnyitás…" : "Vissza a 2D javításhoz"}</button>
           <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
         </div>
         <div className="min-h-0 flex-1"><ApartmentViewer plan={plan} opts={sceneOptions} /></div>
@@ -409,6 +459,10 @@ function ModelStage({ plan, sceneOptions, onRestart }: { plan: FloorPlan; sceneO
           ))}
         </div>
         <p className="px-4 py-2.5 text-[11.5px] leading-snug" style={{ color: MUTED, borderTop: "1px solid var(--twx-line)" }}>
+          {reopenError ? <span style={{ color: "#C2522D" }}>{reopenError} </span> : null}
+          {rebuilt && rebuilt.length < plan.rooms.length
+            ? <>Utólagos javítás után újraépítve: <b>{rebuilt.map((id) => plan.rooms.find((r) => r.id === id)?.name ?? "?").join(", ") || "nincs (geometriai változás nélkül)"}</b>. </>
+            : null}
           30 mm = két összeérő helyiség közé épített vékony válaszfal (a rajzon nem volt fal-rés). Következő lépés: japandi berendezés.
         </p>
       </div>
@@ -458,19 +512,29 @@ function Seg<T extends string>({ value, onChange, items }: { value: T; onChange:
   );
 }
 
+/** A sort CSAK a panel saját görgetősávjában hozza látótérbe (a scrollIntoView az egész oldalt is görgetné — húzás közben ugrálna). */
+function scrollWithin(el: HTMLElement | null) {
+  const box = el?.closest<HTMLElement>(".overflow-y-auto");
+  if (!el || !box) return;
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+  if (r.top < b.top) box.scrollTop -= b.top - r.top + 8;
+  else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom + 8;
+}
+
 /** Szám-mező: gépelés közben szabad szöveg, Enterre / elhagyáskor érvényesül; hibás értéknél visszaáll. */
-function NumField({ value, onCommit, suffix, width = 78, placeholder }: { value: number | null; onCommit: (v: number | null) => boolean | void; suffix?: string; width?: number; placeholder?: string }) {
+function NumField({ value, onCommit, suffix, width = 78, placeholder, allowZero = false }: { value: number | null; onCommit: (v: number | null) => boolean | void; suffix?: string; width?: number; placeholder?: string; allowZero?: boolean }) {
   const shown = value === null ? "" : fmt(value);
   const [draft, setDraft] = useState(shown);
   useEffect(() => setDraft(shown), [shown]);
-  function commit() {
-    if (draft.trim() === "") { if (onCommit(null) === false) setDraft(shown); return; }
-    const v = parseNum(draft);
-    if (!Number.isFinite(v) || v <= 0 || onCommit(Math.round(v * 100) / 100) === false) setDraft(shown);
+  // a MEZŐ aktuális tartalmát olvassuk (nem a draft állapotot): gyors gépelés + azonnali elhagyás után a state még késhet
+  function commit(text: string) {
+    if (text.trim() === "") { if (onCommit(null) === false) setDraft(shown); return; }
+    const v = parseNum(text);
+    if (!Number.isFinite(v) || (allowZero ? v < 0 : v <= 0) || onCommit(Math.round(v * 100) / 100) === false) setDraft(shown);
   }
   return (
     <span className="inline-flex items-center gap-1">
-      <input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      <input value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={(e) => commit(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
         inputMode="decimal" placeholder={placeholder} className="h-8 rounded-lg px-2 text-right text-[13px] outline-none focus:border-[var(--twx-coral)]"
         style={{ width, border: "1px solid var(--twx-line)", background: "#fff" }} />
       {suffix && <span className="text-xs" style={{ color: MUTED }}>{suffix}</span>}
@@ -523,6 +587,7 @@ function RoomPanel(props: {
   onLength: (edge: number, v: number) => boolean; onToggleOpen: (edge: number) => void;
   onAddOpening: (edge: number, kind: Opening["kind"]) => void; onPatchOpening: (id: string, p: Partial<Opening>) => void; onRemoveOpening: (id: string) => void;
   groupCheck: GroupCheck | null; checks: Map<string, RoomCheck>;
+  warnings: OpeningWarning[]; selOpening: string | null; onSelectOpening: (id: string) => void;
   onToggleMember: (otherId: string) => void; onLeaveGroup: () => void; onPatchGroup: (groupId: string, p: Partial<Pick<AreaGroup, "label" | "declaredArea" | "approved">>) => void;
 }) {
   const { room, check, plan, tolerancePct, selEdge } = props;
@@ -530,7 +595,7 @@ function RoomPanel(props: {
   const openings = plan.openings.filter((o) => o.roomId === room.id);
   const open = new Set(room.openEdges ?? []);
   const edgeRef = useRef<Record<number, HTMLDivElement | null>>({});
-  useEffect(() => { if (selEdge !== null) edgeRef.current[selEdge]?.scrollIntoView({ block: "nearest" }); }, [selEdge]);
+  useEffect(() => { if (selEdge !== null) scrollWithin(edgeRef.current[selEdge] ?? null); }, [selEdge]);
 
   return (
     <>
@@ -592,8 +657,9 @@ function RoomPanel(props: {
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {openings.map((o) => <OpeningRow key={o.id} o={o} edgeLen={roomEdge(room, o.edge).length}
-              onPatch={(p) => props.onPatchOpening(o.id, p)} onRemove={() => props.onRemoveOpening(o.id)} onSelectEdge={() => props.onSelectEdge(o.edge)} />)}
+            {openings.map((o) => <OpeningRow key={o.id} o={o} room={room} warnings={props.warnings.filter((w) => w.openingId === o.id)}
+              selected={props.selOpening === o.id} onSelect={() => props.onSelectOpening(o.id)}
+              onPatch={(p) => props.onPatchOpening(o.id, p)} onRemove={() => props.onRemoveOpening(o.id)} />)}
           </div>
         )}
       </div>
@@ -698,29 +764,60 @@ function EdgeRow({ index, length, slanted, isOpen, selected, refEl, onSelect, on
   );
 }
 
-function OpeningRow({ o, edgeLen, onPatch, onRemove, onSelectEdge }: { o: Opening; edgeLen: number; onPatch: (p: Partial<Opening>) => void; onRemove: () => void; onSelectEdge: () => void }) {
+/** Nyílászáró-sor: típus és méret (szabványos lista vagy egyedi), parapet, távolság a két saroktól, nyitásirány, figyelmeztetések. */
+function OpeningRow({ o, room, warnings, selected, onSelect, onPatch, onRemove }: {
+  o: Opening; room: Room; warnings: OpeningWarning[]; selected: boolean;
+  onSelect: () => void; onPatch: (p: Partial<Opening>) => void; onRemove: () => void;
+}) {
   const menu = useActionMenu();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (selected) scrollWithin(ref.current); }, [selected]);
+  const g = openingGaps(room, o);
+  const preset = presetOf(o);
+  const toKind = (k: Opening["kind"]): Partial<Opening> => k === "window"
+    ? { kind: "window", height: WINDOW_DEFAULT.height, sill: WINDOW_DEFAULT.sill, hinge: undefined, swing: undefined }
+    : { kind: "door", height: DOOR_DEFAULT.height, sill: 0, hinge: "start", swing: "in" };
   const items: MenuItem[] = [
     ...(o.kind === "door" ? [
       { label: o.swing === "out" ? "Nyíljon befelé" : "Nyíljon kifelé", onClick: () => onPatch({ swing: o.swing === "out" ? "in" : "out" }) } as MenuItem,
       { label: "Zsanér a másik oldalra", onClick: () => onPatch({ hinge: o.hinge === "end" ? "start" : "end" }) } as MenuItem,
     ] : []),
+    { label: o.kind === "door" ? "Legyen ablak" : "Legyen ajtó", onClick: () => onPatch(toKind(o.kind === "door" ? "window" : "door")) },
     { label: "Törlés", onClick: onRemove, danger: true },
   ];
+  const sizeOk = (v: number | null): v is number => v !== null && v >= 0.3 && v <= 5;
   return (
-    <div onClick={onSelectEdge} onContextMenu={menu.openAtEvent} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl px-2.5 py-2"
-      style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
-      <span className="w-12 flex-none text-[12.5px] font-semibold" style={{ color: o.kind === "door" ? "#2F7F86" : "#3B6FD6" }}>{o.kind === "door" ? "Ajtó" : "Ablak"}</span>
-      <span className="text-[11.5px]" style={{ color: MUTED }}>{o.edge + 1}. fal</span>
-      {o.kind === "door" && <span className="text-[11px]" style={{ color: MUTED }}>· {o.swing === "out" ? "kifelé" : "befelé"}</span>}
-      <span className="ml-auto" />
-      <MenuDots onClick={menu.openAtButton} label="Nyílászáró műveletei" />
-      {menu.open && <ActionMenu at={menu.at} items={items} onClose={menu.close} />}
-      <div className="flex w-full items-center gap-3 text-[12px]" onClick={(e) => e.stopPropagation()}>
-        <span className="flex items-center gap-1.5">szél. <NumField value={o.width} suffix="m" width={62}
-          onCommit={(v) => { if (v === null || v < 0.4 || v > edgeLen) return false; onPatch({ width: v, offset: Math.min(Math.max(o.offset, v / 2), edgeLen - v / 2) }); }} /></span>
-        <span className="flex items-center gap-1.5">közép <NumField value={o.offset} suffix="m" width={62}
-          onCommit={(v) => { if (v === null || v < o.width / 2 || v > edgeLen - o.width / 2) return false; onPatch({ offset: v }); }} /></span>
+    <div ref={ref} onClick={onSelect} onContextMenu={menu.openAtEvent} className="flex flex-col gap-1.5 rounded-xl px-2.5 py-2"
+      style={{ background: "#fff", border: `1px solid ${selected ? "#E3683F" : "var(--twx-line)"}` }}>
+      <div className="flex items-center gap-2">
+        <span className="text-[12.5px] font-semibold" style={{ color: o.kind === "door" ? "#2F7F86" : "#3B6FD6" }}>{o.kind === "door" ? "Ajtó" : "Ablak"}</span>
+        <span className="text-[11.5px]" style={{ color: MUTED }}>{o.edge + 1}. fal{o.kind === "door" ? ` · ${o.swing === "out" ? "kifelé" : "befelé"} nyílik` : ""}</span>
+        <span className="ml-auto" />
+        <MenuDots onClick={menu.openAtButton} label="Nyílászáró műveletei" />
+        {menu.open && <ActionMenu at={menu.at} items={items} onClose={menu.close} />}
+      </div>
+      <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-1.5 text-[12px]">
+        <SelectField size="sm" value={preset?.id ?? "custom"} ariaLabel="Méret" onChange={(v) => {
+          const p = OPENING_PRESETS.find((x) => x.id === v);
+          if (p) onPatch({ width: p.width, height: p.height, sill: p.sill });
+        }} options={[...OPENING_PRESETS.filter((p) => p.kind === o.kind).map((p) => ({ value: p.id, label: p.label })), { value: "custom", label: "Egyedi méret" }]} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1">szél. <NumField value={o.width} suffix="m" width={58} onCommit={(v) => (sizeOk(v) ? onPatch({ width: v }) : false)} /></span>
+          <span className="flex items-center gap-1">mag. <NumField value={o.height} suffix="m" width={58} onCommit={(v) => (sizeOk(v) ? onPatch({ height: v }) : false)} /></span>
+          {o.kind === "window" && (
+            <span className="flex items-center gap-1">parapet <NumField value={o.sill} suffix="m" width={58} allowZero
+              onCommit={(v) => (v !== null && v >= 0 && v <= 2.5 ? onPatch({ sill: v }) : false)} /></span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1" title="A nyílászáró széle és a fal eleje közti távolság">saroktól <NumField value={g.start} suffix="m" width={58} allowZero
+            onCommit={(v) => (v !== null && v >= 0 ? onPatch({ offset: v + o.width / 2 }) : false)} /></span>
+          <span className="flex items-center gap-1" title="A nyílászáró széle és a fal vége közti távolság">túlsó saroktól <NumField value={g.end} suffix="m" width={58} allowZero
+            onCommit={(v) => (v !== null && v >= 0 ? onPatch({ offset: g.wall - v - o.width / 2 }) : false)} /></span>
+        </div>
+        {warnings.map((w, i) => (
+          <p key={i} className="rounded-lg px-2 py-1 text-[11.5px]" style={{ background: "rgba(224,165,38,0.14)", color: "#8A6416" }}>⚠ {w.text}</p>
+        ))}
       </div>
     </div>
   );

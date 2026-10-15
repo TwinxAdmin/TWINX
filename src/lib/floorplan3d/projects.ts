@@ -14,7 +14,11 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 export type ProjectRow = {
   id: string; title: string; source_kind: "digital" | "hand"; style: string; source_mime: string | null;
   plan: FloorPlan; digitize_stats: Record<string, unknown> | null; hand_accepted: boolean; status: string; updated_at: string;
+  approved_at: string | null; rebuild_rooms?: string[] | null; revision?: number;
 };
+
+export const REVISIONS_MIGRATION_MSG = "Az utólagos javításhoz futtasd le a 20261015233808_floorplan-revisions.sql migrációt.";
+const revisionColumnsMissing = (msg: string | undefined) => !!msg && /approved_plan|rebuild_rooms|revision/i.test(msg);
 
 /** Új projekt: az eredeti feltöltése + a digitalizált terv. */
 export async function createProject(params: {
@@ -36,17 +40,20 @@ export async function createProject(params: {
 /** Egy projekt betöltése (csak a sajátja) + aláírt link az eredetihez (1 óra). */
 export async function loadProject(userId: string, id: string): Promise<{ project: ProjectRow; sourceUrl: string | null } | { error: string; status: number }> {
   const admin = createAdminClient();
-  const { data, error } = await admin.from("floorplan_projects")
-    .select("id, title, source_kind, style, source_mime, source_path, plan, digitize_stats, hand_accepted, status, updated_at")
-    .eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+  const base = "id, title, source_kind, style, source_mime, source_path, plan, digitize_stats, hand_accepted, status, updated_at, approved_at";
+  const q = (cols: string) => admin.from("floorplan_projects").select(cols).eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+  // az utólagos javítás oszlopai (20261015233808_floorplan-revisions.sql) — ha még nincsenek, nélkülük töltünk be
+  let { data, error } = await q(`${base}, rebuild_rooms, revision`);
+  if (error && revisionColumnsMissing(error.message)) ({ data, error } = await q(base));
   if (error) return { error: missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message, status: 500 };
   if (!data) return { error: "Az alaprajz nem található.", status: 404 };
+  const row = data as unknown as ProjectRow & { source_path: string | null };
   let sourceUrl: string | null = null;
-  if (data.source_path) {
-    const s = await admin.storage.from(BUCKET).createSignedUrl(data.source_path as string, 3600);
+  if (row.source_path) {
+    const s = await admin.storage.from(BUCKET).createSignedUrl(row.source_path, 3600);
     sourceUrl = s.data?.signedUrl ?? null;
   }
-  const { source_path: _omit, ...project } = data as ProjectRow & { source_path: string | null };
+  const { source_path: _omit, ...project } = row;
   void _omit;
   return { project, sourceUrl };
 }
@@ -60,19 +67,46 @@ export async function saveProject(userId: string, id: string, patch: { plan: Flo
   return data && data.length ? null : "Ez az alaprajz már nem szerkeszthető (jóváhagyott vagy nem található).";
 }
 
-/** Jóváhagyás előtti állapot: a terv, a kézi-rajz nyilatkozat és a státusz (a szerver újraellenőrzi). */
-export async function projectForApproval(userId: string, id: string): Promise<{ plan: FloorPlan; handAccepted: boolean; sourceKind: string; status: string } | { error: string; status: number }> {
-  const { data, error } = await createAdminClient().from("floorplan_projects")
-    .select("plan, hand_accepted, source_kind, status").eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+/** Jóváhagyás előtti állapot: a terv, a kézi-rajz nyilatkozat, a státusz és az előző jóváhagyott változat (a szerver újraellenőrzi). */
+export async function projectForApproval(userId: string, id: string): Promise<{
+  plan: FloorPlan; handAccepted: boolean; sourceKind: string; status: string;
+  wasApproved: boolean; approvedPlan: FloorPlan | null; revision: number; revisionsReady: boolean;
+} | { error: string; status: number }> {
+  const admin = createAdminClient();
+  const base = "plan, hand_accepted, source_kind, status, approved_at";
+  const q = (cols: string) => admin.from("floorplan_projects").select(cols).eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+  let revisionsReady = true;
+  let { data, error } = await q(`${base}, approved_plan, revision`);
+  if (error && revisionColumnsMissing(error.message)) { revisionsReady = false; ({ data, error } = await q(base)); }
   if (error) return { error: missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message, status: 500 };
   if (!data) return { error: "Az alaprajz nem található.", status: 404 };
-  return { plan: data.plan as FloorPlan, handAccepted: !!data.hand_accepted, sourceKind: data.source_kind as string, status: data.status as string };
+  const d = data as unknown as Record<string, unknown>;
+  return {
+    plan: d.plan as FloorPlan, handAccepted: !!d.hand_accepted, sourceKind: d.source_kind as string, status: d.status as string,
+    wasApproved: !!d.approved_at, approvedPlan: (d.approved_plan as FloorPlan | null) ?? null, revision: (d.revision as number | undefined) ?? 0, revisionsReady,
+  };
 }
 
-/** Lezárás: draft → approved (csak ha még draft — kétszeri kattintásnál sem von kétszer). Igaz, ha most zártuk le. */
-export async function markApproved(userId: string, id: string): Promise<boolean> {
+/**
+ * Lezárás: draft → approved (csak ha még draft — kétszeri kattintásnál sem von kétszer). Elmenti a jóváhagyott terv
+ * pillanatképét és az újraépítendő helyiségeket. Igaz, ha most zártuk le.
+ */
+export async function markApproved(userId: string, id: string, snap: { plan: FloorPlan; rebuildRooms: string[]; revision: number } | null): Promise<boolean> {
+  const now = new Date().toISOString();
   const { data } = await createAdminClient().from("floorplan_projects")
-    .update({ status: "approved", approved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status: "approved", approved_at: now, updated_at: now,
+      ...(snap ? { approved_plan: snap.plan, rebuild_rooms: snap.rebuildRooms, revision: snap.revision } : {}),
+    })
     .eq("id", id).eq("user_id", userId).eq("status", "draft").select("id");
   return !!data?.length;
+}
+
+/** Utólagos javítás: a jóváhagyott (vagy kész) terv visszakerül szerkeszthetőre. A korábbi jóváhagyás nyoma (approved_at) megmarad. */
+export async function reopenProject(userId: string, id: string): Promise<string | null> {
+  const { data, error } = await createAdminClient().from("floorplan_projects")
+    .update({ status: "draft", updated_at: new Date().toISOString() })
+    .eq("id", id).eq("user_id", userId).in("status", ["approved", "ready", "failed"]).not("approved_at", "is", null).is("hidden_at", null).select("id");
+  if (error) return error.message;
+  return data?.length ? null : "Ez az alaprajz nem nyitható vissza javításra (még nincs jóváhagyva, vagy épp készül).";
 }

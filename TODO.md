@@ -300,8 +300,11 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
   - [x] F2b — Jelenetépítő `lib/floorplan3d/scene.ts` (three.js): falszeletek a résből / külső fal, sarokzárás, nyílászárók kivágva, padló, mennyezet; összeérő helyiségek közé 6 cm-es válaszfal
   - [x] F2c — `ApartmentViewer` (babaház + felülről nézet, árnyék), a jóváhagyott terv helyén
   - [x] F2d — Méretpontosság a KÉSZ modellen (sugárvetés + padlóterület): valós tesztlakás 0 mm; digitalizált terveken max. 30 mm (vékony válaszfal)
-- [ ] ▶ INNEN FOLYTATJUK (2026-10-15): F3 terv — bútorforrás (CC0: Poly Haven / Kenney?) egyeztetése, utána japandi anyagok + célkép + építő/kritikus
+- [x] F1g — Nyílászáró-javítás (kiegészítés 2026-10-15): húzás a falon, pontos saroktávolság, szabványos méretlista / egyedi, parapet, ajtó↔ablak, nyitásirány; figyelmeztetések (kilóg, ütközik, sarok, belmagasság)
+- [x] F2e — Utólagos javítás: 3D → „Vissza a 2D javításhoz" → újbóli jóváhagyás (`creditsGeometryFix`, alapból 0), érintett helyiségek (`affectedRooms` → `rebuild_rooms`) — `20261015233808_floorplan-revisions.sql`, lefuttatva 2026-10-15
+- Tanulságnapló: `docs/3d-modul/tanulsagok.md` — MINDEN munkamenet elején olvasni, minden lépés végén bővíteni
+- [ ] ▶ INNEN FOLYTATJUK: F3 terv — bútorforrás (CC0: Poly Haven / Kenney?) egyeztetése, utána japandi anyagok + célkép + építő/kritikus (az újraépítés csak a `rebuild_rooms` helyiségeit érinti)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
-- [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés
+- [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától
 - [ ] Prototípus-jelentés (idő, API-költség, digitalizálási pontosság, minőségi körök, m²-pontosság, képek) → döntés a folytatásról
