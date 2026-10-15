@@ -137,3 +137,23 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
   sokféle lehet (mézestől a szürkésig) → javaslat: `wood_colors: { light_oak_matte: "#DCC8AA", walnut: "#6B4A33" }` (a 3D-ben jól ható érték).
 - A „meleg, 2700–3000 K" fény nyersen narancsossá teszi a világos tölgyet → javaslat: a stíluslapba „fehéregyensúlyozott meleg fény"
   megjegyzés (a renderelés és a célkép-prompt is így kezelje).
+
+## 2026-10-16 — F3b: paraméteres bútorkészlet + szabályalapú nappali-elrendezés
+
+### Mi készült
+- `lib/floorplan3d/furniture.ts` (three.js nélkül, gépen tesztelhető): bútorleírás (típus, közép, elforgatás, méret, anyagok) — ugyanez lesz
+  az építő kimenete; ellenőrzés (helyiségen belül · ajtó előtti 0,9 m-es sáv szabad · nem ütközik; szőnyeg/függőlámpa kivétel);
+  szabályalapú nappali-elrendezés (kanapé a leghosszabb ajtómentes falnál — ablak alá is, ha a parapet a háttámla fölött van —,
+  előtte asztal + szőnyeg, fotel az asztal mellett, polc másik falnál, növény a kanapé végénél, lámpa az asztal fölött).
+- `lib/floorplan3d/furniture3d.ts`: kódos bútorok a stíluslap formái szerint (lekerekített élek, látható tölgylábak, len/buklé kárpit,
+  fogantyú nélküli front, polc legfeljebb harmadáig töltve, rizspapír lámpa, kódos növény — a CC0-növényig).
+
+### Hibák és megoldások
+- **Kockás buklé:** a CC0 `wool_boucle` színtérképe kockás takaró → a kontrasztot 6%-ra vettük (csak a hurkos szerkezet marad).
+- **Elforgatott bútor csíkos textúrája:** a világ-méteres UV a LOKÁLIS normálissal választott tengelyt → 90°-os bútoron rossz tengely.
+  Megoldás: a normálist a világ-koordinátába fordítjuk (`transformDirection`).
+
+### Mért eredmények
+- Ingatlan.com-os nappali: 7/7 bútor szabályosan elhelyezve. Tesztlakás nappali: 6/7 — a fotel kimaradt, mert elzárta volna
+  az ajtó előtti szabad sávot (helyes döntés, jelezve). A tesztlakásban a két ajtó közti átjáró a szőnyegen át vezet → F3c-ben
+  közlekedőút-ellenőrzés kell.

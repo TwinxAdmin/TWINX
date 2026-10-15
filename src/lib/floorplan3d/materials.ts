@@ -20,8 +20,9 @@ export const MATERIAL_LIBRARY: Record<string, { texture?: string; tileM: number;
   large_format_matte_stone: { tileM: 1.2, color: "#BDB4A8", roughness: 0.9 },
   plaster: { texture: "white_plaster_02", tileM: 2.0, color: "#EDE8E0", roughness: 0.95, contrast: 0.06, normal: 0.15 },
   linen: { texture: "rough_linen", tileM: 0.5, color: "#E6DFD3", roughness: 0.98, contrast: 0.25, normal: 0.6 },
-  boucle: { texture: "wool_boucle", tileM: 0.4, color: "#EFE9DF", roughness: 1, contrast: 0.25, normal: 0.8 },
+  boucle: { texture: "wool_boucle", tileM: 0.4, color: "#EFE9DF", roughness: 1, contrast: 0.06, normal: 0.9 },
   outdoor_tile: { tileM: 1.0, color: "#A39C91", roughness: 0.95 },
+  wool_rug: { texture: "wool_boucle", tileM: 0.6, color: "#E4DCCD", roughness: 1, contrast: 0.05, normal: 0.5 },
 };
 
 const WET: RoomKind[] = ["furdo", "wc"];
@@ -102,7 +103,7 @@ export async function libraryMaterial(name: string, override?: { color?: string 
  * Világ-méteres UV a dobozokra (falak): a BoxGeometry alap-UV-ja lapanként 0–1, így a textúra minden falon máshogy nyúlna.
  * Itt minden csúcs UV-ja a világbeli helyéből jön (a lap normálisa szerint választott két tengely) → egységes léptékű felület.
  */
-function worldUV(mesh: THREE.Mesh) {
+export function worldUV(mesh: THREE.Mesh) {
   const g = mesh.geometry as THREE.BufferGeometry;
   const pos = g.getAttribute("position"), nor = g.getAttribute("normal");
   const uv = new Float32Array(pos.count * 2);
@@ -110,7 +111,7 @@ function worldUV(mesh: THREE.Mesh) {
   mesh.updateMatrixWorld(true);
   for (let i = 0; i < pos.count; i++) {
     p.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-    n.fromBufferAttribute(nor, i);
+    n.fromBufferAttribute(nor, i).transformDirection(mesh.matrixWorld); // elforgatott bútornál is a VILÁG-normális döntsön
     const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
     if (ax >= ay && ax >= az) { uv[i * 2] = p.z; uv[i * 2 + 1] = p.y; }
     else if (az >= ay) { uv[i * 2] = p.x; uv[i * 2 + 1] = p.y; }

@@ -15,6 +15,7 @@ import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
+import { livingRoomLayout } from "@/lib/floorplan3d/furniture";
 import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
 import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
@@ -421,6 +422,11 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
   fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
 }) {
   const measures = useApartmentMeasure(plan, sceneOptions);
+  // F3b: a nappali alap-elrendezése (szabályalapú; az építő ebből indul — F3c)
+  const living = useMemo(() => {
+    const room = plan.rooms.find((r) => r.kind === "nappali");
+    return room ? { room, ...livingRoomLayout(plan, room) } : null;
+  }, [plan]);
   const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
   const cm = (v: number) => v.toFixed(2).replace(".", ",");
   return (
@@ -436,9 +442,16 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
           <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
         </div>
         <div className="relative min-h-0 flex-1">
-          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} />
+          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={living?.items ?? []} />
           {styleError && <p className="absolute bottom-3 left-3 rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>Stílus nélkül: {styleError}</p>}
         </div>
+        <p className="h-9 truncate px-4 py-2.5 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}
+          title={living?.skipped.join(" · ")}>
+          {living
+            ? <>Berendezés ({living.room.name}, alap-elrendezés): {living.items.map((i) => i.label).join(", ")}
+                {living.skipped.length ? <span style={{ color: "#9A7020" }}> · kimaradt: {living.skipped.join(" · ")}</span> : null}</>
+            : "Ebben a lakásban nincs nappali — a prototípus egyelőre a nappalit rendezi be."}
+        </p>
       </div>
       <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--twx-line)" }}>

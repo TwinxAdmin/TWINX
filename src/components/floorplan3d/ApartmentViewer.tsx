@@ -9,6 +9,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { FloorPlan } from "@/lib/floorplan3d/plan";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import { applyStyle, kelvinToColor } from "@/lib/floorplan3d/materials";
+import type { FurnitureItem } from "@/lib/floorplan3d/furniture";
+import { buildFurniture, furnitureMaterials } from "@/lib/floorplan3d/furniture3d";
 import { OUTDOOR_KINDS } from "@/lib/floorplan3d/plan";
 import { buildApartment, measureApartment, type RoomMeasure, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { planBounds } from "@/lib/floorplan3d/geometry";
@@ -20,7 +22,9 @@ export function useApartmentMeasure(plan: FloorPlan, opts: SceneOptions): RoomMe
 type ViewMode = "dollhouse" | "top";
 
 /** style: ha van stíluslap, „Japandi" nézetben a stílus anyagai és meleg fénye (a geometria ugyanaz). */
-export default function ApartmentViewer({ plan, opts, style = null }: { plan: FloorPlan; opts: SceneOptions; style?: StyleSheet | null }) {
+export default function ApartmentViewer({ plan, opts, style = null, furniture = [] }: {
+  plan: FloorPlan; opts: SceneOptions; style?: StyleSheet | null; furniture?: FurnitureItem[];
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<ViewMode>("dollhouse");
   const [styled, setStyled] = useState(!!style);
@@ -84,15 +88,21 @@ export default function ApartmentViewer({ plan, opts, style = null }: { plan: Fl
         roomLights.add(l);
       }
     }
+    let furnitureGroup: THREE.Group | null = null;
     styleRef.current = async (on: boolean) => {
       if (!style) return;
       if (on && !restore) {
         setStyleBusy(true);
         const r = await applyStyle(built, plan, style).catch(() => null);
+        if (furniture.length && !furnitureGroup) {
+          const mats = await furnitureMaterials().catch(() => null);
+          if (mats) furnitureGroup = buildFurniture(furniture, mats, plan.ceilingHeight);
+        }
         setStyleBusy(false);
         if (disposed) return;
         restore = r;
       } else if (!on && restore) { restore(); restore = null; }
+      if (furnitureGroup) { if (on) scene.add(furnitureGroup); else scene.remove(furnitureGroup); }
       if (on) { scene.add(roomLights); hemi.color.copy(kelvinToColor(5200)); hemi.intensity = 1.25; scene.background = new THREE.Color(0xefe9e1); }
       else { scene.remove(roomLights); hemi.color.set(0xfffaf2); hemi.intensity = 1.7; scene.background = new THREE.Color(0xf4f1ec); }
     };
@@ -138,7 +148,7 @@ export default function ApartmentViewer({ plan, opts, style = null }: { plan: Fl
     };
     // a stílus-kapcsolót külön hatás kezeli (styleRef) — itt csak a kezdőállapot kell
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, opts, style]);
+  }, [plan, opts, style, furniture]);
 
   return (
     <div className="relative h-full w-full">
