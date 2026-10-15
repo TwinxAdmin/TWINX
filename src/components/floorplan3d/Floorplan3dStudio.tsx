@@ -13,10 +13,11 @@ import SelectField from "@/components/SelectField";
 import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure, type ViewerApi } from "@/components/floorplan3d/ApartmentViewer";
+import WalkthroughViewer from "@/components/floorplan3d/WalkthroughViewer";
 import { roomViewpoint } from "@/lib/floorplan3d/camera";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
-import { livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
+import { basicRoomLayout, livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
 import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
@@ -628,6 +629,16 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
     const saved = furnishing[room.id];
     return saved?.items?.length ? { room, items: saved.items, skipped: saved.issues ?? [], saved } : { room, ...livingRoomLayout(plan, room), saved: null };
   }, [plan, furnishing]);
+  // a teljes lakás berendezése: nappali (fent) + a többi helyiség (mentett berendezés, ha van; különben „pár bútor" szabály szerint)
+  const allFurniture = useMemo(() => {
+    const out: FurnitureItem[] = [...(living?.items ?? [])];
+    for (const r of plan.rooms) {
+      if (r.id === living?.room.id) continue;
+      out.push(...(furnishing[r.id]?.items?.length ? furnishing[r.id].items : basicRoomLayout(plan, r)));
+    }
+    return out;
+  }, [plan, furnishing, living]);
+  const [walking, setWalking] = useState(false);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
   async function furnish() {
@@ -658,13 +669,15 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
           <p className="text-sm font-semibold">3D-modell</p>
           <span className="text-xs" style={{ color: MUTED }}>Húzással forgatható, görgővel nagyítható.</span>
           <span className="ml-auto" />
+          <button type="button" onClick={() => setWalking(true)} className="h-8 rounded-full px-4 text-xs font-semibold"
+            title="Végigsétálhatsz a lakáson szemmagasságból (egér / ujj, W/A/S/D)" style={{ background: "var(--twx-coral)", color: "#fff" }}>Bejárás</button>
           <button type="button" onClick={onReopen} disabled={reopening} className="h-8 rounded-full px-3 text-xs font-semibold disabled:opacity-50"
             title={`Hibát látsz (pl. rossz helyen egy ajtó)? Javítsd a 2D terven — ${fixPrice > 0 ? `${fixPrice} kredit` : "ingyenes"}, és csak az érintett helyiségek épülnek újra.`}
             style={{ background: "#12100e", color: "#fff" }}>{reopening ? "Megnyitás…" : "Vissza a 2D javításhoz"}</button>
           <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
         </div>
         <div className="relative min-h-0 flex-1">
-          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={living?.items ?? []} onApi={setApi} />
+          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={allFurniture} onApi={setApi} />
           {styleError && <p className="absolute bottom-3 left-3 rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>Stílus nélkül: {styleError}</p>}
         </div>
         <div className="flex h-12 items-center gap-3 px-4 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}>
@@ -719,6 +732,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
         </p>
       </div>
     </div>
+      {walking && <WalkthroughViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={allFurniture} onClose={() => setWalking(false)} />}
       <TargetCard plan={plan} room={living?.room ?? null} projectId={projectId} images={living ? images[living.room.id] ?? {} : {}}
         canCapture={!!styleSheet} getApi={() => apiRef.current} onImages={(roomId, im) => onImages(roomId, im)} />
       <QualityCard plan={plan} room={living?.room ?? null} projectId={projectId} quality={living ? furnishing[living.room.id]?.quality ?? null : null}

@@ -241,6 +241,51 @@ export function livingRoomLayout(plan: FloorPlan, room: Room): { items: Furnitur
 }
 
 // ---------------------------------------------------------------------------
+// EGYSZERŰ BERENDEZÉS a többi helyiségbe (4. lépés, 2026-10-16) — „pár bútor", hogy a bejárás ne üres terekben menjen.
+// Szabályalapú, ingyenes (nincs AI-hívás), CSAK a meglévő katalógusból; a katalógus bővítése később (ágy, étkezőasztal, konyha…).
+// Minden bútor fal mellé kerül; ami nem szabályos (ütközés, ajtósáv) vagy elzárná a közlekedőutat, kimarad.
+// ---------------------------------------------------------------------------
+// Függőlámpa NEM kerül ide: a katalógusmodell 95 cm-t lóg (alja ~1,65 m) — közlekedőben szemmagasságba ér; csak asztal fölé való.
+const BASIC_SETS: Partial<Record<Room["kind"], FurnitureType[]>> = {
+  haloszoba: ["sideboard", "armchair", "plant"],
+  gyerekszoba: ["shelf", "armchair", "plant"],
+  dolgozoszoba: ["shelf", "armchair", "plant"],
+  etkezo: ["sideboard", "plant"],
+  eloszoba: ["side_table", "plant"],
+  konyha: ["plant"],
+  terasz: ["armchair", "plant"],
+  egyeb: ["plant"],
+};
+
+export function basicRoomLayout(plan: FloorPlan, room: Room): FurnitureItem[] {
+  const set = BASIC_SETS[room.kind];
+  if (!set) return [];
+  const items: FurnitureItem[] = [];
+  const baseWalk = walkwayIssues(plan, room, []).length;
+  const ok = (it: FurnitureItem) => {
+    const next = [...items, it];
+    return checkLayout(plan, room, next).every((x) => x.itemId !== it.id) && walkwayIssues(plan, room, next).length <= baseWalk;
+  };
+  const used = new Set<number>(); // falanként egy nagyobb bútor (ne zsúfolódjon)
+  for (const type of set) {
+    const def = FURNITURE_DEFAULTS[type];
+    const slots = freeSlots(plan, room, def.h).filter((s) => s.len >= def.w + 0.05);
+    const small = type === "plant" || type === "side_table";
+    let placed = false;
+    for (const s of [...slots.filter((x) => !used.has(x.edge)), ...slots.filter((x) => used.has(x.edge))]) {
+      // kis bútor a szakasz végére (sarokba), nagy a közepére; mindkét irány próbálva
+      const alongs = small ? [s.from + def.w / 2 + 0.05, s.to - def.w / 2 - 0.05] : [(s.from + s.to) / 2, s.from + def.w / 2 + 0.05, s.to - def.w / 2 - 0.05];
+      for (const t of alongs) {
+        const it = { ...againstWall(room, s, type, t), id: `${type}_${room.id}` };
+        if (ok(it)) { items.push(tidy(it)); if (!small) used.add(s.edge); placed = true; break; }
+      }
+      if (placed) break;
+    }
+  }
+  return items;
+}
+
+// ---------------------------------------------------------------------------
 // KÖZLEKEDŐÚT — a helyiség bejáratai (ajtók + nyitott határok) a bútorok között is összeérjenek, legalább ~80 cm széles úton
 // ---------------------------------------------------------------------------
 const PATH_GRID = 0.1;        // rács (m)

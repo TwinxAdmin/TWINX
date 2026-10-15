@@ -17,12 +17,14 @@ export type CatalogModel = {
   source: string; license: "CC0" | "CC-BY"; author: string;
 };
 
+// FIGYELEM (2026-10-16): a dohányzóasztal és a polc modelljében a SZÉLESSÉG a z tengely mentén fekszik (x: 0,60 / 0,37) — ezért 90°;
+// enélkül a betöltő a rossz tengelyre skálázott (a polc lapos táblának látszott). Új modellnél a befoglaló dobozt ellenőrizni kell.
 const PH = (id: string) => `/floorplan3d/models/${id}/${id}.gltf`;
 
 export const FURNITURE_CATALOG: Partial<Record<FurnitureType, CatalogModel>> = {
-  coffee_table: { id: "modern_coffee_table_01", url: PH("modern_coffee_table_01"), w: 1.2, d: 0.6, h: 0.39, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Amin" },
+  coffee_table: { id: "modern_coffee_table_01", url: PH("modern_coffee_table_01"), w: 1.2, d: 0.6, h: 0.39, frontYawDeg: 90, source: "Poly Haven", license: "CC0", author: "Amin" },
   side_table: { id: "side_table_01", url: PH("side_table_01"), w: 0.55, d: 0.45, h: 0.55, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "James Ray Cock" },
-  shelf: { id: "wooden_display_shelves_01", url: PH("wooden_display_shelves_01"), w: 1.08, d: 0.37, h: 1.56, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "James Ray Cock" },
+  shelf: { id: "wooden_display_shelves_01", url: PH("wooden_display_shelves_01"), w: 1.08, d: 0.37, h: 1.56, frontYawDeg: 90, source: "Poly Haven", license: "CC0", author: "James Ray Cock" },
   sideboard: { id: "modern_wooden_cabinet", url: PH("modern_wooden_cabinet"), w: 2.44, d: 0.52, h: 0.68, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Patrik Pangerl" },
   pendant_lamp: { id: "modern_ceiling_lamp_01", url: PH("modern_ceiling_lamp_01"), w: 0.43, d: 0.43, h: 0.95, frontYawDeg: 0, hangs: true, source: "Poly Haven", license: "CC0", author: "James Ray Cock" },
   plant: { id: "potted_plant_02", url: PH("potted_plant_02"), w: 0.7, d: 0.66, h: 0.84, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Rico Cilliers" },

@@ -290,3 +290,24 @@ lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
   (teljesen fémes) → környezeti visszaverődés nélkül sötét. Megoldás a betöltőben: fémességi textúra nélküli, 1-es fémességű anyag → 0.
 - Egy modell önálló vizsgálatához a lakásnézet keringő kamerája alkalmatlan (a lakás közepe körül forog) → ideiglenes, külön előnézeti lap
   kellett. Ha a katalógus bővül, érdemes egy admin „modell-átnéző" felület (jóváhagyáshoz).
+
+## 2026-10-16 — F4a: bejárás szemmagasságból
+
+### Mi készült
+- `walk.ts` (tiszta, gépen tesztelhető): ütközők a falszeletekből (ajtók helyén lyuk, ablaknál parapet → nem lehet átmenni) + padlón álló
+  bútorok; 22 cm sugarú „test", tengelyenkénti csúszás a fal mentén, 5 cm-es lépésekre bontva (vékony falon sem ugrik át);
+  A* útkeresés 10 cm-es rácson + kifeszítés (kattintásra odasétál, ajtókon át); kezdőpont az előszobában, a legnagyobb BELSŐ rálátás felé.
+- `WalkthroughViewer.tsx`: teljes képernyő, húzás = nézés (Street View-szerű „megfogás"), kattintás/koppintás = odasétálás, W/A/S/D + nyilak,
+  minitérkép (koppintásra oda sétál), nap az ablakokon át (a mennyezet is árnyékol), terasz külső falai 1 m-es mellvédként.
+- `basicRoomLayout` („pár bútor"): szabályalapú, ingyenes, a meglévő katalógusból; ami ütközne vagy a közlekedőutat elzárná, kimarad.
+
+### Mért (valós tesztlakás, 8 helyiség)
+- 10/10 nyílászáró helyes (ajtón át, ablakon nem); minden helyiség elérhető; útkeresés 0–14 ms.
+
+### Hibák és megoldások
+- **A polc és a dohányzóasztal modellje 90°-kal el volt forgatva** (a szélesség a z tengelyen) → a betöltő rossz tengelyre skálázott,
+  a polc lapos táblának látszott. A babaház-nézetben ez nem tűnt fel, szemmagasságból azonnal. Megoldás: `frontYawDeg: 90`.
+  Tanulság: új katalógusmodellnél a befoglaló dobozt (x = szélesség?) MINDIG ellenőrizni.
+- **A függőlámpa (95 cm-t lóg, alja ~1,65 m) a közlekedőben a kamera elé lóg** → csak asztal fölé kerülhet, a „pár bútor" szabályba nem.
+- **A kezdő nézet falra, majd a bejárati ajtón át kifelé nézett** → az irányt a lakáson BELÜL mért leghosszabb szabad rálátás adja.
+- **A terasz teljes magasságú falakkal „doboz" volt** → a bejárásban a külső falak 1 m-es mellvédek (a mérés/modell nem változik).

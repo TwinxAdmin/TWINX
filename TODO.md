@@ -321,7 +321,14 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [x] K3 — Az építő a katalógus rögzített méreteivel tervez; a 3D a valódi glTF-modelleket tölti be (furniture3d.ts)
 - [~] K4 — Mérés: modellek 7,2 MB / ~0,9 mp helyben + textúrák 9,4 MB → mobilra tömörítés (4. lépés)
 - [~] K5 — Saját bútorgenerálás (2026-10-16): `scripts/floorplan3d-generate-furniture.mjs` (Gemini termékfotó → fal.ai TRELLIS); modern kanapé próba: 38 mp, 0,06 $, 1,23 MB, tiszta forma — jóváhagyásra vár (helyben a katalógusban)
-- [ ] ▶ INNEN FOLYTATJUK: a kanapé jóváhagyása → további tárgyak generálása (hálószoba: ágy, éjjeliszekrény, gardrób; konyha; fürdő) + admin modell-átnéző, majd 4. lépés
+- [x] K5 — a generált kanapé jóváhagyva, katalógusban (2026-10-16)
+- [ ] KÉSŐBB (Márk, 2026-10-16): katalógus bővítése (hálószoba, étkező, előszoba; konyha/fürdő a szaniter-döntés után) + admin modell-átnéző
+- [x] F4a — Bejárás szemmagasságból (2026-10-16): teljes képernyő, húzással nézés, kattintás/koppintás → odasétál (A* útkeresés ajtókon át),
+      W/A/S/D + nyilak, ütközés (fal, bútor; ajtón át igen, ablakon nem), minitérkép (koppintásra oda is sétál), nap az ablakokon át árnyékkal,
+      terasz 1 m-es mellvéddel, álló telefonon „fordítsd fekvőbe" jelzés. + „pár bútor" a többi helyiségbe (szabályalapú, ingyenes, a meglévő katalógusból)
+- [ ] F4a-2 — Márk tesztje telefonon (valódi érintés, teljesítmény) — mobilra a textúrák/modellek tömörítése, ha akad
+- [ ] F4b — Megosztható link (kitalálhatatlan azonosító, 30 nap, hosszabbítás kreditért, nyilvános oldal) — SQL
+- [ ] ▶ INNEN FOLYTATJUK: F4b (megosztható link — SQL)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától
