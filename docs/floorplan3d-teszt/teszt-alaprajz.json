@@ -1,0 +1,26 @@
+{
+  "leiras": "Kitalált 2,5 szobás tesztlakás (TWINX 3D-modul prototípus). Belső (tiszta) méretek méterben; külső fal 30 cm, válaszfal 10 cm. Ez a VALÓS méret — a digitalizálás pontosságát ehhez mérjük.",
+  "belmagassag": 2.7,
+  "helyisegek": [
+    { "nev": "Nappali",   "x": [0.3, 5.0], "y": [0.3, 4.5],  "m2": 19.74, "nyitott": ["Konyha"] },
+    { "nev": "Konyha",    "x": [5.0, 7.6], "y": [0.3, 4.5],  "m2": 10.92, "nyitott": ["Nappali"] },
+    { "nev": "Előszoba",  "x": [0.3, 7.6], "y": [4.6, 6.0],  "m2": 10.22 },
+    { "nev": "Hálószoba", "x": [0.3, 3.8], "y": [6.1, 9.6],  "m2": 12.25 },
+    { "nev": "Szoba",     "x": [3.9, 6.2], "y": [6.1, 9.6],  "m2": 8.05 },
+    { "nev": "Fürdő",     "x": [6.3, 7.6], "y": [6.1, 9.6],  "m2": 4.55 },
+    { "nev": "Erkély",    "x": [0.3, 3.3], "y": [-1.5, 0.0], "m2": 4.50, "kulter": true }
+  ],
+  "nyilaszarok": [
+    { "tipus": "ajto",   "hol": "bejárat — előszoba jobb külső fala", "kozep": [7.75, 5.3], "szel": 1.0 },
+    { "tipus": "ajto",   "hol": "előszoba → nappali", "kozep": [2.0, 4.55], "szel": 0.9 },
+    { "tipus": "ajto",   "hol": "előszoba → hálószoba", "kozep": [2.0, 6.05], "szel": 0.9 },
+    { "tipus": "ajto",   "hol": "előszoba → szoba", "kozep": [5.0, 6.05], "szel": 0.9 },
+    { "tipus": "ajto",   "hol": "előszoba → fürdő", "kozep": [6.95, 6.05], "szel": 0.8 },
+    { "tipus": "ajto",   "hol": "nappali → erkély (erkélyajtó)", "kozep": [1.8, 0.15], "szel": 0.9 },
+    { "tipus": "ablak",  "hol": "nappali felső fal", "kozep": [4.1, 0.15], "szel": 1.2 },
+    { "tipus": "ablak",  "hol": "konyha felső fal", "kozep": [6.3, 0.15], "szel": 1.0 },
+    { "tipus": "ablak",  "hol": "hálószoba alsó fal", "kozep": [2.05, 9.75], "szel": 1.5 },
+    { "tipus": "ablak",  "hol": "szoba alsó fal", "kozep": [5.05, 9.75], "szel": 1.2 },
+    { "tipus": "ablak",  "hol": "fürdő alsó fal", "kozep": [6.95, 9.75], "szel": 0.6 }
+  ]
+}

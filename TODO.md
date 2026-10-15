@@ -281,3 +281,20 @@ adatkezelési tájékoztató +1 mondat (visszajelzések).
 - [ ] ADV6 — Betűtípusok saját tárhelyről (Google Fonts / Fontshare kiváltása az arculat-szerkesztőben)
 - [ ] ADV7 — Adatfeldolgozói szerződések (DPA) összegyűjtése; Supabase régió ellenőrzése
   - [x] ME3d — Modul elemzés: Elégedettség oszlop (★ átlag), csillag-eloszlás, okok, megjegyzések, „Mi hiányzik?” panel — 2026-10-12
+
+## F3D — Alaprajzból bejárható 3D lakás (PROTOTÍPUS, csak admin — Admin → Tartalom → 3D-labor)
+Brief: feltöltés → digitalizálás → javítás → méret-ellenőrzés → 3D-alap → japandi célkép (Nano Banana) + építő/kritikus ciklus
+→ bejárható link (30 nap, kreditért hosszabbítható) → 9:16 videó. A lakásleírás (JSON, `lib/floorplan3d/plan.ts`) az EGYETLEN igazságforrás;
+a stílus geometriát soha nem változtat. Üzleti értékek: `lib/floorplan3d/config.ts` (env-ből felülírható).
+Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Gemini (`gemini-3.1-pro-preview`, a 2.5-pro új kulcsnak már nem elérhető)
+· stíluslap: `references/<stílus>/stiluslap.json` a referenciaképek mellett · tesztrajz: digitálisat Claude (docs/floorplan3d-teszt), kézit Márk.
+- [x] F1a — Séma + geometria (terület, falhossz-javítás „nyújtással", nyílászárók, nyitott határ, ±tűrés-ellenőrzés) — 2026-10-15
+- [x] F1b — Digitalizálás: `POST /api/real-estate/floorplan-3d/digitize` (Gemini → normalizálás: lépték, derékszögesítés, méretvonal-igazítás, egyterű helyiségek) — 2026-10-15
+- [x] F1c — Javítófelület (`/dashboard/real-estate/floorplan-3d`, `Floorplan3dStudio` + `PlanCanvas`): eredeti rajz alatta, helyiség/fal kijelölés, falhossz, ⋯ menü (ajtó/ablak/nyitott határ), m², jóváhagyás, kézi rajz felelősség — 2026-10-15
+- [x] F1d — Mentés: `floorplan_projects` + `floorplans` tárhely (`20261015123000_floorplan-projects.sql`, lefuttatva 2026-10-15), automatikus mentés, `?p=` visszatöltés
+- [ ] F1e — Márk tesztje: kézi rajz fotója (útmutató a feltöltő oldalon) + a mostani mérések a prototípus-jelentésbe
+- [ ] F2 — 3D-alap (three.js, berendezetlen lakás a JSON-ból) + méretpontosság-mérés; előtte javaslat a háttérfeladat-architektúrára (Vercel 300 mp)
+- [ ] F3 — Japandi stíluslap (Márktól) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
+- [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
+- [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés
+- [ ] Prototípus-jelentés (idő, API-költség, digitalizálási pontosság, minőségi körök, m²-pontosság, képek) → döntés a folytatásról

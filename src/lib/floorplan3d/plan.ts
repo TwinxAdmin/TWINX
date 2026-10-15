@@ -1,0 +1,126 @@
+// A digitalizált lakásleírás (JSON) — az EGYETLEN igazságforrás: a 3D-modell, az alaprajz-ábra és a videó is ebből dolgozik.
+// Mértékegység: méter. Koordináták alaprajz-nézetben: x jobbra, y lefelé. Az első fázis derékszögű (tengelyirányú) falakat kezel.
+//
+// Helyiség = a helyiség BELSŐ (tiszta) körvonala; a helyiségek közti rés a fal. A terület (m²) a körvonalból számolódik.
+// Nyílászáró = egy helyiség egy élén (edge = a sokszög i. pontjából az i+1.-be menő él), az él elejétől mért távolsággal.
+// A falhossz-javítás nem változtatja a pontok számát, így az él-indexek stabilak maradnak.
+
+export type Pt = [number, number];
+
+/** Helyiségtípus: a stílus-referenciák (látványtervező `ROOM_TYPES`) slugjai + a 3D-hez szükséges továbbiak. */
+export const ROOM_KINDS = [
+  { value: "nappali", label: "Nappali" },
+  { value: "konyha", label: "Konyha" },
+  { value: "etkezo", label: "Étkező" },
+  { value: "haloszoba", label: "Szoba / hálószoba" },
+  { value: "gyerekszoba", label: "Gyerekszoba" },
+  { value: "dolgozoszoba", label: "Dolgozószoba" },
+  { value: "furdo", label: "Fürdő" },
+  { value: "wc", label: "WC" },
+  { value: "eloszoba", label: "Előszoba / közlekedő" },
+  { value: "gardrob", label: "Gardrób / kamra" },
+  { value: "terasz", label: "Terasz / erkély" },
+  { value: "egyeb", label: "Egyéb" },
+] as const;
+export type RoomKind = (typeof ROOM_KINDS)[number]["value"];
+
+/** Kültéri helyiség: nincs mennyezete, a 3D-ben nyitott. */
+export const OUTDOOR_KINDS: RoomKind[] = ["terasz"];
+
+export type Room = {
+  id: string;
+  name: string;
+  kind: RoomKind;
+  polygon: Pt[];
+  /** A felhasználó által megadott valós m² (kötelező a jóváhagyáshoz). */
+  declaredArea: number | null;
+  /** Tudatos jóváhagyás: a tűrésen túli eltérést a felhasználó elfogadta. */
+  areaApproved?: boolean;
+  /** Fal nélküli határok (él-indexek), pl. egyterű nappali–konyha: itt a 3D-ben nincs fal. */
+  openEdges?: number[];
+};
+
+export type Opening = {
+  id: string;
+  kind: "door" | "window";
+  roomId: string;
+  /** A helyiség-sokszög élének indexe (polygon[edge] → polygon[edge+1]). */
+  edge: number;
+  /** A nyílás közepének távolsága az él elejétől (m). */
+  offset: number;
+  width: number;
+  height: number;
+  /** Ablak: parapetmagasság (m). Ajtónál 0. */
+  sill: number;
+  /** Ajtó: melyik végén a zsanér (az él irányában) és merre nyílik (a helyiség felé = "in"). */
+  hinge?: "start" | "end";
+  swing?: "in" | "out";
+};
+
+export type FloorPlan = {
+  version: 1;
+  ceilingHeight: number;
+  rooms: Room[];
+  openings: Opening[];
+  /** A digitalizálás megjegyzései (bizonytalan pontok) — tájékoztató, a felület kiírja. */
+  notes?: string[];
+};
+
+export const DOOR_DEFAULT = { width: 0.9, height: 2.1 };
+export const WINDOW_DEFAULT = { width: 1.2, height: 1.5, sill: 0.9 };
+
+/** Új azonosító (rövid, ütközésmentes a tervben). */
+export function newId(prefix: string): string {
+  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+// ---------------------------------------------------------------------------
+// SZERKEZETI ELLENŐRZÉS — a kliensről érkező (javított) terv mentés előtt. Hibás szerkezetnél null.
+const LIMITS = { rooms: 40, points: 40, openings: 200, coord: 200 };
+const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
+const KINDS = new Set<string>(ROOM_KINDS.map((k) => k.value));
+
+export function sanitizePlan(raw: unknown): FloorPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  const ceilingHeight = num(p.ceilingHeight, 2, 5);
+  if (ceilingHeight === null || !Array.isArray(p.rooms) || !Array.isArray(p.openings)) return null;
+  if (p.rooms.length > LIMITS.rooms || p.openings.length > LIMITS.openings) return null;
+
+  const rooms: Room[] = [];
+  for (const r of p.rooms as Record<string, unknown>[]) {
+    if (!r || typeof r.id !== "string" || !Array.isArray(r.polygon) || r.polygon.length < 3 || r.polygon.length > LIMITS.points) return null;
+    const polygon: Pt[] = [];
+    for (const q of r.polygon as unknown[]) {
+      if (!Array.isArray(q)) return null;
+      const x = num(q[0], -LIMITS.coord, LIMITS.coord), y = num(q[1], -LIMITS.coord, LIMITS.coord);
+      if (x === null || y === null) return null;
+      polygon.push([x, y]);
+    }
+    const n = polygon.length;
+    rooms.push({
+      id: r.id.slice(0, 40),
+      name: typeof r.name === "string" ? r.name.slice(0, 60) : "",
+      kind: (KINDS.has(String(r.kind)) ? r.kind : "egyeb") as RoomKind,
+      polygon,
+      declaredArea: num(r.declaredArea, 0.1, 500),
+      areaApproved: r.areaApproved === true,
+      openEdges: Array.isArray(r.openEdges) ? [...new Set((r.openEdges as unknown[]).filter((i): i is number => Number.isInteger(i) && (i as number) >= 0 && (i as number) < n))] : [],
+    });
+  }
+  const ids = new Set(rooms.map((r) => r.id));
+  const openings: Opening[] = [];
+  for (const o of p.openings as Record<string, unknown>[]) {
+    if (!o || typeof o.id !== "string" || typeof o.roomId !== "string" || !ids.has(o.roomId)) return null;
+    const room = rooms.find((r) => r.id === o.roomId)!;
+    const edge = Number.isInteger(o.edge) && (o.edge as number) >= 0 && (o.edge as number) < room.polygon.length ? (o.edge as number) : null;
+    const offset = num(o.offset, 0, LIMITS.coord), width = num(o.width, 0.2, 10), height = num(o.height, 0.3, 5), sill = num(o.sill, 0, 3);
+    if (edge === null || offset === null || width === null || height === null || sill === null) return null;
+    openings.push({
+      id: o.id.slice(0, 40), kind: o.kind === "window" ? "window" : "door", roomId: room.id, edge, offset, width, height, sill,
+      ...(o.kind === "window" ? {} : { hinge: o.hinge === "end" ? "end" as const : "start" as const, swing: o.swing === "out" ? "out" as const : "in" as const }),
+    });
+  }
+  const notes = Array.isArray(p.notes) ? (p.notes as unknown[]).filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 300)).slice(0, 12) : [];
+  return { version: 1, ceilingHeight, rooms, openings, notes };
+}
