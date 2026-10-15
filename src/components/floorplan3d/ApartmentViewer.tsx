@@ -106,7 +106,7 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
         const r = await applyStyle(built, plan, style).catch(() => null);
         if (furniture.length && !furnitureGroup) {
           const mats = await furnitureMaterials().catch(() => null);
-          if (mats) furnitureGroup = buildFurniture(furniture, mats, plan.ceilingHeight);
+          if (mats) furnitureGroup = await buildFurniture(furniture, mats, plan.ceilingHeight);
         }
         setStyleBusy(false);
         if (disposed) return;

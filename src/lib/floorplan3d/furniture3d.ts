@@ -3,6 +3,8 @@
 // Minden bútor a saját helyi rendszerében épül (x = szélesség, z = mélység, ELEJE +z), majd a leírás (FurnitureItem) helyére kerül.
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { catalogModel, type CatalogModel } from "@/lib/floorplan3d/catalog";
 import type { FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { libraryMaterial, worldUV } from "@/lib/floorplan3d/materials";
 
@@ -145,23 +147,59 @@ const builders: Record<FurnitureItem["type"], (it: FurnitureItem, m: Mats, ceili
   },
 };
 
-/** A berendezés felépítése: minden bútor a helyére (alaprajz (x, y) → three (x, z), elforgatás: rotation.y = −rot). */
-export function buildFurniture(items: FurnitureItem[], mats: Mats, ceilingHeight: number): THREE.Group {
+// ---------------------------------------------------------------------------
+// KATALÓGUSOS (valódi) 3D-modellek: egyszer töltődnek le, bútoronként klónozva. A modellt a bútor leírt méretére igazítjuk
+// (a katalógusban ez a modell valós mérete → a skála ≈ 1), az alja a padlón, a függő lámpa teteje a mennyezeten.
+// ---------------------------------------------------------------------------
+const gltfCache = new Map<string, Promise<THREE.Object3D>>();
+function loadModel(m: CatalogModel): Promise<THREE.Object3D> {
+  if (!gltfCache.has(m.url)) {
+    gltfCache.set(m.url, new GLTFLoader().loadAsync(m.url).then((g) => {
+      g.scene.traverse((o) => { const x = o as THREE.Mesh; if (x.isMesh) { x.castShadow = true; x.receiveShadow = true; x.userData.catalog = true; } });
+      return g.scene;
+    }));
+  }
+  return gltfCache.get(m.url)!;
+}
+
+async function catalogItem(it: FurnitureItem, m: CatalogModel, ceilingHeight: number): Promise<THREE.Group> {
+  const src = await loadModel(m);
+  const model = src.clone(true);
+  model.rotation.y = (m.frontYawDeg * Math.PI) / 180;
+  const holder = new THREE.Group();
+  holder.add(model);
+  holder.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  // a leírt méretre igazítás (méretarányosság): szélesség x, mélység z, magasság y
+  model.scale.set(it.w / (size.x || 1), it.h / (size.y || 1), it.d / (size.z || 1));
+  holder.updateMatrixWorld(true);
+  const b2 = new THREE.Box3().setFromObject(model);
+  const c = b2.getCenter(new THREE.Vector3());
+  const baseY = m.hangs ? ceilingHeight - b2.max.y : -b2.min.y;
+  model.position.set(model.position.x - c.x, model.position.y + baseY, model.position.z - c.z);
+  return holder;
+}
+
+/** A berendezés felépítése: minden bútor a helyére (alaprajz (x, y) → three (x, z), elforgatás: rotation.y = −rot).
+ *  Katalógusos típusnál a valódi 3D-modell (catalog.ts), egyébként a kódos (paraméteres) bútor. */
+export async function buildFurniture(items: FurnitureItem[], mats: Mats, ceilingHeight: number): Promise<THREE.Group> {
   const root = new THREE.Group();
   root.userData.kind = "furniture";
   for (const it of items) {
-    const g = builders[it.type]?.(it, mats, ceilingHeight);
+    const cm = catalogModel(it.type);
+    const g = cm ? await catalogItem(it, cm, ceilingHeight).catch(() => builders[it.type]?.(it, mats, ceilingHeight)) : builders[it.type]?.(it, mats, ceilingHeight);
     if (!g) continue;
     g.position.set(it.x, 0, it.y);
     g.rotation.y = (-it.rot * Math.PI) / 180;
     g.userData = { kind: "furniture-item", itemId: it.id, type: it.type };
     root.add(g);
   }
-  // a textúrás (fa, textil) felületek világ-méteres UV-t kapnak, hogy minden bútoron egyforma léptékű legyen az erezet
+  // a KÓDOS bútorok textúrás felületei világ-méteres UV-t kapnak (a katalógusos modellek saját UV-ja érintetlen)
   root.updateMatrixWorld(true);
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (mesh.isMesh && (mesh.material as THREE.MeshStandardMaterial).map && mesh.geometry.getAttribute("normal")) worldUV(mesh);
+    if (mesh.isMesh && !mesh.userData.catalog && (mesh.material as THREE.MeshStandardMaterial).map && mesh.geometry.getAttribute("normal")) worldUV(mesh);
   });
   return root;
 }

@@ -312,7 +312,15 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [ ] Ötletek későbbre (casa-serra elvei, DÖNTÉS NÉLKÜL — kódot nem veszünk át, nincs licence): HDR égbolt környezeti fénynek ·
       alaprajz = a 3D-modell metszete (videó alaprajza, minitérkép) · sima, túllövés nélküli kameraút · eszközfüggő textúrakeret + tartalék ·
       visszafogott utófeldolgozás · helyiségenkénti 1–10 pontszám a kritikusnál
-- [ ] ▶ INNEN FOLYTATJUK: F3e — kritikus-ciklus (méret + stílus + geometria-eltérések a célképen, legnagyobb hiányosság, max. körszám)
+- [~] F3e — Minőségi ciklus (2026-10-16): kritikus + építő + falkiosztás KÉSZ, de az első futás elakadt (a Nano Banana-célkép lehetetlen elrendezést mutatott) — lásd tanulságnapló
+- DÖNTÉS (Márk, 2026-10-16): a FŐ CÉL a méretarányos bejárás, a fotórealizmus másodlagos. A berendezésből a STÍLUS egyelőre KIMARAD
+  (semleges, modern bútorkatalógus); a Nano Banana NEM rendez be. Bútorok: saját, JOGTISZTA 3D-katalógusból (CC0 / CC-BY / saját generálás).
+  IKEA-modellek (letöltő szkript) NEM — szerzői jog / felhasználási feltételek / védjegy. A japandi stíluslap a falakhoz-padlóhoz-fényhez marad.
+- [x] K1 — Jelöltlista + letöltés (2026-10-16): 7 Poly Haven CC0 modell (`public/floorplan3d/models`, LICENC.md); modern kanapé nincs → kódos marad
+- [~] K2 — Katalógus: egyelőre kódban (`catalog.ts`, rögzített valós méretek); SQL-tábla + admin-jóváhagyás akkor, ha sok lesz (saját generálásnál)
+- [x] K3 — Az építő a katalógus rögzített méreteivel tervez; a 3D a valódi glTF-modelleket tölti be (furniture3d.ts)
+- [~] K4 — Mérés: modellek 7,2 MB / ~0,9 mp helyben + textúrák 9,4 MB → mobilra tömörítés (4. lépés)
+- [ ] ▶ INNEN FOLYTATJUK: modern kanapé (saját generálás / Sketchfab) + a többi helyiségtípus katalógusa, majd 4. lépés (bejárható link)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

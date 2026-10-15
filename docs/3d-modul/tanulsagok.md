@@ -234,3 +234,41 @@ lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
 - Apró eltérések, amit az élteszt nem fog meg: egy keskeny kitalált ablakcsík a kép szélén; sarokkanapé az „alacsony egyenes" helyett;
   a nyitott konyha greige kőpadlója a célképen tölgy lett → a KRITIKUS (F3e) dolga, hogy ezeket megnevezze.
 - Mért: ~12–13 mp / próba, 0,04 $ / próba; a 3 próbás kör 0,12 $.
+
+## 2026-10-16 — F3e: minőségi ciklus — első futás (tanulságos kudarc)
+
+### Mi készült
+- `critic.ts` (friss kontextus; a geometriát a KÓD méri, a stílust a modell: 1–10, ellenőrzőlista, legnagyobb hiányosság, utasítás),
+  az építő kritikus-utasítással + célképpel javít, `POST .../quality` (egy kör), „Minőségi ciklus" kártya (a böngésző vezérel, körönként fotóz).
+- `wallmap.ts`: falkiosztás a nézőpontból (melyik fal-index látszik balra / szemben / jobbra) — a kép és az alaprajz összekötésére.
+
+### Mi történt (ingatlan.com nappali, 4 kör, ~9 perc, 0,86 $)
+- Mind a 4 kör 3/10, a geometria végig rendben. A kanapé nem mozdult.
+- OK: a célkép a kanapét a „hátsó falhoz" tette — ott valójában NINCS fal, hanem a nyitott konyhai átjáró. A kritikus ezt kérte;
+  az építő megpróbálta; a kódos ellenőrzés HELYESEN elutasította (átjáró elzárva, nincs közlekedőút) → a régi elrendezés maradt.
+- A falkiosztás sem segített: sarokból, átlósan nézve a jobb oldali fal a kép jobb oldalán ÉS hátul is látszik; a középpont-szög
+  szerinti címke „szemközti" lett → a kritikus pont arra a falra küldte a kanapét, ahol már állt.
+- Idő: kritikus 25–40 mp, építő 50–130 mp / kör (gondolkodó modell + elutasításkor javítóhívás).
+
+### Tanulság
+- A Nano Banana célképe a STÍLUSBAN jó mérce, az ELRENDEZÉSBEN nem: nem tudja, hol az átjáró, a közlekedőút → lehetetlen elrendezést
+  rajzolhat. Javaslat (Márk döntésére vár): a célkép a megvalósítható (építő + ellenőrzés) elrendezés 3D-képéből készüljön.
+- Elakadásfigyelés kell (kétszeri elutasítás / nem javuló pontszám → leállás), különben a ciklus pénzt éget eredmény nélkül.
+
+## 2026-10-16 — Irányváltás: méretarányosság első, stílus nélkül; jogtiszta 3D-bútorkatalógus (K1–K4)
+
+### Döntések (Márk)
+- A FŐ CÉL a méretarányos bejárás; a fotórealizmus másodlagos. A berendezésből a stílus egyelőre kimarad; a Nano Banana nem rendez be.
+- Bútorok saját, jogtiszta katalógusból; ha kell, saját generálással. IKEA-modellek (letöltő szkript) NEM: a szkript maga is csak személyes
+  használatra szól, a modellek az IKEA tulajdonai, a link kiszolgálná őket (terjesztés), és védjegy-/megtévesztési kockázat.
+
+### Mi készült
+- 7 Poly Haven modell (CC0, szkennelt, fotórealisztikus): dohányzóasztal, kisasztal, polc, komód, mennyezeti lámpa, növény, fotel
+  (`public/floorplan3d/models`, licencjegyzékkel). A Poly Haven kanapéi mind klasszikusak (chesterfield, faragott) → a kanapé kódos maradt.
+- `catalog.ts`: típus → modell, VALÓS méret. A katalógusos bútor mérete RÖGZÍTETT (a sanitizer és az építő promptja is), mert a valódi
+  modell nyújtva torzulna. A 3D a modellt a leírt méretre illeszti (skála ≈ 1), alja a padlón, a lámpa teteje a mennyezeten.
+- Az építő promptja semleges (funkció, közlekedés, kevés tárgy); a berendező végpont nem adja át a stíluslapot.
+
+### Mért (helyi gép)
+- Modellek: 31 fájl, 7,2 MB, ~0,9 mp; textúrák (padló/fal/textil): 9,4 MB → mobilra a 4. lépésben tömöríteni kell (KTX2 / Draco / meshopt).
+- Tanulság: Poly Haven API Python urllib-bal 403-at ad (User-Agent) → curl.

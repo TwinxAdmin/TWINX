@@ -162,3 +162,10 @@ export async function signFurnishingImages(furnishing: Record<string, Record<str
   }
   return out;
 }
+
+/** Egy projektfájl letöltése a privát tárhelyről (pl. a célkép a kritikusnak). */
+export async function downloadProjectFile(path: string): Promise<{ bytes: Uint8Array; mimeType: string } | null> {
+  const { data } = await createAdminClient().storage.from(BUCKET).download(path);
+  if (!data) return null;
+  return { bytes: new Uint8Array(await data.arrayBuffer()), mimeType: data.type || (path.endsWith(".png") ? "image/png" : "image/jpeg") };
+}

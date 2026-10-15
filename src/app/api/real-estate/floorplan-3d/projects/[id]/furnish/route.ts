@@ -1,10 +1,9 @@
 // POST /api/real-estate/floorplan-3d/projects/[id]/furnish — egy helyiség berendezése az ÉPÍTŐVEL (3. lépés, F3c; PROTOTÍPUS, csak admin).
-// Body: { roomId }. Csak JÓVÁHAGYOTT tervre (a geometria rögzített); a prototípusban csak nappali. A stíluslap a tárhelyről jön
-// (teszt időszak: japandi). Az eredményt a kód ellenőrzi (builder.ts), és a projekt `furnishing` mezőjébe mentjük.
+// Body: { roomId }. Csak JÓVÁHAGYOTT tervre (a geometria rögzített); a prototípusban csak nappali. Stílus nélkül (semleges, modern —
+// a bútorok a jogtiszta 3D-katalógusból, valós méretben). Az eredményt a kód ellenőrzi (builder.ts), és a `furnishing` mezőbe mentjük.
 // Kredit itt nincs külön: a 3D-építés díját a jóváhagyás már levonta.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadStyleSheet } from "@/lib/floorplan3d/stylesheet";
 import { FURNISHABLE_KINDS, furnishRoom } from "@/lib/floorplan3d/builder";
 import { projectForFurnishing, saveFurnishing } from "@/lib/floorplan3d/projects";
 import { logCost } from "@/lib/costs";
@@ -32,11 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!room) return NextResponse.json({ error: "A helyiség nem található." }, { status: 404 });
   if (!(FURNISHABLE_KINDS as readonly string[]).includes(room.kind)) return NextResponse.json({ error: "A prototípusban egyelőre csak a nappali rendezhető be." }, { status: 422 });
 
-  const style = await loadStyleSheet("japandi");
-  if ("error" in style) return NextResponse.json({ error: style.error }, { status: 500 });
-
   try {
-    const result = await furnishRoom(p.plan, room, style.text);
+    // 2026-10-16 (Márk döntése): a berendezésből a stílus egyelőre kimarad — semleges, modern, méretarányos berendezés
+    const result = await furnishRoom(p.plan, room, "");
     await logCost({ userId: user.id, serviceId: null, feature: "floorplan-3d-builder", serviceName: "google-studio", units: result.rounds, estimatedCostUsd: result.costUsd });
     const saveError = await saveFurnishing(user.id, id, room.id, { ...result, plan_revision: p.revision });
     return NextResponse.json({ ...result, roomId: room.id, saveError });

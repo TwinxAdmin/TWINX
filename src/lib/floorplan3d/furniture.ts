@@ -5,6 +5,7 @@
 // A szabályalapú alap-elrendezés (livingRoomLayout) az építő kiindulópontja és tartaléka.
 import type { FloorPlan, Pt, Room } from "@/lib/floorplan3d/plan";
 import { openingSegment, roomEdge } from "@/lib/floorplan3d/geometry";
+import { catalogModel } from "@/lib/floorplan3d/catalog";
 
 export const FURNITURE_TYPES = [
   "sofa", "armchair", "coffee_table", "side_table", "shelf", "sideboard", "rug", "pendant_lamp", "floor_lamp", "plant",
@@ -26,17 +27,19 @@ export type FurnitureItem = {
 };
 
 /** Szabványos méretek (m) — japandi: alacsony, egyenes vonalú. */
+/** Alapméretek (m) és feliratok. A katalógusos típusoknál (catalog.ts) a méret a 3D-modell VALÓS mérete — rögzített.
+ *  (2026-10-16: a berendezésből a stílus egyelőre kimaradt → semleges, modern bútorok; a kódos kanapé és szőnyeg marad.) */
 export const FURNITURE_DEFAULTS: Record<FurnitureType, { w: number; d: number; h: number; label: string; materials: FurnitureMaterials }> = {
-  sofa: { w: 2.2, d: 0.9, h: 0.72, label: "Alacsony lenkanapé", materials: { body: "light_oak_matte", upholstery: "linen" } },
-  armchair: { w: 0.78, d: 0.8, h: 0.72, label: "Buklé fotel", materials: { body: "light_oak_matte", upholstery: "boucle" } },
-  coffee_table: { w: 1.1, d: 0.6, h: 0.36, label: "Tölgy dohányzóasztal", materials: { body: "light_oak_matte" } },
-  side_table: { w: 0.45, d: 0.45, h: 0.5, label: "Kisasztal", materials: { body: "light_oak_matte" } },
-  shelf: { w: 1.2, d: 0.35, h: 1.6, label: "Nyitott tölgypolc", materials: { body: "light_oak_matte", accent: "ceramic" } },
-  sideboard: { w: 1.6, d: 0.42, h: 0.55, label: "Alacsony komód", materials: { body: "light_oak_matte" } },
-  rug: { w: 2.4, d: 1.7, h: 0.012, label: "Egyszínű szőnyeg", materials: { upholstery: "wool_rug" } },
-  pendant_lamp: { w: 0.55, d: 0.55, h: 0.4, label: "Rizspapír függőlámpa", materials: { accent: "rice_paper" } },
-  floor_lamp: { w: 0.4, d: 0.4, h: 1.5, label: "Lenbúrás állólámpa", materials: { body: "black_metal", accent: "linen" } },
-  plant: { w: 0.55, d: 0.55, h: 1.3, label: "Nagy növény", materials: { body: "ceramic" } },
+  sofa: { w: 2.2, d: 0.9, h: 0.72, label: "Kanapé", materials: { body: "light_oak_matte", upholstery: "linen" } },
+  armchair: { w: 0.82, d: 0.99, h: 1.02, label: "Fotel", materials: {} },
+  coffee_table: { w: 1.2, d: 0.6, h: 0.39, label: "Dohányzóasztal", materials: {} },
+  side_table: { w: 0.55, d: 0.45, h: 0.55, label: "Kisasztal", materials: {} },
+  shelf: { w: 1.08, d: 0.37, h: 1.56, label: "Polc", materials: {} },
+  sideboard: { w: 2.44, d: 0.52, h: 0.68, label: "Komód", materials: {} },
+  rug: { w: 2.4, d: 1.7, h: 0.012, label: "Szőnyeg", materials: { upholstery: "wool_rug" } },
+  pendant_lamp: { w: 0.43, d: 0.43, h: 0.95, label: "Mennyezeti lámpa", materials: {} },
+  floor_lamp: { w: 0.4, d: 0.4, h: 1.5, label: "Állólámpa", materials: { body: "black_metal", accent: "linen" } },
+  plant: { w: 0.7, d: 0.66, h: 0.84, label: "Növény", materials: {} },
 };
 
 /** Ezek nem foglalnak padlót az ütközésvizsgálatban (a szőnyeg alá-fölé lehet tenni, a lámpa lóg). */
@@ -340,7 +343,9 @@ export function sanitizeItems(raw: unknown): FurnitureItem[] {
     out.push({
       id: typeof r.id === "string" && r.id ? r.id.slice(0, 40) : `${type}_${out.length + 1}`,
       type, x: r2(x), y: r2(y), rot: Math.round((((n(r.rot, 0) % 360) + 360) % 360) * 10) / 10,
-      w: r2(clamp(n(r.w, def.w), def.w)), d: r2(clamp(n(r.d, def.d), def.d)), h: r2(clamp(n(r.h, def.h), def.h)),
+      // katalógusos (valódi 3D-modell): a méret RÖGZÍTETT — a modell valós mérete (méretarányosság); kódos bútor: ±40%
+      ...(catalogModel(type) ? { w: def.w, d: def.d, h: def.h }
+        : { w: r2(clamp(n(r.w, def.w), def.w)), d: r2(clamp(n(r.d, def.d), def.d)), h: r2(clamp(n(r.h, def.h), def.h)) }),
       materials: def.materials, label: def.label,
     });
   }

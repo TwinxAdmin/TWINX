@@ -430,6 +430,89 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
+/**
+ * MINŐSÉGI CIKLUS (F3e): körönként fotó a berendezett helyiségről (a célkép nézőpontjából) → kritikus (geometria + stílus) → ha kell,
+ * az építő javít → a néző újraépít → következő kör, legfeljebb a konfigurált körszámig. A végén: kész-e, mi nem valósult meg.
+ */
+function QualityCard({ plan, room, projectId, quality, targetUsable, canCapture, getApi, nextApi, onRound }: {
+  plan: FloorPlan; room: Room | null; projectId: string | null; quality: Quality | null; targetUsable: boolean; canCapture: boolean;
+  getApi: () => ViewerApi | null; nextApi: () => Promise<ViewerApi>;
+  onRound: (roomId: string, q: Quality, items: FurnitureItem[] | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  async function run() {
+    if (!room || !projectId) return;
+    setBusy(true); setError(null);
+    const view = roomViewpoint(plan, room);
+    let rounds: QualityRound[] = [];
+    try {
+      for (let round = 1; round <= 10; round++) {
+        setPhase(`${round}. kör: fotó…`);
+        const api = getApi() ?? await nextApi();
+        const image = await api.capture(view, { furniture: true });
+        setPhase(`${round}. kör: a kritikus és az építő dolgozik… (1–2 perc)`);
+        const waitRebuild = nextApi(); // az új bútorlista után a néző újraépül — erre várunk
+        const res = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}/quality`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId: room.id, round, image }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { setError(d.error ?? "A minőségi kör nem sikerült."); return; }
+        rounds = [...rounds, { round, score: d.critic.score, geometry: d.critic.geometry, biggest_issue: d.critic.biggestIssue,
+          cost_usd: d.critic.costUsd, critic_seconds: d.critic.seconds, builder: null }];
+        onRound(room.id, { rounds, final: d.final ?? null }, d.items ?? null);
+        if (d.saveError) setError(`Nincs mentve: ${d.saveError}`);
+        if (!d.next) return;
+        if (d.items) { setPhase(`${round}. kör kész — újraépítés…`); await waitRebuild; }
+      }
+    } catch {
+      setError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setBusy(false); setPhase("");
+    }
+  }
+  const rounds = quality?.rounds ?? [];
+  return (
+    <div className="twx-card flex flex-col gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Minőségi ciklus{room ? ` — ${room.name}` : ""}</p>
+          <p className="text-xs" style={{ color: MUTED }}>Körönként: a kritikus a berendezett 3D-t a célképhez és a stíluslaphoz méri (a geometriát a kód), az építő javít.</p>
+        </div>
+        <button type="button" onClick={() => void run()} disabled={busy || !room || !projectId || !canCapture || !targetUsable}
+          title={!targetUsable ? "Előbb kell egy geometriailag hű célkép (fent)" : "Fizetős AI-hívások: körönként ~0,2 $ és 1–2 perc"}
+          className="h-9 w-[230px] flex-none rounded-full text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#12100e", color: "#fff" }}>
+          {busy ? "Fut…" : rounds.length ? "Ciklus újraindítása" : "Minőségi ciklus indítása"}
+        </button>
+      </div>
+      {(phase || error) && (
+        <p className="rounded-lg px-3 py-1.5 text-[12px]" style={error ? { background: "#FDECEA", color: "#9B2C1B" } : { background: "rgba(47,127,134,0.10)", color: "#25666c" }}>{error ?? phase}</p>
+      )}
+      <div className="h-[220px] overflow-y-auto rounded-xl" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+        {rounds.length === 0 ? (
+          <p className="flex h-full items-center justify-center px-6 text-center text-[12.5px]" style={{ color: MUTED }}>
+            Még nem futott minőségi ciklus. Itt látszik majd körönként a pontszám (1–10), a geometria és a legnagyobb hiányosság.
+          </p>
+        ) : rounds.map((r) => (
+          <div key={r.round} className="flex items-start gap-3 px-3 py-2 text-[12.5px]" style={{ borderBottom: "1px solid var(--twx-line)" }}>
+            <span className="w-12 flex-none font-semibold">{r.round}. kör</span>
+            <span className="w-14 flex-none font-bold" style={{ color: r.score >= 8 ? "#2f7a4f" : r.score >= 6 ? "#9A7020" : "#C2522D" }}>{r.score}/10</span>
+            <span className="w-24 flex-none" style={{ color: r.geometry?.ok ? "#2f7a4f" : "#C2522D" }}>{r.geometry?.ok ? "geometria ✓" : "geometria ✗"}</span>
+            <span className="min-w-0 flex-1" style={{ color: MUTED }}>{r.biggest_issue}</span>
+          </div>
+        ))}
+      </div>
+      {quality?.final && (
+        <div className="rounded-xl px-3 py-2 text-[12.5px]" style={quality.final.done ? { background: "rgba(47,158,95,0.12)" } : { background: "rgba(224,165,38,0.14)" }}>
+          <p className="font-semibold">{quality.final.done ? `Kész: a helyiség elérte a célkép szintjét (${quality.final.rounds} kör).` : `Lezárva ${quality.final.rounds} kör után — nem minden valósult meg:`}</p>
+          {quality.final.unmet.length > 0 && <ul className="mt-1 list-disc pl-4">{quality.final.unmet.map((u, i) => <li key={i}>{u}</li>)}</ul>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Egy helyiség képei (aláírt linkek): berendezetlen 3D-fotó és célkép. */
 type RoomImages = { empty?: string; target?: string; fidelity?: { kept: number; added: number; ok: boolean }; attempts?: number };
 
@@ -514,7 +597,13 @@ function TargetCard({ plan, room, projectId, images, canCapture, getApi, onImage
 }
 
 /** Egy helyiség berendezése (az építő vagy a szabályalapú tartalék eredménye — builder.ts FurnishResult). */
-type Furnishing = { items: FurnitureItem[]; source: "builder" | "builder-repaired" | "rule"; rationale: string; issues: string[]; rounds: number; seconds: number; costUsd: number };
+type QualityRound = { round: number; score: number; geometry: { ok: boolean; maxErrorMm: number; problems: string[] }; biggest_issue: string; cost_usd: number; critic_seconds: number; builder?: { seconds: number } | null };
+type Quality = { rounds: QualityRound[]; final: { done: boolean; rounds: number; unmet: string[] } | null; max_rounds?: number };
+type Furnishing = {
+  items: FurnitureItem[]; source: "builder" | "builder-repaired" | "rule" | "quality"; rationale: string; issues: string[];
+  // az építő mérései — a minőségi ciklus eredményében nincsenek benne (ezért elhagyhatók)
+  rounds?: number; seconds?: number; costUsd?: number; quality?: Quality;
+};
 
 function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished, images, onImages }: {
   plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
@@ -524,7 +613,13 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
 }) {
   const measures = useApartmentMeasure(plan, sceneOptions);
   const apiRef = useRef<ViewerApi | null>(null);
-  const setApi = useCallback((a: ViewerApi | null) => { apiRef.current = a; }, []);
+  // a néző minden újraépítés (pl. új bútorlista) után új API-t ad — a minőségi ciklus erre vár, mielőtt újra fotózna
+  const apiWaiters = useRef<((a: ViewerApi) => void)[]>([]);
+  const setApi = useCallback((a: ViewerApi | null) => {
+    apiRef.current = a;
+    if (a) { const w = apiWaiters.current; apiWaiters.current = []; w.forEach((f) => f(a)); }
+  }, []);
+  const nextApi = useCallback(() => new Promise<ViewerApi>((res) => { apiWaiters.current.push(res); }), []);
   // F3b: a nappali alap-elrendezése (szabályalapú; az építő ebből indul — F3c)
   // a nappali berendezése: az építő mentett eredménye, ha van; különben a szabályalapú alap-elrendezés (F3b)
   const living = useMemo(() => {
@@ -552,7 +647,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
       setBuilding(false);
     }
   }
-  const SOURCE_TEXT: Record<Furnishing["source"], string> = { builder: "építő", "builder-repaired": "építő (javítókörrel)", rule: "szabályalapú tartalék" };
+  const SOURCE_TEXT: Record<Furnishing["source"], string> = { builder: "építő", "builder-repaired": "építő (javítókörrel)", rule: "szabályalapú tartalék", quality: "minőségi ciklus" };
   const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
   const cm = (v: number) => v.toFixed(2).replace(".", ",");
   return (
@@ -577,7 +672,9 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
             {buildError ? <span style={{ color: "#C2522D" }}>{buildError}</span>
               : !living ? "Ebben a lakásban nincs nappali — a prototípus egyelőre a nappalit rendezi be."
               : living.saved
-                ? <>Berendezés ({living.room.name}, {SOURCE_TEXT[living.saved.source]} · {living.saved.seconds} mp · ~{living.saved.costUsd.toFixed(2)} $): {living.saved.rationale || living.items.map((i) => i.label).join(", ")}</>
+                ? <>Berendezés ({living.room.name}, {SOURCE_TEXT[living.saved.source] ?? living.saved.source}
+                    {typeof living.saved.seconds === "number" ? ` · ${living.saved.seconds} mp` : ""}
+                    {typeof living.saved.costUsd === "number" ? ` · ~${living.saved.costUsd.toFixed(2)} $` : ""}): {living.saved.rationale || living.items.map((i) => i.label).join(", ")}</>
                 : <>Berendezés ({living.room.name}, alap-elrendezés): {living.items.map((i) => i.label).join(", ")}
                     {living.skipped.length ? <span style={{ color: "#9A7020" }}> · kimaradt: {living.skipped.join(" · ")}</span> : null}</>}
           </p>
@@ -624,6 +721,10 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
     </div>
       <TargetCard plan={plan} room={living?.room ?? null} projectId={projectId} images={living ? images[living.room.id] ?? {} : {}}
         canCapture={!!styleSheet} getApi={() => apiRef.current} onImages={(roomId, im) => onImages(roomId, im)} />
+      <QualityCard plan={plan} room={living?.room ?? null} projectId={projectId} quality={living ? furnishing[living.room.id]?.quality ?? null : null}
+        targetUsable={!!(living && images[living.room.id]?.fidelity?.ok)} canCapture={!!styleSheet}
+        getApi={() => apiRef.current} nextApi={nextApi}
+        onRound={(roomId, q, items) => onFurnished(roomId, { ...(furnishing[roomId] ?? {}), ...(items ? { items, source: "quality" as const } : {}), quality: q } as Furnishing)} />
     </>
   );
 }

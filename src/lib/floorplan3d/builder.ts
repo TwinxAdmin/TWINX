@@ -10,6 +10,7 @@ import {
   sanitizeItems, walkwayIssues, type FurnitureItem,
 } from "@/lib/floorplan3d/furniture";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
+import { catalogModel } from "@/lib/floorplan3d/catalog";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -49,9 +50,13 @@ function describeRoom(plan: FloorPlan, room: Room) {
   };
 }
 
-function prompt(plan: FloorPlan, room: Room, styleText: string, start: FurnitureItem[], feedback: string[] | null): string {
-  const catalog = FURNITURE_TYPES.map((t) => ({ type: t, label_hu: FURNITURE_DEFAULTS[t].label, default_w_d_h_m: [FURNITURE_DEFAULTS[t].w, FURNITURE_DEFAULTS[t].d, FURNITURE_DEFAULTS[t].h] }));
-  return `You are an interior designer placing furniture in ONE room of an apartment, strictly following a style sheet.
+function prompt(plan: FloorPlan, room: Room, styleText: string, start: FurnitureItem[], feedback: string[] | null, critic?: { instruction: string; hasTarget: boolean; wallMap?: string }): string {
+  const catalog = FURNITURE_TYPES.map((t) => ({
+    type: t, label_hu: FURNITURE_DEFAULTS[t].label, w_d_h_m: [FURNITURE_DEFAULTS[t].w, FURNITURE_DEFAULTS[t].d, FURNITURE_DEFAULTS[t].h],
+    size: catalogModel(t) ? "FIXED (real 3D model — do not change w, d, h)" : `may vary ±${Math.round(FURNITURE_SIZE_RANGE * 100)}%`,
+  }));
+  return `You are an interior designer placing furniture in ONE room of an apartment for a TRUE-TO-SCALE walkthrough of a new-build flat.
+The goal is a realistic, functional, uncluttered modern furnishing that shows buyers how the real space works — proportions matter most.
 
 COORDINATES: meters, plan view, x to the right, y DOWNWARDS. The room polygon is the clear inner outline (inside face of the walls).
 Each item: center (x, y), size w (width) × d (depth) × h (height), rotation rot in degrees. rot = 0 means the item's FRONT faces +y
@@ -61,17 +66,16 @@ at -d/2 from its center along its facing direction. Items placed against a wall 
 ROOM (JSON):
 ${JSON.stringify(describeRoom(plan, room))}
 
-STYLE SHEET (Hungarian, authoritative):
-${styleText}
-
-FURNITURE CATALOG (only these types; sizes may vary at most ±${Math.round(FURNITURE_SIZE_RANGE * 100)}% from the default):
+${styleText ? `STYLE NOTES (optional, secondary to function):\n${styleText}\n` : ""}
+FURNITURE CATALOG (only these types; sizes as given — FIXED items are real 3D models with their real dimensions):
 ${JSON.stringify(catalog)}
 
-STARTING LAYOUT (rule-based, valid but basic — improve it):
+${critic ? "CURRENT LAYOUT (keep what works, change only what the critic asks)" : "STARTING LAYOUT (rule-based, valid but basic — improve it)"}:
 ${JSON.stringify(start.map(({ type, x, y, rot, w, d, h }) => ({ type, x, y, rot, w, d, h })))}
+${critic ? `\nCRITIC'S INSTRUCTION (apply it): ${critic.instruction}${critic.hasTarget ? "\nThe attached image is the TARGET staging of this room from the room's entrance viewpoint — follow its arrangement and atmosphere where the rules allow." : ""}${critic.wallMap ? `\nWALLS AS SEEN FROM THAT VIEWPOINT (wall index = the "walls" list above):\n${critic.wallMap}` : ""}\n` : ""}
 ${feedback ? `\nYOUR PREVIOUS LAYOUT WAS REJECTED BY THE VALIDATOR. Fix exactly these problems:\n- ${feedback.join("\n- ")}\n` : ""}
 RULES (all mandatory):
-- Use the style sheet's furniture list for this room type (section 5) and its decor density (section 7): few, characterful items, 1–2 plants.
+- A typical modern living room: one sofa, a coffee table, at most one or two armchairs, a shelf and/or a sideboard (TV unit), a ceiling lamp, a rug, one plant. Few items, uncluttered.
 - Every item fully inside the polygon; floor items must not overlap each other (a rug may be under the sofa/table; a pendant lamp hangs).
 - Never put a floor item into a keep_clear_door_zone. Keep a ≥ 80 cm walkway between all entrances.
 - Do not place tall items (shelf, plant, floor lamp) in front of a window; a sofa may stand under a window only if the sill is higher than its back.
@@ -81,10 +85,12 @@ RULES (all mandatory):
 Return ONLY JSON: { "items": [ { "type": ..., "x": ..., "y": ..., "rot": ..., "w": ..., "d": ..., "h": ... } ], "rationale": "2-3 sentences in Hungarian" }`;
 }
 
-async function callBuilder(model: string, apiKey: string, text: string) {
+async function callBuilder(model: string, apiKey: string, text: string, image?: { bytes: Uint8Array; mimeType: string }) {
+  const parts: Record<string, unknown>[] = [{ text }];
+  if (image) parts.push({ inline_data: { mime_type: image.mimeType, data: Buffer.from(image.bytes).toString("base64") } });
   const res = await fetch(`${ENDPOINT}/${model}:generateContent?key=${apiKey}`, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { temperature: 0.4, responseMimeType: "application/json" } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.4, responseMimeType: "application/json" } }),
   });
   if (!res.ok) throw new Error(`Építő hiba (${res.status}): ${(await res.text()).slice(0, 300)}`);
   const data = await res.json();
@@ -104,20 +110,26 @@ export function layoutProblems(plan: FloorPlan, room: Room, items: FurnitureItem
   return [...checkLayout(plan, room, items).map((i) => i.text), ...walkwayIssues(plan, room, items)];
 }
 
-export async function furnishRoom(plan: FloorPlan, room: Room, styleText: string): Promise<FurnishResult> {
+/**
+ * opts (minőségi ciklus, F3e): start = az aktuális elrendezés (ebből javít), critic = a kritikus utasítása, target = a célkép (képként kapja).
+ * Ha a javított elrendezés nem megy át az ellenőrzésen, a KIINDULÓ elrendezés marad (nem a szabályalapú) — egy kör nem ronthat.
+ */
+export async function furnishRoom(plan: FloorPlan, room: Room, styleText: string,
+  opts?: { start?: FurnitureItem[]; critic?: string; target?: { bytes: Uint8Array; mimeType: string } | null; wallMap?: string }): Promise<FurnishResult> {
   const cfg = floorplan3dConfig();
   const apiKey = process.env.GOOGLE_AI_STUDIO_API_KEY;
   if (!apiKey) throw new Error("Hiányzó GOOGLE_AI_STUDIO_API_KEY.");
   const model = process.env.FLOORPLAN3D_BUILDER_MODEL || cfg.visionModel;
   const t0 = Date.now();
-  const start = livingRoomLayout(plan, room).items;
+  const start = opts?.start?.length ? opts.start : livingRoomLayout(plan, room).items;
+  const critic = opts?.critic ? { instruction: opts.critic, hasTarget: !!opts.target, wallMap: opts.wallMap } : undefined;
   let tokensIn = 0, tokensOut = 0, rounds = 0;
   let feedback: string[] | null = null;
   let last: { items: FurnitureItem[]; rationale: string } | null = null;
 
   for (let round = 0; round < 2; round++) {
     rounds++;
-    const r = await callBuilder(model, apiKey, prompt(plan, room, styleText, last?.items.length ? last.items : start, feedback));
+    const r = await callBuilder(model, apiKey, prompt(plan, room, styleText, last?.items.length ? last.items : start, feedback, critic), opts?.target ?? undefined);
     tokensIn += r.tokensIn; tokensOut += r.tokensOut;
     last = r;
     const problems = layoutProblems(plan, room, r.items);
