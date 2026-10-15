@@ -7,12 +7,13 @@
 // von és lezár (approve). Jóváhagyott tervnél a javítófelület helyén a 3D-modell (ApartmentViewer) + méretpontosság.
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import SelectField from "@/components/SelectField";
 import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
-import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
+import ApartmentViewer, { useApartmentMeasure, type ViewerApi } from "@/components/floorplan3d/ApartmentViewer";
+import { roomViewpoint } from "@/lib/floorplan3d/camera";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import { livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
@@ -46,6 +47,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   const [reopenError, setReopenError] = useState<string | null>(null);
   // 3. lépés: helyiségenkénti berendezés (az építő eredménye, a projektből betöltve / frissen kérve)
   const [furnishing, setFurnishing] = useState<Record<string, Furnishing>>({});
+  const [roomImages, setRoomImages] = useState<Record<string, RoomImages>>({});
   const [status, setStatus] = useState<string>("draft");
   const [confirming, setConfirming] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -87,6 +89,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" }); setStatus(d.project.status ?? "draft");
         setWasApproved(!!d.project.approved_at); setRebuilt(Array.isArray(d.project.rebuild_rooms) ? d.project.rebuild_rooms : null);
         setFurnishing((d.project.furnishing as Record<string, Furnishing> | null) ?? {});
+        setRoomImages((d.images as Record<string, RoomImages> | undefined) ?? {});
       })
       .catch(() => setError("Nem sikerült betölteni az alaprajzot."))
       .finally(() => setLoadingProject(false));
@@ -201,7 +204,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   function restart() {
     setPlan(null); setStats(null); setSelRoom(null); setSelEdge(null); setError(null);
     setProjectId(null); setSave({ state: "idle" }); setFile(null); setFileUrl(null); setSourceMime(null);
-    setStatus("draft"); setWasApproved(false); setRebuilt(null); setSelOpening(null); setFurnishing({});
+    setStatus("draft"); setWasApproved(false); setRebuilt(null); setSelOpening(null); setFurnishing({}); setRoomImages({});
     window.history.replaceState(null, "", window.location.pathname);
   }
 
@@ -298,7 +301,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
       ) : status !== "draft" ? (
         /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
         <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt} styleSheet={styleSheet} styleError={styleError}
-          projectId={projectId} furnishing={furnishing} onFurnished={(roomId, f) => setFurnishing((cur) => ({ ...cur, [roomId]: f }))}
+          projectId={projectId} furnishing={furnishing} onFurnished={(roomId, f) => setFurnishing((cur) => ({ ...cur, [roomId]: { ...cur[roomId], ...f } }))}
+          images={roomImages} onImages={(roomId, im) => setRoomImages((cur) => ({ ...cur, [roomId]: { ...cur[roomId], ...im } }))}
           fixPrice={creditsGeometryFix} reopening={reopening} reopenError={reopenError} onReopen={() => void reopen()} />
       ) : (
         /* ---------------- 2. JAVÍTÁS + ELLENŐRZÉS ---------------- */
@@ -421,15 +425,92 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
+/** Egy helyiség képei (aláírt linkek): berendezetlen 3D-fotó és célkép. */
+type RoomImages = { empty?: string; target?: string };
+
+/**
+ * CÉLKÉP (F3d): a berendezetlen helyiség fotója szemmagasságból (a nézőből) → Nano Banana a stíluslap + referenciakép alapján.
+ * Két fix méretű képhely üres állapottal; a gomb csak stíluslappal és mentett projekttel aktív.
+ */
+function TargetCard({ plan, room, projectId, images, canCapture, getApi, onImages }: {
+  plan: FloorPlan; room: Room | null; projectId: string | null; images: RoomImages; canCapture: boolean;
+  getApi: () => ViewerApi | null; onImages: (roomId: string, im: RoomImages) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
+  async function make() {
+    const api = getApi();
+    if (!room || !projectId || !api) return;
+    setBusy(true); setError(null);
+    try {
+      const view = roomViewpoint(plan, room);
+      const image = await api.capture(view, { furniture: false });
+      onImages(room.id, { empty: image });
+      const res = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}/target`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId: room.id, image, view }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(d.error ?? "A célkép nem készült el."); return; }
+      onImages(room.id, d.images ?? {});
+      if (d.saveError) setError(`Nincs mentve: ${d.saveError}`);
+    } catch {
+      setError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const pane = (title: string, url: string | undefined, empty: string) => (
+    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <p className="text-[12px] font-semibold" style={{ color: MUTED }}>{title}</p>
+      <div className="flex h-[300px] items-center justify-center overflow-hidden rounded-xl" style={{ background: "#F4F0EA", border: "1px solid var(--twx-line)" }}>
+        {url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={url} alt={title} className="h-full w-full cursor-zoom-in object-cover" onClick={() => setZoom(url)} />
+          : <p className="px-6 text-center text-[12.5px]" style={{ color: MUTED }}>{empty}</p>}
+      </div>
+    </div>
+  );
+  return (
+    <div className="twx-card flex flex-col gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Célkép{room ? ` — ${room.name}` : ""}</p>
+          <p className="text-xs" style={{ color: MUTED }}>A berendezetlen, méretpontos helyiséget a Nano Banana a stíluslap szerint rendezi be — a falak, ablakok, ajtók és a nézőpont nem változnak.</p>
+        </div>
+        <button type="button" onClick={() => void make()} disabled={busy || !room || !projectId || !canCapture}
+          title={!room ? "Nincs nappali" : !canCapture ? "Stíluslap nélkül nem készíthető" : "Fizetős képgenerálás (~0,04 $), kb. fél perc"}
+          className="h-9 w-[200px] flex-none rounded-full text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#12100e", color: "#fff" }}>
+          {busy ? "Célkép készül… (~30 mp)" : images.target ? "Új célkép" : "Célkép készítése"}
+        </button>
+      </div>
+      {error && <p className="rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>{error}</p>}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        {pane("Berendezetlen (3D-fotó, szemmagasságból)", images.empty, "Itt jelenik meg a helyiség fotója a 3D-modellből, bútor nélkül.")}
+        {pane("Célkép (japandi)", images.target, "Itt jelenik meg a berendezett célkép. A kritikus ehhez méri majd a 3D-berendezést.")}
+      </div>
+      {zoom && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6" style={{ background: "rgba(18,16,14,0.8)" }} onClick={() => setZoom(null)} role="dialog" aria-label="Nagyított kép">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom} alt="Nagyított kép" className="max-h-full max-w-full rounded-xl" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Egy helyiség berendezése (az építő vagy a szabályalapú tartalék eredménye — builder.ts FurnishResult). */
 type Furnishing = { items: FurnitureItem[]; source: "builder" | "builder-repaired" | "rule"; rationale: string; issues: string[]; rounds: number; seconds: number; costUsd: number };
 
-function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished }: {
+function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished, images, onImages }: {
   plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
   projectId: string | null; furnishing: Record<string, Furnishing>; onFurnished: (roomId: string, f: Furnishing) => void;
+  images: Record<string, RoomImages>; onImages: (roomId: string, im: RoomImages) => void;
   fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
 }) {
   const measures = useApartmentMeasure(plan, sceneOptions);
+  const apiRef = useRef<ViewerApi | null>(null);
+  const setApi = useCallback((a: ViewerApi | null) => { apiRef.current = a; }, []);
   // F3b: a nappali alap-elrendezése (szabályalapú; az építő ebből indul — F3c)
   // a nappali berendezése: az építő mentett eredménye, ha van; különben a szabályalapú alap-elrendezés (F3b)
   const living = useMemo(() => {
@@ -461,6 +542,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
   const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
   const cm = (v: number) => v.toFixed(2).replace(".", ",");
   return (
+    <>
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
         <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: "1px solid var(--twx-line)" }}>
@@ -473,7 +555,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
           <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
         </div>
         <div className="relative min-h-0 flex-1">
-          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={living?.items ?? []} />
+          <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={living?.items ?? []} onApi={setApi} />
           {styleError && <p className="absolute bottom-3 left-3 rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>Stílus nélkül: {styleError}</p>}
         </div>
         <div className="flex h-12 items-center gap-3 px-4 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}>
@@ -526,6 +608,9 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
         </p>
       </div>
     </div>
+      <TargetCard plan={plan} room={living?.room ?? null} projectId={projectId} images={living ? images[living.room.id] ?? {} : {}}
+        canCapture={!!styleSheet} getApi={() => apiRef.current} onImages={(roomId, im) => onImages(roomId, im)} />
+    </>
   );
 }
 

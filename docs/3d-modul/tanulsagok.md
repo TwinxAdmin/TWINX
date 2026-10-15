@@ -190,3 +190,22 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
 ### Tesztelési tanulság
 - A böngészőpanel „find" eszköze ékezetes gombfeliratot nem mindig talál meg → szöveges (JS) kijelölés + kattintás.
 - Hosszú (1–2 perces) műveletnél a JS-várakozás 45 mp után megszakad → rövid lekérdezések, közte `wait`.
+
+## 2026-10-16 — F3d: célkép (Nano Banana)
+
+### Mi készült
+- `camera.ts` nézőpont (szemmagasság 1,6 m, a bejárattól ~90 cm-rel befelé, a súlypont felé); a néző `capture` API-ja külön, képernyőn
+  kívüli rendererrel fotóz (japandi falak/padló, mennyezettel, bútor nélkül, ajtólapok nélkül); `target.ts` (stíluslap-kivonat + szigorú
+  geometria-szabályok a promptban, japandi nappali referenciakép); `POST .../target`; képek a privát tárhelyen, aláírt linkkel; „Célkép" kártya.
+
+### Hibák és megoldások
+- **A kamera a nyitott ajtólap mellé került** → a fotó egy „falat" mutatott (az ajtólapot). Megoldás: a fotón nincsenek ajtólapok,
+  és a kamera ~90 cm-rel a bejárat elé áll.
+- **68°-os látószög túl széles** (erős torzítás) → 55° (≈70° vízszintes, ingatlanfotó-szerű).
+
+### FONTOS — a Nano Banana nem tartja meg a geometriát
+- 1. próba (rossz bemenet, falba nézett): teljesen más szobát rajzolt.
+- 2. próba (jó bemenet): stílusban jó japandi (len kanapé, tölgy, rizspapír lámpák, növény), DE a bal falra padlótól mennyezetig
+  üvegfalat, a hátsó falra beépített polcfalat rajzolt, és 1 helyett 7 függőlámpát. → a „semmi nem lehet megtévesztő" szabály miatt
+  a célképet geometriai szempontból ELLENŐRIZNI kell, mielőtt bárki (építő, kritikus) mércének használja.
+- Mért: 12,8 mp, 0,04 $ / célkép, a referenciakép használatával.

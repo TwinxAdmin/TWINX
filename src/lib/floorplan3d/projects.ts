@@ -38,7 +38,7 @@ export async function createProject(params: {
 }
 
 /** Egy projekt betöltése (csak a sajátja) + aláírt link az eredetihez (1 óra). */
-export async function loadProject(userId: string, id: string): Promise<{ project: ProjectRow; sourceUrl: string | null } | { error: string; status: number }> {
+export async function loadProject(userId: string, id: string): Promise<{ project: ProjectRow; sourceUrl: string | null; images: Record<string, Record<string, string>> } | { error: string; status: number }> {
   const admin = createAdminClient();
   const base = "id, title, source_kind, style, source_mime, source_path, plan, digitize_stats, hand_accepted, status, updated_at, approved_at";
   const q = (cols: string) => admin.from("floorplan_projects").select(cols).eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
@@ -56,7 +56,8 @@ export async function loadProject(userId: string, id: string): Promise<{ project
   }
   const { source_path: _omit, ...project } = row;
   void _omit;
-  return { project, sourceUrl };
+  const images = await signFurnishingImages((project as ProjectRow).furnishing as Record<string, Record<string, unknown>> | null);
+  return { project, sourceUrl, images };
 }
 
 /** Javított terv mentése (csak a saját, még nem jóváhagyott tervé). */
@@ -120,7 +121,9 @@ export async function saveFurnishing(userId: string, id: string, roomId: string,
   const { data: row, error } = await admin.from("floorplan_projects").select("furnishing").eq("id", id).eq("user_id", userId).maybeSingle();
   if (error) return /furnishing/.test(error.message) ? FURNISHING_MIGRATION_MSG : error.message;
   if (!row) return "Az alaprajz nem található.";
-  const next = { ...((row.furnishing as Record<string, unknown> | null) ?? {}), [roomId]: { ...data, created_at: new Date().toISOString() } };
+  // összefésülés: a helyiség meglévő adatai (pl. célkép) megmaradnak, a most küldött mezők felülírják a régieket
+  const all = (row.furnishing as Record<string, Record<string, unknown>> | null) ?? {};
+  const next = { ...all, [roomId]: { ...(all[roomId] ?? {}), ...data, updated_at: new Date().toISOString() } };
   const { error: e2 } = await admin.from("floorplan_projects").update({ furnishing: next }).eq("id", id).eq("user_id", userId);
   return e2 ? e2.message : null;
 }
@@ -135,4 +138,27 @@ export async function projectForFurnishing(userId: string, id: string): Promise<
   if (!data) return { error: "Az alaprajz nem található.", status: 404 };
   const d = data as unknown as Record<string, unknown>;
   return { plan: d.plan as FloorPlan, status: d.status as string, revision: (d.revision as number | undefined) ?? 0, furnishing: (d.furnishing as Record<string, unknown> | undefined) ?? null };
+}
+
+/** Képfájl feltöltése a projekt mappájába (privát tárhely) — visszaadja az útvonalat. */
+export async function uploadProjectImage(userId: string, projectId: string, name: string, bytes: Uint8Array, mime: string): Promise<{ path: string } | { error: string }> {
+  const path = `${userId}/${projectId}/${name}`;
+  const { error } = await createAdminClient().storage.from(BUCKET).upload(path, bytes, { contentType: mime, upsert: true });
+  return error ? { error: error.message } : { path };
+}
+
+/** Aláírt (1 órás) linkek a berendezés képeihez (célkép, berendezetlen fotó, kritikus-képek), helyiségenként. */
+export async function signFurnishingImages(furnishing: Record<string, Record<string, unknown>> | null | undefined): Promise<Record<string, Record<string, string>>> {
+  const out: Record<string, Record<string, string>> = {};
+  if (!furnishing) return out;
+  const admin = createAdminClient();
+  for (const [roomId, f] of Object.entries(furnishing)) {
+    const t = f?.target as Record<string, string> | undefined;
+    for (const key of ["empty_path", "target_path"] as const) {
+      if (!t?.[key]) continue;
+      const s = await admin.storage.from(BUCKET).createSignedUrl(t[key], 3600);
+      if (s.data?.signedUrl) (out[roomId] ??= {})[key.replace("_path", "")] = s.data.signedUrl;
+    }
+  }
+  return out;
 }

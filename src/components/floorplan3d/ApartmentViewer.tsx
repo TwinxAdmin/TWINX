@@ -12,6 +12,7 @@ import { applyStyle, kelvinToColor } from "@/lib/floorplan3d/materials";
 import type { FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { buildFurniture, furnitureMaterials } from "@/lib/floorplan3d/furniture3d";
 import { OUTDOOR_KINDS } from "@/lib/floorplan3d/plan";
+import type { RoomView } from "@/lib/floorplan3d/camera";
 import { buildApartment, measureApartment, type RoomMeasure, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { planBounds } from "@/lib/floorplan3d/geometry";
 
@@ -21,16 +22,24 @@ export function useApartmentMeasure(plan: FloorPlan, opts: SceneOptions): RoomMe
 
 type ViewMode = "dollhouse" | "top";
 
+/** A nézőből kérhető műveletek (a célképhez / kritikushoz): egy helyiség „fotója" adott nézőpontból. */
+export type ViewerApi = {
+  /** JPEG data URL, 4:3; furniture=false: bútor nélkül (a célkép bemenete), true: berendezve (a kritikus bemenete). */
+  capture: (view: RoomView, opts: { furniture: boolean; width?: number }) => Promise<string>;
+};
+
 /** style: ha van stíluslap, „Japandi" nézetben a stílus anyagai és meleg fénye (a geometria ugyanaz). */
-export default function ApartmentViewer({ plan, opts, style = null, furniture = [] }: {
+export default function ApartmentViewer({ plan, opts, style = null, furniture = [], onApi }: {
   plan: FloorPlan; opts: SceneOptions; style?: StyleSheet | null; furniture?: FurnitureItem[];
+  onApi?: (api: ViewerApi | null) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<ViewMode>("dollhouse");
   const [styled, setStyled] = useState(!!style);
   const [styleBusy, setStyleBusy] = useState(false);
-  const styleRef = useRef<((on: boolean) => void) | null>(null);
-  useEffect(() => { styleRef.current?.(styled); }, [styled]);
+  const styleRef = useRef<((on: boolean) => Promise<void> | void) | null>(null);
+  const styledRef = useRef(styled);
+  useEffect(() => { styledRef.current = styled; styleRef.current?.(styled); }, [styled]);
   const viewRef = useRef<((m: ViewMode) => void) | null>(null);
   useEffect(() => { viewRef.current?.(mode); }, [mode]);
 
@@ -108,6 +117,42 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
     };
     void styleRef.current(styled);
 
+    // FOTÓ egy helyiségről (célkép / kritikus): külön, képernyőn kívüli rendererrel, hogy a látható nézet ne ugorjon;
+    // a stílus anyagai és a meleg fény mindig bekapcsolva, a mennyezet látszik, a bútor kérés szerint.
+    onApi?.({
+      capture: async (view, o) => {
+        const wasStyled = !!restore;
+        await styleRef.current?.(true);
+        const w = o.width ?? 1600, h = Math.round((w * 3) / 4);
+        const off = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+        off.setSize(w, h, false);
+        off.shadowMap.enabled = true; off.shadowMap.type = THREE.PCFSoftShadowMap;
+        off.outputColorSpace = THREE.SRGBColorSpace; off.toneMapping = THREE.ACESFilmicToneMapping; off.toneMappingExposure = 1.0;
+        const cam = new THREE.PerspectiveCamera(view.fov, w / h, 0.05, 100);
+        cam.position.set(view.pos[0], view.eye, view.pos[1]);
+        cam.lookAt(view.target[0], view.eye * 0.82, view.target[1]); // enyhén lefelé: több padló látszik, mint mennyezet
+        // a fotón a mennyezet látszik, az ajtólapok nem (a nyitott lap a kamera mellett eltakarná a teret; a nyílás szabad marad)
+        const ceilings: THREE.Object3D[] = [], doors: THREE.Object3D[] = [];
+        built.group.traverse((x) => {
+          if (x.userData.kind === "ceiling") { ceilings.push(x); x.visible = true; }
+          if (x.userData.kind === "door") { doors.push(x); x.visible = false; }
+        });
+        const fVisible = furnitureGroup?.parent === scene;
+        if (furnitureGroup) { if (o.furniture) scene.add(furnitureGroup); else scene.remove(furnitureGroup); }
+        const bg = scene.background;
+        scene.background = new THREE.Color(0xdfe7ec); // az ablakon túl: halvány égbolt
+        off.render(scene, cam);
+        const url = off.domElement.toDataURL("image/jpeg", 0.9);
+        scene.background = bg;
+        ceilings.forEach((x) => { x.visible = false; });
+        doors.forEach((x) => { x.visible = true; });
+        if (furnitureGroup) { if (fVisible) scene.add(furnitureGroup); else scene.remove(furnitureGroup); }
+        off.dispose();
+        if (!wasStyled && !styledRef.current) await styleRef.current?.(false);
+        return url;
+      },
+    });
+
     // nézetek: „babaház" (ferdén felülről) és „felülről" (alaprajz-szerű, a nyílászárók ellenőrzéséhez)
     viewRef.current = (m: ViewMode) => {
       if (m === "top") camera.position.set(cx, span * 1.9, cz + 0.001);
@@ -144,6 +189,7 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
       host.removeChild(renderer.domElement);
       viewRef.current = null;
       styleRef.current = null;
+      onApi?.(null);
       disposed = true;
     };
     // a stílus-kapcsolót külön hatás kezeli (styleRef) — itt csak a kezdőállapot kell
