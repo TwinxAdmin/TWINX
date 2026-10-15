@@ -105,3 +105,8 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
 - **Szám-mező:** elhagyáskor a MEZŐ aktuális szövegét olvassuk (nem a React-állapotot) — gyors gépelés + azonnali továbbkattintás
   után az állapot késhet. **Teszt-tanulság:** a háttérben futó böngészőlapon a mesterséges `focus()`/`blur()` nem vált ki valódi
   elhagyást → a „módosítás elveszett" látszat a TESZT hibája volt; mezőkbe valódi gépeléssel (Enter) teszteljünk.
+
+## 2026-10-15 (éjjel) — Mérőpad skill
+- Új skill: `.claude/skills/alaprajz-meropad` + `scripts/floorplan3d-meropad.mjs` (digitalizálás + 3D-mérés + átfedő kép + táblázat).
+- Első futás, tesztlakás: 5/7 rendben (előszoba −30,5%, erkély +5,6%), 11 nyílászáró, 2 figyelmeztetés, 19,9 mp, 0,035 $, 3D 0 mm.
+  Tanulság: futásonként szór (korábban 6/7) → a mérőpadot kétes esetben 2–3-szor futtassuk.

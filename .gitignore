@@ -53,3 +53,6 @@ marketing/email/atadas-brevo/
 
 # Videó-effektek nagy forrásfájljai (a kész klipek a gitben vannak)
 assets/video-fx/source/
+
+# 3D-modul mérőpad kimenete (scripts/floorplan3d-meropad.mjs)
+/.floorplan3d-meropad/
