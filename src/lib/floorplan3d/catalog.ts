@@ -26,6 +26,8 @@ export const FURNITURE_CATALOG: Partial<Record<FurnitureType, CatalogModel>> = {
   sideboard: { id: "modern_wooden_cabinet", url: PH("modern_wooden_cabinet"), w: 2.44, d: 0.52, h: 0.68, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Patrik Pangerl" },
   pendant_lamp: { id: "modern_ceiling_lamp_01", url: PH("modern_ceiling_lamp_01"), w: 0.43, d: 0.43, h: 0.95, frontYawDeg: 0, hangs: true, source: "Poly Haven", license: "CC0", author: "James Ray Cock" },
   plant: { id: "potted_plant_02", url: PH("potted_plant_02"), w: 0.7, d: 0.66, h: 0.84, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Rico Cilliers" },
+  // PRÓBA (2026-10-16): saját generálás — Gemini termékfotó → fal.ai TRELLIS (MIT). Jóváhagyásig csak helyben.
+  sofa: { id: "gen_sofa_01", url: "/floorplan3d/models/gen_sofa_01/gen_sofa_01.glb", w: 2.2, d: 0.9, h: 0.75, frontYawDeg: 0, source: "TWINX (generált)", license: "CC0", author: "TWINX" },
   armchair: { id: "modern_arm_chair_01", url: PH("modern_arm_chair_01"), w: 0.82, d: 0.99, h: 1.02, frontYawDeg: 0, source: "Poly Haven", license: "CC0", author: "Vibrant Nordic" },
 };
 

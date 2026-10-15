@@ -272,3 +272,21 @@ lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
 ### Mért (helyi gép)
 - Modellek: 31 fájl, 7,2 MB, ~0,9 mp; textúrák (padló/fal/textil): 9,4 MB → mobilra a 4. lépésben tömöríteni kell (KTX2 / Draco / meshopt).
 - Tanulság: Poly Haven API Python urllib-bal 403-at ad (User-Agent) → curl.
+
+## 2026-10-16 — Saját bútorgenerálás: modern kanapé (próba)
+
+### Folyamat (`scripts/floorplan3d-generate-furniture.mjs`)
+1) termékfotó a Gemini képmodellel szövegből (egy bútor, fehér háttér, a kért méretek és forma) → 2) fal.ai TRELLIS kép → 3D (GLB)
+→ 3) mérés (befoglaló méret → arányhiba, fájlméret, idő, költség). Az eredmény `.floorplan3d-generalt/` (gitignore), a katalógusba csak jóváhagyás után.
+- Licenc: a TRELLIS-modell és a kód nagy része MIT (Microsoft); két segédkomponensnek saját licence van, de azok csak a fal.ai-on futnak.
+
+### Mért (gen_sofa_01, 220 × 90 × 75 cm)
+- 37,6 mp (kép 5,5 + 3D 32,1), 0,06 $ (kép ~0,04 + 3D 0,02), GLB 1,23 MB.
+- Arányhiba: szélesség/magasság −11,5%, mélység/magasság −14,9% (a modell kicsit „magasabb") → a 3D a pontos méretre igazítja (enyhe nyújtás).
+- Minőség: elölről és hátulról is tiszta, hihető forma; a termékfotó kiváló.
+
+### Hiba és megoldás
+- **A generált modell sötétszürke lett** a világos bézs helyett: a TRELLIS-GLB anyagából hiányzik a fémesség → a glTF alapértéke 1
+  (teljesen fémes) → környezeti visszaverődés nélkül sötét. Megoldás a betöltőben: fémességi textúra nélküli, 1-es fémességű anyag → 0.
+- Egy modell önálló vizsgálatához a lakásnézet keringő kamerája alkalmatlan (a lakás közepe körül forog) → ideiglenes, külön előnézeti lap
+  kellett. Ha a katalógus bővül, érdemes egy admin „modell-átnéző" felület (jóváhagyáshoz).

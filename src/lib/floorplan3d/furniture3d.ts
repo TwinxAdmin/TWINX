@@ -155,7 +155,16 @@ const gltfCache = new Map<string, Promise<THREE.Object3D>>();
 function loadModel(m: CatalogModel): Promise<THREE.Object3D> {
   if (!gltfCache.has(m.url)) {
     gltfCache.set(m.url, new GLTFLoader().loadAsync(m.url).then((g) => {
-      g.scene.traverse((o) => { const x = o as THREE.Mesh; if (x.isMesh) { x.castShadow = true; x.receiveShadow = true; x.userData.catalog = true; } });
+      g.scene.traverse((o) => {
+        const x = o as THREE.Mesh;
+        if (!x.isMesh) return;
+        x.castShadow = true; x.receiveShadow = true; x.userData.catalog = true;
+        // A generált (TRELLIS) modellekből hiányzik a fémesség → a glTF alapértéke 1 (teljesen fémes) → környezeti fény nélkül
+        // sötét. Bútornál ez hiba: fémességi textúra nélkül 0 (a valódi fém részeknek van saját térképe a Poly Haven modelleknél).
+        for (const m of (Array.isArray(x.material) ? x.material : [x.material]) as THREE.MeshStandardMaterial[]) {
+          if (m && "metalness" in m && m.metalness === 1 && !m.metalnessMap) m.metalness = 0;
+        }
+      });
       return g.scene;
     }));
   }

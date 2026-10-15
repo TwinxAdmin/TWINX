@@ -320,7 +320,8 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [~] K2 — Katalógus: egyelőre kódban (`catalog.ts`, rögzített valós méretek); SQL-tábla + admin-jóváhagyás akkor, ha sok lesz (saját generálásnál)
 - [x] K3 — Az építő a katalógus rögzített méreteivel tervez; a 3D a valódi glTF-modelleket tölti be (furniture3d.ts)
 - [~] K4 — Mérés: modellek 7,2 MB / ~0,9 mp helyben + textúrák 9,4 MB → mobilra tömörítés (4. lépés)
-- [ ] ▶ INNEN FOLYTATJUK: modern kanapé (saját generálás / Sketchfab) + a többi helyiségtípus katalógusa, majd 4. lépés (bejárható link)
+- [~] K5 — Saját bútorgenerálás (2026-10-16): `scripts/floorplan3d-generate-furniture.mjs` (Gemini termékfotó → fal.ai TRELLIS); modern kanapé próba: 38 mp, 0,06 $, 1,23 MB, tiszta forma — jóváhagyásra vár (helyben a katalógusban)
+- [ ] ▶ INNEN FOLYTATJUK: a kanapé jóváhagyása → további tárgyak generálása (hálószoba: ágy, éjjeliszekrény, gardrób; konyha; fürdő) + admin modell-átnéző, majd 4. lépés
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

@@ -30,7 +30,7 @@ export type FurnitureItem = {
 /** Alapméretek (m) és feliratok. A katalógusos típusoknál (catalog.ts) a méret a 3D-modell VALÓS mérete — rögzített.
  *  (2026-10-16: a berendezésből a stílus egyelőre kimaradt → semleges, modern bútorok; a kódos kanapé és szőnyeg marad.) */
 export const FURNITURE_DEFAULTS: Record<FurnitureType, { w: number; d: number; h: number; label: string; materials: FurnitureMaterials }> = {
-  sofa: { w: 2.2, d: 0.9, h: 0.72, label: "Kanapé", materials: { body: "light_oak_matte", upholstery: "linen" } },
+  sofa: { w: 2.2, d: 0.9, h: 0.75, label: "Kanapé", materials: { body: "light_oak_matte", upholstery: "linen" } },
   armchair: { w: 0.82, d: 0.99, h: 1.02, label: "Fotel", materials: {} },
   coffee_table: { w: 1.2, d: 0.6, h: 0.39, label: "Dohányzóasztal", materials: {} },
   side_table: { w: 0.55, d: 0.45, h: 0.55, label: "Kisasztal", materials: {} },

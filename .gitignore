@@ -56,3 +56,6 @@ assets/video-fx/source/
 
 # 3D-modul mérőpad kimenete (scripts/floorplan3d-meropad.mjs)
 /.floorplan3d-meropad/
+
+# 3D-modul: saját generált bútorok jóváhagyás előtt (scripts/floorplan3d-generate-furniture.mjs)
+/.floorplan3d-generalt/
