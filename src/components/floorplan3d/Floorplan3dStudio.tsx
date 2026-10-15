@@ -3,7 +3,8 @@
 // A lakásleírás (FloorPlan) az egyetlen igazságforrás; minden javítás azon történik (lib/floorplan3d/geometry).
 // Mentés: a digitalizálás után a projekt az adatbázisba kerül (?p=<id> a címben); minden javítás 0,8 mp után automatikusan
 // mentődik (PATCH). Újratöltéskor a ?p= alapján visszatölt. Ha a migráció még nem futott, a felület mentés nélkül is működik.
-// A „3D bejárás indítása" csak akkor lehetne aktív, ha minden helyiség rendben / tudatosan jóváhagyva — a 3D a 2. lépésben jön.
+// „3D bejárás indítása": csak ha minden helyiség rendben / tudatosan jóváhagyva → megerősítés (kredit, lezárás) → a szerver újraellenőriz,
+// von és lezár (approve). Jóváhagyott tervnél a javítófelület helyén a 3D-modell (ApartmentViewer) + méretpontosság.
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
@@ -11,8 +12,10 @@ import ModuleIntro from "@/components/ModuleIntro";
 import SelectField from "@/components/SelectField";
 import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
-import { ROOM_KINDS, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
-import { addOpening, checkPlan, removeOpening, roomEdge, setWallLength, type RoomCheck } from "@/lib/floorplan3d/geometry";
+import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
+import type { SceneOptions } from "@/lib/floorplan3d/scene";
+import { ROOM_KINDS, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
+import { addOpening, checkPlan, groupOf, leaveGroup, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
 
 type Source = "digital" | "hand";
@@ -30,7 +33,13 @@ const STATUS_TEXT: Record<RoomCheck["status"], { t: string; c: string; bg: strin
 const fmt = (n: number, d = 2) => n.toLocaleString("hu-HU", { minimumFractionDigits: d, maximumFractionDigits: d });
 const parseNum = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
 
-export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { tolerancePct: number; maxUploadMb: number }) {
+export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, sceneOptions }: {
+  tolerancePct: number; maxUploadMb: number; creditsCreate: number; sceneOptions: SceneOptions;
+}) {
+  const [status, setStatus] = useState<string>("draft");
+  const [confirming, setConfirming] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
   const [source, setSource] = useState<Source>("digital");
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -64,15 +73,15 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
         skipSave.current = true;
         setProjectId(d.project.id); setPlan(d.project.plan); setStats(d.project.digitize_stats);
         setSource(d.project.source_kind); setHandAccepted(!!d.project.hand_accepted);
-        setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" });
+        setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" }); setStatus(d.project.status ?? "draft");
       })
       .catch(() => setError("Nem sikerült betölteni az alaprajzot."))
       .finally(() => setLoadingProject(false));
   }, []);
 
-  // automatikus mentés (0,8 mp-cel az utolsó változás után)
+  // automatikus mentés (0,8 mp-cel az utolsó változás után) — jóváhagyott terv nem változik
   useEffect(() => {
-    if (!plan || !projectId) return;
+    if (!plan || !projectId || status !== "draft") return;
     if (skipSave.current) { skipSave.current = false; return; }
     setSave({ state: "saving" });
     const t = window.setTimeout(async () => {
@@ -87,7 +96,28 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
       }
     }, 800);
     return () => window.clearTimeout(t);
-  }, [plan, handAccepted, projectId]);
+  }, [plan, handAccepted, projectId, status]);
+
+  // jóváhagyás: előbb a legfrissebb terv mentése (a késleltetett automatikus mentés ne maradjon le), utána approve
+  async function approve() {
+    if (!plan || !projectId) return;
+    setApproving(true); setApproveError(null);
+    try {
+      const saved = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, handAccepted }),
+      });
+      if (!saved.ok) { const d = await saved.json().catch(() => ({})); setApproveError(d.error ?? "A terv mentése nem sikerült."); return; }
+      const res = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}/approve`, { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setApproveError(d.error ?? "A jóváhagyás nem sikerült."); return; }
+      skipSave.current = true;
+      setStatus("approved"); setConfirming(false); setSelRoom(null); setSelEdge(null);
+    } catch {
+      setApproveError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setApproving(false);
+    }
+  }
 
   const check = useMemo(() => (plan ? checkPlan(plan, tolerancePct) : null), [plan, tolerancePct]);
   const checks = useMemo(() => new Map((check?.rooms ?? []).map((c) => [c.roomId, c])), [check]);
@@ -158,7 +188,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
         subtitle="Tölts fel egy alaprajzot — digitalizáljuk, te ellenőrzöd és javítod, majd méretpontos, bejárható 3D lakás készül belőle."
         chips={["Méretpontos", "Japandi stílus", "Bejárható link", "9:16 videó"]} />
 
-      <Steps current={plan ? 2 : 1} />
+      <Steps current={!plan ? 1 : status === "draft" ? 2 : 3} />
 
       {loadingProject ? (
         <div className="twx-card flex h-[300px] items-center justify-center text-sm" style={{ color: MUTED }}>Alaprajz betöltése…</div>
@@ -167,7 +197,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
         <div className="twx-card grid gap-5 p-6 lg:grid-cols-[1fr_340px]">
           <div className="flex flex-col gap-4">
             <Seg value={source} onChange={(v) => setSource(v as Source)}
-              items={[{ v: "digital", t: "Digitális alaprajz / PDF" }, { v: "hand", t: "Kézi rajz fotója" }]} />
+              items={[{ v: "digital", t: "Digitális alaprajz / PDF" },
+                { v: "hand", t: "Kézi rajz fotója", soon: "Parkolóban — első körben a valós (digitális) alaprajzokra fókuszálunk" }]} />
             <div
               onClick={() => inputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
@@ -224,6 +255,9 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
             </button>
           </div>
         </div>
+      ) : status !== "draft" ? (
+        /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
+        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} />
       ) : (
         /* ---------------- 2. JAVÍTÁS + ELLENŐRZÉS ---------------- */
         <>
@@ -257,7 +291,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
               </div>
               {stats && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}>
-                  <span>Lépték: {stats.scaleSource === "dimensions" ? `${stats.dimensionCount} méretvonalból` : stats.scaleSource === "areas" ? "a kiírt m²-ekből" : "becsült"}</span>
+                  <span>Lépték: {stats.scaleSource === "dimensions" ? `${stats.dimensionCount} méretvonalból` : stats.scaleSource === "legend" ? "a táblázat m²-összegéből" : stats.scaleSource === "areas" ? "a kiírt m²-ekből" : "becsült"}</span>
                   {stats.scaleAgreementPct !== null && <span>méretvonal ↔ m² egyezés: {fmt(Math.abs(stats.scaleAgreementPct), 1)}%</span>}
                   <span>{stats.seconds.toLocaleString("hu-HU")} mp · ~{fmt(stats.costUsd, 3)} $ · {stats.model}</span>
                 </div>
@@ -271,7 +305,11 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
                   selEdge={selEdge} edgeError={edgeError} onBack={() => { setSelRoom(null); setSelEdge(null); }}
                   onSelectEdge={setSelEdge} onPatch={(p) => patchRoom(room.id, p)} onLength={setLength} onToggleOpen={toggleOpen}
                   onAddOpening={(edge, kind) => setPlan((pl) => pl && addOpening(pl, room.id, edge, kind))}
-                  onPatchOpening={patchOpening} onRemoveOpening={(id) => setPlan((pl) => pl && removeOpening(pl, id))} />
+                  onPatchOpening={patchOpening} onRemoveOpening={(id) => setPlan((pl) => pl && removeOpening(pl, id))}
+                  groupCheck={check?.groups.find((g) => g.groupId === checks.get(room.id)?.groupId) ?? null} checks={checks}
+                  onToggleMember={(other) => setPlan((pl) => pl && toggleGroupMember(pl, room.id, other))}
+                  onLeaveGroup={() => setPlan((pl) => pl && leaveGroup(pl, room.id))}
+                  onPatchGroup={(gid, p) => setPlan((pl) => pl && patchGroup(pl, gid, p))} />
               ) : (
                 <RoomList plan={plan} checks={checks} onSelect={(id) => setSelRoom(id)}
                   onCeiling={(v) => setPlan((pl) => pl && { ...pl, ceilingHeight: v })} />
@@ -297,10 +335,25 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
                 </label>
               )}
             </div>
-            <button type="button" disabled className="twx-btn h-11 w-full px-6 disabled:cursor-not-allowed lg:w-[240px]"
-              title={ready ? "Hamarosan — a 3D-építés a 2. fejlesztési lépésben készül el" : "Előbb minden helyiségnek rendben kell lennie (vagy tudatosan jóváhagyva)"}>
-              3D bejárás indítása
-            </button>
+            <div className="flex w-full flex-col gap-1.5 lg:w-[300px]">
+              {confirming ? (
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setConfirming(false)} disabled={approving} className="h-11 flex-none rounded-full px-4 text-sm font-semibold"
+                    style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Mégse</button>
+                  <button type="button" onClick={() => void approve()} disabled={approving} className="twx-btn h-11 min-w-0 flex-1 px-3">
+                    {approving ? "Jóváhagyás…" : `Jóváhagyom · ${creditsCreate} kredit`}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" disabled={!ready || !projectId} onClick={() => setConfirming(true)} className="twx-btn h-11 w-full px-6 disabled:cursor-not-allowed"
+                  title={!projectId ? "A terv nincs mentve — előbb futtasd le a mentés migrációját" : ready ? undefined : "Előbb minden helyiségnek rendben kell lennie (vagy tudatosan jóváhagyva)"}>
+                  3D bejárás indítása
+                </button>
+              )}
+              <p className="h-4 text-[11.5px] leading-4" style={{ color: approveError ? "#C2522D" : MUTED }}>
+                {approveError ?? (confirming ? "Jóváhagyás után a terv nem szerkeszthető." : " ")}
+              </p>
+            </div>
           </div>
 
           {plan.notes && plan.notes.length > 0 && (
@@ -316,6 +369,53 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb }: { toler
 }
 
 // ---------------------------------------------------------------------------
+/** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
+function ModelStage({ plan, sceneOptions, onRestart }: { plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void }) {
+  const measures = useApartmentMeasure(plan, sceneOptions);
+  const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
+  const cm = (v: number) => v.toFixed(2).replace(".", ",");
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
+        <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: "1px solid var(--twx-line)" }}>
+          <p className="text-sm font-semibold">3D-alap · berendezetlen</p>
+          <span className="text-xs" style={{ color: MUTED }}>Húzással forgatható, görgővel nagyítható.</span>
+          <span className="ml-auto" />
+          <button type="button" onClick={onRestart} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>Új alaprajz</button>
+        </div>
+        <div className="min-h-0 flex-1"><ApartmentViewer plan={plan} opts={sceneOptions} /></div>
+      </div>
+      <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
+        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--twx-line)" }}>
+          <p className="text-sm font-semibold">Méretpontosság (a kész modellen mérve)</p>
+          <p className="text-xs" style={{ color: MUTED }}>Falak közti tiszta méret sugárvetéssel + padlóterület, a jóváhagyott tervhez mérve.</p>
+          <p className="mt-2 text-[13px] font-bold" style={{ color: worst === 0 ? "#2f7a4f" : worst <= 30 ? "#9A7020" : "#C2522D" }}>
+            {worst === 0 ? "Minden helyiség pontos (0 mm eltérés)" : `Legnagyobb eltérés: ${worst} mm`}
+          </p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {measures.map((m) => (
+            <div key={m.roomId} className="px-4 py-2.5 text-[12.5px]" style={{ borderBottom: "1px solid var(--twx-line)" }}>
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate font-semibold">{m.name}</span>
+                <span className="font-bold" style={{ color: m.maxErrorMm === 0 ? "#2f7a4f" : m.maxErrorMm <= 30 ? "#9A7020" : "#C2522D" }}>{m.maxErrorMm} mm</span>
+              </div>
+              <p style={{ color: MUTED }}>
+                padló {cm(m.floorArea)} / {cm(m.planArea)} m²
+                {m.width ? ` · szél. ${cm(m.width.model)} / ${cm(m.width.plan)} m` : " · szél. nyitott határ"}
+                {m.depth ? ` · mély. ${cm(m.depth.model)} / ${cm(m.depth.plan)} m` : " · mély. nyitott határ"}
+              </p>
+            </div>
+          ))}
+        </div>
+        <p className="px-4 py-2.5 text-[11.5px] leading-snug" style={{ color: MUTED, borderTop: "1px solid var(--twx-line)" }}>
+          30 mm = két összeérő helyiség közé épített vékony válaszfal (a rajzon nem volt fal-rés). Következő lépés: japandi berendezés.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SaveBadge({ save }: { save: { state: "idle" | "saving" | "saved" | "error"; msg?: string } }) {
   if (save.state === "idle") return null;
   const t = save.state === "saving" ? "Mentés…" : save.state === "saved" ? "Mentve ✓" : "Nincs mentve";
@@ -324,11 +424,11 @@ function SaveBadge({ save }: { save: { state: "idle" | "saving" | "saved" | "err
 }
 
 function Steps({ current }: { current: number }) {
-  const items = ["Feltöltés", "Javítás és ellenőrzés", "Stílus és berendezés", "Bejárás és videó"];
+  const items = ["Feltöltés", "Javítás és ellenőrzés", "3D és berendezés", "Bejárás és videó"];
   return (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {items.map((t, i) => {
-        const n = i + 1, on = n === current, done = n < current, soon = n > 2;
+        const n = i + 1, on = n === current, done = n < current, soon = n > 3;
         return (
           <div key={t} className="flex h-11 items-center gap-2 rounded-full px-3 text-[13px] font-semibold"
             style={on ? { background: "#12100e", color: "#fff" } : { background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", color: soon ? MUTED : undefined }}>
@@ -343,13 +443,16 @@ function Steps({ current }: { current: number }) {
   );
 }
 
-function Seg<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { v: T; t: string }[] }) {
+function Seg<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { v: T; t: string; soon?: string }[] }) {
   return (
     <div className="grid grid-cols-2 gap-1 rounded-full p-1" style={{ background: "var(--twx-line)" }}>
       {items.map((it) => (
-        <button key={it.v} type="button" onClick={() => onChange(it.v)} aria-pressed={value === it.v}
-          className="h-9 rounded-full text-[13px] font-semibold transition-colors"
-          style={value === it.v ? { background: "#12100e", color: "#fff" } : { color: "var(--twx-ink)" }}>{it.t}</button>
+        <button key={it.v} type="button" onClick={() => onChange(it.v)} aria-pressed={value === it.v} disabled={!!it.soon} title={it.soon}
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-full text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          style={value === it.v ? { background: "#12100e", color: "#fff" } : { color: "var(--twx-ink)" }}>
+          {it.t}
+          {it.soon && <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: "var(--twx-cream-card)" }}>Hamarosan</span>}
+        </button>
       ))}
     </div>
   );
@@ -397,7 +500,7 @@ function RoomList({ plan, checks, onSelect, onCeiling }: { plan: FloorPlan; chec
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{r.name}</span>
                 <span className="block text-xs" style={{ color: MUTED }}>
-                  {fmt(c.area)} m² számolt{c.declared ? ` · ${fmt(c.declared)} m² megadott` : ""}{c.diffPct !== null ? ` · ${c.diffPct > 0 ? "+" : ""}${fmt(c.diffPct, 1)}%` : ""}
+                  {fmt(c.area)} m² számolt{c.groupId ? ` · csoport: ${plan.areaGroups?.find((g) => g.id === c.groupId)?.label ?? ""}` : c.declared ? ` · ${fmt(c.declared)} m² megadott` : ""}{c.diffPct !== null ? ` · ${c.diffPct > 0 ? "+" : ""}${fmt(c.diffPct, 1)}%` : ""}
                 </span>
               </span>
               <StatusPill status={c.status} />
@@ -419,8 +522,11 @@ function RoomPanel(props: {
   onBack: () => void; onSelectEdge: (i: number) => void; onPatch: (p: Partial<Room>) => void;
   onLength: (edge: number, v: number) => boolean; onToggleOpen: (edge: number) => void;
   onAddOpening: (edge: number, kind: Opening["kind"]) => void; onPatchOpening: (id: string, p: Partial<Opening>) => void; onRemoveOpening: (id: string) => void;
+  groupCheck: GroupCheck | null; checks: Map<string, RoomCheck>;
+  onToggleMember: (otherId: string) => void; onLeaveGroup: () => void; onPatchGroup: (groupId: string, p: Partial<Pick<AreaGroup, "label" | "declaredArea" | "approved">>) => void;
 }) {
   const { room, check, plan, tolerancePct, selEdge } = props;
+  const group = groupOf(plan, room.id);
   const openings = plan.openings.filter((o) => o.roomId === room.id);
   const open = new Set(room.openEdges ?? []);
   const edgeRef = useRef<Record<number, HTMLDivElement | null>>({});
@@ -443,11 +549,17 @@ function RoomPanel(props: {
           <SelectField size="sm" value={room.kind} onChange={(v) => props.onPatch({ kind: v as RoomKind })} options={ROOM_KINDS.map((k) => ({ value: k.value, label: k.label }))} ariaLabel="Helyiségtípus" />
           <span className="font-semibold">Valós m²</span>
           <span className="flex items-center gap-2">
-            <NumField value={room.declaredArea} suffix="m²" placeholder="kötelező" onCommit={(v) => props.onPatch({ declaredArea: v, areaApproved: false })} />
-            <span className="text-xs" style={{ color: MUTED }}>számolt: {fmt(check.area)}</span>
+            {group
+              ? <span className="text-xs" style={{ color: MUTED }}>a csoport m²-e számít · saját: {fmt(check.area)}</span>
+              : <>
+                  <NumField value={room.declaredArea} suffix="m²" placeholder="kötelező" onCommit={(v) => props.onPatch({ declaredArea: v, areaApproved: false })} />
+                  <span className="text-xs" style={{ color: MUTED }}>számolt: {fmt(check.area)}</span>
+                </>}
           </span>
         </div>
-        {check.status === "deviation" || check.status === "approved" ? (
+        <GroupBlock room={room} group={group} groupCheck={props.groupCheck} plan={plan} checks={props.checks} tolerancePct={tolerancePct}
+          onToggleMember={props.onToggleMember} onLeave={props.onLeaveGroup} onPatch={props.onPatchGroup} />
+        {group ? null : check.status === "deviation" || check.status === "approved" ? (
           <div className="mt-3 rounded-xl p-3 text-[12.5px]" style={{ background: STATUS_TEXT[check.status].bg }}>
             <p>A falhosszakból számolt terület <b>{check.diffPct! > 0 ? "+" : ""}{fmt(check.diffPct!, 1)}%</b>-kal tér el a megadottól (tűrés: ±{fmt(tolerancePct, 0)}%). Javítsd a falhosszakat, vagy hagyd jóvá tudatosan.</p>
             <label className="mt-2 flex cursor-pointer items-center gap-2 font-semibold">
@@ -486,6 +598,76 @@ function RoomPanel(props: {
         )}
       </div>
     </>
+  );
+}
+
+/** Összevont ellenőrzés: ha a forrás több helyiséget együtt ad meg (pl. „Hálószoba 34,11 m²" három szobára). */
+function GroupBlock({ room, group, groupCheck, plan, checks, tolerancePct, onToggleMember, onLeave, onPatch }: {
+  room: Room; group: AreaGroup | null; groupCheck: GroupCheck | null; plan: FloorPlan; checks: Map<string, RoomCheck>; tolerancePct: number;
+  onToggleMember: (otherId: string) => void; onLeave: () => void; onPatch: (groupId: string, p: Partial<Pick<AreaGroup, "label" | "declaredArea" | "approved">>) => void;
+}) {
+  const [picking, setPicking] = useState(false);
+  const others = plan.rooms.filter((r) => r.id !== room.id);
+  const picker = (
+    <div className="mt-2 max-h-[148px] overflow-y-auto rounded-lg" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+      {others.map((r) => {
+        const inMine = !!group?.roomIds.includes(r.id);
+        const elsewhere = !inMine && !!groupOf(plan, r.id);
+        return (
+          <label key={r.id} className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-[12.5px]" style={{ borderBottom: "1px solid var(--twx-line)" }}>
+            <input type="checkbox" checked={inMine} onChange={() => onToggleMember(r.id)} style={{ accentColor: "var(--twx-coral)" }} />
+            <span className="min-w-0 flex-1 truncate">{r.name}</span>
+            <span className="text-[11px]" style={{ color: MUTED }}>{fmt(checks.get(r.id)?.area ?? 0)} m²{elsewhere ? " · másik csoportban" : ""}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+
+  if (!group) {
+    return (
+      <div className="mt-3 rounded-xl p-3 text-[12.5px]" style={{ background: "#fff", border: "1px dashed var(--twx-line)" }}>
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 flex-1" style={{ color: MUTED }}>A forrás több helyiséget együtt ad meg (pl. „Hálószoba 34,11 m²”)?</span>
+          <button type="button" onClick={() => setPicking((v) => !v)} className="h-7 flex-none rounded-full px-3 text-[12px] font-semibold"
+            style={{ border: "1px solid var(--twx-line)", background: picking ? "var(--twx-line)" : "#fff" }}>Összevonás…</button>
+        </div>
+        {picking && picker}
+      </div>
+    );
+  }
+  const st = groupCheck?.status ?? "missing";
+  return (
+    <div className="mt-3 rounded-xl p-3 text-[12.5px]" style={{ background: STATUS_TEXT[st].bg }}>
+      <div className="flex items-center gap-2">
+        <span className="font-bold">Összevont ellenőrzés</span>
+        <span className="ml-auto"><StatusPill status={st} /></span>
+      </div>
+      <div className="mt-2 grid grid-cols-[72px_1fr] items-center gap-x-2 gap-y-2">
+        <span className="font-semibold">Felirat</span>
+        <input value={group.label} onChange={(e) => onPatch(group.id, { label: e.target.value.slice(0, 60) })} className="h-8 rounded-lg px-2 text-[13px] outline-none"
+          style={{ border: "1px solid var(--twx-line)", background: "#fff" }} />
+        <span className="font-semibold">Közös m²</span>
+        <span className="flex items-center gap-2">
+          <NumField value={group.declaredArea} suffix="m²" placeholder="kötelező" onCommit={(v) => onPatch(group.id, { declaredArea: v, approved: false })} />
+          <span className="text-xs" style={{ color: MUTED }}>tagok összesen: {fmt(groupCheck?.area ?? 0)}</span>
+        </span>
+      </div>
+      <p className="mt-2" style={{ color: MUTED }}>Tagok: {group.roomIds.map((id) => plan.rooms.find((r) => r.id === id)?.name ?? "?").join(", ")}</p>
+      {(st === "deviation" || st === "approved") && (
+        <label className="mt-2 flex cursor-pointer items-center gap-2 font-semibold">
+          <input type="checkbox" checked={!!group.approved} onChange={(e) => onPatch(group.id, { approved: e.target.checked })} style={{ accentColor: "var(--twx-coral)" }} />
+          Tudatosan jóváhagyom az eltérést ({groupCheck!.diffPct! > 0 ? "+" : ""}{fmt(groupCheck!.diffPct!, 1)}%, tűrés ±{fmt(tolerancePct, 0)}%)
+        </label>
+      )}
+      <div className="mt-2 flex gap-2">
+        <button type="button" onClick={() => setPicking((v) => !v)} className="h-7 rounded-full px-3 text-[12px] font-semibold" style={{ border: "1px solid var(--twx-line)", background: "#fff" }}>
+          {picking ? "Kész" : "Tagok módosítása"}
+        </button>
+        <button type="button" onClick={onLeave} className="h-7 rounded-full px-3 text-[12px] font-semibold" style={{ color: MUTED }}>Ez a helyiség kilép</button>
+      </div>
+      {picking && picker}
+    </div>
   );
 }
 

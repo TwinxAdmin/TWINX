@@ -19,6 +19,8 @@ export default async function Floorplan3dPage() {
     <Floorplan3dStudio
       tolerancePct={cfg.areaTolerancePct}
       maxUploadMb={Math.round(cfg.maxUploadBytes / 1024 / 1024)}
+      creditsCreate={cfg.creditsCreate}
+      sceneOptions={{ interiorWall: cfg.interiorWallThickness, exteriorWall: cfg.exteriorWallThickness }}
     />
   );
 }

@@ -59,3 +59,20 @@ export async function saveProject(userId: string, id: string, patch: { plan: Flo
   if (error) return missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message;
   return data && data.length ? null : "Ez az alaprajz már nem szerkeszthető (jóváhagyott vagy nem található).";
 }
+
+/** Jóváhagyás előtti állapot: a terv, a kézi-rajz nyilatkozat és a státusz (a szerver újraellenőrzi). */
+export async function projectForApproval(userId: string, id: string): Promise<{ plan: FloorPlan; handAccepted: boolean; sourceKind: string; status: string } | { error: string; status: number }> {
+  const { data, error } = await createAdminClient().from("floorplan_projects")
+    .select("plan, hand_accepted, source_kind, status").eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+  if (error) return { error: missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message, status: 500 };
+  if (!data) return { error: "Az alaprajz nem található.", status: 404 };
+  return { plan: data.plan as FloorPlan, handAccepted: !!data.hand_accepted, sourceKind: data.source_kind as string, status: data.status as string };
+}
+
+/** Lezárás: draft → approved (csak ha még draft — kétszeri kattintásnál sem von kétszer). Igaz, ha most zártuk le. */
+export async function markApproved(userId: string, id: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("floorplan_projects")
+    .update({ status: "approved", approved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", id).eq("user_id", userId).eq("status", "draft").select("id");
+  return !!data?.length;
+}

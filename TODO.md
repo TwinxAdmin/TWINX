@@ -292,9 +292,16 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [x] F1b — Digitalizálás: `POST /api/real-estate/floorplan-3d/digitize` (Gemini → normalizálás: lépték, derékszögesítés, méretvonal-igazítás, egyterű helyiségek) — 2026-10-15
 - [x] F1c — Javítófelület (`/dashboard/real-estate/floorplan-3d`, `Floorplan3dStudio` + `PlanCanvas`): eredeti rajz alatta, helyiség/fal kijelölés, falhossz, ⋯ menü (ajtó/ablak/nyitott határ), m², jóváhagyás, kézi rajz felelősség — 2026-10-15
 - [x] F1d — Mentés: `floorplan_projects` + `floorplans` tárhely (`20261015123000_floorplan-projects.sql`, lefuttatva 2026-10-15), automatikus mentés, `?p=` visszatöltés
-- [ ] F1e — Márk tesztje: kézi rajz fotója (útmutató a feltöltő oldalon) + a mostani mérések a prototípus-jelentésbe
-- [ ] F2 — 3D-alap (three.js, berendezetlen lakás a JSON-ból) + méretpontosság-mérés; előtte javaslat a háttérfeladat-architektúrára (Vercel 300 mp)
-- [ ] F3 — Japandi stíluslap (Márktól) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
+- [x] F1f — Összevont ellenőrzés (2026-10-15): `areaGroups` a tervben (pl. „Hálószoba 34,11" három szobára) — a tagok összege a csoport m²-éhez; a digitalizáló javasolja, a panelen pipálható; + kétlépcsős digitalizálás (alaprajz kivágása, táblázat kiolvasása, táblázat-összeg lépték)
+- [ ] F1e — PARKOLÓBAN (Márk, 2026-10-15): kézi rajz fotója — első körben a valós digitális alaprajzokkal működjön profin a prototípus;
+      a felületen „Hamarosan” (a kódág és az útmutató megvan, a 3D-építésnél a kézi forrás még nincs végigvive)
+- [x] F2 — 3D-alap (2026-10-15) — architektúra: A ÚT (Márk döntése): a prototípusban az admin böngészője renderel és vezérel (a lap maradjon nyitva)
+  - [x] F2a — Jóváhagyás: `POST .../projects/[id]/approve` — a szerver újraellenőriz, von (`creditsCreate`, admin ingyen), lezár (status=approved)
+  - [x] F2b — Jelenetépítő `lib/floorplan3d/scene.ts` (three.js): falszeletek a résből / külső fal, sarokzárás, nyílászárók kivágva, padló, mennyezet; összeérő helyiségek közé 6 cm-es válaszfal
+  - [x] F2c — `ApartmentViewer` (babaház + felülről nézet, árnyék), a jóváhagyott terv helyén
+  - [x] F2d — Méretpontosság a KÉSZ modellen (sugárvetés + padlóterület): valós tesztlakás 0 mm; digitalizált terveken max. 30 mm (vékony válaszfal)
+- [ ] ▶ INNEN FOLYTATJUK (2026-10-15): F3 terv — bútorforrás (CC0: Poly Haven / Kenney?) egyeztetése, utána japandi anyagok + célkép + építő/kritikus
+- [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés
 - [ ] Prototípus-jelentés (idő, API-költség, digitalizálási pontosság, minőségi körök, m²-pontosság, képek) → döntés a folytatásról

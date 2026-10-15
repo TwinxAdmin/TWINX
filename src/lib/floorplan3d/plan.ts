@@ -57,11 +57,25 @@ export type Opening = {
   swing?: "in" | "out";
 };
 
+/**
+ * Összevont ellenőrzés: amikor a forrás (pl. a fejlesztő táblázata) több helyiséget EGYÜTT ad meg
+ * (pl. „Hálószoba 34,11 m²" három szobára, vagy egyterű nappali + étkező + konyha). Ilyenkor a tagok
+ * számolt területének ÖSSZEGÉT vetjük össze a csoport m²-ével; a tagoknak nem kell saját m².
+ */
+export type AreaGroup = {
+  id: string;
+  label: string;
+  declaredArea: number | null;
+  roomIds: string[];
+  approved?: boolean;
+};
+
 export type FloorPlan = {
   version: 1;
   ceilingHeight: number;
   rooms: Room[];
   openings: Opening[];
+  areaGroups?: AreaGroup[];
   /** A digitalizálás megjegyzései (bizonytalan pontok) — tájékoztató, a felület kiírja. */
   notes?: string[];
 };
@@ -122,5 +136,15 @@ export function sanitizePlan(raw: unknown): FloorPlan | null {
     });
   }
   const notes = Array.isArray(p.notes) ? (p.notes as unknown[]).filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 300)).slice(0, 12) : [];
-  return { version: 1, ceilingHeight, rooms, openings, notes };
+  // csoportok: csak létező helyiségek, egy helyiség legfeljebb egy csoportban, legalább 2 tag
+  const used = new Set<string>();
+  const areaGroups: AreaGroup[] = [];
+  for (const g of (Array.isArray(p.areaGroups) ? p.areaGroups : []).slice(0, 20) as Record<string, unknown>[]) {
+    if (!g || typeof g.id !== "string" || !Array.isArray(g.roomIds)) return null;
+    const roomIds = [...new Set((g.roomIds as unknown[]).filter((id): id is string => typeof id === "string" && ids.has(id) && !used.has(id)))];
+    if (roomIds.length < 2) continue;
+    roomIds.forEach((id) => used.add(id));
+    areaGroups.push({ id: g.id.slice(0, 40), label: typeof g.label === "string" ? g.label.slice(0, 60) : "Összevont", declaredArea: num(g.declaredArea, 0.1, 1000), roomIds, approved: g.approved === true });
+  }
+  return { version: 1, ceilingHeight, rooms, openings, areaGroups, notes };
 }

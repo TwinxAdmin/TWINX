@@ -3,7 +3,7 @@
 //   • FALHOSSZ-JAVÍTÁS „nyújtással": a fal túlsó vége mögötti MINDEN pont (az összes helyiségben) ugyanannyival
 //     elmozdul a fal irányában → a szomszédos helyiségek együtt mozognak, a terv nem esik szét, a területek újraszámolódnak;
 //   • méret-ellenőrzés: számolt vs. megadott m², tűréshatárral, tudatos jóváhagyással.
-import type { FloorPlan, Opening, Pt, Room } from "@/lib/floorplan3d/plan";
+import type { AreaGroup, FloorPlan, Opening, Pt, Room } from "@/lib/floorplan3d/plan";
 import { DOOR_DEFAULT, WINDOW_DEFAULT, newId } from "@/lib/floorplan3d/plan";
 
 const EPS = 0.005; // 5 mm — ennyin belül két koordináta azonosnak számít
@@ -130,16 +130,21 @@ export function removeOpening(plan: FloorPlan, openingId: string): FloorPlan {
 // MÉRET-ELLENŐRZÉS
 // ---------------------------------------------------------------------------
 export type RoomCheckStatus = "ok" | "missing" | "deviation" | "approved";
-export type RoomCheck = { roomId: string; area: number; declared: number | null; diffPct: number | null; status: RoomCheckStatus };
-export type PlanCheck = { rooms: RoomCheck[]; issues: string[]; canBuild: boolean };
+export type RoomCheck = { roomId: string; area: number; declared: number | null; diffPct: number | null; status: RoomCheckStatus; groupId?: string };
+export type GroupCheck = { groupId: string; area: number; declared: number | null; diffPct: number | null; status: RoomCheckStatus };
+export type PlanCheck = { rooms: RoomCheck[]; groups: GroupCheck[]; issues: string[]; canBuild: boolean };
+
+function judge(area: number, declared: number | null, approved: boolean | undefined, tolerancePct: number) {
+  if (declared === null) return { diffPct: null, status: "missing" as const };
+  const diffPct = Math.round(((area - declared) / declared) * 1000) / 10;
+  if (Math.abs(diffPct) <= tolerancePct) return { diffPct, status: "ok" as const };
+  return { diffPct, status: approved ? ("approved" as const) : ("deviation" as const) };
+}
 
 export function checkRoom(room: Room, tolerancePct: number): RoomCheck {
   const area = round2(polygonArea(room.polygon));
   const declared = room.declaredArea && room.declaredArea > 0 ? room.declaredArea : null;
-  if (declared === null) return { roomId: room.id, area, declared, diffPct: null, status: "missing" };
-  const diffPct = Math.round(((area - declared) / declared) * 1000) / 10;
-  if (Math.abs(diffPct) <= tolerancePct) return { roomId: room.id, area, declared, diffPct, status: "ok" };
-  return { roomId: room.id, area, declared, diffPct, status: room.areaApproved ? "approved" : "deviation" };
+  return { roomId: room.id, area, declared, ...judge(area, declared, room.areaApproved, tolerancePct) };
 }
 
 /**
@@ -155,6 +160,51 @@ export function checkPlan(plan: FloorPlan, tolerancePct: number): PlanCheck {
     if (r.polygon.length < 3) issues.push(`„${r.name || "Névtelen"}”: hiányos körvonal.`);
   }
   const rooms = plan.rooms.map((r) => checkRoom(r, tolerancePct));
+  // összevont csoportok: a tagok összterülete a csoport m²-éhez; a tag állapota a csoporté
+  const groups: GroupCheck[] = (plan.areaGroups ?? []).map((g) => {
+    const area = round2(rooms.filter((c) => g.roomIds.includes(c.roomId)).reduce((s, c) => s + c.area, 0));
+    const declared = g.declaredArea && g.declaredArea > 0 ? g.declaredArea : null;
+    return { groupId: g.id, area, declared, ...judge(area, declared, g.approved, tolerancePct) };
+  });
+  for (const g of plan.areaGroups ?? []) {
+    const gc = groups.find((x) => x.groupId === g.id)!;
+    for (const c of rooms) if (g.roomIds.includes(c.roomId)) Object.assign(c, { declared: null, diffPct: gc.diffPct, status: gc.status, groupId: g.id });
+  }
   const canBuild = issues.length === 0 && rooms.every((c) => c.status === "ok" || c.status === "approved");
-  return { rooms, issues: [...new Set(issues)], canBuild };
+  return { rooms, groups, issues: [...new Set(issues)], canBuild };
+}
+
+// ---------------------------------------------------------------------------
+// ÖSSZEVONT ELLENŐRZÉS — csoportműveletek (egy helyiség legfeljebb egy csoportban; 2-nél kevesebb tagú csoport megszűnik)
+// ---------------------------------------------------------------------------
+export function groupOf(plan: FloorPlan, roomId: string): AreaGroup | null {
+  return (plan.areaGroups ?? []).find((g) => g.roomIds.includes(roomId)) ?? null;
+}
+
+const tidy = (groups: AreaGroup[]) => groups.filter((g) => g.roomIds.length >= 2);
+
+/** A `roomId` csoportjába felveszi / onnan kiveszi az `otherId` helyiséget (ha `roomId` még nincs csoportban, újat nyit). */
+export function toggleGroupMember(plan: FloorPlan, roomId: string, otherId: string): FloorPlan {
+  if (roomId === otherId) return plan;
+  let groups = [...(plan.areaGroups ?? [])];
+  const mine = groups.find((g) => g.roomIds.includes(roomId));
+  if (mine?.roomIds.includes(otherId)) {
+    groups = groups.map((g) => (g === mine ? { ...g, roomIds: g.roomIds.filter((id) => id !== otherId), approved: false } : g));
+  } else {
+    groups = groups.map((g) => ({ ...g, roomIds: g.roomIds.filter((id) => id !== otherId) })); // máshonnan ki
+    if (mine) groups = groups.map((g) => (g.id === mine.id ? { ...g, roomIds: [...g.roomIds, otherId], approved: false } : g));
+    else {
+      const name = plan.rooms.find((r) => r.id === roomId)?.name ?? "Összevont";
+      groups.push({ id: newId("g"), label: name.replace(/\s*\d+$/, ""), declaredArea: null, roomIds: [roomId, otherId] });
+    }
+  }
+  return { ...plan, areaGroups: tidy(groups) };
+}
+
+export function leaveGroup(plan: FloorPlan, roomId: string): FloorPlan {
+  return { ...plan, areaGroups: tidy((plan.areaGroups ?? []).map((g) => ({ ...g, roomIds: g.roomIds.filter((id) => id !== roomId) }))) };
+}
+
+export function patchGroup(plan: FloorPlan, groupId: string, p: Partial<Pick<AreaGroup, "label" | "declaredArea" | "approved">>): FloorPlan {
+  return { ...plan, areaGroups: (plan.areaGroups ?? []).map((g) => (g.id === groupId ? { ...g, ...p } : g)) };
 }

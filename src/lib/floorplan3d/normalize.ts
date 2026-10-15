@@ -7,8 +7,8 @@
 //   4) összeigazítás: az egymáshoz nagyon közeli koordináták (pl. két szomszéd helyiség fala) közös értéket kapnak;
 //   5) nyílászárók: a legközelebbi, vele párhuzamos helyiség-élre kerülnek (él + távolság).
 // A kiírt m² a „megadott m²" mezőbe kerül előtöltésként — a felhasználó a javítófelületen ellenőrzi.
-import type { FloorPlan, Opening, Pt, Room, RoomKind } from "@/lib/floorplan3d/plan";
-import { DOOR_DEFAULT, ROOM_KINDS, WINDOW_DEFAULT, newId } from "@/lib/floorplan3d/plan";
+import type { AreaGroup, FloorPlan, Opening, Pt, Room, RoomKind } from "@/lib/floorplan3d/plan";
+import { DOOR_DEFAULT, OUTDOOR_KINDS, ROOM_KINDS, WINDOW_DEFAULT, newId } from "@/lib/floorplan3d/plan";
 import { polygonArea, roomEdge } from "@/lib/floorplan3d/geometry";
 
 /** A képelemző nyers válasza — koordináták 0–1000-es normált rácson (x a szélesség, y a magasság mentén). */
@@ -17,11 +17,12 @@ export type RawDigitized = {
   rooms?: { name?: string; kind?: string; areaLabel?: number | null; polygon?: number[][]; openTo?: number[] }[];
   openings?: { kind?: string; room?: number; x1?: number; y1?: number; x2?: number; y2?: number; swingInto?: number | null }[];
   dimensions?: { meters?: number; x1?: number; y1?: number; x2?: number; y2?: number }[];
+  groups?: { label?: string; area?: number; rooms?: number[] }[];
   notes?: string[];
 };
 
 export type NormalizeStats = {
-  scaleSource: "dimensions" | "areas" | "none";
+  scaleSource: "dimensions" | "legend" | "areas" | "none";
   metersPerPixel: number;
   dimensionCount: number;
   /** A kiírt méretvonalakból és a kiírt m²-ekből számolt lépték eltérése (%), ha mindkettő van. */
@@ -46,7 +47,10 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000;
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const KIND_SET = new Set<string>(ROOM_KINDS.map((k) => k.value));
 
-export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: number, defaultCeiling: number): { plan: FloorPlan; stats: NormalizeStats } {
+/** Jelmagyarázat-táblázat sora (hirdetési lapokon a m² gyakran a rajz mellett van, nem a helyiségben). */
+export type LegendRow = { name: string; area: number; outdoor: boolean };
+
+export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: number, defaultCeiling: number, legend: LegendRow[] = []): { plan: FloorPlan; stats: NormalizeStats } {
   const px = (x: number, y: number): Pt => [(x / 1000) * imageW, (y / 1000) * imageH];
   const notes = (raw.notes ?? []).filter((n) => typeof n === "string" && n.trim()).slice(0, 12);
 
@@ -71,9 +75,16 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
   const areaScales = rawRooms.filter((r) => r.areaLabel).map((r) => Math.sqrt(r.areaLabel! / polygonArea(r.poly))).filter(Number.isFinite);
   const dimScale = dimScales.length >= 2 ? median(dimScales) : NaN;
   const areaScale = areaScales.length ? median(areaScales) : NaN;
-  const scale = Number.isFinite(dimScale) ? dimScale : Number.isFinite(areaScale) ? areaScale : 0.01;
+  // Táblázat-összeg: a belső sorok m²-összege ÷ a felismert belső helyiségek összterülete. Egy-egy rossz párosítás
+  // (vagy összevont sor, pl. „Hálószoba 34,11" három szobára) ezt nem torzítja, csak ha a helyiséghalmaz hiányos.
+  const inner = rawRooms.filter((r) => !OUTDOOR_KINDS.includes(r.kind));
+  const legendInner = legend.filter((r) => !r.outdoor);
+  const legendSum = legendInner.reduce((a, r) => a + r.area, 0);
+  const innerPx = inner.reduce((a, r) => a + polygonArea(r.poly), 0);
+  const legendScale = legendInner.length >= 2 && innerPx > 0 && inner.length >= legendInner.length ? Math.sqrt(legendSum / innerPx) : NaN;
+  const scale = Number.isFinite(dimScale) ? dimScale : Number.isFinite(legendScale) ? legendScale : Number.isFinite(areaScale) ? areaScale : 0.01;
   const stats: NormalizeStats = {
-    scaleSource: Number.isFinite(dimScale) ? "dimensions" : Number.isFinite(areaScale) ? "areas" : "none",
+    scaleSource: Number.isFinite(dimScale) ? "dimensions" : Number.isFinite(legendScale) ? "legend" : Number.isFinite(areaScale) ? "areas" : "none",
     metersPerPixel: scale,
     dimensionCount: dimScales.length,
     scaleAgreementPct: Number.isFinite(dimScale) && Number.isFinite(areaScale) ? Math.round(((dimScale - areaScale) / areaScale) * 1000) / 10 : null,
@@ -83,6 +94,7 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
     imageSize: [imageW, imageH],
     imageOffset: [0, 0],
   };
+  if (stats.scaleSource === "legend") notes.push("A léptéket a táblázat m²-összegéből számoltam (nincs méretvonal) — a falhosszakat érdemes ellenőrizni.");
   if (stats.scaleSource === "areas") notes.push("A léptéket a kiírt m²-ekből számoltam (kevés olvasható méretvonal) — a falhosszakat érdemes ellenőrizni.");
   if (stats.scaleSource === "none") notes.push("Nem találtam léptéket (sem méretvonal, sem m²) — a méretek becsültek, minden falhosszt ellenőrizni kell.");
 
@@ -91,6 +103,7 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
     id: newId("r"), name: r.name || "Helyiség", kind: r.kind, declaredArea: r.areaLabel,
     polygon: orthogonalize(dedupe(r.poly.map(([x, y]) => [x * scale, y * scale] as Pt))),
   }));
+  const srcRoomIds = rooms.map((r) => r.id); // rawRooms[i] ↔ rooms[i] (a későbbi szűrések előtt)
   // egyterű párok (a nyers indexek szerint) → közös határ, fal nélkül
   const bySrc = new Map(rawRooms.map((r, i) => [r.src, i]));
   for (const [i, r] of rawRooms.entries()) {
@@ -145,8 +158,21 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
   }
   stats.openingCount = openings.length;
 
+  // összevont m² (pl. „Hálószoba 34,11" három szobára) → csoport a még meglévő helyiségekből
+  const idBySrc = new Map(rawRooms.map((r, i) => [r.src, srcRoomIds[i]]));
+  const live = new Set(rooms.map((r) => r.id));
+  const used = new Set<string>();
+  const areaGroups: AreaGroup[] = [];
+  for (const g of raw.groups ?? []) {
+    const roomIds = (g.rooms ?? []).map((i) => idBySrc.get(i)).filter((id): id is string => !!id && live.has(id) && !used.has(id));
+    if (roomIds.length < 2 || !finite(g.area) || g.area <= 0) continue;
+    roomIds.forEach((id) => used.add(id));
+    areaGroups.push({ id: newId("g"), label: (g.label ?? "Összevont").toString().slice(0, 60), declaredArea: g.area, roomIds });
+    for (const r of rooms) if (roomIds.includes(r.id)) r.declaredArea = null;
+  }
+
   const ceiling = finite(raw.ceilingHeight) && raw.ceilingHeight > 2 && raw.ceilingHeight < 5 ? raw.ceilingHeight : defaultCeiling;
-  return { plan: { version: 1, ceilingHeight: ceiling, rooms, openings, notes }, stats };
+  return { plan: { version: 1, ceilingHeight: ceiling, rooms, openings, areaGroups, notes }, stats };
 }
 
 // ---------------------------------------------------------------------------
