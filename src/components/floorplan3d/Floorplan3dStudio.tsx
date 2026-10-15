@@ -15,7 +15,7 @@ import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure } from "@/components/floorplan3d/ApartmentViewer";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
-import { livingRoomLayout } from "@/lib/floorplan3d/furniture";
+import { livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
 import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
@@ -44,6 +44,8 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   const [rebuilt, setRebuilt] = useState<string[] | null>(null);
   const [reopening, setReopening] = useState(false);
   const [reopenError, setReopenError] = useState<string | null>(null);
+  // 3. lépés: helyiségenkénti berendezés (az építő eredménye, a projektből betöltve / frissen kérve)
+  const [furnishing, setFurnishing] = useState<Record<string, Furnishing>>({});
   const [status, setStatus] = useState<string>("draft");
   const [confirming, setConfirming] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -84,6 +86,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         setSource(d.project.source_kind); setHandAccepted(!!d.project.hand_accepted);
         setSourceMime(d.project.source_mime); setFileUrl(d.sourceUrl); setSave({ state: "saved" }); setStatus(d.project.status ?? "draft");
         setWasApproved(!!d.project.approved_at); setRebuilt(Array.isArray(d.project.rebuild_rooms) ? d.project.rebuild_rooms : null);
+        setFurnishing((d.project.furnishing as Record<string, Furnishing> | null) ?? {});
       })
       .catch(() => setError("Nem sikerült betölteni az alaprajzot."))
       .finally(() => setLoadingProject(false));
@@ -198,7 +201,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   function restart() {
     setPlan(null); setStats(null); setSelRoom(null); setSelEdge(null); setError(null);
     setProjectId(null); setSave({ state: "idle" }); setFile(null); setFileUrl(null); setSourceMime(null);
-    setStatus("draft"); setWasApproved(false); setRebuilt(null); setSelOpening(null);
+    setStatus("draft"); setWasApproved(false); setRebuilt(null); setSelOpening(null); setFurnishing({});
     window.history.replaceState(null, "", window.location.pathname);
   }
 
@@ -295,6 +298,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
       ) : status !== "draft" ? (
         /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
         <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt} styleSheet={styleSheet} styleError={styleError}
+          projectId={projectId} furnishing={furnishing} onFurnished={(roomId, f) => setFurnishing((cur) => ({ ...cur, [roomId]: f }))}
           fixPrice={creditsGeometryFix} reopening={reopening} reopenError={reopenError} onReopen={() => void reopen()} />
       ) : (
         /* ---------------- 2. JAVÍTÁS + ELLENŐRZÉS ---------------- */
@@ -417,16 +421,43 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
 
 // ---------------------------------------------------------------------------
 /** 3D-alap: a jóváhagyott terv berendezetlen modellje + a KÉSZ modellen mért méretpontosság helyiségenként. */
-function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError }: {
+/** Egy helyiség berendezése (az építő vagy a szabályalapú tartalék eredménye — builder.ts FurnishResult). */
+type Furnishing = { items: FurnitureItem[]; source: "builder" | "builder-repaired" | "rule"; rationale: string; issues: string[]; rounds: number; seconds: number; costUsd: number };
+
+function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished }: {
   plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
+  projectId: string | null; furnishing: Record<string, Furnishing>; onFurnished: (roomId: string, f: Furnishing) => void;
   fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
 }) {
   const measures = useApartmentMeasure(plan, sceneOptions);
   // F3b: a nappali alap-elrendezése (szabályalapú; az építő ebből indul — F3c)
+  // a nappali berendezése: az építő mentett eredménye, ha van; különben a szabályalapú alap-elrendezés (F3b)
   const living = useMemo(() => {
     const room = plan.rooms.find((r) => r.kind === "nappali");
-    return room ? { room, ...livingRoomLayout(plan, room) } : null;
-  }, [plan]);
+    if (!room) return null;
+    const saved = furnishing[room.id];
+    return saved?.items?.length ? { room, items: saved.items, skipped: saved.issues ?? [], saved } : { room, ...livingRoomLayout(plan, room), saved: null };
+  }, [plan, furnishing]);
+  const [building, setBuilding] = useState(false);
+  const [buildError, setBuildError] = useState<string | null>(null);
+  async function furnish() {
+    if (!projectId || !living) return;
+    setBuilding(true); setBuildError(null);
+    try {
+      const res = await fetch(`/api/real-estate/floorplan-3d/projects/${projectId}/furnish`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId: living.room.id }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setBuildError(d.error ?? "A berendezés nem sikerült."); return; }
+      onFurnished(living.room.id, d as Furnishing);
+      if (d.saveError) setBuildError(`Nincs mentve: ${d.saveError}`);
+    } catch {
+      setBuildError("Hálózati hiba. Próbáld újra.");
+    } finally {
+      setBuilding(false);
+    }
+  }
+  const SOURCE_TEXT: Record<Furnishing["source"], string> = { builder: "építő", "builder-repaired": "építő (javítókörrel)", rule: "szabályalapú tartalék" };
   const worst = Math.max(0, ...measures.map((m) => m.maxErrorMm));
   const cm = (v: number) => v.toFixed(2).replace(".", ",");
   return (
@@ -445,13 +476,23 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
           <ApartmentViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={living?.items ?? []} />
           {styleError && <p className="absolute bottom-3 left-3 rounded-lg px-3 py-1.5 text-[12px]" style={{ background: "#FDECEA", color: "#9B2C1B" }}>Stílus nélkül: {styleError}</p>}
         </div>
-        <p className="h-9 truncate px-4 py-2.5 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}
-          title={living?.skipped.join(" · ")}>
-          {living
-            ? <>Berendezés ({living.room.name}, alap-elrendezés): {living.items.map((i) => i.label).join(", ")}
-                {living.skipped.length ? <span style={{ color: "#9A7020" }}> · kimaradt: {living.skipped.join(" · ")}</span> : null}</>
-            : "Ebben a lakásban nincs nappali — a prototípus egyelőre a nappalit rendezi be."}
-        </p>
+        <div className="flex h-12 items-center gap-3 px-4 text-[11.5px]" style={{ borderTop: "1px solid var(--twx-line)", color: MUTED }}>
+          <p className="min-w-0 flex-1 truncate" title={living?.saved?.rationale || living?.skipped.join(" · ")}>
+            {buildError ? <span style={{ color: "#C2522D" }}>{buildError}</span>
+              : !living ? "Ebben a lakásban nincs nappali — a prototípus egyelőre a nappalit rendezi be."
+              : living.saved
+                ? <>Berendezés ({living.room.name}, {SOURCE_TEXT[living.saved.source]} · {living.saved.seconds} mp · ~{living.saved.costUsd.toFixed(2)} $): {living.saved.rationale || living.items.map((i) => i.label).join(", ")}</>
+                : <>Berendezés ({living.room.name}, alap-elrendezés): {living.items.map((i) => i.label).join(", ")}
+                    {living.skipped.length ? <span style={{ color: "#9A7020" }}> · kimaradt: {living.skipped.join(" · ")}</span> : null}</>}
+          </p>
+          {living && (
+            <button type="button" onClick={() => void furnish()} disabled={building || !projectId || !styleSheet}
+              title={!styleSheet ? "Stíluslap nélkül nem rendezhető be" : "Az építő a stíluslap alapján rendezi be a nappalit (~1–2 perc, fizetős AI-hívás)"}
+              className="h-8 w-[210px] flex-none rounded-full text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "#12100e", color: "#fff" }}>
+              {building ? "Az építő dolgozik… (1–2 perc)" : living.saved ? "Újra az építővel" : "Berendezés az építővel"}
+            </button>
+          )}
+        </div>
       </div>
       <div className="twx-card flex h-[620px] flex-col overflow-hidden p-0">
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--twx-line)" }}>

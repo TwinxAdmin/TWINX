@@ -236,3 +236,113 @@ export function livingRoomLayout(plan: FloorPlan, room: Room): { items: Furnitur
 
   return { items, skipped };
 }
+
+// ---------------------------------------------------------------------------
+// KÖZLEKEDŐÚT — a helyiség bejáratai (ajtók + nyitott határok) a bútorok között is összeérjenek, legalább ~80 cm széles úton
+// ---------------------------------------------------------------------------
+const PATH_GRID = 0.1;        // rács (m)
+const CLEAR_FURNITURE = 0.4;  // a bútoroktól (az út fele: 2 × 0,4 = 0,8 m)
+const CLEAR_WALL = 0.3;       // a falaktól (a test elfér a fal mellett)
+
+function distSeg(p: Pt, a: Pt, b: Pt): number {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2));
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+function distPoly(p: Pt, poly: Pt[]): number {
+  if (inside(p, poly)) return 0;
+  let d = Infinity;
+  for (let i = 0; i < poly.length; i++) d = Math.min(d, distSeg(p, poly[i], poly[(i + 1) % poly.length]));
+  return d;
+}
+
+/** A bejáratok „belépési pontjai": az ajtók és a nyitott határok közepe, 45 cm-rel a helyiség belseje felé. */
+export function entrances(plan: FloorPlan, room: Room): { label: string; p: Pt }[] {
+  const out: { label: string; p: Pt }[] = [];
+  const inward = (edge: number, t: number): Pt => {
+    const e = roomEdge(room, edge), len = e.length || 1;
+    const u = [(e.b[0] - e.a[0]) / len, (e.b[1] - e.a[1]) / len], n = [-u[1], u[0]];
+    return [e.a[0] + u[0] * t + n[0] * 0.45, e.a[1] + u[1] * t + n[1] * 0.45];
+  };
+  for (const o of roomOpenings(plan, room)) if (o.kind === "door") out.push({ label: "ajtó", p: inward(o.edge, (o.from + o.to) / 2) });
+  for (const i of room.openEdges ?? []) out.push({ label: "átjáró", p: inward(i, roomEdge(room, i).length / 2) });
+  return out;
+}
+
+/**
+ * Közlekedőút-ellenőrzés: rácson keres utat a bejáratok között (bútoroktól ≥ 40 cm, faltól ≥ 30 cm; szőnyeg és függőlámpa
+ * nem akadály). Hibát ad, ha egy bejárat elé bútor került, vagy két bejárat között nincs elég széles út.
+ */
+export function walkwayIssues(plan: FloorPlan, room: Room, items: FurnitureItem[]): string[] {
+  const ents = entrances(plan, room);
+  if (!ents.length) return [];
+  const blockers = items.filter((it) => !NON_BLOCKING.includes(it.type)).map((it) => footprint(it));
+  const xs = room.polygon.map((p) => p[0]), ys = room.polygon.map((p) => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const nx = Math.ceil((Math.max(...xs) - x0) / PATH_GRID) + 1, ny = Math.ceil((Math.max(...ys) - y0) / PATH_GRID) + 1;
+  const free = (p: Pt) => inside(p, room.polygon)
+    && room.polygon.every((_, i) => distSeg(p, room.polygon[i], room.polygon[(i + 1) % room.polygon.length]) >= CLEAR_WALL)
+    && blockers.every((fp) => distPoly(p, fp) >= CLEAR_FURNITURE);
+  const cell = (p: Pt): [number, number] => [Math.round((p[0] - x0) / PATH_GRID), Math.round((p[1] - y0) / PATH_GRID)];
+  const ok = new Uint8Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) ok[j * nx + i] = free([x0 + i * PATH_GRID, y0 + j * PATH_GRID]) ? 1 : 0;
+
+  const issues: string[] = [];
+  // a belépési pont közvetlen környezetében (≤ 25 cm) legyen szabad cella
+  const startCells = ents.map((e) => {
+    const [ci, cj] = cell(e.p);
+    for (let r = 0; r <= 2; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+      const i = ci + di, j = cj + dj;
+      if (i >= 0 && j >= 0 && i < nx && j < ny && ok[j * nx + i]) return j * nx + i;
+    }
+    issues.push(`Egy ${e.label} elé bútor került (nincs 80 cm szabad hely a bejáratnál).`);
+    return -1;
+  });
+  const valid = startCells.filter((c) => c >= 0);
+  if (valid.length < 2) return issues;
+  // szélességi keresés az első bejárattól
+  const seen = new Uint8Array(nx * ny);
+  const queue = [valid[0]];
+  seen[valid[0]] = 1;
+  while (queue.length) {
+    const c = queue.shift()!;
+    const i = c % nx, j = (c - i) / nx;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const a = i + di, b = j + dj;
+      if (a < 0 || b < 0 || a >= nx || b >= ny) continue;
+      const k = b * nx + a;
+      if (!seen[k] && ok[k]) { seen[k] = 1; queue.push(k); }
+    }
+  }
+  startCells.forEach((c, idx) => {
+    if (c >= 0 && !seen[c]) issues.push(`Nincs 80 cm széles közlekedőút a(z) ${ents[idx].label} és a többi bejárat között.`);
+  });
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// SZERKEZETI ELLENŐRZÉS — az építőtől (vagy a klienstől) érkező bútorlista. Ismeretlen típus kimarad; a méret a szabványos
+// méret ±40%-án belülre szorul (a stíluslap arányai ne torzuljanak); legfeljebb 30 bútor helyiségenként.
+// ---------------------------------------------------------------------------
+export const FURNITURE_SIZE_RANGE = 0.4;
+const TYPE_SET = new Set<string>(FURNITURE_TYPES);
+
+export function sanitizeItems(raw: unknown): FurnitureItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FurnitureItem[] = [];
+  for (const r of raw.slice(0, 30) as Record<string, unknown>[]) {
+    if (!r || !TYPE_SET.has(String(r.type))) continue;
+    const type = r.type as FurnitureType, def = FURNITURE_DEFAULTS[type];
+    const n = (v: unknown, fb: number) => (typeof v === "number" && Number.isFinite(v) ? v : fb);
+    const clamp = (v: number, base: number) => Math.min(base * (1 + FURNITURE_SIZE_RANGE), Math.max(base * (1 - FURNITURE_SIZE_RANGE), v));
+    const x = n(r.x, NaN), y = n(r.y, NaN);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    out.push({
+      id: typeof r.id === "string" && r.id ? r.id.slice(0, 40) : `${type}_${out.length + 1}`,
+      type, x: r2(x), y: r2(y), rot: Math.round((((n(r.rot, 0) % 360) + 360) % 360) * 10) / 10,
+      w: r2(clamp(n(r.w, def.w), def.w)), d: r2(clamp(n(r.d, def.d), def.d)), h: r2(clamp(n(r.h, def.h), def.h)),
+      materials: def.materials, label: def.label,
+    });
+  }
+  return out;
+}

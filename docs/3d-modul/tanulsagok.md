@@ -157,3 +157,36 @@ Kód: `src/lib/floorplan3d/`, `src/components/floorplan3d/` · Feladatlista: `TO
 - Ingatlan.com-os nappali: 7/7 bútor szabályosan elhelyezve. Tesztlakás nappali: 6/7 — a fotel kimaradt, mert elzárta volna
   az ajtó előtti szabad sávot (helyes döntés, jelezve). A tesztlakásban a két ajtó közti átjáró a szőnyegen át vezet → F3c-ben
   közlekedőút-ellenőrzés kell.
+
+## 2026-10-16 — Külső kódok vizsgálata (csak olvasva, semmit nem futtattunk)
+- `morluto/rea`: visszafejtő (reverse engineering) MCP-eszköz — **nem kapcsolódik** a modulhoz, nem veszünk át belőle semmit.
+- `Sam1983Aing/casa-serra` (+ `casa-larga`): three.js „alaprajzból ház görgetésre" — **nincs licence** (minden jog fenntartva),
+  ezért KÓDOT NEM veszünk át, csak elveket, saját megvalósításban:
+  A) HDR égbolt környezeti fénynek (CC0 HDRI + PMREM) · B) az alaprajz = a 3D-modell metszete (vágósík ~1,2 m, felülről, szűk látószög) —
+  a videó alaprajza és a minitérkép ugyanabból a modellből · C) sima, túllövés nélküli kameraút (monoton köbös interpoláció) ·
+  D) eszközfüggő textúrakeret + tartalék állókép/klip · E) visszafogott utófeldolgozás · F) helyiségenkénti 1–10 pontszám a felvételekből.
+  Nem vesszük át: görgetés-alapú landing (GSAP/Lenis), bőr textúra (japandi tilos).
+- Tanulság: idegen repónál ELŐSZÖR a licencet nézzük (licenc nélkül csak ötlet, kód nem), és a kódot nem futtatjuk.
+
+## 2026-10-16 — F3c: építő (Gemini) + közlekedőút-ellenőrzés
+
+### Mi készült
+- `walkwayIssues` (furniture.ts): 10 cm-es rácson utat keres a bejáratok (ajtók + nyitott határok, 45 cm-rel befelé) között —
+  bútoroktól ≥ 40 cm (= 80 cm-es út), faltól ≥ 30 cm; szőnyeg és függőlámpa nem akadály. 3–4 ms/helyiség.
+- `builder.ts`: az építő a helyiség számszerű leírását (sokszög, falak a nyílásokkal, ajtósávok, bejáratok), a stíluslap TELJES szövegét,
+  a bútorkatalógust (±40% méret) és a szabályalapú elrendezést kapja; JSON-t ad indoklással. A kód ellenőriz (bent van, ajtósáv, ütközés,
+  közlekedőút); hibánál 1 javítókör a hibalistával; ha az sem jó → szabályalapú tartalék (forrás: "rule"). A bútorok anyagát a kód adja
+  (nem bízzuk a modellre). `POST .../projects/[id]/furnish` + `furnishing` oszlop (20261016001943_floorplan-furnishing.sql).
+
+### Mért eredmények (gemini-3.1-pro-preview)
+| Nappali | Forrás | Körök | Idő | Költség | Bútor | Maradt hiba |
+|---|---|---|---|---|---|---|
+| ingatlan.com (Bíbor u.) | építő | 1 | 66 mp | 0,13 $ | 9 | 0 |
+| Tesztlakás | építő | 1 | 63 mp | 0,14 $ | 9 | 0 |
+- Az építő minőségileg jobb, mint a szabályalapú: beszélgetősarok (fotel ferdén az asztal felé), alacsony komód az ablak alá,
+  kisasztal a kanapé mellett, a két ajtó közti átjáró szabadon hagyva (a tesztlakásban a szabályalapú itt elakadt).
+- Drága és lassú a gondolkodó modell miatt (~0,13 $, ~1 perc / helyiség) → később mérni egy olcsóbb modellel vagy alacsonyabb gondolkodási szinttel.
+
+### Tesztelési tanulság
+- A böngészőpanel „find" eszköze ékezetes gombfeliratot nem mindig talál meg → szöveges (JS) kijelölés + kattintás.
+- Hosszú (1–2 perces) műveletnél a JS-várakozás 45 mp után megszakad → rövid lekérdezések, közte `wait`.

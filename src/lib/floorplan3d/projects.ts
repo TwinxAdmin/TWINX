@@ -14,7 +14,7 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 export type ProjectRow = {
   id: string; title: string; source_kind: "digital" | "hand"; style: string; source_mime: string | null;
   plan: FloorPlan; digitize_stats: Record<string, unknown> | null; hand_accepted: boolean; status: string; updated_at: string;
-  approved_at: string | null; rebuild_rooms?: string[] | null; revision?: number;
+  approved_at: string | null; rebuild_rooms?: string[] | null; revision?: number; furnishing?: Record<string, unknown> | null;
 };
 
 export const REVISIONS_MIGRATION_MSG = "Az utólagos javításhoz futtasd le a 20261015233808_floorplan-revisions.sql migrációt.";
@@ -43,7 +43,8 @@ export async function loadProject(userId: string, id: string): Promise<{ project
   const base = "id, title, source_kind, style, source_mime, source_path, plan, digitize_stats, hand_accepted, status, updated_at, approved_at";
   const q = (cols: string) => admin.from("floorplan_projects").select(cols).eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
   // az utólagos javítás oszlopai (20261015233808_floorplan-revisions.sql) — ha még nincsenek, nélkülük töltünk be
-  let { data, error } = await q(`${base}, rebuild_rooms, revision`);
+  let { data, error } = await q(`${base}, rebuild_rooms, revision, furnishing`);
+  if (error && /furnishing/.test(error.message)) ({ data, error } = await q(`${base}, rebuild_rooms, revision`));
   if (error && revisionColumnsMissing(error.message)) ({ data, error } = await q(base));
   if (error) return { error: missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message, status: 500 };
   if (!data) return { error: "Az alaprajz nem található.", status: 404 };
@@ -109,4 +110,29 @@ export async function reopenProject(userId: string, id: string): Promise<string 
     .eq("id", id).eq("user_id", userId).in("status", ["approved", "ready", "failed"]).not("approved_at", "is", null).is("hidden_at", null).select("id");
   if (error) return error.message;
   return data?.length ? null : "Ez az alaprajz nem nyitható vissza javításra (még nincs jóváhagyva, vagy épp készül).";
+}
+
+export const FURNISHING_MIGRATION_MSG = "A berendezés mentéséhez futtasd le a 20261016001943_floorplan-furnishing.sql migrációt.";
+
+/** Egy helyiség berendezésének mentése (a többi helyiségé megmarad). Hiba esetén üzenet; a hívó ettől még visszaadhatja az eredményt. */
+export async function saveFurnishing(userId: string, id: string, roomId: string, data: Record<string, unknown>): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data: row, error } = await admin.from("floorplan_projects").select("furnishing").eq("id", id).eq("user_id", userId).maybeSingle();
+  if (error) return /furnishing/.test(error.message) ? FURNISHING_MIGRATION_MSG : error.message;
+  if (!row) return "Az alaprajz nem található.";
+  const next = { ...((row.furnishing as Record<string, unknown> | null) ?? {}), [roomId]: { ...data, created_at: new Date().toISOString() } };
+  const { error: e2 } = await admin.from("floorplan_projects").update({ furnishing: next }).eq("id", id).eq("user_id", userId);
+  return e2 ? e2.message : null;
+}
+
+/** A projekt jóváhagyott terve + berendezése (a berendező végponthoz). */
+export async function projectForFurnishing(userId: string, id: string): Promise<{ plan: FloorPlan; status: string; revision: number; furnishing: Record<string, unknown> | null } | { error: string; status: number }> {
+  const admin = createAdminClient();
+  const q = (cols: string) => admin.from("floorplan_projects").select(cols).eq("id", id).eq("user_id", userId).is("hidden_at", null).maybeSingle();
+  let { data, error } = await q("plan, status, revision, furnishing");
+  if (error && /furnishing|revision/.test(error.message)) ({ data, error } = await q("plan, status"));
+  if (error) return { error: missing(error.message) ? FLOORPLAN_MIGRATION_MSG : error.message, status: 500 };
+  if (!data) return { error: "Az alaprajz nem található.", status: 404 };
+  const d = data as unknown as Record<string, unknown>;
+  return { plan: d.plan as FloorPlan, status: d.status as string, revision: (d.revision as number | undefined) ?? 0, furnishing: (d.furnishing as Record<string, unknown> | undefined) ?? null };
 }
