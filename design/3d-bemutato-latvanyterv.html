@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TWINX — 3D lakás bemutató látványterv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --dark:#12100e; --dark2:#0c0b0a; --cream:#F7F3EC; --card:#FDFBF6; --ink:#1C1815; --muted:#6E655C; --line:#E8E1D6;
+    --coral:#EF7A5A; --coral2:#F08A68; --soft:#F9C9B6; --ondark:#F4EFE7; --ondarkm:#A79F94; --teal:#2F7F86; --green:#2f7a4f;
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  body{background:#2a2420;color:var(--ink)}
+  .display{font-family:"Manrope","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  .note{max-width:1200px;margin:16px auto 6px;padding:0 16px;color:#BFB4A8;font-size:12px;text-align:center;line-height:1.5}
+  .lbl{max-width:1200px;margin:28px auto 8px;padding:0 16px;color:#F0D9CB;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .frame{max-width:1200px;margin:0 auto;border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+
+  /* ---------- 1) MENÜSOR ---------- */
+  .nav{height:60px;background:var(--dark);display:flex;align-items:center;padding:0 22px;gap:6px;color:var(--ondark);font-size:14px}
+  .nav .logo{font-weight:800;font-size:20px;margin-right:18px}.nav .logo b{color:var(--coral)}
+  .nav .it{padding:8px 12px;border-radius:99px;opacity:.85;display:flex;align-items:center;gap:6px}
+  .nav .sp{flex:1}
+  .nav .prem{opacity:1;font-weight:700;color:#FFE7B8;background:linear-gradient(135deg,#5a3d22 0%,#8a6234 45%,#5a3d22 100%);box-shadow:inset 0 0 0 1px rgba(255,214,150,.35),0 4px 14px rgba(212,170,92,.25);position:relative;overflow:hidden}
+  .nav .prem::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,240,210,.35),transparent);animation:shine 3.6s ease-in-out infinite}
+  @keyframes shine{0%,60%{left:-60%}100%{left:130%}}
+  .dd{position:absolute;left:390px;top:66px;width:380px;border-radius:20px;padding:8px;background:#1d1915;box-shadow:0 24px 60px rgba(0,0,0,.5),inset 0 0 0 1px rgba(212,170,92,.25);color:var(--ondark);z-index:3}
+  .ddi{display:flex;gap:12px;padding:12px;border-radius:14px}
+  .ddi.on{background:linear-gradient(135deg,rgba(212,170,92,.16),rgba(212,170,92,.04))}
+  .ddi.off{opacity:.45}
+  .dd .pill{font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--coral);color:#1c1005;display:inline;margin:0}
+  .ddi .ic{width:38px;height:38px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#8a6234,#5a3d22);color:#FFE7B8;font-size:16px}
+  .ddi b{display:flex;align-items:center;gap:8px;font-size:14px}
+  .ddi span{display:block;font-size:12px;color:#BDB3A7;margin-top:2px}
+  .ddi .soon{display:inline;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.1);color:#CFC6BB;margin:0}
+  .nav .acc{width:34px;height:34px;border-radius:50%;background:#2a2622}
+
+  /* ---------- 2) A BEMUTATÓ (a modul első képernyője — és ugyanez a főoldalon) ---------- */
+  .stage{background:var(--cream);padding:28px}
+  .intro{position:relative;border-radius:28px;overflow:hidden;background:linear-gradient(160deg,#1B1714 0%,#12100e 55%,#1d1612 100%);color:var(--ondark);min-height:560px;display:grid;grid-template-columns:1.05fr 1fr}
+  .intro .glow{position:absolute;inset:0;background:radial-gradient(50% 60% at 75% 40%,rgba(239,122,90,.20),transparent 70%);pointer-events:none}
+  .txt{position:relative;padding:44px 40px 34px;display:flex;flex-direction:column}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--coral2)}
+  .h{font-size:38px;font-weight:800;line-height:1.08;margin-top:10px}
+  .lead{font-size:15px;line-height:1.6;color:#CFC6BB;margin-top:12px;max-width:470px}
+  .steps{margin-top:26px;display:flex;flex-direction:column;gap:6px}
+  .st{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:16px;transition:background .4s,opacity .4s;opacity:.45;cursor:pointer}
+  .st.on{opacity:1;background:rgba(255,255,255,.06)}
+  .st .n{width:28px;height:28px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:rgba(255,255,255,.08)}
+  .st.on .n{background:var(--coral);color:#1c1005}
+  .st.done .n{background:rgba(47,158,95,.25);color:#9FE0BC}
+  .st b{display:block;font-size:14.5px}
+  .st span{display:block;font-size:12.5px;color:#BDB3A7;margin-top:2px;line-height:1.45}
+  .bar{height:3px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:7px;overflow:hidden;display:none}
+  .st.on .bar{display:block}
+  .bar i{display:block;height:100%;width:0;background:var(--coral)}
+  .cta{margin-top:auto;padding-top:24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .go{height:52px;padding:0 28px;border-radius:99px;background:linear-gradient(160deg,#F49274,#E9693F);color:#fff;font-weight:800;font-size:16px;box-shadow:0 12px 30px rgba(233,105,63,.4);display:flex;align-items:center;gap:10px}
+  .go:hover{filter:brightness(1.05)}
+  .ghost{height:40px;padding:0 16px;border-radius:99px;color:#CFC6BB;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.14)}
+  .trust{font-size:12px;color:#9C9287;width:100%}
+  .price{height:40px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:99px;font-size:13px;color:#F3D9A4;background:linear-gradient(135deg,rgba(212,170,92,.18),rgba(212,170,92,.06));box-shadow:inset 0 0 0 1px rgba(212,170,92,.35)}
+  .price b{font-family:"Manrope",system-ui,sans-serif;font-size:15px;color:#FFE7B8}
+
+  .vis{position:relative;display:flex;align-items:center;justify-content:center;padding:30px}
+  .scene{position:absolute;inset:30px;display:flex;align-items:center;justify-content:center;opacity:0;transform:translateY(10px) scale(.98);transition:opacity .6s,transform .6s;pointer-events:none}
+  .scene.on{opacity:1;transform:none}
+  .card{background:var(--card);color:var(--ink);border-radius:22px;box-shadow:0 30px 70px rgba(0,0,0,.45)}
+  .tag{position:absolute;font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:99px;background:rgba(18,16,14,.85);color:#fff;white-space:nowrap}
+  /* időzített elemek: data-at (ms) után jelennek meg, data-off-nál tűnnek el; data-sel / data-unsel = kiválasztás-váltás */
+  [data-at]{opacity:0;transition:opacity .35s}
+  [data-at].show{opacity:1}
+  /* egér-kurzor (a bemutatóban „valaki" kattint) */
+  .cur{position:absolute;z-index:6;pointer-events:none;opacity:0;transition:opacity .25s;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+  .cur.show{opacity:1}
+  .cur i{position:absolute;left:-9px;top:-9px;width:22px;height:22px;border-radius:50%;border:2px solid var(--coral);opacity:0}
+  .cur.clk i{animation:ring .4s ease-out}
+  @keyframes ring{0%{opacity:1;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
+  /* a modul nyílászáró-kártyája (üveghatású, mint az élesben) */
+  .ocard{position:absolute;width:214px;padding:12px;border-radius:18px;background:rgba(26,22,19,.9);backdrop-filter:blur(10px);box-shadow:0 18px 44px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.12);color:var(--ondark);z-index:4;text-align:left}
+  .ocard .oh b{display:block;font-family:"Manrope",system-ui,sans-serif;font-size:13.5px}
+  .ocard .oh span{display:block;font-size:10.5px;color:#BDB3A7;margin-top:1px}
+  .tls{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:9px}
+  .tl{height:44px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;font-weight:700;color:#D8CFC3;transition:background .3s,color .3s}
+  .tl svg{width:18px;height:18px}
+  .tl.on{background:linear-gradient(160deg,#F49274,#E9693F);color:#fff}
+  .ocard .row{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#BDB3A7;margin-top:9px}
+  .ocard .row b{color:var(--ondark);font-size:11px}
+  .sl{height:4px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:6px;position:relative}
+  .sl i{display:block;height:100%;border-radius:99px;background:var(--coral);position:relative}
+  .sl i::after{content:"";position:absolute;right:-6px;top:-5px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  .caps{display:flex;gap:4px}
+  .caps b{min-width:30px;height:22px;padding:0 7px;border-radius:99px;background:rgba(255,255,255,.08);display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#D8CFC3;transition:background .3s}
+  .caps b.on{background:var(--coral);color:#fff}
+
+  /* jelenet 1: feltöltés */
+  .up{width:360px;padding:18px}
+  .drop{height:250px;border:2px dashed #D8CCBF;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#FBF8F3}
+  .paper{width:240px;height:182px;overflow:hidden;background:#fff;border-radius:6px;box-shadow:0 10px 24px rgba(0,0,0,.18);transform:translateY(-220px) rotate(-8deg)}
+  .s1.on .paper{animation:drop 1.1s .3s cubic-bezier(.2,.8,.2,1.1) forwards}
+  @keyframes drop{to{transform:none}}
+  .prog{height:8px;border-radius:99px;background:#F1EAE1;margin-top:12px;overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--coral)}
+  .s1.on .prog i{animation:grow 2.4s 1.4s ease forwards}
+  @keyframes grow{to{width:100%}}
+
+  /* jelenet 2-3: digitalizált alaprajz */
+  .planc{width:400px;padding:16px}
+  .trace{stroke:var(--coral);stroke-width:3;fill:none;stroke-dasharray:1400;stroke-dashoffset:1400}
+  .s2.on .trace{animation:trace 2.6s .3s ease forwards}
+  @keyframes trace{to{stroke-dashoffset:0}}
+  .rl{opacity:0;transform:translateY(4px)}
+  .s2.on .rl{animation:pop .4s forwards}
+  @keyframes pop{to{opacity:1;transform:none}}
+  .okpill{opacity:0}
+  .s2.on .okpill{animation:pop .4s 3.6s forwards}
+  /* jelenet 3: a fal a kurzorral együtt mozdul (x=232 → +12 px), majd az erkélyajtó kártyáján Üvegajtó */
+  .s3 .mv{transform:translateX(0)}
+  .s3.on .mv{animation:pull 1.5s .7s ease-in-out forwards}
+  @keyframes pull{0%{transform:none}60%{transform:translateX(16px)}100%{transform:translateX(12px)}}
+  .s3 .sel{opacity:0}.s3 .sel.show{opacity:1}
+
+  /* jelenet 4-5: valódi 3D-vetítés (saját rajz) */
+  .v3d{width:440px;height:360px;overflow:visible}
+  .s5 .v3d{border-radius:22px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.5)}
+  .flash{position:absolute;inset:0;border-radius:22px;background:radial-gradient(60% 60% at 50% 50%,rgba(72,190,120,.45),rgba(72,190,120,0) 70%);pointer-events:none}
+  .acc{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);height:46px;padding:0 22px;border-radius:99px;background:linear-gradient(160deg,#F49274,#E9693F);color:#fff;font-weight:800;font-size:14px;box-shadow:0 12px 30px rgba(233,105,63,.45);white-space:nowrap;transition:background .4s,box-shadow .4s}
+  .acc.on{background:linear-gradient(160deg,#4CC57E,#2F9E5F);box-shadow:0 12px 30px rgba(47,158,95,.45)}
+  .acc .b{display:none}.acc.on .a{display:none}.acc.on .b{display:inline}
+  .lnk{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);height:46px;padding:0 16px 0 14px;border-radius:99px;background:#fff;color:var(--ink);display:flex;align-items:center;gap:10px;font-size:12.5px;box-shadow:0 12px 30px rgba(0,0,0,.4);white-space:nowrap}
+  .lnk b{font-family:"Manrope",system-ui,sans-serif}
+  .lnk .cp{height:30px;padding:0 12px;border-radius:99px;background:var(--dark);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center}
+
+  .dots{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:7px}
+  .dots button{width:8px;height:8px;border-radius:99px;background:rgba(255,255,255,.25);transition:width .3s,background .3s}
+  .dots button.on{width:24px;background:var(--coral)}
+
+  /* ---------- 3) KORÁBBI 3D MUNKÁK (a bemutató alatt) ---------- */
+  .works{margin-top:22px}
+  .wh{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding:0 6px 12px}
+  .wh h3{font-size:22px;font-weight:800;margin-top:4px}
+  .wh .hint{font-size:12px;color:var(--muted);max-width:380px;text-align:right;line-height:1.45}
+  .wgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .wc{background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;min-height:372px}
+  .wc .th{height:150px;background:linear-gradient(160deg,#1B1714,#12100e);position:relative;display:flex;align-items:center;justify-content:center}
+  .wc .th svg{width:100%;height:100%}
+  .wc .th .chip{position:absolute;left:12px;top:12px;font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:99px;background:rgba(47,158,95,.9);color:#fff}
+  .wc .th .chip.red{background:rgba(190,60,50,.92)}.wc .th .chip.grey{background:rgba(255,255,255,.18)}
+  .wc .th .more{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;background:rgba(18,16,14,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .wc .th .typ{position:absolute;right:12px;bottom:10px;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;background:linear-gradient(135deg,#8a6234,#5a3d22);color:#FFE7B8}
+  .wb{padding:14px 16px 16px;display:flex;flex-direction:column;flex:1}
+  .wb .nm{font-size:15px;font-weight:800}
+  .wb .meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .cd{margin-top:12px;padding:10px 12px;border-radius:14px;background:#F6F1E9;border:1px solid var(--line)}
+  .cd .l{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+  .cd .l b{color:var(--ink);font-family:"Manrope",system-ui,sans-serif;font-size:13px}
+  .cd .l b.red{color:#B9432F}
+  .cd .pb{height:5px;border-radius:99px;background:#E8E1D6;margin-top:7px;overflow:hidden}.cd .pb i{display:block;height:100%;background:var(--green);border-radius:99px}
+  .cd .pb i.red{background:#B9432F}
+  .ext{margin-top:10px;display:flex;align-items:center;gap:8px}
+  .stp{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:99px;height:34px;overflow:hidden;background:#fff}
+  .stp button{width:30px;height:34px;font-weight:800;color:var(--muted)}
+  .stp b{min-width:64px;text-align:center;font-size:12px}
+  .buy{flex:1;height:34px;border-radius:99px;background:var(--dark);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+  .buy em{font-style:normal;color:#F3D9A4}
+  .wa{margin-top:auto;padding-top:12px;display:flex;gap:8px}
+  .wa button{height:36px;padding:0 14px;border-radius:99px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .wa button.pri{background:var(--coral);color:#fff;border-color:transparent}
+  .wempty{grid-column:1/-1;border:1px dashed #D8CCBF;border-radius:22px;padding:26px;text-align:center;color:var(--muted);font-size:13px;display:none}
+
+  .annots{max-width:1200px;margin:14px auto 40px;padding:0 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .annot{font-size:12px;line-height:1.5;color:#7A4A2E;background:#FFF3EC;border:1px dashed #E8B9A6;border-radius:12px;padding:10px 12px}
+  .annot b{color:#A8411F}
+  @media (max-width:900px){.intro{grid-template-columns:1fr}.vis{min-height:420px}.annots{grid-template-columns:1fr}.wgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#4b4560"/><line x1="0" y1="0" x2="0" y2="6" stroke="#6c6585" stroke-width="2"/></pattern>
+    <pattern id="tiles" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#EEF3F5"/><path d="M10 0H0V10" fill="none" stroke="#D6E1E6" stroke-width="1"/></pattern>
+    <pattern id="parq" width="14" height="6" patternUnits="userSpaceOnUse"><rect width="14" height="6" fill="#F6EDDD"/><path d="M0 6H14M7 0V6" stroke="#EADBC2" stroke-width=".8"/></pattern>
+    <!-- nyílászáró-ikonok a kártyához -->
+    <symbol id="icDoor" viewBox="0 0 20 20"><rect x="5" y="2.5" width="10" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12.5" cy="10" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="icGlass" viewBox="0 0 20 20"><rect x="5" y="2.5" width="10" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7.5" y="5" width="5" height="10" fill="currentColor" opacity=".45"/></symbol>
+    <symbol id="icWin" viewBox="0 0 20 20"><rect x="2.5" y="5" width="15" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 5v10M2.5 10h15" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="icPass" viewBox="0 0 20 20"><path d="M4 17.5V8a6 6 0 0 1 12 0v9.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <!-- A minta-lakás (10,60 × 7,00 m): nappali · hálószoba · szoba · fürdő · előszoba · konyha · erkély. 1 px = 2,94 cm. -->
+    <symbol id="plan" viewBox="0 0 400 304">
+      <rect width="400" height="304" fill="#FBF8F3"/>
+      <rect x="20" y="46" width="360" height="122" fill="url(#parq)"/><rect x="20" y="168" width="108" height="116" fill="url(#parq)"/>
+      <rect x="128" y="168" width="68" height="116" fill="url(#tiles)"/><rect x="196" y="168" width="102" height="116" fill="url(#tiles)"/><rect x="298" y="168" width="82" height="116" fill="url(#tiles)"/>
+      <rect x="60" y="12" width="155" height="34" fill="url(#tiles)"/>
+      <path d="M60 46V12H215V46" fill="none" stroke="#8a8399" stroke-width="2.4"/>
+      <g stroke="#3B3530" stroke-width="5" stroke-linecap="square">
+        <path d="M232 46V168"/><path d="M20 168H380"/><path d="M128 168V284"/><path d="M196 168V284"/><path d="M298 168V284"/>
+      </g>
+      <path d="M20 46H380V284H20Z" fill="none" stroke="url(#hatch)" stroke-width="10"/>
+      <g stroke="#FBF8F3">
+        <path d="M170 46H212M262 46H340M20 82V132M380 82V132M20 200V250M50 284H100M380 200V250M318 284H362" stroke-width="12"/>
+        <path d="M100 46H150" stroke-width="12"/><path d="M238 284H268" stroke-width="12"/>
+        <path d="M200 168H224M262 168H288M60 168H88" stroke-width="7"/><path d="M196 236V262M298 190V216" stroke-width="7"/>
+      </g>
+      <g stroke="#3a6a9a" stroke-width="1.3" fill="none">
+        <path d="M170 43H212M170 46H212M170 49H212"/><path d="M262 43H340M262 46H340M262 49H340"/><path d="M17 82V132M20 82V132M23 82V132"/><path d="M377 82V132M380 82V132M383 82V132"/>
+        <path d="M17 200V250M20 200V250M23 200V250"/><path d="M50 281H100M50 284H100M50 287H100"/><path d="M377 200V250M380 200V250M383 200V250"/><path d="M318 281H362M318 284H362M318 287H362"/>
+      </g>
+      <g stroke="#3B3530" stroke-width="1.6" fill="none">
+        <path d="M100 46V20M150 46V20"/><path d="M100 20A26 26 0 0 1 125 46M150 20A26 26 0 0 0 125 46" stroke-dasharray="3 3"/>
+        <path d="M238 284V256"/><path d="M238 256A28 28 0 0 1 266 284" stroke-dasharray="3 3"/>
+        <path d="M200 168V144"/><path d="M200 144A24 24 0 0 1 224 168" stroke-dasharray="3 3"/>
+        <path d="M288 168V194"/><path d="M288 194A26 26 0 0 1 262 168" stroke-dasharray="3 3"/>
+        <path d="M88 168V142"/><path d="M88 142A28 28 0 0 0 60 168" stroke-dasharray="3 3"/>
+        <path d="M196 262H172"/><path d="M172 262A26 26 0 0 1 196 236" stroke-dasharray="3 3"/>
+        <path d="M298 216H322"/><path d="M322 216A26 26 0 0 0 298 190" stroke-dasharray="3 3"/>
+      </g>
+      <path d="M253 300v-12m-5 5l5-5 5 5" stroke="#3a6a9a" stroke-width="1.6" fill="none"/>
+      <g stroke="#8F857B" stroke-width="1.2" fill="none">
+        <rect x="34" y="128" width="96" height="30" rx="4"/><path d="M34 136H130"/><rect x="58" y="104" width="48" height="14" rx="2"/>
+        <rect x="160" y="80" width="44" height="30" rx="2"/><circle cx="170" cy="74" r="5"/><circle cx="194" cy="74" r="5"/><circle cx="170" cy="116" r="5"/><circle cx="194" cy="116" r="5"/>
+        <rect x="292" y="60" width="74" height="64" rx="3"/><rect x="298" y="64" width="28" height="12" rx="3"/><rect x="332" y="64" width="28" height="12" rx="3"/><path d="M292 88H366"/>
+        <rect x="254" y="52" width="26" height="70"/><path d="M254 52L280 122M280 52L254 122"/>
+        <rect x="28" y="176" width="44" height="68" rx="3"/><rect x="32" y="180" width="36" height="12" rx="3"/><rect x="88" y="252" width="34" height="26"/>
+        <rect x="134" y="174" width="30" height="74" rx="10"/><ellipse cx="149" cy="200" rx="9" ry="16"/><ellipse cx="180" cy="186" rx="9" ry="11"/><rect x="170" y="172" width="20" height="8"/><rect x="150" y="266" width="32" height="14" rx="3"/><circle cx="166" cy="273" r="4"/>
+        <rect x="302" y="172" width="74" height="16"/><rect x="360" y="188" width="16" height="66"/><circle cx="318" cy="180" r="4"/><circle cx="330" cy="180" r="4"/><rect x="344" y="174" width="12" height="11" rx="2"/>
+        <rect x="270" y="244" width="24" height="34"/>
+      </g>
+      <g stroke="#9C8F80" stroke-width="1" fill="#6E655C" font-size="9" font-weight="700">
+        <path d="M20 296H380M20 292V300M380 292V300"/><text x="200" y="303" text-anchor="middle" stroke="none">10,60</text>
+        <path d="M8 46V284M4 46H12M4 284H12"/><text x="6" y="168" text-anchor="middle" stroke="none" transform="rotate(-90 6 168)">7,00</text>
+      </g>
+    </symbol>
+    <symbol id="planLabels" viewBox="0 0 400 304">
+      <g font-weight="800" fill="#8d2b1e" text-anchor="middle" font-size="10">
+        <text x="126" y="64">NAPPALI</text><text x="126" y="74" font-size="8" font-weight="600">laminált · 22,4 m²</text>
+        <text x="320" y="142">HÁLÓSZOBA</text><text x="320" y="152" font-size="8" font-weight="600">laminált · 15,6 m²</text>
+        <text x="96" y="214" text-anchor="end">SZOBA</text><text x="96" y="224" font-size="8" font-weight="600" text-anchor="end">10,8 m²</text>
+        <text x="162" y="224">FÜRDŐ</text><text x="162" y="234" font-size="8" font-weight="600">6,8 m²</text>
+        <text x="247" y="214">ELŐSZOBA</text><text x="247" y="224" font-size="8" font-weight="600">10,2 m²</text>
+        <text x="330" y="230">KONYHA</text><text x="330" y="240" font-size="8" font-weight="600">8,2 m²</text>
+        <text x="185" y="32">ERKÉLY</text><text x="185" y="41" font-size="8" font-weight="600">4,8 m²</text>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+<p class="note">LÁTVÁNYTERV — a 3D lakás modul bemutatója (partnereknek és felhasználóknak). 1) a felső menü új pontja · 2) a modul első képernyője: oktató animáció „Kezdjük" gombbal, alatta a korábbi 3D munkák. A főoldalra ugyanez az animációs blokk kerül („Kipróbálom" gombbal). A rajz saját, kitalált lakás; a 4–5. jelenet 3D-je valódi vetítés ugyanabból a tervből — nem kép.</p>
+
+<div class="lbl">1 · Felső menü — „Prémium 3D" legördülő (később további 3D modulok is ide kerülnek)</div>
+<div class="frame" style="overflow:visible;position:relative;margin-bottom:190px">
+  <div class="nav">
+    <span class="logo display">TWIN<b>X</b></span>
+    <span class="it">Tartalomgyártás ▾</span>
+    <span class="it">Elemzés &amp; kutatás ▾</span>
+    <span class="it prem">✦ Prémium 3D ▾</span>
+    <span class="it">Egyedi modulok ▾</span>
+    <span class="it">Korábbi munkák</span>
+    <span class="sp"></span><span class="acc" style="position:static;transform:none;height:34px;padding:0;background:#2a2622;box-shadow:none"></span>
+  </div>
+  <div class="dd">
+    <div class="ddi on"><span class="ic">▣</span><div><b>3D lakás alaprajzból <span class="pill">Új</span></b><span>Méretpontos, bejárható 3D lakás egyetlen alaprajzból — megosztható linkkel</span></div></div>
+    <div class="ddi off"><span class="ic">◇</span><div><b>További 3D modulok <span class="soon">Hamarosan</span></b><span>pl. 3D bemutatóvideó, felújítás-tervező</span></div></div>
+  </div>
+</div>
+
+<div class="lbl">2 · A modul első képernyője — oktató animáció + korábbi 3D munkák</div>
+<div class="frame"><div class="stage">
+  <div class="intro" id="intro">
+    <div class="glow"></div>
+    <div class="txt">
+      <span class="eyebrow">Új · 3D lakás</span>
+      <h1 class="h display">Alaprajzból bejárható,<br/>méretpontos 3D lakás</h1>
+      <p class="lead">Feltöltöd az alaprajzot — a többit a TWINX végzi. A vevő a hirdetésből egy linkkel, belépés nélkül, telefonon is bejárhatja a lakást.</p>
+      <div class="steps" id="steps"></div>
+      <div class="cta">
+        <button class="go" id="go">Kezdjük <span>→</span></button>
+        <span class="price"><b>10 kredit</b> / 3D lakás</span>
+        <button class="ghost" id="replay">↻ Újra</button>
+        <span class="trust">Kb. 3 perc · a krediteket csak a jóváhagyott tervnél vonjuk le · a link 30 napig él (+30 nap: 3 kredit)</span>
+      </div>
+    </div>
+    <div class="vis">
+      <!-- 1. feltöltés -->
+      <div class="scene s1" data-i="0">
+        <div class="card up">
+          <p class="display" style="font-weight:800;font-size:15px;margin-bottom:10px">Alaprajz feltöltése</p>
+          <div class="drop">
+            <div class="paper"><svg viewBox="0 0 400 304" width="240" height="182"><use href="#plan"/><use href="#planLabels"/></svg></div>
+          </div>
+          <div class="prog"><i></i></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px">JPG, PNG vagy PDF — akár hirdetési lapról is</p>
+        </div>
+      </div>
+      <!-- 2. digitalizálás -->
+      <div class="scene s2" data-i="1">
+        <div class="card planc" style="position:relative">
+          <svg viewBox="0 0 400 304" width="368" height="280">
+            <use href="#plan"/>
+            <path class="trace" d="M20 46H232V168H20Z M232 46H380V168H232Z M20 168H128V284H20Z M128 168H196V284H128Z M196 168H298V284H196Z M298 168H380V284H298Z M60 12H215V46H60Z"/>
+            <g class="rl" style="animation-delay:1.2s"><rect x="84" y="56" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="126" y="66" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Nappali</text><text x="126" y="75" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">22,4 m² ✓</text></g>
+            <g class="rl" style="animation-delay:1.6s"><rect x="278" y="134" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="320" y="144" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Hálószoba</text><text x="320" y="153" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">15,6 m² ✓</text></g>
+            <g class="rl" style="animation-delay:2.0s"><rect x="40" y="206" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="75" y="216" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Szoba</text><text x="75" y="225" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">10,8 m² ✓</text></g>
+            <g class="rl" style="animation-delay:2.3s"><rect x="130" y="216" width="64" height="22" rx="6" fill="#fff" opacity=".92"/><text x="162" y="226" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Fürdő</text><text x="162" y="235" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">6,8 m² ✓</text></g>
+            <g class="rl" style="animation-delay:2.6s"><rect x="211" y="206" width="72" height="22" rx="6" fill="#fff" opacity=".92"/><text x="247" y="216" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Előszoba</text><text x="247" y="225" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">10,2 m² ✓</text></g>
+            <g class="rl" style="animation-delay:2.9s"><rect x="303" y="222" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="338" y="232" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Konyha</text><text x="338" y="241" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">8,2 m² ✓</text></g>
+            <g class="rl" style="animation-delay:3.2s"><rect x="150" y="18" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="185" y="28" font-size="9.5" font-weight="800" text-anchor="middle" fill="#2B2520">Erkély</text><text x="185" y="37" font-size="8" font-weight="700" text-anchor="middle" fill="#2f7a4f">4,8 m² ✓</text></g>
+          </svg>
+          <div class="okpill" style="position:absolute;right:26px;top:24px;background:rgba(47,158,95,.16);color:#2f7a4f;font-size:12px;font-weight:800;padding:6px 12px;border-radius:99px">7/7 helyiség rendben</div>
+        </div>
+      </div>
+      <!-- 3. javítás: a kurzor megfogja a falat és arrébb húzza, majd az erkélyajtóra kattint → a modul nyílászáró-kártyája → Üvegajtó -->
+      <div class="scene s3" data-i="2">
+        <div class="card planc" style="position:relative" id="s3card">
+          <svg viewBox="0 0 400 304" width="368" height="280">
+            <use href="#plan"/><use href="#planLabels"/>
+            <path d="M232 51V165" stroke="#F6EDDD" stroke-width="7"/>
+            <g class="mv"><line x1="232" y1="48" x2="232" y2="166" stroke="#EF7A5A" stroke-width="6"/><circle cx="232" cy="107" r="6" fill="#fff" stroke="#EF7A5A" stroke-width="3"/></g>
+            <g class="sel" data-at="2900" data-off="4300"><rect x="96" y="14" width="58" height="38" rx="6" fill="none" stroke="#EF7A5A" stroke-width="2" stroke-dasharray="4 3"/></g>
+            <g data-at="4300"><path d="M100 46H150" stroke="#2F7F86" stroke-width="2.4"/><path d="M100 46V20M150 46V20" stroke="#2F7F86" stroke-width="2"/><rect x="104" y="44" width="42" height="4" fill="#BFD9E8"/></g>
+          </svg>
+          <span class="tag" data-at="900" data-off="2500" style="left:238px;top:96px">+35 cm · Háló 14,4 m²</span>
+          <div class="ocard" data-at="3250" style="left:148px;top:50px">
+            <div class="oh"><b>Erkélyajtó</b><span>150 cm · Nappali ↔ Erkély</span></div>
+            <div class="tls">
+              <span class="tl on" data-unsel="4300"><svg><use href="#icDoor"/></svg>Ajtó</span>
+              <span class="tl" id="tlGlass" data-sel="4300"><svg><use href="#icGlass"/></svg>Üvegajtó</span>
+              <span class="tl"><svg><use href="#icWin"/></svg>Ablak</span>
+              <span class="tl"><svg><use href="#icPass"/></svg>Átjáró</span>
+            </div>
+            <div class="row"><span>Szélesség</span><b>150 cm</b></div>
+            <div class="sl"><i style="width:62%"></i></div>
+            <div class="row"><span>Szárny</span><span class="caps"><b>1</b><b class="on">2</b></span></div>
+          </div>
+          <span class="tag" data-at="4700" style="left:150px;top:230px;background:rgba(47,158,95,.92)">✓ Üvegajtó, becsukva — a 3D azonnal követi</span>
+          <span class="cur" id="cur3"><svg width="18" height="22" viewBox="0 0 18 22"><path d="M2 1l14 10-6 1 4 7-3 1.5-4-7-5 4z" fill="#fff" stroke="#12100e" stroke-width="1.4" stroke-linejoin="round"/></svg><i></i></span>
+        </div>
+      </div>
+      <!-- 4. 3D: felemelkedik, forog (húzás), a kurzor a fürdő falára kattint → nyílászáró-kártya → Ablak 120 cm → beépül -->
+      <div class="scene s4" data-i="3" id="s4">
+        <svg class="v3d" id="v3d" viewBox="0 0 440 360"></svg>
+        <span class="tag" data-at="2200" data-off="5600" style="left:50%;bottom:14px;transform:translateX(-50%)">⟲ Húzással forgatod · görgetve közelítesz</span>
+        <span class="tag" data-at="5800" data-off="6400" style="left:50%;bottom:14px;transform:translateX(-50%);background:rgba(239,122,90,.95)">Kattints a falra — ide jön az új nyílászáró</span>
+        <div class="ocard" data-at="6500" style="left:6px;top:24px">
+          <div class="oh"><b>Új nyílászáró</b><span>Fürdő · külső fal</span></div>
+          <div class="tls">
+            <span class="tl"><svg><use href="#icDoor"/></svg>Ajtó</span>
+            <span class="tl"><svg><use href="#icGlass"/></svg>Üvegajtó</span>
+            <span class="tl" id="tlWin" data-sel="7600"><svg><use href="#icWin"/></svg>Ablak</span>
+            <span class="tl"><svg><use href="#icPass"/></svg>Átjáró</span>
+          </div>
+          <div class="row"><span>Szélesség</span><span class="caps"><b>60</b><b class="on" data-unsel="8800">90</b><b id="cap120" data-sel="8800">120</b><b>150</b></span></div>
+          <div class="row"><span>Parapet</span><b>90 cm</b></div>
+          <div class="sl"><i style="width:40%"></i></div>
+        </div>
+        <span class="tag" data-at="9200" style="left:50%;bottom:14px;transform:translateX(-50%);background:rgba(239,122,90,.95)">+ Ablak · 120 cm — belenő a falba, a 2D-ben is megjelenik</span>
+        <span class="tag" data-at="10300" style="left:50%;top:6px;transform:translateX(-50%);background:rgba(47,158,95,.9)">Méretpontosság: 0 mm eltérés</span>
+        <span class="cur" id="cur4"><svg width="18" height="22" viewBox="0 0 18 22"><path d="M2 1l14 10-6 1 4 7-3 1.5-4-7-5 4z" fill="#fff" stroke="#12100e" stroke-width="1.4" stroke-linejoin="round"/></svg><i></i></span>
+      </div>
+      <!-- 5. bejárás szemmagasságból (POV): bejárati ajtó kinyílik → előszoba → nappali ajtaja kinyílik → benézünk → háló → Elfogadom → zöld → link -->
+      <div class="scene s5" data-i="4" id="s5">
+        <svg class="v3d" id="v3d2" viewBox="0 0 440 360"></svg>
+        <div class="flash" data-at="13900" data-off="14700"></div>
+        <span class="tag" data-at="1800" data-off="12400" style="left:50%;top:10px;transform:translateX(-50%)">Bejárás szemmagasságból — az ajtók kinyílnak előtted, minden helyiség berendezve</span>
+        <button class="acc" data-at="12600" data-off="15000" data-sel="13900"><span class="a">✓ Elfogadom a tervet</span><span class="b">Elfogadva ✓ · 10 kredit levonva</span></button>
+        <div class="lnk" data-at="15000"><span>🔗</span><b>twinx.hu/3d/a8Fk…</b><span class="cp">Küldés a vevőnek →</span></div>
+        <span class="tag" data-at="15300" style="right:16px;top:10px;background:rgba(47,158,95,.9)">A link 30 napig él · belépés nélkül, telefonon is</span>
+        <span class="cur" id="cur5"><svg width="18" height="22" viewBox="0 0 18 22"><path d="M2 1l14 10-6 1 4 7-3 1.5-4-7-5 4z" fill="#fff" stroke="#12100e" stroke-width="1.4" stroke-linejoin="round"/></svg><i></i></span>
+      </div>
+      <div class="dots" id="dots"></div>
+    </div>
+  </div>
+
+  <!-- Korábbi 3D munkák — a bemutató alatt -->
+  <div class="works">
+    <div class="wh">
+      <div><span class="eyebrow" style="color:#A8411F">Korábbi 3D munkák</span><h3 class="display">A kész lakásaid</h3></div>
+      <span class="hint">Ugyanezek a fő <b>Korábbi munkák</b> listában is ott vannak („3D lakás" jelöléssel, ⋯ menüvel: megnyitás, link, átnevezés, elrejtés).</span>
+    </div>
+    <div class="wgrid">
+      <div class="wc">
+        <div class="th"><svg id="th1" viewBox="40 60 360 240"></svg><span class="chip">Megosztva</span><span class="more">⋯</span><span class="typ">3D lakás</span></div>
+        <div class="wb">
+          <p class="nm">Tábornok u. 27. · 72 m²</p>
+          <p class="meta">Létrehozva 2026. okt. 14. 11:20 · 10 kredit · 7 helyiség</p>
+          <div class="cd">
+            <div class="l"><span>Link lejár</span><b id="cd1">—</b></div>
+            <div class="pb"><i id="pb1" style="width:77%"></i></div>
+            <div class="l" style="margin-top:6px"><span>2026. nov. 13. 11:20</span><span>128 megnyitás</span></div>
+          </div>
+          <div class="ext"><span class="stp"><button data-d="-1">−</button><b data-n>1 × 30 nap</b><button data-d="1">+</button></span><button class="buy">Hosszabbítás · <em data-c>3 kredit</em></button></div>
+          <div class="wa"><button class="pri">Megnyitás</button><button>Link másolása</button></div>
+        </div>
+      </div>
+      <div class="wc">
+        <div class="th"><svg id="th2" viewBox="40 60 360 240"></svg><span class="chip red">A link lejárt</span><span class="more">⋯</span><span class="typ">3D lakás</span></div>
+        <div class="wb">
+          <p class="nm">Bartók Béla út 14. · 54 m²</p>
+          <p class="meta">Létrehozva 2026. szept. 2. · 10 kredit · 4 helyiség</p>
+          <div class="cd">
+            <div class="l"><span>Link lejárt</span><b class="red">2 napja</b></div>
+            <div class="pb"><i class="red" style="width:100%"></i></div>
+            <div class="l" style="margin-top:6px"><span>A modell megmarad — a link hosszabbítással újra él</span></div>
+          </div>
+          <div class="ext"><span class="stp"><button data-d="-1">−</button><b data-n>2 × 30 nap</b><button data-d="1">+</button></span><button class="buy">Újraaktiválás · <em data-c>6 kredit</em></button></div>
+          <div class="wa"><button class="pri">Megnyitás</button><button disabled style="opacity:.45" title="Lejárt link — előbb hosszabbíts">Link másolása</button></div>
+        </div>
+      </div>
+      <div class="wc">
+        <div class="th" style="background:#EFE9DF"><svg viewBox="0 0 400 304" style="width:70%"><use href="#plan"/></svg><span class="chip grey" style="color:#1C1815;background:rgba(0,0,0,.08)">Piszkozat</span><span class="more">⋯</span><span class="typ">3D lakás</span></div>
+        <div class="wb">
+          <p class="nm">Új alaprajz — 2026. okt. 16.</p>
+          <p class="meta">Digitalizálva, még nem jóváhagyott · 0 kredit levonva</p>
+          <div class="cd" style="background:#FBF8F3">
+            <div class="l"><span>Következő lépés</span><b>Ellenőrzés és javítás</b></div>
+            <div class="l" style="margin-top:6px"><span>A 10 kreditet csak a jóváhagyáskor vonjuk le; a link utána 30 napig él.</span></div>
+          </div>
+          <div class="wa"><button class="pri">Folytatás →</button><button>Elrejtés</button></div>
+        </div>
+      </div>
+      <div class="wempty">Még nincs kész 3D lakásod. Az első az animáció alatti „Kezdjük" gombbal indul — a kész munkák itt és a Korábbi munkák között is megjelennek.</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="annots">
+  <div class="annot"><b>Menü.</b> „Prémium 3D" saját felső legördülő, bronz–arany háttérrel és lassú fényvillanással. Benne: „3D lakás alaprajzból" („Új" címke 30 napig); a későbbi 3D modulok ide kerülnek — amíg nincsenek, „Hamarosan" sor, nem kattintható.</div>
+  <div class="annot"><b>Bemutató.</b> 5 jelenet, kb. 45 mp, végtelenítve; a pöttyökkel / lépésekre kattintva lapozható. A 3. és 4. jelenetben <b>a modul valódi nyílászáró-kártyája</b> jelenik meg (típus-csempék, csúszka, kapszulák), és egy kurzor mutatja, hogy egy kattintás / egy húzás az egész. Díj: <b>10 kredit / 3D lakás</b>; a Kezdjük végig látszik. Folyamatban lévő munka (?p=…) megnyitásakor és az admin 3D-laborban nem jelenik meg.</div>
+  <div class="annot"><b>Bejárás (5. jelenet).</b> Szemmagasságú (POV) vetítés ugyanabból a tervből: a bejárati ajtó kinyílik, benézünk a nappaliba és a hálóba (az ajtók kinyílnak), majd <b>Elfogadom a tervet</b> → zöldre vált, a kép felvillan és bemelegszik („minden rendben") → a gomb <b>linkké</b> alakul („Küldés a vevőnek"). Itt vonjuk le a 10 kreditet.</div>
+  <div class="annot"><b>Korábbi 3D munkák.</b> A bemutató alatt; minden kártyán: mikor készült, kredit, élő visszaszámláló a link lejáratáig (sáv), megnyitások. Hosszabbítás: léptetővel <b>N × 30 nap = N × 3 kredit</b>, lejárt linknél „Újraaktiválás". Piszkozatnál nincs link, „Folytatás". Ugyanezek a fő Korábbi munkák listában is látszanak (3D lakás jelölés); „Törlés" = elrejtés, fájl nem vész el. Üres állapot: egy rövid kártya.</div>
+</div>
+
+<script>
+const STEPS = [
+  { t: "Töltsd fel az alaprajzot", d: "JPG, PNG vagy PDF — akár egy hirdetési lapról." },
+  { t: "Digitalizáljuk", d: "Felismerjük a helyiségeket, falakat, ajtókat, ablakokat, és ellenőrizzük a m²-eket." },
+  { t: "Te ellenőrzöd és javítod", d: "Fal arrébb: megfogod és húzod. Ajtó, ablak: egy kattintás a nyílászáró-kártyán." },
+  { t: "Méretpontos 3D modell épül", d: "Forgatod, ráközelítesz, a falra kattintasz — és az ablak a szemed előtt nő bele a falba." },
+  { t: "Bejárás, elfogadás, link", d: "Szemmagasságból, berendezve: az ajtók kinyílnak előtted. Jóváhagyod — és küldöd a linket a vevőnek." },
+];
+const DURS = [5200, 5200, 6400, 11200, 16800]; // jelenetenkénti hossz (ms)
+const stepsEl = document.getElementById("steps"), dotsEl = document.getElementById("dots");
+STEPS.forEach((s, i) => {
+  const d = document.createElement("div"); d.className = "st"; d.innerHTML = `<span class="n">${i + 1}</span><div style="flex:1"><b>${s.t}</b><span>${s.d}</span><div class="bar"><i></i></div></div>`;
+  d.onclick = () => go(i); stepsEl.appendChild(d);
+  const b = document.createElement("button"); b.onclick = () => go(i); b.setAttribute("aria-label", s.t); dotsEl.appendChild(b);
+});
+const clamp = (v) => Math.max(0, Math.min(1, v)), easeOut = (t) => 1 - Math.pow(1 - clamp(t), 3), smooth = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
+
+/* ---------- Mini 3D-motor ----------
+   Ugyanaz a lakás, mint a 2D-rajz (px-egységek, 1 px = 2,94 cm). Két nézet: babaház (ortografikus, forgatható) és POV (perspektív, szemmagasság).
+   Festő-algoritmus: a falak ≤ 26 px-es darabokra szelve, mélység szerint rajzolva. */
+const ROOMS = [
+  { n: "Nappali", r: [20, 46, 244, 168], c: "#F0E4D0" }, { n: "Hálószoba", r: [244, 46, 380, 168], c: "#EDE0CB" },
+  { n: "Szoba", r: [20, 168, 128, 284], c: "#F0E4D0" }, { n: "Fürdő", r: [128, 168, 196, 284], c: "#E2EBEE" },
+  { n: "Előszoba", r: [196, 168, 298, 284], c: "#E6ECEE" }, { n: "Konyha", r: [298, 168, 380, 284], c: "#E2EBEE" },
+  { n: "Erkély", r: [60, 12, 215, 46], c: "#E4E9EC" },
+];
+// falak: a→b tengelyirányú szakasz, t = vastagság; ops = nyílások a futó koordináta mentén.
+// ajtó: hinge = zsanér, dir = csukott lap iránya (a fal mentén), sw = nyitás iránya (a 2D nyílásív szerint); glass = üvegezett erkélyajtó, BECSUKVA.
+const WALLS = [
+  { a: [20, 46], b: [380, 46], t: 10, ops: [{ k: "glass", r: [100, 150] }, { k: "win", r: [170, 212] }, { k: "win", r: [262, 340] }] },
+  { a: [380, 46], b: [380, 284], t: 10, ops: [{ k: "win", r: [82, 132] }, { k: "win", r: [200, 250] }] },
+  { a: [20, 284], b: [380, 284], t: 10, ops: [{ k: "win", r: [50, 100] }, { k: "win", r: [150, 190], extra: true }, { k: "door", id: "be", r: [238, 268], hinge: [238, 284], dir: [1, 0], sw: [0, -1] }, { k: "win", r: [318, 362] }] },
+  { a: [20, 46], b: [20, 284], t: 10, ops: [{ k: "win", r: [82, 132] }, { k: "win", r: [200, 250] }] },
+  { a: [244, 46], b: [244, 168], t: 5, ops: [] }, // a 3. jelenetben arrébb húzott fal: a 3D a jóváhagyott tervet követi
+  { a: [20, 168], b: [380, 168], t: 5, ops: [{ k: "door", id: "szoba", r: [60, 88], hinge: [88, 168], dir: [-1, 0], sw: [0, -1] }, { k: "door", id: "nappali", r: [200, 224], hinge: [200, 168], dir: [1, 0], sw: [0, -1] }, { k: "door", id: "halo", r: [262, 288], hinge: [288, 168], dir: [-1, 0], sw: [0, 1] }] },
+  { a: [128, 168], b: [128, 284], t: 5, ops: [] },
+  { a: [196, 168], b: [196, 284], t: 5, ops: [{ k: "door", id: "furdo", r: [236, 262], hinge: [196, 262], dir: [0, -1], sw: [-1, 0] }] },
+  { a: [298, 168], b: [298, 284], t: 5, ops: [{ k: "door", id: "konyha", r: [190, 216], hinge: [298, 216], dir: [0, -1], sw: [1, 0] }] },
+];
+const RAILS = [[60, 12, 60, 46], [60, 12, 215, 12], [215, 12, 215, 46]]; // erkélymellvéd (~1 m, nem teljes fal)
+const DD = { H: 42, SILL: 14, HEAD: 36, DOORH: 34, RAIL: 12 };   // babaház-vágás (kb. 1,2 m-es falak, hogy belelátni)
+const DP = { H: 92, SILL: 30, HEAD: 76, DOORH: 70, RAIL: 34 };   // valós magasságok a POV-hoz (2,7 m belmagasság)
+// pár bútor, hogy a bejárás lakásnak nézzen ki (px-egységek, magasság a POV-skálán; a babaházban arányosan kisebb)
+const FURN = [
+  { r: [34, 128, 130, 158], h: 28, c: "#B8A389" }, { r: [58, 104, 106, 118], h: 14, c: "#C9B79B" },          // nappali: kanapé, dohányzóasztal
+  { r: [160, 80, 204, 110], h: 26, c: "#D3C2A6" }, { r: [165, 69, 175, 79], h: 16, c: "#A79682" }, { r: [189, 69, 199, 79], h: 16, c: "#A79682" }, // étkezőasztal + székek
+  { r: [292, 60, 366, 124], h: 20, c: "#DACBB3" }, { r: [292, 60, 366, 66], h: 36, c: "#9E8B74" },          // háló: ágy + fejtámla
+  { r: [28, 176, 72, 244], h: 20, c: "#D6C8B0" }, { r: [88, 252, 122, 278], h: 26, c: "#C4B094" },           // szoba: ágy, íróasztal
+  { r: [302, 172, 376, 188], h: 32, c: "#CFC6B8" }, { r: [360, 188, 376, 254], h: 32, c: "#CFC6B8" },        // konyha: pult
+  { r: [134, 174, 164, 248], h: 18, c: "#F2F4F5" },                                                           // fürdő: kád
+  { r: [254, 52, 280, 122], h: 64, c: "#CDBBA0" },                                                            // háló: gardrób
+  { r: [222, 52, 232, 62], h: 34, c: "#6E8A5E" }, { r: [362, 128, 372, 138], h: 30, c: "#6E8A5E" },          // növények
+];
+const RUGS = [{ r: [48, 96, 118, 126], c: "#C99A78" }, { r: [300, 126, 358, 150], c: "#B7A58E" }]; // szőnyegek (csak a padlón)
+
+const hex2 = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const col = (h, f, warm = 0) => { const [r, g, b] = hex2(h), w = hex2("#F7E8C8"); return `rgb(${Math.round((r + (w[0] - r) * warm) * f)},${Math.round((g + (w[1] - g) * warm) * f)},${Math.round((b + (w[2] - b) * warm) * f)})`; };
+// d = magasságok; extra = a 4. jelenetben beépített fürdőablak; doors = ajtó-id → nyitásszög (rad); null = minden ajtó nyitva (babaház)
+function geometry(d, extra, doors, winW = 1) { // winW = a beépülő fürdőablak szélessége (0..1, animált)
+  const boxes = [], glass = [];
+  const prism = (fp, z0, z1, c) => boxes.push({ fp, z0, z1, c });
+  const rect = (x1, y1, x2, y2, z0, z1, c) => prism([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], z0, z1, c);
+  for (const w of WALLS) {
+    const horiz = w.a[1] === w.b[1], c = horiz ? w.a[1] : w.a[0], lo = horiz ? w.a[0] : w.a[1], hi = horiz ? w.b[0] : w.b[1];
+    const box = (f, t, z0, z1) => { for (let s = f; s < t; s += 26) { const e = Math.min(t, s + 26);
+      horiz ? rect(s, c - w.t / 2, e, c + w.t / 2, z0, z1, "#EDE6DA") : rect(c - w.t / 2, s, c + w.t / 2, e, z0, z1, "#EDE6DA"); } };
+    const pane = (r, z0, z1, ex) => glass.push({ pts: horiz ? [[r[0], c, z0], [r[1], c, z0], [r[1], c, z1], [r[0], c, z1]] : [[c, r[0], z0], [c, r[1], z0], [c, r[1], z1], [c, r[0], z1]], extra: ex });
+    let pos = lo;
+    for (const o0 of w.ops.filter((o) => !o.extra || (extra && winW > 0))) {
+      const o = o0.extra ? { ...o0, r: [170 - 20 * winW, 170 + 20 * winW] } : o0;
+      box(pos, o.r[0], 0, d.H);
+      if (o.k === "win") { box(o.r[0], o.r[1], 0, d.SILL); box(o.r[0], o.r[1], d.HEAD, d.H); pane(o.r, d.SILL, d.HEAD, o.extra); }
+      else if (o.k === "glass") { box(o.r[0], o.r[1], d.DOORH, d.H); pane(o.r, 0, d.DOORH); }
+      else {
+        box(o.r[0], o.r[1], d.DOORH, d.H);
+        const a = doors ? (doors[o.id] ?? 0) : Math.PI / 2, L = o.r[1] - o.r[0];
+        const v = [o.dir[0] * Math.cos(a) + o.sw[0] * Math.sin(a), o.dir[1] * Math.cos(a) + o.sw[1] * Math.sin(a)], n = [-v[1], v[0]], h = o.hinge;
+        prism([[h[0] + n[0], h[1] + n[1]], [h[0] + n[0] + v[0] * L, h[1] + n[1] + v[1] * L], [h[0] - n[0] + v[0] * L, h[1] - n[1] + v[1] * L], [h[0] - n[0], h[1] - n[1]]], 0, d.DOORH - 2, "#D8C6A8");
+      }
+      pos = o.r[1];
+    }
+    box(pos, hi, 0, d.H);
+  }
+  for (const [x1, y1, x2, y2] of RAILS) rect(Math.min(x1, x2) - 1.5, Math.min(y1, y2) - 1.5, Math.max(x1, x2) + 1.5, Math.max(y1, y2) + 1.5, 0, d.RAIL, "#B9B2A6");
+  const fs = d.H / DP.H; for (const f of FURN) rect(f.r[0], f.r[1], f.r[2], f.r[3], 0, f.h * fs, f.c);
+  return { boxes, glass };
+}
+const GEO = { 0: geometry(DD, false, null), 1: geometry(DD, true, null) };
+const ptsStr = (a) => a.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+
+/* Babaház-nézet: ortografikus, forgatható (yaw), 56°-os rádőlés. */
+const S = 0.98, EL = 56 * Math.PI / 180, CE = Math.cos(EL), SE = Math.sin(EL);
+function dollP(yaw, rise, zoom = 1) { const cs = Math.cos(yaw), sn = Math.sin(yaw), s = S * zoom, cy = 150 + 60 * (zoom - 1); // nagyításkor a fürdő fala felé
+  return (x, y, z) => { const xr = (x - 200) * cs - (y - cy) * sn, yr = (x - 200) * sn + (y - cy) * cs, zz = z * rise;
+    return [220 + xr * s, 196 + yr * CE * s - zz * SE * s, yr * SE + zz * CE]; }; }
+function renderDoll(svg, o) { // o: yaw, rise (0..1), extra, winW, hl (0..1 kiemelés az új ablakon), hot (0..1 a kattintható fal felizzása), zoom
+  const cs = Math.cos(o.yaw), sn = Math.sin(o.yaw), P = dollP(o.yaw, o.rise, o.zoom || 1), faces = [];
+  const addBox = (b) => {
+    const n = b.fp.length, mx = b.fp.reduce((s, p) => s + p[0], 0) / n, my = b.fp.reduce((s, p) => s + p[1], 0) / n;
+    const hot = o.hot && my > 278 && mx > 140 && mx < 200 ? o.hot : 0; // a fürdő külső fala a kattintás előtt
+    const cc = hot ? `#${[239, 122, 90].map((v, i) => Math.round(hex2(b.c)[i] + (v - hex2(b.c)[i]) * hot * 0.8).toString(16).padStart(2, "0")).join("")}` : b.c;
+    b = { ...b, c: cc };
+    const top = b.fp.map(([x, y]) => P(x, y, b.z1));
+    faces.push({ d: top.reduce((s, p) => s + p[2], 0) / n + 0.01, f: col(b.c, 1.04), p: ptsStr(top) });
+    for (let i = 0; i < n; i++) {
+      const [x1, y1] = b.fp[i], [x2, y2] = b.fp[(i + 1) % n]; let nx = y2 - y1, ny = -(x2 - x1);
+      if (nx * ((x1 + x2) / 2 - mx) + ny * ((y1 + y2) / 2 - my) < 0) { nx = -nx; ny = -ny; }
+      const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+      const nxr = nx * cs - ny * sn, nyr = nx * sn + ny * cs;
+      if (nyr <= 0) continue; // a kamerának háttal álló oldal
+      const q = [P(x1, y1, b.z0), P(x2, y2, b.z0), P(x2, y2, b.z1), P(x1, y1, b.z1)];
+      faces.push({ d: q.reduce((s, p) => s + p[2], 0) / 4, f: col(b.c, 0.72 + 0.24 * Math.max(0, nxr * 0.35 + nyr * 0.9)), p: ptsStr(q) });
+    }
+  };
+  const g = o.winW !== undefined && o.winW > 0 && o.winW < 1 ? geometry(DD, true, null, o.winW) : GEO[o.extra ? 1 : 0];
+  g.boxes.forEach(addBox);
+  for (const q of g.glass) {
+    const pp = q.pts.map((p) => P(p[0], p[1], p[2])), hot = q.extra && o.hl > 0;
+    faces.push({ d: pp.reduce((s, p) => s + p[2], 0) / 4 + 0.02, f: hot ? `rgba(239,122,90,${(0.25 + 0.55 * o.hl).toFixed(2)})` : "rgba(150,196,222,.55)", s: hot ? "#EF7A5A" : "rgba(255,255,255,.9)", sw: hot ? 2.5 : 1, p: ptsStr(pp) });
+  }
+  faces.sort((a, b) => a.d - b.d);
+  let out = "";
+  for (const r of ROOMS) { const [x1, y1, x2, y2] = r.r; out += `<polygon points="${ptsStr([P(x1, y1, 0), P(x2, y1, 0), P(x2, y2, 0), P(x1, y2, 0)])}" fill="${r.c}" stroke="rgba(60,50,40,.12)" stroke-width=".6"/>`; }
+  if (o.extra && o.hl > 0) { // a kijelölt fal alatt a padlón is egy pont, hogy látszódjon, hova került
+    const q = P(170, 284, 0); out += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(14 - 8 * o.hl).toFixed(1)}" fill="none" stroke="#EF7A5A" stroke-width="2" opacity="${o.hl.toFixed(2)}"/>`;
+  }
+  for (const f of faces) out += `<polygon points="${f.p}" fill="${f.f}" stroke="${f.s || "rgba(70,60,50,.22)"}" stroke-width="${f.sw || 0.5}" stroke-linejoin="round"/>`;
+  svg.innerHTML = out;
+}
+
+/* POV-nézet: perspektív vetítés szemmagasságból (kamera: x, y, z, yaw = nézésirány a rajzon). */
+function renderPOV(svg, cam, geo, o) { // o.accept = 0..1 (elfogadás után bemelegedő színek)
+  const F = [Math.cos(cam.yaw), Math.sin(cam.yaw)], R = [-F[1], F[0]], NEAR = 3, FL = 235, warm = (o.accept || 0) * 0.35;
+  const toCam = (p) => { const dx = p[0] - cam.x, dy = p[1] - cam.y; return [dx * F[0] + dy * F[1], dx * R[0] + dy * R[1], p[2] - cam.z]; };
+  const clip = (pts) => { const out = []; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length], ain = a[0] >= NEAR, bin = b[0] >= NEAR;
+    if (ain) out.push(a); if (ain !== bin) { const k = (NEAR - a[0]) / (b[0] - a[0]); out.push([NEAR, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]); } } return out; };
+  const proj = (p) => [220 + p[1] / p[0] * FL, 190 - p[2] / p[0] * FL];
+  const faces = [];
+  const push = (pts3, fill, stroke, sw, bias = 0) => { const c = clip(pts3.map(toCam)); if (c.length < 3) return;
+    faces.push({ d: c.reduce((s, p) => s + p[0], 0) / c.length + bias, f: fill, s: stroke, sw, p: ptsStr(c.map(proj)) }); };
+  let out = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9CCBEA"/><stop offset="1" stop-color="#EEF6FB"/></linearGradient>
+    <radialGradient id="vig" cx=".5" cy=".45" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#1a1410" stop-opacity=".45"/></radialGradient>
+    <linearGradient id="warmL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE9C4" stop-opacity=".22"/><stop offset="1" stop-color="#FFE9C4" stop-opacity="0"/></linearGradient></defs>
+    <rect width="440" height="360" fill="#151210"/>`;
+  const flat = (r, z, fill) => { const [x1, y1, x2, y2] = r; const c = clip([[x1, y1, z], [x2, y1, z], [x2, y2, z], [x1, y2, z]].map(toCam)); if (c.length >= 3) out += `<polygon points="${ptsStr(c.map(proj))}" fill="${fill}"/>`; };
+  for (const r of ROOMS) { flat(r.r, 0, col(r.c, 0.92, warm)); if (r.n !== "Erkély") flat(r.r, DP.H, col("#F4EFE6", 1, warm)); }
+  for (const r of RUGS) flat(r.r, 0.2, col(r.c, 1, warm));
+  for (const q of geo.glass) { // napfolt a padlón az ablakok előtt
+    const [a, b] = [q.pts[0], q.pts[1]], horiz = a[1] === b[1];
+    if (horiz) { const c = a[1], dir = Math.sign(165 - c) || 1; flat([Math.min(a[0], b[0]), Math.min(c, c + dir * 40), Math.max(a[0], b[0]), Math.max(c, c + dir * 40)], 0.3, "rgba(255,236,196,.38)"); }
+    else { const c = a[0], dir = Math.sign(200 - c) || 1; flat([Math.min(c, c + dir * 40), Math.min(a[1], b[1]), Math.max(c, c + dir * 40), Math.max(a[1], b[1])], 0.3, "rgba(255,236,196,.38)"); }
+  }
+  for (const b of geo.boxes) {
+    const n = b.fp.length, mx = b.fp.reduce((s, p) => s + p[0], 0) / n, my = b.fp.reduce((s, p) => s + p[1], 0) / n;
+    if (cam.z > b.z1) push(b.fp.map(([x, y]) => [x, y, b.z1]), col(b.c, 1.04, warm));
+    if (cam.z < b.z0) push(b.fp.map(([x, y]) => [x, y, b.z0]), col(b.c, 0.78, warm));
+    for (let i = 0; i < n; i++) {
+      const [x1, y1] = b.fp[i], [x2, y2] = b.fp[(i + 1) % n]; let nx = y2 - y1, ny = -(x2 - x1);
+      if (nx * ((x1 + x2) / 2 - mx) + ny * ((y1 + y2) / 2 - my) < 0) { nx = -nx; ny = -ny; }
+      const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+      const vx = cam.x - (x1 + x2) / 2, vy = cam.y - (y1 + y2) / 2, dist = Math.hypot(vx, vy) || 1, facing = (nx * vx + ny * vy) / dist;
+      if (facing <= 0) continue;
+      push([[x1, y1, b.z0], [x2, y2, b.z0], [x2, y2, b.z1], [x1, y1, b.z1]], col(b.c, 0.62 + 0.36 * facing, warm));
+    }
+  }
+  for (const q of geo.glass) push(q.pts, "url(#sky)", "rgba(255,255,255,.95)", 1.6, -0.5);
+  faces.sort((a, b) => b.d - a.d); // távoli előbb
+  for (const f of faces) out += `<polygon points="${f.p}" fill="${f.f}" stroke="${f.s || "rgba(70,60,50,.28)"}" stroke-width="${f.sw || 0.6}" stroke-linejoin="round"/>`;
+  out += `<rect width="440" height="360" fill="url(#warmL)"/><rect width="440" height="360" fill="url(#vig)"/>`;
+  const look = [cam.x + F[0] * 34, cam.y + F[1] * 34];
+  const room = ROOMS.find((r) => look[0] >= r.r[0] && look[0] <= r.r[2] && look[1] >= r.r[1] && look[1] <= r.r[3]) || ROOMS.find((r) => cam.x >= r.r[0] && cam.x <= r.r[2] && cam.y >= r.r[1] && cam.y <= r.r[3]);
+  if (room) out += `<g transform="translate(14,16)"><rect width="${room.n.length * 7 + 18}" height="20" rx="10" fill="#12100e" opacity=".82"/><text x="9" y="14" font-size="10.5" font-weight="800" fill="#fff" font-family="Manrope,system-ui,sans-serif">${room.n}</text></g>`;
+  const trail = (o.trail || []).map((p) => `${p[0] - 20},${p[1] - 12}`).join(" ");
+  out += `<g transform="translate(372,296)"><rect width="56" height="50" rx="8" fill="rgba(18,16,14,.6)"/><g transform="translate(6,8) scale(.122)">${ROOMS.map((r) => `<rect x="${r.r[0] - 20}" y="${r.r[1] - 12}" width="${r.r[2] - r.r[0]}" height="${r.r[3] - r.r[1]}" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.35)" stroke-width="4"/>`).join("")}${trail ? `<polyline points="${trail}" fill="none" stroke="#EF7A5A" stroke-width="6" stroke-dasharray="10 8" opacity=".8"/>` : ""}<circle cx="${cam.x - 20}" cy="${cam.y - 12}" r="14" fill="#EF7A5A"/></g></g>`;
+  svg.innerHTML = out;
+}
+
+/* ---------- kurzor-mozgás: frames = [{t, p:[x,y] | () => [x,y], click}] a kurzor szülőjéhez képest ---------- */
+function runCursor(el, t, frames) {
+  const f0 = frames[0], fn = frames[frames.length - 1], vis = t >= f0.t - 150 && t <= fn.t + 500;
+  el.classList.toggle("show", vis); if (!vis) return;
+  let a = f0, b = f0;
+  for (const f of frames) { if (f.t <= t) a = f; else { b = f; break; } b = f; }
+  const pa = typeof a.p === "function" ? a.p() : a.p, pb = typeof b.p === "function" ? b.p() : b.p, k = b.t > a.t ? smooth((t - a.t) / (b.t - a.t)) : 1;
+  el.style.left = (pa[0] + (pb[0] - pa[0]) * k).toFixed(1) + "px"; el.style.top = (pa[1] + (pb[1] - pa[1]) * k).toFixed(1) + "px";
+  el.classList.toggle("clk", frames.some((f) => f.click && t >= f.t && t < f.t + 400));
+}
+const center = (sel, curEl) => () => { const r = document.querySelector(sel).getBoundingClientRect(), pr = curEl.offsetParent.getBoundingClientRect(); return [r.left + r.width / 2 - pr.left, r.top + r.height / 2 - pr.top]; };
+const svgPt = (svgEl, curEl, sx, sy) => { const r = svgEl.getBoundingClientRect(), pr = curEl.offsetParent.getBoundingClientRect(); return [r.left + sx * r.width / 440 - pr.left, r.top + sy * r.height / 360 - pr.top]; };
+
+// 3. jelenet: fal-fogantyú (svg 232,107 → kártya px), erkélyajtó (125,36), kártya csempéje, majd el
+const cur3 = document.getElementById("cur3");
+const CUR3 = [{ t: 250, p: [231, 116] }, { t: 700, p: [231, 116], click: true }, { t: 2200, p: [242, 116] }, { t: 2900, p: [131, 49] }, { t: 3150, p: [131, 49], click: true }, { t: 3900, p: center("#tlGlass", cur3) }, { t: 4300, p: center("#tlGlass", cur3), click: true }, { t: 5200, p: [330, 250] }];
+function frame3(t) { runCursor(cur3, t, CUR3); }
+
+// 4. jelenet: felemelkedés → forgatás húzással → kattintás a fürdő külső falára → kártya → Ablak → 120 → beépül
+const v3d = document.getElementById("v3d"), cur4 = document.getElementById("cur4"), YAW4 = 0.53;
+const ZOOM4 = 1.16, wallPt = () => { const q = dollP(YAW4, 1, ZOOM4)(170, 284, 22); return svgPt(v3d, cur4, q[0], q[1]); };
+// időzítés: 0,3–1,9 s felemelkedés · 2,2–5,4 s lassú forgatás húzással (közben ráközelít) · 5,8 s a fal felizzik · 6,3 s kattintás · kártya · 7,6 s Ablak · 8,8 s 120 cm · 9,0–10,0 s az ablak belenő a falba
+const CUR4 = [{ t: 2200, p: () => svgPt(v3d, cur4, 120, 300), click: true }, { t: 5400, p: () => svgPt(v3d, cur4, 310, 300) }, { t: 6100, p: wallPt }, { t: 6300, p: wallPt, click: true },
+  { t: 7300, p: center("#tlWin", cur4) }, { t: 7600, p: center("#tlWin", cur4), click: true }, { t: 8500, p: center("#cap120", cur4) }, { t: 8800, p: center("#cap120", cur4), click: true }, { t: 9800, p: () => svgPt(v3d, cur4, 400, 60) }];
+function frame4(t) {
+  const rise = easeOut((t - 300) / 1600), p = smooth((t - 2200) / 3200), yaw = -0.62 + (YAW4 + 0.62) * p, zoom = 1 + (ZOOM4 - 1) * smooth((t - 3600) / 1800);
+  const hot = t > 5800 && t < 6600 ? 0.5 + 0.5 * Math.sin((t - 5800) / 800 * Math.PI * 2 - Math.PI / 2) : (t >= 6600 && t < 9000 ? 0.35 : 0);
+  const winW = easeOut((t - 9000) / 1000), hl = t >= 9000 ? Math.max(0, 1 - (t - 9000) / 2200) : 0;
+  renderDoll(v3d, { yaw, rise, zoom, hot, extra: t >= 9000, winW, hl });
+  runCursor(cur4, t, CUR4);
+}
+// 5. jelenet (POV): kamera-kulcskockák {t, x, y, yaw (fok; −90 = észak, a rajzon felfelé)} + ajtónyitások
+// bejárat előtt → ajtó kinyílik → előszoba → a nappali ajtaja kinyílik → benézünk, lassú körbenézés → vissza, a háló ajtaja kinyílik → benézünk, körbenézés → itt fogadjuk el
+const CAM = [{ t: 0, x: 253, y: 306, yaw: -90 }, { t: 2000, x: 253, y: 306, yaw: -90 }, { t: 4000, x: 250, y: 236, yaw: -90 }, { t: 5200, x: 240, y: 214, yaw: -121 },
+  { t: 6800, x: 212, y: 178, yaw: -112 }, { t: 8600, x: 212, y: 178, yaw: -68 }, { t: 10000, x: 246, y: 212, yaw: -52 }, { t: 11400, x: 275, y: 178, yaw: -108 },
+  { t: 13000, x: 275, y: 178, yaw: -75 }, { t: 14200, x: 275, y: 178, yaw: -88 }, { t: 16800, x: 275, y: 178, yaw: -88 }];
+const DOORT = { be: [400, 1700], nappali: [4600, 5900], halo: [9400, 10500] }; // mikor nyílnak ki (ms)
+const v3d2 = document.getElementById("v3d2"), cur5 = document.getElementById("cur5");
+const CUR5 = [{ t: 12900, p: () => svgPt(v3d2, cur5, 300, 200) }, { t: 13700, p: center(".acc", cur5) }, { t: 13900, p: center(".acc", cur5), click: true }, { t: 14600, p: () => svgPt(v3d2, cur5, 330, 250) }];
+function frame5(t) {
+  let a = CAM[0], b = CAM[0]; for (const k of CAM) { if (k.t <= t) a = k; else { b = k; break; } b = k; }
+  const k = b.t > a.t ? smooth((t - a.t) / (b.t - a.t)) : 1;
+  const cam = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: 55, yaw: (a.yaw + (b.yaw - a.yaw) * k) * Math.PI / 180 };
+  const doors = {}; for (const id in DOORT) doors[id] = Math.PI / 2 * easeOut((t - DOORT[id][0]) / (DOORT[id][1] - DOORT[id][0]));
+  const trail = CAM.filter((k) => k.t <= t).map((k) => [k.x, k.y]); trail.push([cam.x, cam.y]);
+  renderPOV(v3d2, cam, geometry(DP, true, doors), { accept: smooth((t - 13900) / 900), trail });
+  runCursor(cur5, t, CUR5);
+}
+
+let cur = 0, timer = null, start = 0;
+function go(i) {
+  cur = (i + STEPS.length) % STEPS.length;
+  document.querySelectorAll(".scene").forEach((s) => { s.classList.remove("on"); void s.offsetWidth; });
+  document.querySelectorAll("[data-at]").forEach((e) => e.classList.remove("show"));
+  document.querySelectorAll(".cur").forEach((e) => e.classList.remove("show"));
+  document.querySelector(`.scene[data-i="${cur}"]`).classList.add("on");
+  [...stepsEl.children].forEach((e, k) => { e.classList.toggle("on", k === cur); e.classList.toggle("done", k < cur); });
+  [...dotsEl.children].forEach((e, k) => e.classList.toggle("on", k === cur));
+  start = performance.now(); clearTimeout(timer);
+  timer = setTimeout(() => go(cur + 1), DURS[cur] + (cur === STEPS.length - 1 ? 1200 : 0)); // végtelenítve: az utolsó után elölről
+}
+function tick() {
+  const t = performance.now() - start, sc = document.querySelector(`.scene[data-i="${cur}"]`);
+  const bar = stepsEl.children[cur]?.querySelector(".bar i"); if (bar) bar.style.width = Math.min(100, (t / DURS[cur]) * 100) + "%";
+  sc.querySelectorAll("[data-at]").forEach((e) => { const a = +e.dataset.at, off = e.dataset.off ? +e.dataset.off : 1e9; e.classList.toggle("show", t >= a && t < off); });
+  sc.querySelectorAll("[data-sel]").forEach((e) => e.classList.toggle("on", t >= +e.dataset.sel));
+  sc.querySelectorAll("[data-unsel]").forEach((e) => e.classList.toggle("on", t < +e.dataset.unsel));
+  if (cur === 2) frame3(t); else if (cur === 3) frame4(t); else if (cur === 4) frame5(t);
+  requestAnimationFrame(tick);
+}
+document.getElementById("replay").onclick = () => go(0);
+document.getElementById("go").onclick = () => alert("→ a valós munkamenet: feltöltés (a modulban a bemutató bezárul, és az első lépés jelenik meg)");
+go(0); tick();
+
+/* ---------- Korábbi 3D munkák: bélyegképek, élő visszaszámláló, hosszabbítás-léptető ---------- */
+renderDoll(document.getElementById("th1"), { yaw: 0.5, rise: 1, extra: true, hl: 0 });
+renderDoll(document.getElementById("th2"), { yaw: -0.4, rise: 1, extra: false, hl: 0 });
+const EXP = Date.now() + (23 * 24 * 60 + 4 * 60 + 12) * 60 * 1000; // minta: 23 nap 4 óra múlva jár le
+function cd() { let s = Math.max(0, Math.floor((EXP - Date.now()) / 1000)); const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const m = Math.floor(s / 60); s -= m * 60;
+  document.getElementById("cd1").textContent = `${d} nap ${h} ó ${m} p ${String(s).padStart(2, "0")} mp`; document.getElementById("pb1").style.width = ((EXP - Date.now()) / (30 * 86400000) * 100).toFixed(1) + "%"; }
+cd(); setInterval(cd, 1000);
+document.querySelectorAll(".stp").forEach((st) => { const nEl = st.querySelector("[data-n]"), cEl = st.parentElement.querySelector("[data-c]"); let n = parseInt(nEl.textContent, 10);
+  st.querySelectorAll("button").forEach((b) => b.onclick = () => { n = Math.max(1, Math.min(12, n + +b.dataset.d)); nEl.textContent = `${n} × 30 nap`; cEl.textContent = `${n * 3} kredit`; }); });
+</script>
+</body>
+</html>

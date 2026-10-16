@@ -15,6 +15,7 @@ import type { Underlay } from "@/components/floorplan3d/editor/Plan2D";
 import ApartmentViewer, { useApartmentMeasure, type ViewerApi } from "@/components/floorplan3d/ApartmentViewer";
 import WalkthroughViewer from "@/components/floorplan3d/WalkthroughViewer";
 import ShareCard from "@/components/floorplan3d/ShareCard";
+import ModuleTour from "@/components/floorplan3d/intro/ModuleTour";
 import { roomViewpoint } from "@/lib/floorplan3d/camera";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
@@ -28,14 +29,28 @@ type Source = "digital" | "hand";
 type Stats = NormalizeStats & { model: string; seconds: number; tokensIn: number; tokensOut: number; costUsd: number };
 
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const TOUR_SEEN_KEY = "twx-fp3d-tour-seen"; // a bemutatót első belépéskor mutatjuk (böngészőnként); utána a „Hogyan működik?" gombbal
 
 
 
-export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin, styleSheet, styleError, linkDays, creditsExtend }: {
+/** autoTour: első belépéskor magától induljon-e a bemutató (az adminnál nem — a 3D-labornak nem kell; a gombbal ott is megnézhető). */
+export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin, styleSheet, styleError, linkDays, creditsExtend, autoTour }: {
   tolerancePct: number; maxUploadMb: number; creditsCreate: number; creditsGeometryFix: number; sceneOptions: SceneOptions; openingCornerMin: number;
   linkDays: number; creditsExtend: number;
-  styleSheet: StyleSheet | null; styleError: string | null;
+  styleSheet: StyleSheet | null; styleError: string | null; autoTour: boolean;
 }) {
+  // bemutató (oktató animáció): első belépéskor, de nem folyamatban lévő munka (?p=) megnyitásakor
+  const [tour, setTour] = useState(false);
+  useEffect(() => {
+    if (!autoTour || new URLSearchParams(window.location.search).get("p")) return;
+    let seen = true;
+    try { seen = !!window.localStorage.getItem(TOUR_SEEN_KEY); } catch { /* tiltott tárhely: nem erőltetjük */ }
+    if (!seen) setTour(true);
+  }, [autoTour]);
+  const closeTour = useCallback(() => {
+    setTour(false);
+    try { window.localStorage.setItem(TOUR_SEEN_KEY, "1"); } catch { /* nem baj */ }
+  }, []);
   // utólagos javítás: már volt jóváhagyva (approved_at) → a díj a geometriai javításé, csak az érintett helyiségek épülnek újra
   const [wasApproved, setWasApproved] = useState(false);
   const [rebuilt, setRebuilt] = useState<string[] | null>(null);
@@ -195,13 +210,25 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
   }
 
   // ======================================================================
+  if (tour) {
+    return (
+      <div className="flex flex-col gap-5">
+        <ModuleTour opts={sceneOptions} style={styleSheet} credits={creditsCreate} linkDays={linkDays} creditsExtend={creditsExtend} onStart={closeTour} />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-5">
       <ModuleIntro eyebrow="Prototípus · csak admin" title="Alaprajzból bejárható 3D lakás" icon="visualization"
         subtitle="Tölts fel egy alaprajzot — digitalizáljuk, te ellenőrzöd és javítod, majd méretpontos, bejárható 3D lakás készül belőle."
         chips={["Méretpontos", "2D + 3D szerkesztés", "Bejárás szemmagasságból", "Megosztható link"]} />
 
-      <Steps current={!plan ? 1 : status === "draft" ? 2 : 3} />
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1"><Steps current={!plan ? 1 : status === "draft" ? 2 : 3} /></div>
+        <button type="button" onClick={() => setTour(true)} title="A bemutató újranézése (a munkád megmarad)"
+          className="h-11 w-[150px] flex-none rounded-full text-[13px] font-semibold"
+          style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>▶ Hogyan működik?</button>
+      </div>
 
       {loadingProject ? (
         <div className="twx-card flex h-[300px] items-center justify-center text-sm" style={{ color: MUTED }}>Alaprajz betöltése…</div>

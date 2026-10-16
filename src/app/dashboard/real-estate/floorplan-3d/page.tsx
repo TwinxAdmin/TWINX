@@ -30,6 +30,7 @@ export default async function Floorplan3dPage() {
       styleError={"error" in style ? style.error : null}
       linkDays={cfg.linkDays}
       creditsExtend={cfg.creditsExtend}
+      autoTour={me?.role !== "admin"}
     />
   );
 }
