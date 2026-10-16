@@ -1,7 +1,8 @@
 // Referenciakép kikeresése a `references` bucketből: [stílus]/[helység].
-// Több kiterjesztést próbál; ha az adott helység nincs meg, visszaesik a stílus
-// bármely elérhető képére (a stílus így is átadható), végül null (referencia nélkül).
+// Több kiterjesztést próbál; ha az adott helység nincs meg, a legközelebbi helyiség képére esik vissza
+// (REFERENCE_FALLBACK), majd a stílus bármely képére, végül null (referencia nélkül).
 import { createAdminClient } from "@/lib/supabase/admin";
+import { referenceCandidates } from "@/lib/visualization";
 
 const BUCKET = "references";
 const EXTS = ["png", "jpg", "jpeg", "webp"];
@@ -19,24 +20,24 @@ export async function getReferenceImage(
   if (!styleSlug) return null;
   const admin = createAdminClient();
 
-  // 1) Pontos találat: stílus/helység.<ext>
-  for (const ext of EXTS) {
-    const { data } = await admin.storage
-      .from(BUCKET)
-      .download(`${styleSlug}/${roomSlug}.${ext}`);
-    if (data) {
-      const buf = Buffer.from(await data.arrayBuffer());
-      return { bytes: new Uint8Array(buf), mimeType: mimeFromExt(ext) };
+  // 1) A saját helyiség képe, utána a legközelebbi helyiségeké (pl. gardrób → hálószoba), végül a nappali
+  for (const slug of referenceCandidates(roomSlug)) {
+    for (const ext of EXTS) {
+      const { data } = await admin.storage.from(BUCKET).download(`${styleSlug}/${slug}.${ext}`);
+      if (data) {
+        const buf = Buffer.from(await data.arrayBuffer());
+        return { bytes: new Uint8Array(buf), mimeType: mimeFromExt(ext) };
+      }
     }
   }
 
-  // 2) Fallback: a stílus bármely elérhető képe (a stílus így is átadható).
-  const { data: list } = await admin.storage.from(BUCKET).list(styleSlug, { limit: 1 });
-  if (list && list.length > 0) {
-    const name = list[0].name;
-    const { data } = await admin.storage.from(BUCKET).download(`${styleSlug}/${name}`);
+  // 2) Fallback: a stílus bármely KÉPE (a mappában a stíluslap .json / .md is lehet — az nem kép)
+  const { data: list } = await admin.storage.from(BUCKET).list(styleSlug, { limit: 100 });
+  const img = (list ?? []).find((f) => EXTS.includes(f.name.split(".").pop()?.toLowerCase() ?? ""));
+  if (img) {
+    const { data } = await admin.storage.from(BUCKET).download(`${styleSlug}/${img.name}`);
     if (data) {
-      const ext = name.split(".").pop()?.toLowerCase() ?? "png";
+      const ext = img.name.split(".").pop()?.toLowerCase() ?? "png";
       const buf = Buffer.from(await data.arrayBuffer());
       return { bytes: new Uint8Array(buf), mimeType: mimeFromExt(ext) };
     }

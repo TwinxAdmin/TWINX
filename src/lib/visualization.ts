@@ -22,6 +22,23 @@ export const ROOM_TYPES: RoomType[] = [
   { value: "egyeb", label: "Egyéb", slug: "egyeb", en: "room" },
 ];
 
+/** Hiányzó referenciakép esetén a hozzá legközelebb álló helyiség képe (2026-10-16): a sorrend számít, a végén mindig a nappali.
+ *  A felület kiírja, ha nem a saját helyiség képe látszik („minta: Hálószoba") — így nem félrevezető. */
+export const REFERENCE_FALLBACK: Record<string, string[]> = {
+  etkezo: ["konyha", "nappali"],
+  eloszoba: ["nappali"],
+  gardrob: ["haloszoba"],
+  dolgozoszoba: ["nappali", "haloszoba"],
+  gyerekszoba: ["haloszoba"],
+  furdo: ["konyha"],
+  konyha: ["etkezo"],
+  egyeb: ["nappali"],
+};
+/** A referenciakép-jelöltek sorrendben: a saját helyiség, a legközelebbiek, végül a nappali. */
+export function referenceCandidates(roomSlug: string): string[] {
+  return [...new Set([roomSlug, ...(REFERENCE_FALLBACK[roomSlug] ?? []), "nappali"])].filter(Boolean);
+}
+
 // ---- Stílusok (value = bucket mappa slug, "" = nincs stílus) ----
 export type StyleOption = { value: string; label: string; en: string };
 export const STYLE_OPTIONS: StyleOption[] = [

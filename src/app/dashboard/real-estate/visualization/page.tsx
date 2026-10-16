@@ -23,6 +23,7 @@ import {
   EMPTY_ROOM_CONFIG,
   validateImageFiles,
   isRoomConfigReady,
+  referenceCandidates,
   type RoomConfig,
 } from "@/lib/visualization";
 
@@ -658,14 +659,20 @@ function ChipRow({ options, value, onChange, allowEmpty }: {
   );
 }
 
-/** Képes stílus-kártya — a referencia-képből mintát mutat, ha van. */
+/** Képes stílus-kártya — a referencia-képből mintát mutat. Ha a helyiséghez nincs kép, a legközelebbi helyiségé látszik
+ *  (pl. gardrób → hálószoba), és a kártya kiírja, melyik helyiség mintája („minta: Hálószoba"). */
 function StyleCard({ label, styleSlug, roomSlug, active, onClick }: {
   label: string; styleSlug: string; roomSlug: string; active: boolean; onClick: () => void;
 }) {
-  const [failed, setFailed] = useState(false);
-  const src = styleSlug && SUPABASE_URL
-    ? `${SUPABASE_URL}/storage/v1/object/public/references/${styleSlug}/${roomSlug}.png`
+  const candidates = referenceCandidates(roomSlug);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [styleSlug, roomSlug]);
+  const slug = candidates[idx];
+  const failed = idx >= candidates.length;
+  const src = styleSlug && SUPABASE_URL && slug
+    ? `${SUPABASE_URL}/storage/v1/object/public/references/${styleSlug}/${slug}.png`
     : "";
+  const fallbackLabel = idx > 0 && !failed ? ROOM_TYPES.find((r) => r.slug === slug)?.label ?? null : null;
   return (
     <button type="button" onClick={onClick}
       className="group overflow-hidden rounded-xl text-left transition hover:shadow-md"
@@ -677,11 +684,17 @@ function StyleCard({ label, styleSlug, roomSlug, active, onClick }: {
       <div className="relative aspect-[4/3] w-full overflow-hidden" style={{ background: "var(--twx-cream)" }}>
         {src && !failed ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={label} className="h-full w-full object-cover" onError={() => setFailed(true)} />
+          <img key={src} src={src} alt={label} className="h-full w-full object-cover" onError={() => setIdx((i) => i + 1)} />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
             {styleSlug ? "nincs minta" : "eredeti stílus"}
           </div>
+        )}
+        {fallbackLabel && (
+          <span className="absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+            style={{ background: "rgba(18,16,14,.62)", color: "#fff" }} title="Ehhez a helyiséghez még nincs saját minta — a legközelebbi helyiség képe látszik">
+            minta: {fallbackLabel}
+          </span>
         )}
         {active && (
           <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"

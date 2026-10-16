@@ -59,3 +59,8 @@ assets/video-fx/source/
 
 # 3D-modul: saját generált bútorok jóváhagyás előtt (scripts/floorplan3d-generate-furniture.mjs)
 /.floorplan3d-generalt/
+
+# Látványtervező: generált referenciaképek jóváhagyás előtt (scripts/visualization-generate-references.mjs)
+/.visualization-referenciak/
+# … és a hozzájuk tartozó helyi jóváhagyó rács (a képeket a fenti mappából mutatja)
+/design/visualization-referenciak-attekinto.html
