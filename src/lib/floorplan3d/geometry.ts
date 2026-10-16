@@ -3,8 +3,8 @@
 //   • FALHOSSZ-JAVÍTÁS „nyújtással": a fal túlsó vége mögötti MINDEN pont (az összes helyiségben) ugyanannyival
 //     elmozdul a fal irányában → a szomszédos helyiségek együtt mozognak, a terv nem esik szét, a területek újraszámolódnak;
 //   • méret-ellenőrzés: számolt vs. megadott m², tűréshatárral, tudatos jóváhagyással.
-import type { AreaGroup, FloorPlan, Opening, Pt, Room } from "@/lib/floorplan3d/plan";
-import { DOOR_DEFAULT, WINDOW_DEFAULT, newId } from "@/lib/floorplan3d/plan";
+import type { AreaGroup, Column, FloorPlan, Opening, Pt, Room } from "@/lib/floorplan3d/plan";
+import { DOOR_DEFAULT, OUTDOOR_KINDS, WINDOW_DEFAULT, newId } from "@/lib/floorplan3d/plan";
 
 const EPS = 0.005; // 5 mm — ennyin belül két koordináta azonosnak számít
 
@@ -120,6 +120,86 @@ export function addOpening(plan: FloorPlan, roomId: string, edge: number, kind: 
     ...(kind === "door" ? { hinge: "start" as const, swing: "in" as const } : {}),
   };
   return { ...plan, openings: [...plan.openings, o] };
+}
+
+/** A nyílás túloldalán (a falon át, 45 cm-re) nincs beltéri helyiség → a lakásból KIFELÉ vezet (bejárati ajtó, erkély-/loggiaajtó). */
+export function leadsOutside(plan: FloorPlan, o: Opening): boolean {
+  const room = plan.rooms.find((r) => r.id === o.roomId);
+  if (!room) return false;
+  if (OUTDOOR_KINDS.includes(room.kind)) return true;
+  const s = openingSegment(room, o), e = roomEdge(room, o.edge), len = e.length || 1;
+  const nin: Pt = [-(e.b[1] - e.a[1]) / len, (e.b[0] - e.a[0]) / len];
+  const p: Pt = [s.center[0] - nin[0] * 0.45, s.center[1] - nin[1] * 0.45];
+  return !plan.rooms.some((r) => r.id !== room.id && !OUTDOOR_KINDS.includes(r.kind) && pointInPolygon(p, r.polygon));
+}
+/** A nyílás túloldalán kültéri helyiség (terasz / erkély / loggia) van-e (vagy a nyílás maga a kültéri helyiségé)? */
+export function leadsToOutdoorRoom(plan: FloorPlan, o: Opening): boolean {
+  const room = plan.rooms.find((r) => r.id === o.roomId);
+  if (!room) return false;
+  if (OUTDOOR_KINDS.includes(room.kind)) return true;
+  const s = openingSegment(room, o), e = roomEdge(room, o.edge), len = e.length || 1;
+  const nin: Pt = [-(e.b[1] - e.a[1]) / len, (e.b[0] - e.a[0]) / len];
+  const p: Pt = [s.center[0] - nin[0] * 0.45, s.center[1] - nin[1] * 0.45];
+  return plan.rooms.some((r) => OUTDOOR_KINDS.includes(r.kind) && pointInPolygon(p, r.polygon));
+}
+/** Becsukva jelenik-e meg az ajtó a 3D-ben: a beállított érték; különben a kifelé vezető ajtó (bejárati, erkély), és az az ajtó,
+ *  amelynek a 90°-ra nyitott lapja elzárná a helyiséget (kis WC / kamra: a lap mögött nem marad 45 cm) — ezek a bejárásban
+ *  odasétálva nyílnak ki. */
+export const doorClosed = (plan: FloorPlan, o: Opening): boolean => o.kind === "door" && (o.closed ?? (leadsOutside(plan, o) || leafBlocksRoom(plan, o)));
+
+/** A nyitás oldalán lévő helyiség mélysége (a nyílás közepétől merőlegesen a szemközti falig) kisebb-e, mint a lap + 45 cm? */
+export function leafBlocksRoom(plan: FloorPlan, o: Opening): boolean {
+  const room = plan.rooms.find((r) => r.id === o.roomId);
+  if (!room) return false;
+  const s = openingSegment(room, o), e = roomEdge(room, o.edge), len = e.length || 1;
+  let n: Pt = [-(e.b[1] - e.a[1]) / len, (e.b[0] - e.a[0]) / len];
+  if (o.swing === "out") n = [-n[0], -n[1]];
+  const leaf = o.width >= 1.2 && o.leaves !== 1 ? o.width / 2 : o.width;
+  // a nyitás oldalán melyik helyiségben vagyunk (kifelé nyíló ajtónál a szomszédban), és milyen mélyen tart ki
+  const probe = (d: number): Pt => [s.center[0] + n[0] * d, s.center[1] + n[1] * d];
+  const host = plan.rooms.find((r) => pointInPolygon(probe(0.15), r.polygon));
+  if (!host) return false;
+  let d = 0.15;
+  while (d < leaf + 0.5 && pointInPolygon(probe(d), host.polygon)) d += 0.05;
+  if (d < leaf + 0.45) return true;
+  // a 90°-os lap ne álljon egy MÁSIK ajtó / átjáró elé (keskeny közlekedő): ott a lap a zsanértól a nyitás irányába fut
+  const hinges: Pt[] = o.width >= 1.2 && o.leaves !== 1 ? [s.a, s.b] : [o.hinge === "end" ? s.b : s.a];
+  const segDist = (p: Pt, a: Pt, b: Pt) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2));
+    return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+  };
+  for (const other of plan.openings) {
+    if (other.id === o.id || other.kind === "window") continue;
+    const r2 = plan.rooms.find((r) => r.id === other.roomId);
+    if (!r2) continue;
+    const s2 = openingSegment(r2, other), e2 = roomEdge(r2, other.edge), l2 = e2.length || 1;
+    const n2: Pt = [-(e2.b[1] - e2.a[1]) / l2, (e2.b[0] - e2.a[0]) / l2];
+    const approach: Pt[] = [0.45, -0.45].map((k) => [s2.center[0] + n2[0] * k, s2.center[1] + n2[1] * k] as Pt);
+    for (const h of hinges) {
+      const tip: Pt = [h[0] + n[0] * leaf, h[1] + n[1] * leaf];
+      if (approach.some((p) => segDist(p, h, tip) < 0.3)) return true;
+    }
+  }
+  return false;
+}
+/** Digitalizálás utáni alapértékek (Márk, 2026-10-16): az erkélyre / loggiára / teraszra nyíló ajtó ÜVEGAJTÓ és becsukva
+ *  jelenik meg; a többi kifelé vezető (bejárati) ajtó becsukva. A partner mindkettőt átállíthatja. */
+export function applyDoorDefaults(plan: FloorPlan): FloorPlan {
+  return { ...plan, openings: plan.openings.map((o) => {
+    if (o.kind !== "door") return o;
+    if (leadsToOutdoorRoom(plan, o)) return { ...o, glazed: o.glazed ?? true, closed: o.closed ?? true };
+    if (leadsOutside(plan, o)) return { ...o, closed: o.closed ?? true };
+    return o;
+  }) };
+}
+export function pointInPolygon(p: Pt, poly: Pt[]): boolean {
+  let r = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) r = !r;
+  }
+  return r;
 }
 
 export function removeOpening(plan: FloorPlan, openingId: string): FloorPlan {
@@ -287,7 +367,8 @@ function wallNeighbors(a: Room, b: Room): boolean {
 export function affectedRooms(prev: FloorPlan | null, next: FloorPlan): string[] {
   if (!prev || prev.ceilingHeight !== next.ceilingHeight) return next.rooms.map((r) => r.id);
   const key = (r: Room) => JSON.stringify([r.polygon, r.kind, [...(r.openEdges ?? [])].sort()]);
-  const okey = (o: Opening) => JSON.stringify([o.kind, o.roomId, o.edge, o.offset, o.width, o.height, o.sill, o.hinge ?? null, o.swing ?? null]);
+  // (2026-10-16) az üvegezés, a szárnyszám és a becsukott állapot is a 3D-t változtatja
+  const okey = (o: Opening) => JSON.stringify([o.kind, o.roomId, o.edge, o.offset, o.width, o.height, o.sill, o.hinge ?? null, o.swing ?? null, !!o.glazed, o.leaves ?? null, o.closed ?? null]);
   const prevRooms = new Map(prev.rooms.map((r) => [r.id, key(r)]));
   const changed = new Set(next.rooms.filter((r) => prevRooms.get(r.id) !== key(r)).map((r) => r.id));
   // falváltozás: a helyiség összes falszomszédja is érintett (a közös fal mindkét oldalon látszik)
@@ -324,6 +405,15 @@ export function affectedRooms(prev: FloorPlan | null, next: FloorPlan): string[]
       });
       if (across) out.add(other.id);
     }
+  }
+  // oszlop-változás (új / törölt / mozgatott / átméretezett): az a helyiség, amelyben (vagy amelynek a falánál) áll
+  const ckey = (c: Column) => JSON.stringify([c.x, c.y, c.w, c.d]);
+  const prevCols = new Map((prev.columns ?? []).map((c) => [c.id, ckey(c)]));
+  const nextCols = new Map((next.columns ?? []).map((c) => [c.id, ckey(c)]));
+  const movedCols = [...(next.columns ?? []).filter((c) => prevCols.get(c.id) !== ckey(c)), ...(prev.columns ?? []).filter((c) => nextCols.get(c.id) !== ckey(c))];
+  for (const c of movedCols) {
+    const pts: Pt[] = [[c.x, c.y], [c.x - c.w / 2, c.y - c.d / 2], [c.x + c.w / 2, c.y - c.d / 2], [c.x + c.w / 2, c.y + c.d / 2], [c.x - c.w / 2, c.y + c.d / 2]];
+    for (const r of next.rooms) if (pts.some((q) => pointInPolygon(q, r.polygon))) out.add(r.id);
   }
   return next.rooms.map((r) => r.id).filter((id) => out.has(id));
 }

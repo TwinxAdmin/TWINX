@@ -3,9 +3,9 @@
 //     + a padlón álló bútorok alapterülete (szőnyeg, függőlámpa nem akadály);
 //   • test: kör (BODY_R sugár) — falnál TENGELYENKÉNT csúszik, hogy ne akadjon el ferdén nekimenve;
 //   • kezdőpont: az előszoba (ha van) bejáratától befelé, a helyiség közepe felé nézve.
-import { OUTDOOR_KINDS, type FloorPlan, type Pt } from "@/lib/floorplan3d/plan";
-import { openingSegment } from "@/lib/floorplan3d/geometry";
-import { wallSlabs, type SceneOptions } from "@/lib/floorplan3d/scene";
+import { OUTDOOR_KINDS, leavesOf, type FloorPlan, type Pt } from "@/lib/floorplan3d/plan";
+import { doorClosed, openingSegment, pointInPolygon, roomEdge } from "@/lib/floorplan3d/geometry";
+import { slantWalls, wallSlabs, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { footprint, type FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { roomViewpoint } from "@/lib/floorplan3d/camera";
 
@@ -19,7 +19,8 @@ const NON_BLOCKING = new Set(["rug", "pendant_lamp"]);
 
 /** Ütközők a tervből (falak, ajtólyukkal) és a berendezésből (bútor-alapterületek befoglaló téglalapja). */
 export function colliders(plan: FloorPlan, opts: SceneOptions, furniture: FurnitureItem[] = []): Rect[] {
-  const doors = plan.openings.filter((o) => o.kind === "door").map((o) => {
+  // átjárható nyílások: ajtó (a becsukott is — a bejárásban odaérve kinyílik) és átjáró; ablakon nem lehet átmenni
+  const doors = plan.openings.filter((o) => o.kind !== "window").map((o) => {
     const room = plan.rooms.find((r) => r.id === o.roomId);
     if (!room) return null;
     const s = openingSegment(room, o);
@@ -41,6 +42,32 @@ export function colliders(plan: FloorPlan, opts: SceneOptions, furniture: Furnit
     };
     for (const d of cuts) { push(cur, Math.max(cur, d.from)); cur = Math.max(cur, d.to); }
     push(cur, s.to);
+  }
+  // a NYITOTT ajtólapok (90°-ra kinyitva, a nyitás oldalán) — vékony akadály, hogy ne lehessen átsétálni rajtuk
+  for (const o of plan.openings) {
+    if (o.kind !== "door" || doorClosed(plan, o)) continue;
+    const room = plan.rooms.find((r) => r.id === o.roomId);
+    if (!room) continue;
+    const s = openingSegment(room, o);
+    if (!s.axis) continue;
+    const e = roomEdge(room, o.edge), el = e.length || 1;
+    let n: Pt = [-(e.b[1] - e.a[1]) / el, (e.b[0] - e.a[0]) / el];          // befelé (óramutató szerinti körüljárás)
+    if (o.swing === "out") n = [-n[0], -n[1]];
+    const leaves = leavesOf(o) === 2 ? [{ h: s.a, lw: o.width / 2 }, { h: s.b, lw: o.width / 2 }] : [{ h: o.hinge === "end" ? s.b : s.a, lw: o.width }];
+    for (const { h, lw } of leaves) {
+      const t: Pt = [h[0] + n[0] * lw, h[1] + n[1] * lw];
+      out.push({ x0: Math.min(h[0], t[0]) - 0.02, x1: Math.max(h[0], t[0]) + 0.02, y0: Math.min(h[1], t[1]) - 0.02, y1: Math.max(h[1], t[1]) + 0.02 });
+    }
+  }
+  // tartóoszlopok
+  for (const c of plan.columns ?? []) out.push({ x0: c.x - c.w / 2, x1: c.x + c.w / 2, y0: c.y - c.d / 2, y1: c.y + c.d / 2 });
+  // ferde falak: kis négyzetek láncával közelítve (a téglalap-ütközés így változatlanul használható; 5 cm-es lépés)
+  for (const w of slantWalls(plan, opts)) {
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]), n = Math.max(1, Math.ceil(len / 0.05)), h = w.thickness / 2;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, c: Pt = [w.a[0] + (w.b[0] - w.a[0]) * t + w.outward[0] * h, w.a[1] + (w.b[1] - w.a[1]) * t + w.outward[1] * h];
+      out.push({ x0: c[0] - h, x1: c[0] + h, y0: c[1] - h, y1: c[1] + h });
+    }
   }
   for (const it of furniture) {
     if (NON_BLOCKING.has(it.type)) continue;
@@ -91,25 +118,43 @@ function insidePoly(p: Pt, poly: Pt[]): boolean {
 export function startPose(plan: FloorPlan, rects?: Rect[]): { pos: Pt; yaw: number } {
   const room = plan.rooms.find((r) => r.kind === "eloszoba") ?? plan.rooms.find((r) => r.kind !== "terasz") ?? plan.rooms[0];
   const v = roomViewpoint(plan, room);
-  let yaw = Math.atan2(v.target[1] - v.pos[1], v.target[0] - v.pos[0]);
-  if (rects) {
-    let best = -1;
-    for (let i = 0; i < 72; i++) {
-      const a = (i / 72) * Math.PI * 2;
-      let d = 0.1;
-      const at = (t: number): Pt => [v.pos[0] + Math.cos(a) * t, v.pos[1] + Math.sin(a) * t];
-      // csak a lakáson BELÜL mért rálátás (a bejárati ajtón át kifelé nézés nem számít)
-      // (a helyiségek közti fal-rés — belső ajtó — legfeljebb 40 cm „kint" lehet)
-      let outside = 0;
-      while (d < 15 && !blocked(at(d), rects, 0.03) && outside < 0.4) {
-        outside = plan.rooms.some((r) => !OUTDOOR_KINDS.includes(r.kind) && insidePoly(at(d), r.polygon)) ? 0 : outside + 0.05;
-        d += 0.05;
-      }
-      d -= outside;
-      if (d > best + 0.05) { best = d; yaw = a; }
+  let pos = v.pos;
+  // a kezdőpont ne legyen foglalt (pl. bútor, nyitott ajtólap): a legközelebbi szabad pont 1 m-en belül
+  if (rects && blocked(pos, rects)) {
+    let best: Pt | null = null, bd = Infinity;
+    for (let dy = -1; dy <= 1.001; dy += 0.05) for (let dx = -1; dx <= 1.001; dx += 0.05) {
+      const q: Pt = [pos[0] + dx, pos[1] + dy], d = dx * dx + dy * dy;
+      if (d < bd && !blocked(q, rects) && pointInPolygon(q, room.polygon)) { bd = d; best = q; }
     }
+    if (best) pos = best;
   }
-  return { pos: v.pos, yaw };
+  const yaw = Math.atan2(v.target[1] - pos[1], v.target[0] - pos[0]);
+  return { pos, yaw: rects ? bestView(plan, pos, rects).yaw : yaw };
+}
+
+/** A pontból abba az irányba néz, amerre a legmesszebb ellát a lakáson BELÜL (72 irány, 5 cm-es lépés) — a kezdéshez és
+ *  az érkezéshez (ne falra nézzen). A helyiségek közti fal-rés (belső ajtó) legfeljebb 40 cm „kint" lehet. */
+export function bestView(plan: FloorPlan, pos: Pt, rects: Rect[]): { yaw: number; dist: number } {
+  let best = -1, yaw = 0;
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * Math.PI * 2;
+    let d = 0.1, outside = 0;
+    const at = (t: number): Pt => [pos[0] + Math.cos(a) * t, pos[1] + Math.sin(a) * t];
+    while (d < 15 && !blocked(at(d), rects, 0.03) && outside < 0.4) {
+      outside = plan.rooms.some((r) => !OUTDOOR_KINDS.includes(r.kind) && insidePoly(at(d), r.polygon)) ? 0 : outside + 0.05;
+      d += 0.05;
+    }
+    d -= outside;
+    if (d > best + 0.05) { best = d; yaw = a; }
+  }
+  return { yaw, dist: best };
+}
+
+/** Milyen messze lát el az adott irányba (a bútor és a fal is takar). */
+export function viewDistance(pos: Pt, yaw: number, rects: Rect[], max = 6): number {
+  let d = 0.1;
+  while (d < max && !blocked([pos[0] + Math.cos(yaw) * d, pos[1] + Math.sin(yaw) * d], rects, 0.03)) d += 0.05;
+  return d;
 }
 
 /** Szabad-e az egyenes út a két pont között (5 cm-enként mintázva)? */

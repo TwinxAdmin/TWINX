@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TWINX — Alaprajz-javító látványterv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --dark:#12100e; --cream:#F7F3EC; --card:#FDFBF6; --ink:#1C1815; --muted:#6E655C;
+    --line:#E8E1D6; --line2:#EFE7DD; --coral:#EF7A5A; --coral2:#F08A68; --soft:#FBE1D6;
+    --green:#2f7a4f; --green-soft:rgba(47,158,95,.14); --amber:#8A6416; --amber-soft:rgba(224,165,38,.18);
+    --red:#B3261E; --red-soft:#FDECEA; --teal:#2F7F86; --wall:#3B3530;
+  }
+  *{box-sizing:border-box;margin:0;font-family:-apple-system,"Segoe UI",Inter,system-ui,sans-serif}
+  body{background:#2a2420;color:var(--ink)}
+  .display{font-family:"Manrope","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  button:disabled{cursor:not-allowed;opacity:.4}
+  .muted{color:var(--muted)}
+  .note{max-width:1440px;margin:16px auto 0;padding:0 16px;color:#BFB4A8;font-size:12px;text-align:center;line-height:1.5}
+  .app{max-width:1440px;margin:12px auto 24px;background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .nav{height:52px;background:var(--dark);display:flex;align-items:center;padding:0 24px;gap:22px;color:#F4EFE7;font-size:14px}
+  .nav .logo{font-weight:800;font-size:19px}.nav .logo b{color:var(--coral)}
+  .nav .m{opacity:.7}.nav .m.on{opacity:1;color:var(--coral2);font-weight:600}
+  .page{padding:20px 26px 26px}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 14px}
+  .step{height:40px;border-radius:99px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--line)}
+  .step .n{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--line)}
+  .step.done .n{background:var(--green-soft);color:var(--green)}
+  .step.on{background:var(--dark);color:#fff;border-color:var(--dark)}.step.on .n{background:var(--coral2);color:var(--ink)}
+
+  /* SZERKESZTŐ */
+  .editor{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;height:760px}
+  .tb{height:56px;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--line)}
+  .seg{display:inline-flex;padding:3px;border-radius:99px;background:#F1EAE1;gap:2px}
+  .seg button{height:32px;padding:0 12px;border-radius:99px;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#4A433C}
+  .seg button.on{background:var(--dark);color:#fff}
+  .seg button .k{font-size:10px;opacity:.55;border:1px solid currentColor;border-radius:4px;padding:0 3px;line-height:14px}
+  .ib{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:#fff}
+  .sp{flex:1}
+  .chk{height:34px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:99px;font-size:12.5px;font-weight:600}
+  .go{height:38px;padding:0 18px;border-radius:99px;background:var(--coral);color:#fff;font-weight:700;font-size:13px}
+  .body{flex:1;display:flex;min-height:0}
+  .views{flex:1;display:grid;min-width:0;position:relative}
+  .pane{position:relative;min-width:0;overflow:hidden}
+  .pane .lbl{position:absolute;left:12px;top:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:rgba(253,251,246,.9);padding:4px 8px;border-radius:6px;pointer-events:none}
+  .divider{width:10px;cursor:col-resize;background:var(--line2);position:relative}
+  .divider::after{content:"";position:absolute;left:4px;top:50%;width:2px;height:36px;margin-top:-18px;border-radius:2px;background:#C9BEB1}
+  #svg{width:100%;height:100%;display:block;background:#FBF8F3;touch-action:none}
+  #three{width:100%;height:100%;display:block}
+  .insp{width:340px;flex:none;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#fff}
+  .insp .hd{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+  .insp .sc{flex:1;overflow-y:auto;padding:14px 16px 18px}
+  .sb{height:32px;display:flex;align-items:center;gap:14px;padding:0 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+  .sb b{color:var(--ink)}
+  .h{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+  .row{display:flex;align-items:center;gap:8px}
+  .field{height:36px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:13px;background:#fff;width:100%}
+  .num{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;height:36px;overflow:hidden;background:#fff}
+  .num input{border:0;width:70px;text-align:right;font-size:13px;font-weight:600;padding:0 4px;outline:none;height:100%}
+  .num span{font-size:12px;color:var(--muted);padding-right:8px}
+  .num button{width:30px;height:100%;color:var(--muted);font-size:16px}
+  .num button:hover{background:#F6F1EA}
+  .li{display:flex;align-items:center;gap:8px;height:38px;padding:0 10px;border-radius:10px;font-size:13px;cursor:pointer}
+  .li:hover{background:#F8F3EC}
+  .li.sel{background:var(--soft)}
+  .pill{font-size:11px;font-weight:700;border-radius:99px;padding:3px 8px}
+  .ok{background:var(--green-soft);color:var(--green)} .warn{background:var(--amber-soft);color:var(--amber)} .bad{background:var(--red-soft);color:var(--red)}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .pc{height:92px;border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11.5px;font-weight:600;background:#fff;text-align:center;line-height:1.15;padding:4px}
+  .pc small{font-weight:500;color:var(--muted);font-size:10.5px}
+  .pc:hover{border-color:#D8CCBF}
+  .pc.on{border-color:var(--coral);box-shadow:0 0 0 2px rgba(239,122,90,.25);background:#FFF8F4}
+  .tog{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .tog button{height:58px;border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:600;background:#fff}
+  .tog button.on{border-color:var(--coral);background:#FFF8F4}
+  .wb{margin-top:8px;font-size:12px;border-radius:10px;padding:8px 10px;line-height:1.4}
+  .btn{height:36px;border-radius:99px;padding:0 14px;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:#fff}
+  .btn.dark{background:var(--dark);color:#fff;border-color:var(--dark)}
+  .btn.danger{color:var(--red)}
+  .pal{position:absolute;z-index:5;top:62px;width:540px;border-radius:26px;padding:16px;display:none;background:rgba(253,250,245,.84);backdrop-filter:blur(20px) saturate(1.25);-webkit-backdrop-filter:blur(20px) saturate(1.25);border:1px solid rgba(255,255,255,.75);box-shadow:0 26px 70px rgba(28,24,21,.26)}
+  .pal .pc{border-radius:18px;background:rgba(255,255,255,.6);border-color:rgba(255,255,255,.75)}
+  .pal.open{display:block}
+  .pal .t{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .pal .presets{grid-template-columns:repeat(4,1fr)}
+  /* felugró kártya — üveghatás, nagy lekerekítés, csempék, kapszula-választó, alkártyák ábrával */
+  .pop{position:absolute;z-index:5;width:344px;border-radius:28px;padding:18px;display:none;
+       background:rgba(253,250,245,.80);backdrop-filter:blur(20px) saturate(1.25);-webkit-backdrop-filter:blur(20px) saturate(1.25);
+       border:1px solid rgba(255,255,255,.75);box-shadow:0 26px 70px rgba(28,24,21,.28),inset 0 1px 0 rgba(255,255,255,.8)}
+  .pop .ph{display:flex;align-items:center;gap:12px;margin-bottom:14px;cursor:grab;user-select:none;position:relative;padding-top:6px}
+  .pop .ph:active{cursor:grabbing}
+  .pop .grab{position:absolute;left:50%;top:-8px;width:38px;height:5px;margin-left:-19px;border-radius:99px;background:rgba(28,24,21,.18)}
+  .pop.pinned .grab{background:#EF7A5A}
+  .pop .ic{width:52px;height:52px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;
+           background:linear-gradient(145deg,#F7B49E,#EF7A5A);box-shadow:0 6px 16px rgba(239,122,90,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+  .pop .tt{font-family:"Manrope",system-ui,sans-serif;font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .pop .st{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .pop .x{width:32px;height:32px;border-radius:50%;color:var(--muted);font-size:15px;background:rgba(28,24,21,.05)}.pop .x:hover{background:rgba(28,24,21,.1)}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .tile{height:74px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11.5px;font-weight:700;color:#4A433C;
+        background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);box-shadow:0 1px 2px rgba(28,24,21,.05)}
+  .tile:hover{background:rgba(255,255,255,.85)}
+  .tile.on{color:#fff;background:linear-gradient(160deg,#F49274,#E9693F);border-color:transparent;box-shadow:0 8px 20px rgba(233,105,63,.35)}
+  .tile.on svg *{stroke:#fff}
+  .caps{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .caps .lb{width:22px;flex:none;display:flex;justify-content:center;color:var(--muted)}
+  .capsbar{flex:1;display:flex;padding:4px;border-radius:99px;background:rgba(28,24,21,.06)}
+  .capsbar button{flex:1;height:32px;border-radius:99px;font-size:12px;font-weight:700;color:#5A524A;white-space:nowrap;padding:0 6px}
+  .capsbar button.on{background:#fff;color:var(--ink);box-shadow:0 2px 8px rgba(28,24,21,.14)}
+  .subs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .sub{border-radius:20px;padding:11px 12px 12px;background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.7);display:flex;flex-direction:column;gap:6px;min-height:150px}
+  .sub .k{font-size:12px;font-weight:700;color:var(--muted)}
+  .sub .v{font-family:"Manrope",system-ui,sans-serif;font-weight:800;font-size:15px;letter-spacing:-.01em}
+  .pbtn{height:30px;padding:0 11px;border-radius:99px;background:#fff;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(28,24,21,.12)}
+  .pbtn:hover{background:#FFF5F0}
+  .pop .num{height:30px;border-radius:99px;background:rgba(255,255,255,.8)}.pop .num input{width:46px;font-size:12px;background:transparent}.pop .num button{width:24px}
+  /* csúszka: korall kitöltés a bal oldalon (--p), fehér gomb árnyékkal; az érték a jobb felső sarokban */
+  .sl{display:flex;flex-direction:column;gap:4px}
+  .slh{display:flex;align-items:baseline;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--muted)}
+  .slh b{font-family:"Manrope",system-ui,sans-serif;font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  input[type=range].rg{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:0}
+  .rg::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(90deg,#EF7A5A 0,#F49274 var(--p,50%),rgba(28,24,21,.12) var(--p,50%))}
+  .rg::-moz-range-track{height:6px;border-radius:99px;background:rgba(28,24,21,.12)}
+  .rg::-moz-range-progress{height:6px;border-radius:99px;background:#EF7A5A}
+  .rg::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-7px;border-radius:50%;background:#fff;border:2px solid #EF7A5A;box-shadow:0 2px 8px rgba(28,24,21,.25)}
+  .rg::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #EF7A5A;box-shadow:0 2px 8px rgba(28,24,21,.25)}
+  .rg:active::-webkit-slider-thumb{transform:scale(1.12)}
+  .slm{display:flex;justify-content:space-between;font-size:10px;color:#A99D90;margin-top:-2px}
+  .pop .foot{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .pop .del{height:32px;padding:0 14px;border-radius:99px;background:rgba(179,38,30,.08);color:var(--red);font-size:12px;font-weight:700}
+  .pop .wb{border-radius:14px;margin-top:10px}
+  .tip{position:absolute;pointer-events:none;z-index:4;background:var(--dark);color:#fff;font-size:12px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap;display:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .tip small{display:block;font-weight:500;opacity:.75;font-size:11px}
+  .annots{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  .annot{font-size:12px;line-height:1.5;color:#7A4A2E;background:#FFF3EC;border:1px dashed #E8B9A6;border-radius:12px;padding:10px 12px}
+  .annot b{color:#A8411F}
+  .toast{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);background:var(--dark);color:#fff;font-size:12.5px;padding:8px 10px 8px 14px;border-radius:99px;display:none;align-items:center;gap:10px;z-index:6}
+  .toast button{color:var(--coral2);font-weight:700;padding:2px 8px}
+</style>
+</head>
+<body>
+<p class="note">LÁTVÁNYTERV — kattintható minta az új tesztlakás (38,84 m² + loggia) közelítő adataival. A 2D és a 3D ugyanabból az adatból él: minden módosítás azonnal mindkettőben látszik.
+Próbáld ki: kattints helyiségre / falra / ajtóra · húzd a falat (Fal húzása) · „+ Ajtó" / „+ Ablak" → válassz méretet → vidd a falra · a 3D-ben is húzható az ajtó · Ctrl+Z / Ctrl+Shift+Z · Delete.</p>
+<div class="app">
+  <div class="nav"><span class="logo">TWIN<b>X</b></span><span class="m">Tartalomgyártás</span><span class="m on">Ingatlan</span><span class="m">Korábbi munkák</span></div>
+  <div class="page">
+    <h1 class="display" style="font-size:24px;font-weight:700">Alaprajzból bejárható 3D lakás</h1>
+    <div class="steps">
+      <div class="step done"><span class="n">✓</span>Feltöltés</div>
+      <div class="step on"><span class="n">2</span>Javítás és ellenőrzés</div>
+      <div class="step"><span class="n">3</span>3D és berendezés</div>
+      <div class="step"><span class="n">4</span>Bejárás és link</div>
+    </div>
+
+    <div class="editor">
+      <div class="tb">
+        <div class="seg" id="tools">
+          <button data-tool="select" class="on">↖ Kijelölés <span class="k">V</span></button>
+          <button data-tool="wall">⇕ Fal húzása <span class="k">W</span></button>
+          <button data-tool="door">＋ Ajtó <span class="k">D</span></button>
+          <button data-tool="window">＋ Ablak <span class="k">A</span></button>
+          <button data-tool="column">▮ Oszlop <span class="k">O</span></button>
+        </div>
+        <button class="ib" id="undo" title="Visszavonás (Ctrl+Z)">↶</button>
+        <button class="ib" id="redo" title="Újra (Ctrl+Shift+Z)">↷</button>
+        <div class="seg" id="viewmode">
+          <button data-v="2d">2D</button>
+          <button data-v="split" class="on">2D | 3D</button>
+          <button data-v="3d">3D</button>
+        </div>
+        <span class="sp"></span>
+        <span class="chk" id="chk"></span>
+        <button class="go" id="approve">Jóváhagyás és 3D · 10 kredit</button>
+      </div>
+
+      <div class="body">
+        <div class="views" id="views">
+          <div class="pane" id="p2d"><span class="lbl">Alaprajz · 2D</span><svg id="svg"></svg></div>
+          <div class="divider" id="divider" title="Húzd a nézetek arányához"></div>
+          <div class="pane" id="p3d"><span class="lbl">3D-ellenőrzés · húzással forgatható</span><canvas id="three"></canvas></div>
+          <div class="pal" id="pal"></div>
+          <div class="tip" id="tip"></div>
+          <div class="pop" id="pop"></div>
+          <div class="toast" id="toast"><span id="toastT"></span><button id="toastU">Visszavonás</button></div>
+        </div>
+        <aside class="insp">
+          <div class="hd" id="ihd"></div>
+          <div class="sc" id="isc"></div>
+        </aside>
+      </div>
+      <div class="sb" id="sb"></div>
+    </div>
+
+    <div class="annots">
+      <div class="annot"><b>Osztott nézet.</b> Bal: méretpontos 2D alaprajz építészeti jelekkel (ajtó nyílásívvel, ablak üvegvonallal). Jobb: a 3D ugyanabból az adatból, újragenerálás nélkül. Az elválasztó húzható; 2D / 3D gombbal egy nézet is választható. <b>Közös kijelölés:</b> ami az egyikben ki van jelölve, a másikban is kiemelődik, a 3D kamera odafordul.</div>
+      <div class="annot"><b>Fal húzása.</b> A falat megfogva merőlegesen ki-be húzható, 1 cm-es lépésben; menet közben élő méret (falhossz, változás, a helyiség m²-e a megadotthoz képest). A szomszéd falhoz <b>mágnesesen</b> illeszkedik (türkiz vezetővonal). Ferde fal: a hossz a panelen adható meg. A pontos számmező megmarad.</div>
+      <div class="annot"><b>Nyílászáró.</b> „+ Ajtó / + Ablak" → méretpaletta (szabványos méretek + egyedi) → a szellemkép a legközelebbi falra ugrik, mutatja a saroktávolságokat; piros, ha kilógna vagy ütközik. A 3D-ben is a falra kattintva tehető be, húzással mozgatható, Delete-tel törölhető. Nyitásirány 4 ikonnal. <b>Visszavonás</b> mindenre közös (Ctrl+Z).</div>
+      <div class="annot"><b>Átjáró és oszlop.</b> Ha egy határ az egyik oldalon nyitott (pl. Közlekedő → Előtér), a szemközti fal ugyanazon szakasza is <b>automatikusan megnyílik</b> — nem marad „fal-csonk". Bárhol nyitható <b>átjáró</b> (ajtó nélkül) a „+ Ajtó" palettáról. Új elem: <b>tartóoszlop</b> („+ Oszlop") — lerakás, húzás, falhoz illesztés, méret; a 3D-ben teljes magas, a bejárásban akadály.</div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+// ---------------------------------------------------------------- ADAT (ugyanaz a szerkezet, mint a valódi FloorPlan JSON)
+const PRESETS = [
+  { id:"d75", kind:"door", t:"Beltéri ajtó", s:"75 × 210", w:.75, h:2.1, sill:0 },
+  { id:"d90", kind:"door", t:"Beltéri ajtó", s:"90 × 210", w:.9, h:2.1, sill:0 },
+  { id:"d100", kind:"door", t:"Bejárati ajtó", s:"100 × 210", w:1.0, h:2.1, sill:0 },
+  { id:"g90", kind:"door", glazed:true, t:"Üvegajtó", s:"90 × 240 · erkélyre", w:.9, h:2.4, sill:0 },
+  { id:"g150", kind:"door", glazed:true, t:"Kétszárnyú üvegajtó", s:"150 × 240", w:1.5, h:2.4, sill:0 },
+  { id:"t150", kind:"door", t:"Kétszárnyú ajtó", s:"150 × 210", w:1.5, h:2.1, sill:0 },
+  { id:"p70", kind:"passage", t:"Átjáró", s:"70 cm · fal nélkül", w:.7, h:2.6, sill:0 },
+  { id:"p90", kind:"passage", t:"Átjáró", s:"90 cm · fal nélkül", w:.9, h:2.6, sill:0 },
+  { id:"p120", kind:"passage", t:"Széles átjáró", s:"120 cm · fal nélkül", w:1.2, h:2.6, sill:0 },
+  { id:"w60", kind:"window", t:"Kis ablak", s:"60 × 60 · p. 150", w:.6, h:.6, sill:1.5 },
+  { id:"w90", kind:"window", t:"Ablak", s:"90 × 120 · p. 90", w:.9, h:1.2, sill:.9 },
+  { id:"w120", kind:"window", t:"Ablak", s:"120 × 150 · p. 90", w:1.2, h:1.5, sill:.9 },
+  { id:"w150", kind:"window", t:"Ablak", s:"150 × 150 · p. 90", w:1.5, h:1.5, sill:.9 },
+  { id:"w180", kind:"window", t:"Ablak", s:"180 × 150 · p. 90", w:1.8, h:1.5, sill:.9 },
+];
+let plan = {
+  ceilingHeight: 2.6,
+  rooms: [
+    { id:"szoba", name:"Szoba", kind:"haloszoba", declared:8.81, polygon:[[0.57,1.34],[4.09,1.34],[4.09,3.73],[0.23,3.73]], openEdges:[] },
+    { id:"nappali", name:"Nappali", kind:"nappali", declared:17.09, polygon:[[4.19,0.13],[8.62,0.13],[8.62,4.06],[4.19,4.06]], openEdges:[2] },
+    { id:"eloter", name:"Előtér", kind:"eloszoba", declared:3.02, polygon:[[4.19,4.06],[6.17,4.06],[6.17,5.64],[4.19,5.64]], openEdges:[0,1] },
+    { id:"konyha", name:"Konyha", kind:"konyha", declared:3.36, polygon:[[6.21,4.06],[8.62,4.06],[8.62,5.64],[6.21,5.64]], openEdges:[0,3] },
+    { id:"kozl", name:"Közlekedő", kind:"eloszoba", declared:1.62, polygon:[[2.28,3.87],[4.09,3.87],[4.09,4.77],[2.28,4.77]], openEdges:[1] },
+    { id:"furdo", name:"Fürdő", kind:"furdo", declared:3.78, polygon:[[0.10,3.87],[2.18,3.87],[2.18,5.64],[0.10,5.64]], openEdges:[] },
+    { id:"wc", name:"WC", kind:"wc", declared:1.16, polygon:[[2.65,4.83],[4.09,4.83],[4.09,5.64],[2.65,5.64]], openEdges:[] },
+    { id:"loggia", name:"Loggia", kind:"terasz", declared:3.81, polygon:[[5.27,-1.38],[8.56,-1.38],[8.56,-0.2],[5.27,-0.2]], openEdges:[] },
+    { id:"frerk", name:"Francia erkély", kind:"terasz", declared:0.54, polygon:[[2.82,0.5],[3.76,0.5],[3.76,1.04],[2.82,1.04]], openEdges:[] },
+  ],
+  openings: [
+    { id:"o1", kind:"door", glazed:true, roomId:"szoba", edge:0, offset:2.72, w:.9, h:2.4, sill:0, hinge:"start", swing:"in" },
+    { id:"o2", kind:"door", roomId:"szoba", edge:2, offset:.73, w:.75, h:2.1, sill:0, hinge:"end", swing:"in" },
+    { id:"o3", kind:"door", glazed:true, roomId:"nappali", edge:0, offset:2.86, w:1.5, h:2.4, sill:0, hinge:"start", swing:"in" },
+    { id:"o4", kind:"door", roomId:"eloter", edge:2, offset:1.32, w:1.0, h:2.1, sill:0, hinge:"start", swing:"in" },
+    { id:"o5", kind:"door", roomId:"kozl", edge:3, offset:.48, w:.75, h:2.1, sill:0, hinge:"start", swing:"out" },
+    { id:"o6", kind:"door", roomId:"kozl", edge:2, offset:.49, w:.75, h:2.1, sill:0, hinge:"end", swing:"out" },
+  ],
+  // tartóoszlopok / pillérek (a digitalizálás a szürke, teli téglalapokból ismeri fel — Márk jelezte a tesztrajzon)
+  columns: [ { id:"c1", x:6.11, y:3.39, w:.24, d:.8 } ],
+};
+const OUTDOOR = new Set(["terasz"]);
+const TOL = 5, CORNER_MIN = .10, WALL_T = .10;
+
+// ---------------------------------------------------------------- ÁLLAPOT + VISSZAVONÁS
+let sel = null;            // {type:"room"|"edge"|"opening", roomId, edge, id}
+let tool = "select";
+let pending = null;        // a palettán választott méret (beillesztés előtt)
+let hist = [], fut = [];
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function commit(mut, label){ hist.push(clone(plan)); if(hist.length>80) hist.shift(); fut=[]; mut(); changed(); if(label) toast(label); }
+function undo(){ if(!hist.length) return; fut.push(clone(plan)); plan=hist.pop(); validateSel(); changed(); }
+function redo(){ if(!fut.length) return; hist.push(clone(plan)); plan=fut.pop(); validateSel(); changed(); }
+function validateSel(){ if(sel?.type==="opening" && !plan.openings.find(o=>o.id===sel.id)) sel=null; }
+
+// ---------------------------------------------------------------- GEOMETRIA
+const room = (id) => plan.rooms.find(r=>r.id===id);
+const area = (p) => Math.abs(p.reduce((a,[x1,y1],i)=>{const [x2,y2]=p[(i+1)%p.length]; return a+x1*y2-x2*y1;},0))/2;
+const edgeOf = (r,i) => { const a=r.polygon[i], b=r.polygon[(i+1)%r.polygon.length]; const len=Math.hypot(b[0]-a[0],b[1]-a[1]); return {a,b,len,u:[(b[0]-a[0])/len,(b[1]-a[1])/len], axis: Math.abs(a[1]-b[1])<1e-6?"x":Math.abs(a[0]-b[0])<1e-6?"y":null}; };
+const centroid = (p) => p.reduce((c,q)=>[c[0]+q[0]/p.length,c[1]+q[1]/p.length],[0,0]);
+function inward(r,i){ const e=edgeOf(r,i), c=centroid(r.polygon); let n=[-e.u[1],e.u[0]]; const m=[(e.a[0]+e.b[0])/2,(e.a[1]+e.b[1])/2]; if((c[0]-m[0])*n[0]+(c[1]-m[1])*n[1]<0) n=[-n[0],-n[1]]; return n; }
+/** Az él nyitott szakaszai [s,t] (méter az él elejétől): ha ez az él nyitott, az egész; különben ahol egy szomszéd
+ *  helyiség párhuzamos, szemközti (≤ 45 cm-re lévő) éle nyitott — így a közös határ MINDKÉT oldala megnyílik (nem marad „fal-csonk"). */
+function openSpans(r,i){
+  const e=edgeOf(r,i); if(r.openEdges.includes(i)) return [[0,e.len]];
+  const proj=(q)=>(q[0]-e.a[0])*e.u[0]+(q[1]-e.a[1])*e.u[1], out=[];
+  for(const o of plan.rooms){ if(o.id===r.id) continue; for(const j of o.openEdges){ const oe=edgeOf(o,j);
+    if(Math.abs(oe.u[0]*e.u[1]-oe.u[1]*e.u[0])>.01) continue;
+    if(Math.abs((oe.a[0]-e.a[0])*(-e.u[1])+(oe.a[1]-e.a[1])*e.u[0])>.45) continue;
+    const a=proj(oe.a), b=proj(oe.b), s0=Math.max(0,Math.min(a,b)), t0=Math.min(e.len,Math.max(a,b)); if(t0-s0>.05) out.push([s0,t0]); } }
+  out.sort((x,y)=>x[0]-y[0]); const m=[]; for(const q of out){ if(m.length&&q[0]<=m[m.length-1][1]+.02) m[m.length-1][1]=Math.max(m[m.length-1][1],q[1]); else m.push([...q]); }
+  return m;
+}
+/** Szárnyak száma (ajtó, üvegajtó, ablak): a beállított érték, alapból ≥ 120 cm-től kétszárnyú. */
+const leavesOf=(o)=>o.leaves ?? (o.w>=1.2?2:1);
+const fmt = (v,d=2) => v.toFixed(d).replace(".",",");
+function check(r){ const a=area(r.polygon); if(!r.declared) return {a,st:"missing",d:null}; const d=(a-r.declared)/r.declared*100; return {a,d,st:Math.abs(d)<=TOL?"ok":"warn"}; }
+function openingWarnings(o){
+  const r=room(o.roomId), e=edgeOf(r,o.edge), out=[];
+  const s=o.offset-o.w/2, t=o.offset+o.w/2;
+  if(s< -1e-6 || t>e.len+1e-6) out.push({lv:"bad",t:"Kilóg a falból."});
+  else if(o.kind!=="passage" && (s<CORNER_MIN || e.len-t<CORNER_MIN)) out.push({lv:"warn",t:`Túl közel a sarokhoz (< ${Math.round(CORNER_MIN*100)} cm) — a tok nem fér el.`});
+  for(const p of plan.openings){ if(p.id===o.id||p.roomId!==o.roomId||p.edge!==o.edge) continue; if(Math.abs(p.offset-o.offset)<(p.w+o.w)/2) out.push({lv:"bad",t:"Ütközik egy másik nyílászáróval."}); }
+  if(o.kind==="window" && o.sill+o.h>plan.ceilingHeight-.05) out.push({lv:"warn",t:"Magasabb, mint a belmagasság."});
+  return out;
+}
+
+// ---------------------------------------------------------------- 2D (SVG, méterben × 100)
+const svg = document.getElementById("svg"), NS="http://www.w3.org/2000/svg";
+let vb = {x:-60,y:-190,w:1000,h:800};
+const S = 100;
+const P = (p)=>[p[0]*S,p[1]*S];
+function el(tag,attrs,parent){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); (parent||svg).appendChild(e); return e; }
+function toPlan(ev){ const r=svg.getBoundingClientRect(); return [ (vb.x+(ev.clientX-r.left)/r.width*vb.w)/S, (vb.y+(ev.clientY-r.top)/r.height*vb.h)/S ]; }
+function bounds(){ const xs=plan.rooms.flatMap(r=>r.polygon.map(p=>p[0])), ys=plan.rooms.flatMap(r=>r.polygon.map(p=>p[1])); return {x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}; }
+/** A rajz kitölti a nézetet (60 cm margóval) — az arányt a panel szélessége / magassága adja. */
+function fitVB(){ const r=svg.getBoundingClientRect(); if(!r.width) return; const asp=r.width/Math.max(r.height,1), b=bounds(), pad=.7;
+  const w0=(b.x1-b.x0+2*pad)*S, h0=(b.y1-b.y0+2*pad)*S; let w=w0,h=w0/asp; if(h<h0){h=h0;w=h0*asp;}
+  vb={x:(b.x0+b.x1)/2*S-w/2,y:(b.y0+b.y1)/2*S-h/2,w,h}; }
+let hover=null, ghost=null, drag=null, guide=null, colGhost=null;
+
+function draw2d(){
+  svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  svg.innerHTML="";
+  // rács 50 cm
+  const g=el("g",{});
+  for(let x=Math.floor(vb.x/50)*50;x<vb.x+vb.w;x+=50) el("line",{x1:x,y1:vb.y,x2:x,y2:vb.y+vb.h,stroke:x%100?"#F1EBE2":"#E9E1D5","stroke-width":1},g);
+  for(let y=Math.floor(vb.y/50)*50;y<vb.y+vb.h;y+=50) el("line",{x1:vb.x,y1:y,x2:vb.x+vb.w,y2:y,stroke:y%100?"#F1EBE2":"#E9E1D5","stroke-width":1},g);
+  // helyiségek
+  for(const r of plan.rooms){
+    const c=check(r), isSel=sel?.roomId===r.id && sel.type==="room";
+    const fill = OUTDOOR.has(r.kind) ? "#EEF2EC" : c.st==="ok" ? "#FFFDF8" : "#FFF6E3";
+    el("polygon",{points:r.polygon.map(P).map(q=>q.join(",")).join(" "),fill,stroke:"none","data-room":r.id});
+    if(isSel) el("polygon",{points:r.polygon.map(P).map(q=>q.join(",")).join(" "),fill:"rgba(239,122,90,.10)",stroke:"none","pointer-events":"none"});
+  }
+  // falak (élenként; nyitott határ szaggatott)
+  for(const r of plan.rooms) r.polygon.forEach((_,i)=>{
+    const e=edgeOf(r,i), at=(t)=>P([e.a[0]+e.u[0]*t,e.a[1]+e.u[1]*t]);
+    const isSel = sel?.type==="edge" && sel.roomId===r.id && sel.edge===i;
+    const isHov = hover?.type==="edge" && hover.roomId===r.id && hover.edge===i;
+    const spans=openSpans(r,i); let cur=0;
+    const wall=(a,b)=>{ if(b-a<.005) return; const [x1,y1]=at(a),[x2,y2]=at(b); el("line",{x1,y1,x2,y2,stroke:isSel?"#EF7A5A":isHov?"#6E5A4A":OUTDOOR.has(r.kind)?"#7D8A76":"var(--wall)","stroke-width":isSel||isHov?13:11,"stroke-linecap":"square"}); };
+    const open=(a,b)=>{ const [x1,y1]=at(a),[x2,y2]=at(b); el("line",{x1,y1,x2,y2,stroke:isSel?"#EF7A5A":"#B9AC9C","stroke-width":isSel?5:2,"stroke-dasharray":"8 7"}); };
+    for(const [a,b] of spans){ wall(cur,a); open(a,b); cur=b; }
+    wall(cur,e.len);
+  });
+  // nyílászárók
+  for(const o of plan.openings) drawOpening(o, sel?.type==="opening"&&sel.id===o.id ? "sel" : hover?.type==="opening"&&hover.id===o.id ? "hov" : "", false);
+  if(ghost) drawOpening(ghost, ghost.valid ? "ghost" : "ghostbad", true);
+  for(const c of plan.columns) drawColumn(c, sel?.type==="column"&&sel.id===c.id ? "sel" : hover?.type==="column"&&hover.id===c.id ? "hov" : "");
+  if(colGhost) drawColumn(colGhost,"ghost");
+  // címkék
+  for(const r of plan.rooms){
+    const c=check(r), [cx,cy]=P(centroid(r.polygon)), small=area(r.polygon)<1.3;
+    const t=el("text",{x:cx,y:cy-(small?2:6),"text-anchor":"middle","font-size":small?15:20,"font-weight":700,fill:"#2B2520","pointer-events":"none"}); t.textContent=r.name;
+    const t2=el("text",{x:cx,y:cy+(small?14:18),"text-anchor":"middle","font-size":small?12:14,fill:c.st==="ok"?"#2f7a4f":c.st==="warn"?"#8A6416":"#6E655C","pointer-events":"none","font-weight":600});
+    t2.textContent=`${fmt(c.a)} m²${c.st==="warn"?` · ${c.d>0?"+":""}${fmt(c.d,1)}%`:""}`;
+  }
+  // méretvonalak a kijelölt helyiség falain
+  const sr = sel && (sel.type==="room"||sel.type==="edge") ? room(sel.roomId) : sel?.type==="opening" ? room(plan.openings.find(o=>o.id===sel.id)?.roomId) : null;
+  if(sr) sr.polygon.forEach((_,i)=>dimLine(sr,i, sel.type==="edge"&&sel.edge===i));
+  if(sel?.type==="opening"){ const o=plan.openings.find(x=>x.id===sel.id); if(o) openingDims(o); }
+  if(ghost) openingDims(ghost);
+  if(guide) el("line",{...guide,stroke:"#2F7F86","stroke-width":2,"stroke-dasharray":"10 6"});
+  if(sel?.type==="opening" && !drag){ const o=plan.openings.find(x=>x.id===sel.id); if(o){ const {A,B,n}=openingGeom(o), c=[(A[0]+B[0])/2,(A[1]+B[1])/2], q=[c[0]-n[0]*.62,c[1]-n[1]*.62];
+    el("line",{x1:c[0]*S,y1:c[1]*S,x2:q[0]*S,y2:q[1]*S,stroke:"#fff","stroke-width":4,"pointer-events":"none"}); el("line",{x1:c[0]*S,y1:c[1]*S,x2:q[0]*S,y2:q[1]*S,stroke:"#EF7A5A","stroke-width":2,"pointer-events":"none"});
+    el("circle",{cx:c[0]*S,cy:c[1]*S,r:5,fill:"#fff",stroke:"#EF7A5A","stroke-width":2.5,"pointer-events":"none"});
+    el("circle",{cx:q[0]*S,cy:q[1]*S,r:19,fill:"#EF7A5A",stroke:"#fff","stroke-width":3,"pointer-events":"none",style:"filter:drop-shadow(0 3px 6px rgba(239,122,90,.45))"});
+    const g=document.createElementNS(NS,"g"); g.setAttribute("transform",`translate(${q[0]*S-13},${q[1]*S-13})`); g.setAttribute("pointer-events","none"); g.innerHTML=typeGlyph(typeKey(o)).replaceAll("#4A433C","#fff").replace(/<\/?svg[^>]*>/g,""); svg.appendChild(g); } }
+  if(typeof positionPop==="function") positionPop();
+}
+function drawColumn(c,state){
+  const col=state==="sel"?"#EF7A5A":state==="hov"?"#6E5A4A":state==="ghost"?"rgba(239,122,90,.6)":"#3B3530";
+  el("rect",{x:(c.x-c.w/2)*S,y:(c.y-c.d/2)*S,width:c.w*S,height:c.d*S,fill:col,stroke:state==="sel"?"#C9502F":"none","stroke-width":2,style:"cursor:grab"});
+  // keresztvonal: tartószerkezet (építészeti jel)
+  el("line",{x1:(c.x-c.w/2)*S,y1:(c.y-c.d/2)*S,x2:(c.x+c.w/2)*S,y2:(c.y+c.d/2)*S,stroke:"rgba(255,255,255,.35)","stroke-width":1.2,"pointer-events":"none"});
+  el("line",{x1:(c.x+c.w/2)*S,y1:(c.y-c.d/2)*S,x2:(c.x-c.w/2)*S,y2:(c.y+c.d/2)*S,stroke:"rgba(255,255,255,.35)","stroke-width":1.2,"pointer-events":"none"});
+  if(state==="sel"||state==="ghost") columnDims(c);
+}
+/** Az oszlop távolsága a legközelebbi falaktól (bal/jobb/fel/le) — mint a nyílászáró saroktávolsága. */
+function columnDims(c){
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  for(const [dx,dy] of dirs){
+    const sx=c.x+dx*c.w/2, sy=c.y+dy*c.d/2; let best=Infinity;
+    for(const r of plan.rooms) r.polygon.forEach((_,i)=>{ const e=edgeOf(r,i); if(!e.axis) return;
+      if(dx && e.axis==="y" && (e.a[0]-sx)*dx>-.001 && c.y>=Math.min(e.a[1],e.b[1]) && c.y<=Math.max(e.a[1],e.b[1])) best=Math.min(best,(e.a[0]-sx)*dx);
+      if(dy && e.axis==="x" && (e.a[1]-sy)*dy>-.001 && c.x>=Math.min(e.a[0],e.b[0]) && c.x<=Math.max(e.a[0],e.b[0])) best=Math.min(best,(e.a[1]-sy)*dy); });
+    if(!isFinite(best)||best>3||best<.01) continue;
+    const x1=sx*S,y1=sy*S,x2=(sx+dx*best)*S,y2=(sy+dy*best)*S;
+    el("line",{x1,y1,x2,y2,stroke:"#2F7F86","stroke-width":1.4});
+    const mx=(x1+x2)/2,my=(y1+y2)/2; el("rect",{x:mx-22,y:my-9,width:44,height:18,rx:5,fill:"#2F7F86"});
+    const t=el("text",{x:mx,y:my+4.5,"text-anchor":"middle","font-size":11.5,"font-weight":700,fill:"#fff"}); t.textContent=fmt(best);
+  }
+}
+function dimLine(r,i,hot){
+  const e=edgeOf(r,i), n=inward(r,i), off=-0.42;
+  const a=[e.a[0]+n[0]*off,e.a[1]+n[1]*off], b=[e.b[0]+n[0]*off,e.b[1]+n[1]*off];
+  const [x1,y1]=P(a),[x2,y2]=P(b), col=hot?"#EF7A5A":"#9C8F80";
+  el("line",{x1,y1,x2,y2,stroke:col,"stroke-width":1.4});
+  for(const q of [[x1,y1],[x2,y2]]) el("line",{x1:q[0]-n[0]*6,y1:q[1]-n[1]*6,x2:q[0]+n[0]*6,y2:q[1]+n[1]*6,stroke:col,"stroke-width":1.4});
+  const mx=(x1+x2)/2, my=(y1+y2)/2;
+  const tw=48, bg=el("rect",{x:mx-tw/2,y:my-10,width:tw,height:20,rx:6,fill:hot?"#EF7A5A":"#fff",stroke:hot?"none":"#E2D8CB"});
+  const t=el("text",{x:mx,y:my+5,"text-anchor":"middle","font-size":13,"font-weight":700,fill:hot?"#fff":"#4A433C"}); t.textContent=fmt(e.len);
+}
+function openingGeom(o){
+  const r=room(o.roomId), e=edgeOf(r,o.edge), n=inward(r,o.edge);
+  const s=o.offset-o.w/2, t=o.offset+o.w/2;
+  const A=[e.a[0]+e.u[0]*s,e.a[1]+e.u[1]*s], B=[e.a[0]+e.u[0]*t,e.a[1]+e.u[1]*t];
+  return {r,e,n,A,B};
+}
+function drawOpening(o,state,isGhost){
+  const {e,n,A,B}=openingGeom(o);
+  const col = state==="sel"?"#EF7A5A":state==="hov"?"#C9643F":state==="ghost"?"#EF7A5A":state==="ghostbad"?"#B3261E":"#3B3530";
+  const g=el("g",{"data-opening":isGhost?"":o.id,opacity:isGhost?.85:1,style:"cursor:"+(isGhost?"copy":"grab")});
+  const [ax,ay]=P(A),[bx,by]=P(B);
+  // fal-rés (a fal vastagságában „kitakarjuk")
+  el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"#FBF8F3","stroke-width":15},g);
+  if(o.kind==="passage"){
+    el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:col,"stroke-width":1.4,"stroke-dasharray":"6 5"},g);
+    for(const q of [[ax,ay],[bx,by]]) el("line",{x1:q[0]-n[0]*7,y1:q[1]-n[1]*7,x2:q[0]+n[0]*7,y2:q[1]+n[1]*7,stroke:col,"stroke-width":3},g);
+  } else if(o.kind==="window"){
+    for(const d of [-4.5,0,4.5]) el("line",{x1:ax-n[0]*d,y1:ay-n[1]*d,x2:bx-n[0]*d,y2:by-n[1]*d,stroke:col,"stroke-width":d?1.6:2.4},g);
+    el("line",{x1:ax-n[0]*6,y1:ay-n[1]*6,x2:ax+n[0]*6,y2:ay+n[1]*6,stroke:col,"stroke-width":2},g);
+    el("line",{x1:bx-n[0]*6,y1:by-n[1]*6,x2:bx+n[0]*6,y2:by+n[1]*6,stroke:col,"stroke-width":2},g);
+    if(leavesOf(o)===2){ const mx=(ax+bx)/2,my=(ay+by)/2; el("line",{x1:mx-n[0]*6,y1:my-n[1]*6,x2:mx+n[0]*6,y2:my+n[1]*6,stroke:col,"stroke-width":2},g); }
+  } else {
+    const sd = o.swing==="out"?-1:1, double=leavesOf(o)===2;
+    const leaves = double ? [[[ax,ay],[(ax+bx)/2,(ay+by)/2]],[[bx,by],[(ax+bx)/2,(ay+by)/2]]]
+                          : [o.hinge==="end"?[[bx,by],[ax,ay]]:[[ax,ay],[bx,by]]];
+    for(const [hinge,other] of leaves){
+      const w=Math.hypot(other[0]-hinge[0],other[1]-hinge[1]), tip=[hinge[0]+n[0]*sd*w, hinge[1]+n[1]*sd*w];
+      el("line",{x1:hinge[0],y1:hinge[1],x2:tip[0],y2:tip[1],stroke:col,"stroke-width":o.glazed?2:3},g);
+      if(o.glazed) el("line",{x1:hinge[0]+n[0]*sd*3,y1:hinge[1]+n[1]*sd*3,x2:tip[0]-n[0]*sd*3,y2:tip[1]-n[1]*sd*3,stroke:"#2F7F86","stroke-width":1.4},g);
+      const cross = (other[0]-hinge[0])*(tip[1]-hinge[1])-(other[1]-hinge[1])*(tip[0]-hinge[0]);
+      el("path",{d:`M ${other[0]} ${other[1]} A ${w} ${w} 0 0 ${cross>0?1:0} ${tip[0]} ${tip[1]}`,fill:"none",stroke:col,"stroke-width":1.3,"stroke-dasharray":"5 4"},g);
+    }
+    if(o.glazed) el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"#2F7F86","stroke-width":1.4},g);
+    el("line",{x1:ax-n[0]*6,y1:ay-n[1]*6,x2:ax+n[0]*6,y2:ay+n[1]*6,stroke:col,"stroke-width":2.4},g);
+    el("line",{x1:bx-n[0]*6,y1:by-n[1]*6,x2:bx+n[0]*6,y2:by+n[1]*6,stroke:col,"stroke-width":2.4},g);
+  }
+  // nagyobb, láthatatlan találati felület
+  el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"transparent","stroke-width":26},g);
+}
+function openingDims(o){
+  const {e,n,A,B}=openingGeom(o), off=0.36;
+  const seg=(p,q,label,bad)=>{ const a=[p[0]+n[0]*off,p[1]+n[1]*off], b=[q[0]+n[0]*off,q[1]+n[1]*off]; const [x1,y1]=P(a),[x2,y2]=P(b);
+    if(Math.hypot(x2-x1,y2-y1)<4) return;
+    el("line",{x1,y1,x2,y2,stroke:bad?"#B3261E":"#2F7F86","stroke-width":1.4});
+    for(const z of [[x1,y1],[x2,y2]]) el("circle",{cx:z[0],cy:z[1],r:2.6,fill:bad?"#B3261E":"#2F7F86"});
+    const mx=(x1+x2)/2,my=(y1+y2)/2; el("rect",{x:mx-24,y:my-10,width:48,height:20,rx:6,fill:bad?"#B3261E":"#2F7F86"});
+    const t=el("text",{x:mx,y:my+5,"text-anchor":"middle","font-size":12.5,"font-weight":700,fill:"#fff"}); t.textContent=label; };
+  const s=o.offset-o.w/2, t=e.len-(o.offset+o.w/2);
+  seg(e.a,A,fmt(Math.max(0,s)),s<CORNER_MIN);
+  seg(B,e.b,fmt(Math.max(0,t)),t<CORNER_MIN);
+}
+
+// találat: nyílászáró > fal > helyiség
+function hitTest(p){
+  for(const c of plan.columns) if(Math.abs(p[0]-c.x)<=c.w/2+.04 && Math.abs(p[1]-c.y)<=c.d/2+.04) return {type:"column",id:c.id};
+  for(const o of plan.openings){ const {A,B}=openingGeom(o); if(distSeg(p,A,B)<.14) return {type:"opening",id:o.id,roomId:o.roomId}; }
+  let best=null, bd=.12;
+  for(const r of plan.rooms) r.polygon.forEach((_,i)=>{ const e=edgeOf(r,i), d=distSeg(p,e.a,e.b); if(d<bd){bd=d;best={type:"edge",roomId:r.id,edge:i};} });
+  if(best) return best;
+  const r=plan.rooms.find(r=>inside(p,r.polygon)); return r?{type:"room",roomId:r.id}:null;
+}
+function distSeg(p,a,b){ const dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy||1; const t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2)); return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy); }
+function inside(p,poly){ let r=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const [xi,yi]=poly[i],[xj,yj]=poly[j]; if((yi>p[1])!==(yj>p[1]) && p[0]<(xj-xi)*(p[1]-yi)/(yj-yi)+xi) r=!r; } return r; }
+/** A legközelebbi (nem nyitott) fal a ponthoz → {roomId, edge, offset} — a nyílászáró ide kerülne. */
+function nearestWall(p, maxD=.45){
+  let best=null, bd=maxD;
+  for(const r of plan.rooms) r.polygon.forEach((_,i)=>{ if(r.openEdges.includes(i)) return; const e=edgeOf(r,i), d=distSeg(p,e.a,e.b);
+    // a falnak a helyiség FELŐLI oldalán álló kurzor a „gazda" helyiség (a közös falnál a kurzor dönti el)
+    const n=inward(r,i), side=(p[0]-e.a[0])*n[0]+(p[1]-e.a[1])*n[1];
+    const dd = d + (side< -0.02 ? .2 : 0);
+    if(dd<bd){ bd=dd; const t=(p[0]-e.a[0])*e.u[0]+(p[1]-e.a[1])*e.u[1]; best={roomId:r.id,edge:i,t,len:e.len}; } });
+  return best;
+}
+
+// ---------------------------------------------------------------- 2D egér
+const tipEl=document.getElementById("tip");
+function showTip(ev,html){ const r=document.getElementById("views").getBoundingClientRect(); tipEl.innerHTML=html; tipEl.style.display="block"; tipEl.style.left=(ev.clientX-r.left+16)+"px"; tipEl.style.top=(ev.clientY-r.top+16)+"px"; }
+const hideTip=()=>{tipEl.style.display="none";};
+
+/** Oszlop-illesztés: ha egy oldala ≤ 5 cm-re van egy faltól, a falhoz simul. */
+function snapColumn(c){
+  for(const r of plan.rooms) r.polygon.forEach((_,i)=>{ const e=edgeOf(r,i); if(!e.axis) return;
+    if(e.axis==="y" && c.y>=Math.min(e.a[1],e.b[1])-.3 && c.y<=Math.max(e.a[1],e.b[1])+.3){ for(const sd of [-1,1]) if(Math.abs(c.x+sd*c.w/2-e.a[0])<.05) c.x=e.a[0]-sd*c.w/2; }
+    if(e.axis==="x" && c.x>=Math.min(e.a[0],e.b[0])-.3 && c.x<=Math.max(e.a[0],e.b[0])+.3){ for(const sd of [-1,1]) if(Math.abs(c.y+sd*c.d/2-e.a[1])<.05) c.y=e.a[1]-sd*c.d/2; } });
+  c.x=Math.round(c.x*100)/100; c.y=Math.round(c.y*100)/100; return c;
+}
+svg.addEventListener("pointermove",(ev)=>{
+  const p=toPlan(ev);
+  if(drag){ dragMove(ev,p); return; }
+  if(tool==="column"){ colGhost=snapColumn({id:"ghost",x:p[0],y:p[1],w:.3,d:.3}); showTip(ev,"Oszlop 30 × 30 cm<small>kattints a lerakáshoz · a méret utána állítható</small>"); draw2d(); return; }
+  if(tool==="door"||tool==="window"){
+    if(!pending){ hideTip(); return; }
+    const w=nearestWall(p);
+    if(!w){ ghost=null; hideTip(); draw2d(); sync3dGhost(); return; }
+    const off=Math.round(Math.max(pending.w/2, Math.min(w.len-pending.w/2, w.t))*100)/100;
+    ghost={ id:"ghost", kind:pending.kind, glazed:pending.glazed||undefined, roomId:w.roomId, edge:w.edge, offset:off, w:pending.w, h:pending.h, sill:pending.sill, hinge:"start", swing:"in" };
+    const warns=openingWarnings(ghost); ghost.valid=!warns.some(x=>x.lv==="bad");
+    showTip(ev, `${pending.t} ${pending.s}<small>${room(w.roomId).name} · ${ghost.valid?"kattints a lerakáshoz":warns[0].t}</small>`);
+    draw2d(); sync3dGhost(); return;
+  }
+  const h=hitTest(p);
+  const key=JSON.stringify(h), old=JSON.stringify(hover);
+  if(key!==old){ hover=h; draw2d(); }
+  svg.style.cursor = h?.type==="opening" ? "grab" : h?.type==="edge" && (tool==="wall"||isSelEdge(h)) ? (edgeOf(room(h.roomId),h.edge).axis==="x"?"ns-resize":edgeOf(room(h.roomId),h.edge).axis==="y"?"ew-resize":"not-allowed") : "default";
+  if(h?.type==="edge" && tool==="wall"){ const e=edgeOf(room(h.roomId),h.edge); showTip(ev, e.axis?`Húzd ki-be · ${fmt(e.len)} m`:"Ferde fal<small>a hossz a jobb oldali panelen adható meg</small>"); } else hideTip();
+});
+const isSelEdge=(h)=>sel?.type==="edge"&&sel.roomId===h.roomId&&sel.edge===h.edge;
+svg.addEventListener("pointerleave",()=>{ hover=null; colGhost=null; hideTip(); if(ghost){ghost=null;sync3dGhost();} draw2d(); });
+svg.addEventListener("pointerdown",(ev)=>{
+  const p=toPlan(ev);
+  if((tool==="door"||tool==="window")){
+    if(ghost?.valid){ placeGhost(); }
+    return;
+  }
+  if(tool==="column" && colGhost){ const c={...colGhost,id:"c"+Math.random().toString(36).slice(2,7)}; commit(()=>plan.columns.push(c),"Oszlop hozzáadva"); sel={type:"column",id:c.id}; colGhost=null; setTool("select"); return; }
+  const h=hitTest(p);
+  if(h?.type==="column"){ sel={type:"column",id:h.id}; const c=plan.columns.find(x=>x.id===h.id); startDrag(ev,{kind:"column",id:h.id,before:clone(plan),dx:c.x-p[0],dy:c.y-p[1]}); changedSel(); return; }
+  if(h?.type==="opening"){ if(sel?.id!==h.id) popCustom=false; sel={type:"opening",id:h.id,roomId:h.roomId}; startDrag(ev,{kind:"opening",id:h.id,before:clone(plan)}); changedSel(); return; }
+  if(h?.type==="edge"){
+    sel={type:"edge",roomId:h.roomId,edge:h.edge}; changedSel();
+    const e=edgeOf(room(h.roomId),h.edge);
+    if(tool==="wall" && e.axis && !room(h.roomId).openEdges.includes(h.edge)) startDrag(ev,{kind:"edge",roomId:h.roomId,edge:h.edge,start:p,orig:clone(room(h.roomId).polygon),before:clone(plan)});
+    return;
+  }
+  if(h?.type==="room"){ sel={type:"room",roomId:h.roomId}; changedSel(); return; }
+  sel=null; changedSel();
+  // üres területen: nagyítás-mozgatás (pásztázás)
+  startDrag(ev,{kind:"pan",sx:ev.clientX,sy:ev.clientY,vb:{...vb}});
+});
+svg.addEventListener("wheel",(ev)=>{ ev.preventDefault(); const p=toPlan(ev); const k=ev.deltaY>0?1.1:1/1.1; const nw=Math.max(300,Math.min(2400,vb.w*k)), nh=vb.h*nw/vb.w; vb={x:p[0]*S-(p[0]*S-vb.x)*nw/vb.w,y:p[1]*S-(p[1]*S-vb.y)*nh/vb.h,w:nw,h:nh}; draw2d(); },{passive:false});
+function startDrag(ev,d){ drag=d; svg.setPointerCapture(ev.pointerId); }
+svg.addEventListener("pointerup",()=>endDrag());
+function endDrag(){
+  if(!drag) return;
+  if((drag.kind==="edge"||drag.kind==="opening"||drag.kind==="column") && JSON.stringify(drag.before)!==JSON.stringify(plan)){ hist.push(drag.before); fut=[]; }
+  drag=null; guide=null; hideTip(); changed();
+}
+function dragMove(ev,p){
+  if(drag.kind==="pan"){ const r=svg.getBoundingClientRect(); vb.x=drag.vb.x-(ev.clientX-drag.sx)/r.width*vb.w; vb.y=drag.vb.y-(ev.clientY-drag.sy)/r.height*vb.h; draw2d(); return; }
+  if(drag.kind==="column"){
+    const c=plan.columns.find(x=>x.id===drag.id); c.x=p[0]+drag.dx; c.y=p[1]+drag.dy; snapColumn(c);
+    showTip(ev,`Oszlop ${Math.round(c.w*100)} × ${Math.round(c.d*100)} cm<small>a falhoz ≤ 5 cm-re illeszkedik</small>`); draw2d(); build3d(); return;
+  }
+  if(drag.kind==="opening"){
+    const o=plan.openings.find(x=>x.id===drag.id), e=edgeOf(room(o.roomId),o.edge);
+    let t=(p[0]-e.a[0])*e.u[0]+(p[1]-e.a[1])*e.u[1];
+    t=Math.round(Math.max(o.w/2,Math.min(e.len-o.w/2,t))*100)/100; o.offset=t;
+    showTip(ev,`${fmt(o.offset-o.w/2)} m ← → ${fmt(e.len-o.offset-o.w/2)} m<small>a saroktól · ${room(o.roomId).name}</small>`);
+    draw2d(); build3d(); return;
+  }
+  if(drag.kind==="edge"){
+    const r=room(drag.roomId), i=drag.edge, j=(i+1)%r.polygon.length, e0=edgeOf({polygon:drag.orig},i);
+    const k = e0.axis==="x" ? 1 : 0;                     // a mozgatott koordináta (vízszintes falnál y)
+    let d = p[k]-drag.start[k];
+    let target = Math.round((drag.orig[i][k]+d)*100)/100;
+    // mágnes: más helyiségek párhuzamos falai (a fal síkja vagy a falvastagságnyira lévő túloldal)
+    guide=null;
+    for(const o of plan.rooms){ if(o.id===r.id) continue; o.polygon.forEach((_,q)=>{ const oe=edgeOf(o,q); if(oe.axis!==e0.axis) return;
+      for(const c of [oe.a[k], oe.a[k]-WALL_T, oe.a[k]+WALL_T]) if(Math.abs(c-target)<.04){ target=Math.round(c*100)/100;
+        guide = k===1 ? {x1:Math.min(oe.a[0],oe.b[0],drag.orig[i][0])*S-30,x2:Math.max(oe.a[0],oe.b[0],drag.orig[j][0])*S+30,y1:target*S,y2:target*S}
+                      : {y1:Math.min(oe.a[1],oe.b[1],drag.orig[i][1])*S-30,y2:Math.max(oe.a[1],oe.b[1],drag.orig[j][1])*S+30,x1:target*S,x2:target*S}; } }); }
+    r.polygon[i][k]=target; r.polygon[j][k]=target;
+    const delta=(target-drag.orig[i][k])*100, c=check(r);
+    const prev=edgeOf(r,(i-1+r.polygon.length)%r.polygon.length);
+    showTip(ev,`${delta>=0?"+":""}${Math.round(delta)} cm · szomszéd fal ${fmt(prev.len)} m<small>${r.name}: ${fmt(c.a)} m² / megadott ${fmt(r.declared)} m² (${c.d>0?"+":""}${fmt(c.d,1)}%)${guide?" · illesztve":""}</small>`);
+    draw2d(); build3d(); renderInsp(); renderChk(); return;
+  }
+}
+function placeGhost(){
+  const g={...ghost}; delete g.valid; g.id="o"+Math.random().toString(36).slice(2,7);
+  commit(()=>{ plan.openings.push(g); }, `${g.kind==="door"?"Ajtó":g.kind==="passage"?"Átjáró":"Ablak"} hozzáadva`);
+  sel={type:"opening",id:g.id,roomId:g.roomId}; ghost=null; setTool("select"); changed();
+}
+
+// ---------------------------------------------------------------- 3D (three.js) — ugyanabból az adatból
+const canvas=document.getElementById("three");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.shadowMap.enabled=true;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xF4F0EA);
+scene.add(new THREE.HemisphereLight(0xfffaf2,0xbdb3a4,1.9));
+const sun=new THREE.DirectionalLight(0xfff1dc,1.8); sun.position.set(-4,10,-6); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10}); scene.add(sun);
+const camera=new THREE.PerspectiveCamera(40,1,.1,200); camera.position.set(4.4,10.5,12.5);
+const controls=new OrbitControls(camera,canvas); controls.target.set(4.4,0,2.2); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*.47;
+let world=new THREE.Group(); scene.add(world);
+let ghostMesh=null;
+const M={
+  wall:new THREE.MeshStandardMaterial({color:0xEEEAE3,roughness:.95}), wallSel:new THREE.MeshStandardMaterial({color:0xF2A58C,roughness:.9}),
+  wallHov:new THREE.MeshStandardMaterial({color:0xE6D3C4,roughness:.9}), rail:new THREE.MeshStandardMaterial({color:0xD9DDD5,roughness:.9}),
+  floor:new THREE.MeshStandardMaterial({color:0xD8C8B2,roughness:.9}), floorWarn:new THREE.MeshStandardMaterial({color:0xE9CF97,roughness:.9}),
+  floorSel:new THREE.MeshStandardMaterial({color:0xF3B39E,roughness:.9}), out:new THREE.MeshStandardMaterial({color:0xB9B6AA,roughness:1}),
+  door:new THREE.MeshStandardMaterial({color:0xFFFFFF,roughness:.7}), sel:new THREE.MeshStandardMaterial({color:0xEF7A5A,roughness:.6}),
+  glass:new THREE.MeshStandardMaterial({color:0xBFD6E2,roughness:.1,transparent:true,opacity:.55}),
+  ghost:new THREE.MeshStandardMaterial({color:0xEF7A5A,transparent:true,opacity:.55}), ghostBad:new THREE.MeshStandardMaterial({color:0xB3261E,transparent:true,opacity:.55}),
+};
+let hover3=null;
+function wallBox(a,b,n,y0,y1,mat,ud){
+  const len=Math.hypot(b[0]-a[0],b[1]-a[1]); if(len<.01||y1-y0<.01) return;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(len,y1-y0,WALL_T),mat);
+  const mx=(a[0]+b[0])/2-n[0]*WALL_T/2, mz=(a[1]+b[1])/2-n[1]*WALL_T/2;
+  m.position.set(mx,(y0+y1)/2,mz); m.rotation.y=-Math.atan2(b[1]-a[1],b[0]-a[0]); m.castShadow=m.receiveShadow=true; m.userData=ud; world.add(m);
+}
+/** Egy él nyílásai: a saját helyiségéé + a szomszédé, ha a közös falon van (a túloldali fal is lyukat kap). */
+function openingsOnEdge(r,i){
+  const e=edgeOf(r,i), out=[];
+  for(const o of plan.openings){
+    const {A,B}=openingGeom(o), oe=edgeOf(room(o.roomId),o.edge);
+    if(o.roomId===r.id&&o.edge===i){ out.push({o,s:o.offset-o.w/2,t:o.offset+o.w/2}); continue; }
+    if(Math.abs(oe.u[0]*e.u[1]-oe.u[1]*e.u[0])>.01) continue;           // nem párhuzamos
+    if(distSeg(A,e.a,e.b)>.45 && distSeg(B,e.a,e.b)>.45) continue;
+    const pa=(A[0]-e.a[0])*e.u[0]+(A[1]-e.a[1])*e.u[1], pb=(B[0]-e.a[0])*e.u[0]+(B[1]-e.a[1])*e.u[1];
+    const lineD = Math.abs((A[0]-e.a[0])*(-e.u[1])+(A[1]-e.a[1])*e.u[0]); if(lineD>.45) continue;
+    out.push({o,s:Math.min(pa,pb),t:Math.max(pa,pb)});
+  }
+  return out.sort((x,y)=>x.s-y.s);
+}
+function build3d(){
+  scene.remove(world); world.traverse(x=>x.geometry?.dispose()); world=new THREE.Group(); scene.add(world);
+  const H=plan.ceilingHeight;
+  for(const r of plan.rooms){
+    const outdoor=OUTDOOR.has(r.kind), c=check(r);
+    const shape=new THREE.Shape(r.polygon.map(([x,y])=>new THREE.Vector2(x,-y)));
+    const fm = sel?.type==="room"&&sel.roomId===r.id ? M.floorSel : outdoor ? M.out : c.st==="warn" ? M.floorWarn : M.floor;
+    const f=new THREE.Mesh(new THREE.ShapeGeometry(shape),fm); f.rotation.x=-Math.PI/2; f.receiveShadow=true; f.userData={type:"room",roomId:r.id}; world.add(f);
+    r.polygon.forEach((_,i)=>{
+      if(r.openEdges.includes(i)) return;
+      const e=edgeOf(r,i), n=inward(r,i), wh = outdoor ? 1.0 : H;   // terasz/erkély: mellvéd (Márk szabálya)
+      const isSel = sel?.type==="edge"&&sel.roomId===r.id&&sel.edge===i, isHov = hover3?.type==="edge"&&hover3.roomId===r.id&&hover3.edge===i;
+      const mat = isSel?M.wallSel: isHov?M.wallHov: outdoor?M.rail:M.wall, ud={type:"edge",roomId:r.id,edge:i};
+      let cur=0;
+      const at=(t)=>[e.a[0]+e.u[0]*t,e.a[1]+e.u[1]*t];
+      const cuts=[...openingsOnEdge(r,i), ...openSpans(r,i).map(([s,t])=>({o:{kind:"passage",sill:0,h:99},s,t}))].sort((x,y)=>x.s-y.s);
+      for(const {o,s,t} of cuts){
+        const a=Math.max(0,s), b=Math.min(e.len,t); if(b<=cur) continue;
+        if(a>cur) wallBox(at(cur),at(a),n,0,wh,mat,ud);
+        if(o.kind==="window") wallBox(at(a),at(b),n,0,Math.min(o.sill,wh),mat,ud);
+        if(o.sill+o.h<wh) wallBox(at(a),at(b),n,o.sill+o.h,wh,mat,ud);
+        cur=Math.max(cur,b);
+      }
+      if(cur<e.len) wallBox(at(cur),at(e.len),n,0,wh,mat,ud);
+    });
+  }
+  for(const o of plan.openings) if(o.kind!=="passage") world.add(openingMesh(o, sel?.type==="opening"&&sel.id===o.id ? M.sel : null));
+  for(const c of plan.columns){ const m=new THREE.Mesh(new THREE.BoxGeometry(c.w,H,c.d), sel?.type==="column"&&sel.id===c.id?M.wallSel:M.wall); m.position.set(c.x,H/2,c.y); m.castShadow=m.receiveShadow=true; m.userData={type:"column",id:c.id}; world.add(m); }
+  sync3dGhost();
+}
+function openingMesh(o,matOverride){
+  const {n,A,B,e}=openingGeom(o), g=new THREE.Group(), ud={type:"opening",id:o.id,roomId:o.roomId};
+  const len=o.w, rotY=-Math.atan2(e.u[1],e.u[0]);
+  if(o.kind==="window"){
+    // keret (6 cm) + üveg; kétszárnyúnál középen osztó
+    const fr=new THREE.Group(); fr.position.set((A[0]+B[0])/2-n[0]*WALL_T/2,o.sill,(A[1]+B[1])/2-n[1]*WALL_T/2); fr.rotation.y=rotY;
+    const fw=.06, fm=matOverride||M.door, bars=[[len,fw,0,fw/2],[len,fw,0,o.h-fw/2],[fw,o.h,-len/2+fw/2,o.h/2],[fw,o.h,len/2-fw/2,o.h/2]];
+    if(leavesOf(o)===2) bars.push([fw,o.h,0,o.h/2]);
+    for(const [w,h,x,y] of bars){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,.06),fm); b.position.set(x,y,0); b.userData=ud; fr.add(b); }
+    const gl=new THREE.Mesh(new THREE.BoxGeometry(len-2*fw,o.h-2*fw,.012),M.glass); gl.position.set(0,o.h/2,0); gl.userData=ud; fr.add(gl); g.add(fr);
+    const sill=new THREE.Mesh(new THREE.BoxGeometry(len+.06,.04,.18),matOverride||M.door); sill.position.set((A[0]+B[0])/2+n[0]*.03,o.sill,(A[1]+B[1])/2+n[1]*.03); sill.rotation.y=rotY; sill.userData=ud; g.add(sill);
+  } else {
+    const sd=o.swing==="out"?-1:1, double=leavesOf(o)===2;
+    const leaves = double ? [[A,e.u,len/2],[B,[-e.u[0],-e.u[1]],len/2]] : [[o.hinge==="end"?B:A, o.hinge==="end"?[-e.u[0],-e.u[1]]:e.u, len]];
+    for(const [hinge,dir,lw] of leaves){
+      const ang=THREE.MathUtils.degToRad(70), v=[dir[0]*Math.cos(ang)+n[0]*sd*Math.sin(ang), dir[1]*Math.cos(ang)+n[1]*sd*Math.sin(ang)];
+      const pv=new THREE.Group(); pv.position.set(hinge[0],0,hinge[1]); pv.rotation.y=Math.atan2(-v[1],v[0]);
+      if(o.glazed){
+        // keretes üveglap: 6 cm-es keret, középen üveg — ki lehet látni rajta
+        const fw=.06, W=lw-.02, Hh=o.h-.01, fm=matOverride||M.door;
+        for(const [w,h,x,y] of [[W,fw,W/2,fw/2],[W,fw,W/2,Hh-fw/2],[fw,Hh,fw/2,Hh/2],[fw,Hh,W-fw/2,Hh/2],[W,fw,W/2,.9]]){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,.05),fm); b.position.set(x,y,0); b.castShadow=true; b.userData=ud; pv.add(b); }
+        const gl=new THREE.Mesh(new THREE.BoxGeometry(W-2*fw,Hh-2*fw,.012),M.glass); gl.position.set(W/2,Hh/2,0); gl.userData=ud; pv.add(gl);
+      } else {
+        const leaf=new THREE.Mesh(new THREE.BoxGeometry(lw-.02,o.h-.01,.04),matOverride||M.door); leaf.position.set(lw/2,o.h/2,0); leaf.castShadow=true; leaf.userData=ud; pv.add(leaf);
+      }
+      g.add(pv);
+    }
+    // tok (a nyílás két oldalán) — a kijelölés így a falban is látszik
+    for(const P0 of [A,B]){ const j=new THREE.Mesh(new THREE.BoxGeometry(.05,o.h,WALL_T+.02),matOverride||M.door); j.position.set(P0[0]-n[0]*WALL_T/2,o.h/2,P0[1]-n[1]*WALL_T/2); j.rotation.y=rotY; j.userData=ud; g.add(j); }
+  }
+  return g;
+}
+function sync3dGhost(){
+  if(ghostMesh){ world.remove(ghostMesh); ghostMesh=null; }
+  if(ghost){ ghostMesh=openingMesh(ghost, ghost.valid?M.ghost:M.ghostBad); ghostMesh.traverse(x=>x.userData={}); world.add(ghostMesh); }
+}
+// 3D egér: kijelölés, ajtó/ablak lerakása a falra, nyílászáró húzása a fal mentén
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+function pick3(ev){ const r=canvas.getBoundingClientRect(); ndc.set((ev.clientX-r.left)/r.width*2-1,-(ev.clientY-r.top)/r.height*2+1); ray.setFromCamera(ndc,camera);
+  const hit=ray.intersectObjects(world.children,true).find(h=>h.object.userData?.type); return hit; }
+let drag3=null, down3=null;
+canvas.addEventListener("pointerdown",(ev)=>{
+  const h=pick3(ev); down3={x:ev.clientX,y:ev.clientY};
+  if(h?.object.userData.type==="opening" && tool==="select"){
+    const o=plan.openings.find(x=>x.id===h.object.userData.id); sel={type:"opening",id:o.id,roomId:o.roomId};
+    const {e,n}=openingGeom(o); drag3={id:o.id,before:clone(plan),plane:new THREE.Plane(new THREE.Vector3(n[0],0,n[1]),-(n[0]*e.a[0]+n[1]*e.a[1]))};
+    controls.enabled=false; canvas.setPointerCapture(ev.pointerId); changedSel();
+  }
+});
+canvas.addEventListener("pointermove",(ev)=>{
+  if(drag3){
+    const r=canvas.getBoundingClientRect(); ndc.set((ev.clientX-r.left)/r.width*2-1,-(ev.clientY-r.top)/r.height*2+1); ray.setFromCamera(ndc,camera);
+    const pt=new THREE.Vector3(); if(!ray.ray.intersectPlane(drag3.plane,pt)) return;
+    const o=plan.openings.find(x=>x.id===drag3.id), e=edgeOf(room(o.roomId),o.edge);
+    let t=(pt.x-e.a[0])*e.u[0]+(pt.z-e.a[1])*e.u[1]; o.offset=Math.round(Math.max(o.w/2,Math.min(e.len-o.w/2,t))*100)/100;
+    showTip(ev,`${fmt(o.offset-o.w/2)} m ← → ${fmt(e.len-o.offset-o.w/2)} m<small>húzás a fal mentén · ${room(o.roomId).name}</small>`);
+    build3d(); draw2d(); return;
+  }
+  const h=pick3(ev), u=h?.object.userData;
+  if(tool==="door"||tool==="window"){
+    if(pending && u?.type==="edge" && !room(u.roomId).openEdges.includes(u.edge)){
+      const e=edgeOf(room(u.roomId),u.edge); const t=(h.point.x-e.a[0])*e.u[0]+(h.point.z-e.a[1])*e.u[1];
+      ghost={id:"ghost",kind:pending.kind,glazed:pending.glazed||undefined,roomId:u.roomId,edge:u.edge,offset:Math.round(Math.max(pending.w/2,Math.min(e.len-pending.w/2,t))*100)/100,w:pending.w,h:pending.h,sill:pending.sill,hinge:"start",swing:"in"};
+      ghost.valid=!openingWarnings(ghost).some(x=>x.lv==="bad"); showTip(ev,`${pending.t} ${pending.s}<small>${room(u.roomId).name} · kattints a lerakáshoz</small>`);
+    } else { ghost=null; hideTip(); }
+    sync3dGhost(); draw2d(); return;
+  }
+  const key=u?.type==="edge"?u:null;
+  if(JSON.stringify(key)!==JSON.stringify(hover3)){ hover3=key; build3d(); }
+  canvas.style.cursor = u?.type==="opening" ? "grab" : u ? "pointer" : "default";
+});
+canvas.addEventListener("pointerup",(ev)=>{
+  if(drag3){ if(JSON.stringify(drag3.before)!==JSON.stringify(plan)){ hist.push(drag3.before); fut=[]; } drag3=null; controls.enabled=true; hideTip(); changed(); return; }
+  if(!down3 || Math.hypot(ev.clientX-down3.x,ev.clientY-down3.y)>5) return;   // forgatás volt, nem kattintás
+  if((tool==="door"||tool==="window") && ghost?.valid){ placeGhost(); return; }
+  const h=pick3(ev), u=h?.object.userData;
+  sel = u ? {...u} : null; changedSel(false);
+});
+canvas.addEventListener("pointerleave",()=>{ if(hover3){hover3=null;build3d();} });
+// a kamera a kijelölés felé fordul (lágyan)
+let camGoal=null;
+function focusSel(){
+  let p=null;
+  if(sel?.type==="room") p=centroid(room(sel.roomId).polygon);
+  if(sel?.type==="edge"){ const e=edgeOf(room(sel.roomId),sel.edge); p=[(e.a[0]+e.b[0])/2,(e.a[1]+e.b[1])/2]; }
+  if(sel?.type==="opening"){ const g=openingGeom(plan.openings.find(o=>o.id===sel.id)); p=[(g.A[0]+g.B[0])/2,(g.A[1]+g.B[1])/2]; }
+  if(sel?.type==="column"){ const c=plan.columns.find(x=>x.id===sel.id); if(c) p=[c.x,c.y]; }
+  if(p) camGoal=new THREE.Vector3(p[0],0,p[1]);
+}
+function loop(){ requestAnimationFrame(loop); if(sel?.type==="opening" && document.getElementById("p2d").offsetWidth<=50) positionPop(); if(camGoal){ controls.target.lerp(camGoal,.08); if(controls.target.distanceTo(camGoal)<.01) camGoal=null; } controls.update(); renderer.render(scene,camera); }
+let camFitted=false;
+function resize3(){ const r=canvas.parentElement.getBoundingClientRect(); if(!r.width) return; renderer.setSize(r.width,r.height,false); camera.aspect=r.width/Math.max(r.height,1); camera.updateProjectionMatrix();
+  if(!camFitted){ camFitted=true; fitCam(); } }
+/** Babaház-nézet: az egész lakás beférjen (a nézet arányától függő távolság). */
+function fitCam(){ const b=bounds(), cx=(b.x0+b.x1)/2, cz=(b.y0+b.y1)/2, span=Math.max(b.x1-b.x0,(b.y1-b.y0)*1.2);
+  const d=span*1.15/Math.min(1,camera.aspect); controls.target.set(cx,0,cz); camera.position.set(cx+d*.25,d*.95,cz+d*.85); controls.update(); }
+
+// ---------------------------------------------------------------- PANEL (jobb oldal)
+const ihd=document.getElementById("ihd"), isc=document.getElementById("isc");
+const KIND={nappali:"Nappali",konyha:"Konyha",haloszoba:"Szoba / hálószoba",furdo:"Fürdő",wc:"WC",eloszoba:"Előszoba / közlekedő",terasz:"Terasz / erkély / loggia"};
+const pillOf=(c)=>c.st==="ok"?`<span class="pill ok">Rendben</span>`:c.st==="warn"?`<span class="pill warn">${c.d>0?"+":""}${fmt(c.d,1)}%</span>`:`<span class="pill bad">Hiányzó m²</span>`;
+function numField(id,val,suf,step=.01){ return `<div class="num"><button data-step="-${step}" data-for="${id}">−</button><input id="${id}" value="${fmt(val)}"/><span>${suf}</span><button data-step="${step}" data-for="${id}">+</button></div>`; }
+/** Csúszka: min–max (méterben), 1 cm-es lépés; az érték cm-ben (unit "cm") vagy méterben ("m"). */
+function slider(id,label,val,min,max,unit="cm"){
+  const pct=((val-min)/(max-min)*100).toFixed(1), show=unit==="cm"?`${Math.round(val*100)} cm`:`${fmt(val)} m`;
+  const mm=(v)=>unit==="cm"?Math.round(v*100):fmt(v);
+  return `<div class="sl"><div class="slh"><span>${label}</span><b data-val="${id}">${show}</b></div>
+    <input class="rg" type="range" id="${id}" data-unit="${unit}" min="${min}" max="${max}" step="0.01" value="${val}" style="--p:${pct}%">
+    <div class="slm"><span>${mm(min)}</span><span>${mm(max)}</span></div></div>`;
+}
+let liveBefore=null;
+/** Csúszka húzása közben: a terv azonnal változik (2D + 3D + a kártya ábrái), a kártya NEM épül újra (a csúszka a kézben marad). */
+function applyLive(inp){
+  const v=parseFloat(inp.value), id=inp.id;
+  if(!liveBefore) liveBefore=clone(plan);
+  inp.style.setProperty("--p",((v-inp.min)/(inp.max-inp.min)*100).toFixed(1)+"%");
+  const lab=document.querySelector(`[data-val="${id}"]`); if(lab) lab.textContent=inp.dataset.unit==="cm"?`${Math.round(v*100)} cm`:`${fmt(v)} m`;
+  if(id==="len"){ setLen(room(sel.roomId),sel.edge,Math.round(v*100)/100); }
+  else if(id==="cw"||id==="cd"){ const c=plan.columns.find(x=>x.id===sel.id); if(id==="cw") c.w=v; else c.d=v; }
+  else {
+    const o=plan.openings.find(x=>x.id===sel?.id); if(!o) return;
+    const e=edgeOf(room(o.roomId),o.edge);
+    if(id==="ow"){ o.w=v; o.offset=Math.max(o.w/2,Math.min(e.len-o.w/2,o.offset)); }
+    if(id==="oh") o.h=v;
+    if(id==="os") o.sill=v;
+    if(id==="ol") o.offset=Math.round((v+o.w/2)*100)/100;
+    // a kártya élő részei: alcím, ábrák, saroktávolság
+    const q=(k)=>pop.querySelector(`[data-live="${k}"]`), left=o.offset-o.w/2, right=e.len-o.offset-o.w/2;
+    if(q("st")) q("st").textContent=`${room(o.roomId).name} · ${o.edge+1}. fal · ${Math.round(o.w*100)} × ${Math.round(o.h*100)} cm`;
+    if(q("place")) q("place").innerHTML=placeDiagram(o,e);
+    if(q("lr")) q("lr").innerHTML=`<span>← ${fmt(left)}</span><span>${fmt(right)} →</span>`;
+    if(q("sill")) q("sill").innerHTML=sillDiagram(o);
+    if(q("swing")) q("swing").innerHTML=swingDiagram(o);
+    const ol=pop.querySelector("#ol"); if(ol && id!=="ol"){ ol.max=Math.max(0,e.len-o.w).toFixed(2); ol.value=left; ol.style.setProperty("--p",(left/Math.max(.01,e.len-o.w)*100).toFixed(1)+"%"); }
+  }
+  draw2d(); build3d(); renderChk();
+}
+/** Elengedéskor: egyetlen visszavonható lépés, és minden felület frissül. */
+function endLive(){ if(liveBefore && JSON.stringify(liveBefore)!==JSON.stringify(plan)){ hist.push(liveBefore); fut=[]; } liveBefore=null; changed(); }
+function presetIcon(p,size=46){
+  if(p.kind==="passage") return `<svg width="${size}" height="${size}" viewBox="0 0 46 46"><line x1="4" y1="30" x2="${23-p.w*14}" y2="30" stroke="#3B3530" stroke-width="5"/><line x1="${23+p.w*14}" y1="30" x2="42" y2="30" stroke="#3B3530" stroke-width="5"/><line x1="${23-p.w*14}" y1="30" x2="${23+p.w*14}" y2="30" stroke="#EF7A5A" stroke-width="1.6" stroke-dasharray="3 3"/><line x1="${23-p.w*14}" y1="24" x2="${23-p.w*14}" y2="36" stroke="#EF7A5A" stroke-width="2.4"/><line x1="${23+p.w*14}" y1="24" x2="${23+p.w*14}" y2="36" stroke="#EF7A5A" stroke-width="2.4"/><path d="M 16 18 l 14 0 m -4 -4 l 4 4 l -4 4" fill="none" stroke="#9C8F80" stroke-width="1.6"/></svg>`;
+  if(p.kind==="door" && p.glazed) return `<svg width="${size}" height="${size}" viewBox="0 0 46 46"><rect x="${p.w>1.2?6:12}" y="6" width="${p.w>1.2?34:22}" height="34" rx="2" fill="#DCEBF2" stroke="#2F7F86" stroke-width="2"/>${p.w>1.2?`<line x1="23" y1="6" x2="23" y2="40" stroke="#2F7F86" stroke-width="2"/>`:""}<line x1="${p.w>1.2?6:12}" y1="26" x2="${p.w>1.2?40:34}" y2="26" stroke="#2F7F86" stroke-width="1.4"/><circle cx="${p.w>1.2?20:30}" cy="24" r="1.6" fill="#3B3530"/><line x1="4" y1="41" x2="42" y2="41" stroke="#B9AC9C" stroke-width="1.5"/></svg>`;
+  if(p.kind==="door") return `<svg width="${size}" height="${size}" viewBox="0 0 46 46"><line x1="6" y1="38" x2="40" y2="38" stroke="#3B3530" stroke-width="5"/><line x1="10" y1="38" x2="10" y2="${38-26*Math.min(1,p.w/1)}" stroke="#EF7A5A" stroke-width="2.6"/><path d="M ${10+26*Math.min(1,p.w/1)} 38 A ${26*Math.min(1,p.w/1)} ${26*Math.min(1,p.w/1)} 0 0 0 10 ${38-26*Math.min(1,p.w/1)}" fill="none" stroke="#EF7A5A" stroke-width="1.3" stroke-dasharray="3 3"/>${p.w>1.2?`<line x1="36" y1="38" x2="36" y2="20" stroke="#EF7A5A" stroke-width="2.6"/>`:""}</svg>`;
+  const h=Math.max(8,Math.min(30,p.h*20)), w=Math.max(10,Math.min(36,p.w*20)), y0=40-Math.min(30,(p.sill+p.h)*12);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 46 46"><rect x="4" y="4" width="38" height="38" rx="3" fill="#F6F1EA"/><rect x="${23-w/2}" y="${y0}" width="${w}" height="${h}" fill="#DCEBF2" stroke="#2F7F86" stroke-width="1.6"/><line x1="23" y1="${y0}" x2="23" y2="${y0+h}" stroke="#2F7F86" stroke-width="1"/><line x1="4" y1="42" x2="42" y2="42" stroke="#B9AC9C" stroke-width="1.5"/></svg>`;
+}
+function renderRoom(r, hiOp){
+    const c=check(r), ops=plan.openings.filter(o=>o.roomId===r.id);
+    ihd.innerHTML=`<div class="row"><span style="font-weight:700;font-size:15px;flex:1">${r.name}</span>${pillOf(c)}</div><p class="muted" style="font-size:12px;margin-top:2px">${KIND[r.kind]}</p>`;
+    isc.innerHTML=`<div class="h" style="margin-top:0">Alapterület</div>
+      <div class="row"><div style="flex:1"><p class="muted" style="font-size:11.5px">Számolt</p><p style="font-weight:700;font-size:18px">${fmt(c.a)} m²</p></div>
+      <div><p class="muted" style="font-size:11.5px;margin-bottom:3px">Megadott (alaprajzon)</p>${numField("decl",r.declared,"m²")}</div></div>
+      <div style="height:6px;border-radius:99px;background:#F1EAE1;margin-top:10px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.abs(c.d)/TOL*50)}%;background:${c.st==="ok"?"#2f9e5f":"#E0A526"}"></div></div>
+      <p class="muted" style="font-size:11.5px;margin-top:5px">Tűrés ±${TOL}% · ${c.st==="ok"?"rendben":"húzd a falat, vagy javítsd a megadott értéket"}</p>
+      <div class="h">Falak</div>${r.polygon.map((_,i)=>{const e=edgeOf(r,i);return `<div class="li" data-edge="${i}"><span style="width:22px;height:22px;border-radius:6px;background:#F1EAE1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</span><span style="flex:1">${r.openEdges.includes(i)?"Nyitott határ":e.axis?"Fal":"Ferde fal"}</span><b>${fmt(e.len)} m</b></div>`;}).join("")}
+      <div class="h">Nyílászárók</div>${ops.length?ops.map(o=>`<div class="li ${o.id===hiOp?"sel":""}" data-op="${o.id}">${presetIcon(o,26)}<span style="flex:1">${KIND_T[typeKey(o)]} ${Math.round(o.w*100)}×${Math.round(o.h*100)}</span><span class="muted" style="font-size:12px">${o.edge+1}. fal</span></div>`).join(""):`<p class="muted" style="font-size:12.5px">Nincs nyílászáró. Válaszd a „+ Ajtó" / „+ Ablak" eszközt.</p>`}
+      ${hiOp?`<p class="wb" style="background:#F6F1EA;color:#4A433C">A kijelölt nyílászáró beállításai a rajzon, mellette, a kis ablakban vannak.</p>`:""}`;
+}
+function renderInsp(){
+  if(!sel){
+    ihd.innerHTML=`<p style="font-weight:700;font-size:15px">Helyiségek</p><p class="muted" style="font-size:12px;margin-top:2px">Kattints egy helyiségre, falra vagy nyílászáróra — a 2D-ben vagy a 3D-ben.</p>`;
+    isc.innerHTML = plan.rooms.map(r=>{const c=check(r); return `<div class="li" data-room="${r.id}"><span style="flex:1;font-weight:600">${r.name}</span><span class="muted" style="font-size:12px">${fmt(c.a)} / ${fmt(r.declared)} m²</span>${pillOf(c)}</div>`;}).join("")
+      + `<div class="h">Jelmagyarázat</div><div class="muted" style="font-size:12px;line-height:1.7">▬ fal · ┄ nyitott határ (fal nélkül, pl. egyterű konyha)<br>◜ ajtó a nyitás irányával · <span style="color:#2F7F86">◜</span> üvegajtó (ki lehet látni) · ≡ ablak · ┆ átjáró<br>▮ tartóoszlop · a nyitott határ a szomszéd oldalán is megnyílik<br><span style="color:#2F7F86">━</span> saroktávolság · <span style="color:#2F7F86">┅</span> illesztés a szomszéd falhoz</div>`;
+    return;
+  }
+  if(sel.type==="room") return renderRoom(room(sel.roomId), null);
+  if(sel.type==="edge"){
+    const r=room(sel.roomId), e=edgeOf(r,sel.edge), open=r.openEdges.includes(sel.edge), ops=plan.openings.filter(o=>o.roomId===r.id&&o.edge===sel.edge);
+    ihd.innerHTML=`<div class="row"><span style="font-weight:700;font-size:15px;flex:1">${sel.edge+1}. fal · ${r.name}</span><button class="btn" id="back" style="height:30px">‹ ${r.name}</button></div><p class="muted" style="font-size:12px;margin-top:2px">${open?"Nyitott határ — itt a 3D-ben nincs fal":e.axis?"A 2D-ben ki-be húzható (Fal húzása)":"Ferde fal — a hossza itt adható meg"}</p>`;
+    isc.innerHTML=`<div class="h" style="margin-top:0">Hossz</div>${slider("len","Falhossz",e.len,Math.max(.3,Math.round((e.len-1.5)*10)/10),Math.round((e.len+1.5)*10)/10,"m")}
+      <p class="muted" style="font-size:11.5px;margin-top:6px">Húzd a csúszkát — a rajz és a 3D azonnal követi; a szomszédos falak a rajz szerint igazodnak. Billentyűvel (←/→) 1 cm.</p>
+      <div class="h">Határ típusa</div><div class="seg" style="width:100%"><button class="${open?"":"on"}" data-open="0" style="flex:1;justify-content:center">Fal</button><button class="${open?"on":""}" data-open="1" style="flex:1;justify-content:center">Nyitott (fal nélkül)</button></div>
+      <div class="h">Nyílászárók ezen a falon</div>${ops.length?ops.map(o=>`<div class="li" data-op="${o.id}">${presetIcon(o,26)}<span style="flex:1">${KIND_T[typeKey(o)]} ${Math.round(o.w*100)}×${Math.round(o.h*100)}</span></div>`).join(""):`<p class="muted" style="font-size:12.5px">Nincs.</p>`}
+      ${open?"":`<div class="row" style="margin-top:10px"><button class="btn dark" data-add="door" style="flex:1">＋ Ajtó erre a falra</button><button class="btn dark" data-add="window" style="flex:1">＋ Ablak</button></div>`}`;
+    return;
+  }
+  if(sel.type==="column"){
+    const c=plan.columns.find(x=>x.id===sel.id); if(!c){sel=null;return renderInsp();}
+    ihd.innerHTML=`<div class="row"><svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="5" width="16" height="24" fill="#3B3530"/><line x1="9" y1="5" x2="25" y2="29" stroke="#fff" stroke-opacity=".4"/><line x1="25" y1="5" x2="9" y2="29" stroke="#fff" stroke-opacity=".4"/></svg><div style="flex:1"><p style="font-weight:700;font-size:15px">Tartóoszlop</p><p class="muted" style="font-size:12px">${Math.round(c.w*100)} × ${Math.round(c.d*100)} cm · teljes belmagasság</p></div></div>`;
+    isc.innerHTML=`<div class="h" style="margin-top:0">Méret</div><div class="row">
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px">${slider("cw","Szélesség",c.w,.1,1.2)}${slider("cd","Mélység",c.d,.1,1.2)}</div></div>
+      <div class="h">Hely</div><p class="muted" style="font-size:12px;line-height:1.5">Húzd a 2D-ben — ha egy oldala 5 cm-en belül van egy faltól, a falhoz simul. A türkiz méretek a legközelebbi falaktól mérnek.</p>
+      <p class="wb" style="background:#F6F1EA;color:#4A433C">A bejárásban akadály (nem lehet átmenni rajta); a méretellenőrzést nem befolyásolja.</p>
+      <div class="row" style="margin-top:14px"><button class="btn danger" id="del" style="flex:1">Törlés (Delete)</button></div>`;
+    return;
+  }
+  // nyílászáró: a panel a helyiség áttekintése marad (a nyílászáró kiemelve) — a beállítások a felugró kártyán, a nyílászáró mellett
+  const o=plan.openings.find(x=>x.id===sel.id); if(!o){sel=null;return renderInsp();}
+  return renderRoom(room(o.roomId), o.id);
+}
+function onPanelClick(ev){
+  const t=ev.target.closest("[data-room],[data-edge],[data-op],[data-preset],[data-swing],[data-open],[data-add],[data-step],[data-kind],[data-close],[data-custom],[data-flip],[data-center],[data-leaves],#del");
+  if(!t) return;
+  if(t.dataset.close!==undefined){ sel=sel?.roomId?{type:"room",roomId:sel.roomId}:null; return changedSel(false); }
+  if(t.dataset.custom!==undefined){ popCustom=!popCustom; return renderPop(); }
+  if(t.dataset.leaves){ const o=plan.openings.find(x=>x.id===sel.id), n=+t.dataset.leaves; return commit(()=>{ o.leaves=n; }, n===2?"Kétszárnyú":"Egyszárnyú"); }
+  if(t.dataset.flip){ const o=plan.openings.find(x=>x.id===sel.id); return commit(()=>{ if(t.dataset.flip==="hinge") o.hinge=o.hinge==="end"?"start":"end"; else o.swing=o.swing==="out"?"in":"out"; }); }
+  if(t.dataset.center!==undefined){ const o=plan.openings.find(x=>x.id===sel.id), e=edgeOf(room(o.roomId),o.edge); return commit(()=>{ o.offset=Math.round(e.len/2*100)/100; },"Középre igazítva"); }
+  if(t.dataset.kind) return setKind(t.dataset.kind);
+  if(t.dataset.room){ sel={type:"room",roomId:t.dataset.room}; return changedSel(); }
+  if(t.dataset.edge){ sel={type:"edge",roomId:sel.roomId,edge:+t.dataset.edge}; return changedSel(); }
+  if(t.dataset.op){ const o=plan.openings.find(x=>x.id===t.dataset.op); sel={type:"opening",id:o.id,roomId:o.roomId}; popCustom=false; return changedSel(); }
+  if(t.dataset.preset){ const p=PRESETS.find(x=>x.id===t.dataset.preset); return commit(()=>{ const o=plan.openings.find(x=>x.id===sel.id); Object.assign(o,{w:p.w,h:p.h,sill:p.sill,glazed:p.glazed||undefined}); const e=edgeOf(room(o.roomId),o.edge); o.offset=Math.max(o.w/2,Math.min(e.len-o.w/2,o.offset)); }); }
+  if(t.dataset.swing){ const [hg,sw]=t.dataset.swing.split("|"); return commit(()=>{ Object.assign(plan.openings.find(x=>x.id===sel.id),{hinge:hg,swing:sw}); }); }
+  if(t.dataset.open){ const r=room(sel.roomId), want=t.dataset.open==="1"; return commit(()=>{ r.openEdges=want?[...new Set([...r.openEdges,sel.edge])]:r.openEdges.filter(i=>i!==sel.edge); if(want) plan.openings=plan.openings.filter(o=>!(o.roomId===r.id&&o.edge===sel.edge)); }); }
+  if(t.dataset.add){ setTool(t.dataset.add); return; }
+  if(t.id==="del") return delSel();
+  if(t.dataset.step){ const inp=document.getElementById(t.dataset.for); inp.value=fmt(parseFloat(inp.value.replace(",","."))+parseFloat(t.dataset.step)); applyField(inp); }
+}
+for(const host of [isc, document.getElementById("pop")]){
+  host.addEventListener("click",onPanelClick);
+  host.addEventListener("input",(ev)=>{ if(ev.target.classList?.contains("rg")) applyLive(ev.target); });
+  host.addEventListener("change",(ev)=>{ if(ev.target.classList?.contains("rg")) return endLive(); if(ev.target.tagName==="INPUT") applyField(ev.target); });
+  host.addEventListener("keydown",(ev)=>{ if(ev.key==="Enter"&&ev.target.tagName==="INPUT") applyField(ev.target); });
+}
+ihd.addEventListener("click",(ev)=>{ if(ev.target.id==="back"){ sel={type:"room",roomId:sel.roomId}; changedSel(); } });
+function applyField(inp){
+  const v=parseFloat(inp.value.replace(",",".")); if(!Number.isFinite(v)) return renderInsp();
+  if(inp.id==="decl") return commit(()=>{ room(sel.roomId).declared=v; });
+  if(inp.id==="len") return commit(()=>setLen(room(sel.roomId),sel.edge,v));
+  if(inp.id==="cw"||inp.id==="cd"){ const c=plan.columns.find(x=>x.id===sel.id); return commit(()=>{ if(inp.id==="cw") c.w=Math.max(.1,v); else c.d=Math.max(.1,v); }); }
+  const o=plan.openings.find(x=>x.id===sel?.id); if(!o) return;
+  const e=edgeOf(room(o.roomId),o.edge);
+  commit(()=>{ if(inp.id==="ow") o.w=Math.max(.3,v); if(inp.id==="oh") o.h=Math.max(.3,v); if(inp.id==="os") o.sill=Math.max(0,v);
+    if(inp.id==="ol") o.offset=v+o.w/2; if(inp.id==="orr") o.offset=e.len-v-o.w/2; });
+}
+/** Falhossz megadása: a fal VÉGPONTJA mozdul a fal irányában (a következő fal vele tolódik) — mint a mostani modulban. */
+function setLen(r,i,L){ const e=edgeOf(r,i), j=(i+1)%r.polygon.length, d=L-e.len; r.polygon[j]=[Math.round((r.polygon[j][0]+e.u[0]*d)*100)/100,Math.round((r.polygon[j][1]+e.u[1]*d)*100)/100];
+  const k=(j+1)%r.polygon.length, en=edgeOf(r,j); if(en.axis) r.polygon[k]=[Math.round((r.polygon[k][0]+e.u[0]*d)*100)/100,Math.round((r.polygon[k][1]+e.u[1]*d)*100)/100]; }
+/** Egy kattintásos típusváltás (ajtó ↔ ablak ↔ átjáró): ugyanott marad, a méret ésszerű — azonos szélességű szabványos
+ *  méret, ha van; különben a szélesség marad. Ajtóból ablak: parapet 90 cm; ablakból ajtó: 210 (széles: 240) magas. */
+/** A felületi típus: ajtó / üvegajtó (ajtóként nyílik, de üvegezett — ki lehet látni rajta) / ablak / átjáró. */
+const typeKey=(o)=>o.kind==="door"&&o.glazed?"glassdoor":o.kind;
+const presetsOf=(key)=>PRESETS.filter(p=>key==="glassdoor"?p.kind==="door"&&p.glazed:key==="door"?p.kind==="door"&&!p.glazed:p.kind===key);
+function convertOpening(o,key){
+  const from=typeKey(o); if(from===key) return;
+  const kind=key==="glassdoor"?"door":key;
+  if(!(from==="door"&&key==="glassdoor") && !(from==="glassdoor"&&key==="door")){   // ajtó ↔ üvegajtó: a méret marad
+    const same=presetsOf(key).find(p=>Math.abs(p.w-o.w)<.005);
+    if(same) Object.assign(o,{w:same.w,h:same.h,sill:same.sill});
+    else if(key==="window") Object.assign(o,{h:1.5,sill:.9});
+    else if(key==="glassdoor") Object.assign(o,{h:2.4,sill:0});
+    else if(key==="door") Object.assign(o,{h:o.w>=1.2?2.4:2.1,sill:0});
+    else Object.assign(o,{h:plan.ceilingHeight,sill:0});
+  }
+  if(kind==="door"){ o.hinge=o.hinge||"start"; o.swing=o.swing||"in"; }
+  o.kind=kind; o.glazed = key==="glassdoor" || undefined;
+}
+const KIND_T={door:"Ajtó",glassdoor:"Üvegajtó",window:"Ablak",passage:"Átjáró"};
+function setKind(key){ const o=plan.openings.find(x=>x.id===sel?.id); if(!o||typeKey(o)===key) return; const from=KIND_T[typeKey(o)]; commit(()=>convertOpening(o,key), `${from} → ${KIND_T[key]}`); }
+/** FELUGRÓ KÁRTYA a kijelölt nyílászáró mellett (2D-ben, vagy ha csak a 3D látszik, ott): típus, méret, nyitás, hely, törlés.
+ *  Csak a lényeg; az egyedi méret lenyitható. A jobb oldali panel közben a helyiség áttekintése marad. */
+const pop=document.getElementById("pop");
+let popCustom=false;
+const swingIcon=(hg,sw)=>`<svg width="26" height="22" viewBox="0 0 26 22"><line x1="2" y1="${sw==="in"?3:19}" x2="24" y2="${sw==="in"?3:19}" stroke="#3B3530" stroke-width="3"/><line x1="${hg==="start"?4:22}" y1="${sw==="in"?3:19}" x2="${hg==="start"?4:22}" y2="${sw==="in"?19:3}" stroke="#EF7A5A" stroke-width="2"/><path d="M ${hg==="start"?22:4} ${sw==="in"?3:19} A 18 16 0 0 ${(hg==="start")===(sw==="in")?1:0} ${hg==="start"?4:22} ${sw==="in"?19:3}" fill="none" stroke="#EF7A5A" stroke-width="1" stroke-dasharray="2 2"/></svg>`;
+/** Típus-ikonok a csempékhez (vonalas, 26 px). */
+function typeGlyph(k){
+  const st='stroke="#4A433C" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"';
+  if(k==="door") return `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M6 23V3h12v20" ${st}/><path d="M3 23h20" ${st}/><circle cx="15" cy="13" r="1.1" ${st}/></svg>`;
+  if(k==="glassdoor") return `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M6 23V3h12v20" ${st}/><path d="M9 6h6v8H9z" ${st}/><path d="M3 23h20" ${st}/></svg>`;
+  if(k==="window") return `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M4 5h18v14H4zM13 5v14M4 12h18" ${st}/><path d="M3 22h20" ${st}/></svg>`;
+  return `<svg width="26" height="26" viewBox="0 0 26 26"><path d="M4 23V5M22 23V5" ${st}/><path d="M9 14h8M14 11l3 3-3 3" ${st}/><path d="M2 23h22" ${st}/></svg>`;
+}
+/** Felülnézeti ábra a nyitásirányról (az alkártyán) — a zsanér és az ív a valódi beállítást mutatja. */
+function swingDiagram(o){
+  const L=o.hinge==="end", IN=o.swing!=="out", y=IN?18:62, x0=14, x1=118, hx=L?x1:x0, ox=L?x0:x1, dy=IN?44:-44, double=leavesOf(o)===2;
+  const leaf=(hx,ox)=>{ const w=Math.abs(ox-hx), tipY=y+(IN?w*.78:-w*.78); return `<line x1="${hx}" y1="${y}" x2="${hx}" y2="${tipY}" stroke="#EF7A5A" stroke-width="3" stroke-linecap="round"/><path d="M ${ox} ${y} Q ${ox} ${tipY} ${hx} ${tipY}" fill="none" stroke="#EF7A5A" stroke-width="1.4" stroke-dasharray="4 4"/>`; };
+  return `<svg width="132" height="80" viewBox="0 0 132 80"><line x1="2" y1="${y}" x2="${x0}" y2="${y}" stroke="#3B3530" stroke-width="6"/><line x1="${x1}" y1="${y}" x2="130" y2="${y}" stroke="#3B3530" stroke-width="6"/>
+    ${double?leaf(x0,(x0+x1)/2)+leaf(x1,(x0+x1)/2):leaf(hx,ox)}${o.glazed?`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#2F7F86" stroke-width="1.4"/>`:""}
+    <text x="66" y="${IN?76:10}" text-anchor="middle" font-size="9.5" fill="#9C8F80" font-weight="600">${IN?"a helyiség felé":"kifelé"}</text></svg>`;
+}
+/** Nézeti ábra az ablakról: parapet- és ablakmagasság (az alkártyán). */
+function sillDiagram(o){
+  const H=plan.ceilingHeight, k=70/H, sy=78-o.sill*k, ty=78-(o.sill+o.h)*k;
+  return `<svg width="132" height="80" viewBox="0 0 132 80"><rect x="30" y="8" width="72" height="70" fill="rgba(255,255,255,.6)" stroke="#D8CCBF"/><rect x="44" y="${ty}" width="44" height="${sy-ty}" fill="#DCEBF2" stroke="#2F7F86" stroke-width="1.6"/>${leavesOf(o)===2?`<line x1="66" y1="${ty}" x2="66" y2="${sy}" stroke="#2F7F86" stroke-width="2"/>`:""}
+    <line x1="112" y1="78" x2="112" y2="${sy}" stroke="#EF7A5A" stroke-width="1.6"/><line x1="108" y1="${sy}" x2="116" y2="${sy}" stroke="#EF7A5A" stroke-width="1.6"/><text x="118" y="${(78+sy)/2+3}" font-size="9.5" fill="#C9502F" font-weight="700">${Math.round(o.sill*100)}</text>
+    <line x1="2" y1="78" x2="130" y2="78" stroke="#3B3530" stroke-width="2"/></svg>`;
+}
+/** A fal mentén elfoglalt hely ábrája (az alkártyán): a nyílás a falon, két oldalt a saroktávolság. */
+function placeDiagram(o,e){
+  const W=120, k=W/e.len, a=6+(o.offset-o.w/2)*k, b=6+(o.offset+o.w/2)*k;
+  return `<svg width="132" height="44" viewBox="0 0 132 44"><line x1="6" y1="22" x2="${a}" y2="22" stroke="#3B3530" stroke-width="7"/><line x1="${b}" y1="22" x2="126" y2="22" stroke="#3B3530" stroke-width="7"/>
+    <rect x="${a}" y="16" width="${Math.max(2,b-a)}" height="12" rx="3" fill="#F7B49E"/><line x1="6" y1="36" x2="${a}" y2="36" stroke="#2F7F86" stroke-width="1.4"/><line x1="${b}" y1="36" x2="126" y2="36" stroke="#2F7F86" stroke-width="1.4"/>
+    <circle cx="6" cy="36" r="2" fill="#2F7F86"/><circle cx="126" cy="36" r="2" fill="#2F7F86"/></svg>`;
+}
+pop.addEventListener("pointerdown",(ev)=>{
+  const ph=ev.target.closest(".ph"); if(!ph || ev.target.closest("button")) return;
+  ev.preventDefault(); try{ pop.setPointerCapture(ev.pointerId); }catch{ /* nincs valódi mutató (pl. teszt) */ }
+  popDrag={x:ev.clientX,y:ev.clientY,left:pop.offsetLeft,top:pop.offsetTop};
+});
+pop.addEventListener("pointermove",(ev)=>{ if(!popDrag) return; popPinned={left:popDrag.left+ev.clientX-popDrag.x, top:popDrag.top+ev.clientY-popDrag.y}; positionPop(); });
+pop.addEventListener("pointerup",()=>{ popDrag=null; });
+pop.addEventListener("dblclick",(ev)=>{ if(ev.target.closest(".ph") && !ev.target.closest("button")){ popPinned=null; positionPop(); } });
+function renderPop(){
+  const o=sel?.type==="opening" ? plan.openings.find(x=>x.id===sel.id) : null;
+  if(!o){ pop.style.display="none"; return; }
+  const r=room(o.roomId), e=edgeOf(r,o.edge), key=typeKey(o), list=presetsOf(key);
+  const pre=list.find(p=>Math.abs(p.w-o.w)<.005&&Math.abs(p.h-o.h)<.005&&Math.abs(p.sill-o.sill)<.005), warns=openingWarnings(o);
+  const custom = popCustom || !pre;
+  const left=o.offset-o.w/2, right=e.len-o.offset-o.w/2;
+  const second = o.kind==="door"
+    ? `<div class="sub"><span class="k">Nyitás</span><span data-live="swing">${swingDiagram(o)}</span><div class="row" style="gap:5px;margin-top:auto"><button class="pbtn" data-flip="hinge" title="A zsanér másik oldalra">⇄ Zsanér</button><button class="pbtn" data-flip="swing" title="Befelé / kifelé">⇅ Irány</button></div></div>`
+    : o.kind==="window"
+    ? `<div class="sub"><span data-live="sill">${sillDiagram(o)}</span><div style="margin-top:auto">${slider("os","Parapet",o.sill,0,Math.max(.1,plan.ceilingHeight-o.h-.05))}</div></div>`
+    : `<div class="sub"><span class="k">Átjáró</span><p class="v">${Math.round(o.w*100)} cm</p><p class="muted" style="font-size:11.5px;line-height:1.4">Fal nélküli nyílás a teljes belmagasságban — a bejárásban át lehet menni.</p></div>`;
+  pop.innerHTML=`<div class="ph" title="Fogd meg és húzd arrébb · dupla kattintás: vissza az elem mellé"><span class="grab"></span><span class="ic">${typeGlyph(key).replaceAll("#4A433C","#fff")}</span><div style="flex:1;min-width:0"><p class="tt">${KIND_T[key]}</p><p class="st" data-live="st">${r.name} · ${o.edge+1}. fal · ${Math.round(o.w*100)} × ${Math.round(o.h*100)} cm${o.kind!=="passage"?` · ${leavesOf(o)===2?"kétszárnyú":"egyszárnyú"}`:""}</p></div><button class="x" data-close title="Bezárás (Esc)">✕</button></div>
+    <div class="tiles">${["door","glassdoor","window","passage"].map(k=>`<button class="tile ${key===k?"on":""}" data-kind="${k}">${typeGlyph(k)}${KIND_T[k]}</button>`).join("")}</div>
+    <div class="caps"><span class="lb" title="Méret"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 9h14M2 6v6M16 6v6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></span>
+      <div class="capsbar">${list.map(p=>`<button class="${pre?.id===p.id&&!popCustom?"on":""}" data-preset="${p.id}" title="${p.t} ${p.s}">${Math.round(p.w*100)}${p.kind==="door"?`×${Math.round(p.h*100)}`:""}</button>`).join("")}<button class="${custom?"on":""}" data-custom>Egyedi</button></div></div>
+    ${o.kind!=="passage"?`<div class="caps"><span class="lb" title="Szárnyak"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 3h14v12H2zM9 3v12" stroke="currentColor" stroke-width="1.6" fill="none"/></svg></span>
+      <div class="capsbar">${[[1,"Egyszárnyú"],[2,"Kétszárnyú"]].map(([n,t])=>`<button class="${leavesOf(o)===n?"on":""}" data-leaves="${n}">${t}</button>`).join("")}</div></div>`:""}
+    ${custom?`<div class="sub" style="min-height:0;margin-top:10px;gap:12px">${slider("ow","Szélesség",o.w,.4,Math.min(3,e.len))}${o.kind==="passage"?"":slider("oh","Magasság",o.h,o.kind==="window"?.3:1.8,o.kind==="window"?Math.max(.4,plan.ceilingHeight-o.sill-.05):plan.ceilingHeight-.05)}</div>`:""}
+    <div class="subs">${second}
+      <div class="sub"><span class="k">Hely a falon</span><span data-live="place">${placeDiagram(o,e)}</span><p class="v" data-live="lr" style="display:flex;justify-content:space-between"><span>← ${fmt(left)}</span><span>${fmt(right)} →</span></p>
+        <input class="rg" type="range" id="ol" data-unit="m" min="0" max="${Math.max(0,e.len-o.w).toFixed(2)}" step="0.01" value="${left}" style="--p:${(left/Math.max(.01,e.len-o.w)*100).toFixed(1)}%" title="Csúsztasd a fal mentén">
+        <div style="margin-top:auto"><button class="pbtn" data-center title="A fal közepére">◎ Középre</button></div></div></div>
+    ${warns.map(w=>`<p class="wb ${w.lv==="bad"?"bad":"warn"}">${w.lv==="bad"?"⛔":"⚠"} ${w.t}</p>`).join("")}
+    <div class="foot"><button class="del" id="del">Törlés</button><span class="muted" style="font-size:11px;flex:1;text-align:right">a csúszkák élőben módosítanak · Ctrl+Z egyben visszavon</span></div>`;
+  pop.style.display="block"; positionPop();
+}
+/** A kártya a nyílászáró MELLÉ kerül (jobbra, ha nem fér: balra), a nézeten belül tartva; drag közben rejtve. */
+let popPinned=null, popDrag=null;   // áthúzott kártya helye (a nézeten belül) — megmarad, amíg vissza nem tesszük
+function positionPop(){
+  const o=sel?.type==="opening" ? plan.openings.find(x=>x.id===sel.id) : null;
+  if(!o || drag || drag3 || tool!=="select"){ pop.style.display="none"; return; }
+  if(pop.style.display==="none" && pop.innerHTML) pop.style.display="block";
+  pop.classList.toggle("pinned",!!popPinned);
+  if(popPinned){ const vr=document.getElementById("views").getBoundingClientRect(), h=pop.offsetHeight||420;
+    pop.style.left=Math.max(8,Math.min(vr.width-352,popPinned.left))+"px"; pop.style.top=Math.max(8,Math.min(vr.height-h-8,popPinned.top))+"px"; return; }
+  const {A,B}=openingGeom(o), c=[(A[0]+B[0])/2,(A[1]+B[1])/2], vr=document.getElementById("views").getBoundingClientRect();
+  let x,y;
+  if(document.getElementById("p2d").offsetWidth>50){ const r=svg.getBoundingClientRect(); x=r.left-vr.left+(c[0]*S-vb.x)/vb.w*r.width; y=r.top-vr.top+(c[1]*S-vb.y)/vb.h*r.height; }
+  else { const v=new THREE.Vector3(c[0],1.1,c[1]).project(camera), r=canvas.getBoundingClientRect(); x=r.left-vr.left+(v.x+1)/2*r.width; y=r.top-vr.top+(1-v.y)/2*r.height; }
+  const w=344, h=pop.offsetHeight||420, gap=34;
+  let left = x+gap+w < vr.width-8 ? x+gap : x-gap-w;
+  left=Math.max(8,Math.min(vr.width-w-8,left));
+  const top=Math.max(8,Math.min(vr.height-h-8,y-h/2));
+  pop.style.left=left+"px"; pop.style.top=top+"px";
+}
+function delSel(){
+  if(sel?.type==="column"){ const id=sel.id; commit(()=>{ plan.columns=plan.columns.filter(c=>c.id!==id); },"Oszlop törölve"); sel=null; return changedSel(); }
+  if(sel?.type!=="opening") return; const o=plan.openings.find(x=>x.id===sel.id); commit(()=>{ plan.openings=plan.openings.filter(x=>x.id!==o.id); }, `${o.kind==="door"?"Ajtó":o.kind==="passage"?"Átjáró":"Ablak"} törölve`); sel={type:"edge",roomId:o.roomId,edge:o.edge}; changedSel(); }
+
+// ---------------------------------------------------------------- ESZKÖZÖK, PALETTA, ÁLLAPOTSOR
+const pal=document.getElementById("pal");
+function setTool(t){
+  tool=t; ghost=null; pending=null; colGhost=null; sync3dGhost();
+  document.querySelectorAll("#tools button").forEach(b=>b.classList.toggle("on",b.dataset.tool===t));
+  if(t==="door"||t==="window"){
+    const btn=document.querySelector(`#tools [data-tool=${t}]`), vr=document.getElementById("views").getBoundingClientRect(), br=btn.getBoundingClientRect();
+    pal.style.left=Math.max(8,br.left-vr.left-40)+"px"; pal.style.top="10px";
+    pal.innerHTML=`<div class="t"><b style="flex:1;font-size:14px">${t==="door"?"Ajtó":"Ablak"} beillesztése — válassz méretet</b><button class="btn" id="palx" style="height:28px">Mégse (Esc)</button></div>
+      <div class="presets">${PRESETS.filter(p=>p.kind===t||(t==="door"&&p.kind==="passage")).map(p=>`<button class="pc" data-pp="${p.id}">${presetIcon(p,40)}${p.t}<small>${p.s}</small></button>`).join("")}
+      <button class="pc" data-pp="custom"><span style="font-size:22px;color:#9C8F80">✎</span>Egyedi méret<small>lerakás után állítható</small></button></div>
+      <p class="muted" style="font-size:11.5px;margin-top:10px">Utána vidd a kurzort a falra (2D vagy 3D): a szellemkép a falra ugrik és mutatja a saroktávolságokat. Kattintás = lerakás.</p>`;
+    pal.classList.add("open");
+  } else pal.classList.remove("open");
+  renderSb(); draw2d();
+}
+pal.addEventListener("click",(ev)=>{
+  if(ev.target.closest("#palx")) return setTool("select");
+  const b=ev.target.closest("[data-pp]"); if(!b) return;
+  pending = b.dataset.pp==="custom" ? {...PRESETS.find(p=>p.kind===tool), t:"Egyedi", s:""} : PRESETS.find(p=>p.id===b.dataset.pp);
+  pal.classList.remove("open"); renderSb();
+});
+document.getElementById("tools").addEventListener("click",(ev)=>{ const b=ev.target.closest("[data-tool]"); if(b) setTool(b.dataset.tool); });
+document.getElementById("undo").onclick=undo; document.getElementById("redo").onclick=redo;
+document.getElementById("viewmode").addEventListener("click",(ev)=>{ const b=ev.target.closest("[data-v]"); if(!b) return; setView(b.dataset.v); });
+let split=.56;
+function setView(v){ document.querySelectorAll("#viewmode button").forEach(b=>b.classList.toggle("on",b.dataset.v===v)); const V=document.getElementById("views");
+  // az elrejtett elválasztó kiesik a rácsból → egynézetes módban csak két oszlop van
+  V.style.gridTemplateColumns = v==="2d"?"1fr 0":v==="3d"?"0 1fr":`${split}fr 10px ${1-split}fr`; document.getElementById("divider").style.display=v==="split"?"block":"none";
+  requestAnimationFrame(()=>{ fitVB(); draw2d(); resize3(); }); }
+const dv=document.getElementById("divider");
+dv.addEventListener("pointerdown",(ev)=>{ dv.setPointerCapture(ev.pointerId); const V=document.getElementById("views").getBoundingClientRect();
+  const mv=(e)=>{ split=Math.max(.25,Math.min(.75,(e.clientX-V.left)/V.width)); document.getElementById("views").style.gridTemplateColumns=`${split}fr 10px ${1-split}fr`; draw2d(); resize3(); };
+  const up=()=>{ dv.removeEventListener("pointermove",mv); dv.removeEventListener("pointerup",up); }; dv.addEventListener("pointermove",mv); dv.addEventListener("pointerup",up); });
+window.addEventListener("keydown",(ev)=>{
+  if(ev.target.tagName==="INPUT") return;
+  const k=ev.key.toLowerCase();
+  if((ev.ctrlKey||ev.metaKey)&&k==="z"){ ev.preventDefault(); ev.shiftKey?redo():undo(); return; }
+  if(k==="escape"){ if(sel?.type==="opening"&&tool==="select"){ sel={type:"room",roomId:sel.roomId}; changedSel(false); return; } setTool("select"); return; }
+  if(k==="delete"||k==="backspace"){ ev.preventDefault(); delSel(); return; }
+  if(k==="o") setTool("column");
+  if(k==="v") setTool("select"); if(k==="w") setTool("wall"); if(k==="d") setTool("door"); if(k==="a") setTool("window");
+  if(sel?.type==="opening"&&(k==="arrowleft"||k==="arrowright")){ ev.preventDefault(); const o=plan.openings.find(x=>x.id===sel.id), e=edgeOf(room(o.roomId),o.edge);
+    commit(()=>{ o.offset=Math.round(Math.max(o.w/2,Math.min(e.len-o.w/2,o.offset+(k==="arrowright"?1:-1)*(ev.shiftKey?.1:.01)))*100)/100; }); }
+});
+const sb=document.getElementById("sb");
+function renderSb(){
+  const hint={select:"<b>Kijelölés:</b> kattints helyiségre, falra vagy nyílászáróra · ajtót/ablakot húzással mozgathatsz · üres helyen húzva mozgatod a rajzot, görgővel nagyítasz",
+    wall:"<b>Fal húzása:</b> fogd meg a falat és húzd ki vagy be — 1 cm-es lépés, a szomszéd falhoz illeszkedik",
+    door:pending?`<b>${pending.t} ${pending.s}:</b> vidd a falra és kattints · Esc: mégse`:"<b>Ajtó:</b> válassz méretet a palettán",
+    column:"<b>Oszlop:</b> kattints oda, ahol a tartóoszlop áll — a falhoz illeszkedik; utána húzható, a mérete a panelen állítható · Esc: mégse",
+    window:pending?`<b>${pending.t} ${pending.s}:</b> vidd a falra és kattints · Esc: mégse`:"<b>Ablak:</b> válassz méretet a palettán"}[tool];
+  sb.innerHTML=`<span style="flex:1">${hint}</span><span>Ctrl+Z visszavonás · Ctrl+Shift+Z újra</span><span>Változások: <b>${hist.length}</b></span>`;
+  document.getElementById("undo").disabled=!hist.length; document.getElementById("redo").disabled=!fut.length;
+}
+function renderChk(){
+  const cs=plan.rooms.map(check), ok=cs.filter(c=>c.st==="ok").length, bad=plan.openings.some(o=>openingWarnings(o).some(w=>w.lv==="bad"));
+  const el=document.getElementById("chk"); el.className="chk "+(ok===cs.length&&!bad?"ok":"warn");
+  el.textContent = `Ellenőrzés: ${ok}/${cs.length} helyiség rendben${bad?" · nyílászáró-hiba":""}`;
+  const a=document.getElementById("approve"); a.disabled = ok!==cs.length||bad; a.title = a.disabled ? "Előbb minden helyiség legyen rendben (vagy tudatosan jóváhagyva)" : "";
+}
+let toastTimer=null;
+function toast(t){ const T=document.getElementById("toast"); document.getElementById("toastT").textContent=t; T.style.display="flex"; clearTimeout(toastTimer); toastTimer=setTimeout(()=>T.style.display="none",4000); }
+document.getElementById("toastU").onclick=()=>{ undo(); document.getElementById("toast").style.display="none"; };
+function changed(){ draw2d(); build3d(); renderInsp(); renderSb(); renderChk(); renderPop(); }
+function changedSel(focus=true){ if(focus) focusSel(); else focusSel(); changed(); }
+
+new ResizeObserver(()=>{ fitVB(); draw2d(); resize3(); }).observe(document.getElementById("views"));
+setView("split"); changed(); loop();
+</script>
+</body>
+</html>

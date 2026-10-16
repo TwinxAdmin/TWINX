@@ -77,7 +77,15 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
     scene.add(sun, sun.target);
 
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
-    camera.position.set(cx + span * 0.55, span * 1.15, cz + span * 1.05);
+    // babaház-nézet: az egész lakás beférjen a nézet arányától függetlenül (befoglaló gömb a szűkebb látószöghöz)
+    const fitDollhouse = () => {
+      const r = Math.hypot(b.maxX - b.minX, b.maxY - b.minY) / 2 + 0.5;
+      const vf = THREE.MathUtils.degToRad(camera.fov), hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+      const dist = (r / Math.sin(Math.min(vf, hf) / 2)) * 0.92;
+      const dir = new THREE.Vector3(0.38, 0.78, 0.5).normalize();
+      camera.position.set(cx + dir.x * dist, dir.y * dist, cz + dir.z * dist);
+    };
+    fitDollhouse();
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(cx, 0, cz);
     controls.enableDamping = true;
@@ -158,7 +166,7 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
     // nézetek: „babaház" (ferdén felülről) és „felülről" (alaprajz-szerű, a nyílászárók ellenőrzéséhez)
     viewRef.current = (m: ViewMode) => {
       if (m === "top") camera.position.set(cx, span * 1.9, cz + 0.001);
-      else camera.position.set(cx + span * 0.55, span * 1.15, cz + span * 1.05);
+      else fitDollhouse();
       controls.target.set(cx, 0, cz);
       controls.update();
     };
@@ -168,7 +176,10 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
       renderer.setSize(w, h);
       camera.aspect = w / Math.max(h, 1);
       camera.updateProjectionMatrix();
+      if (!userMoved) { fitDollhouse(); controls.update(); }
     };
+    let userMoved = false;
+    controls.addEventListener("start", () => { userMoved = true; });
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(host);

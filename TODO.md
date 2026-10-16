@@ -331,7 +331,14 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
       oldal (belépés nélkül, noindex, lejárt/visszavont/ismeretlen üzenet), „Megosztható link" kártya (létrehozás ingyenes — a 3D díja a
       jóváhagyáskor levonva; +30 nap creditsExtend kreditért; visszavonás; megnyitásszám). A link a JÓVÁHAGYOTT tervet mutatja. Tesztelve: létrehozás, kijelentkezve megnyitás, mobil, számláló, hosszabbítás (lejártan is), visszavonás.
 - [x] Terasz/erkély: a babaház-nézetben is 1 m-es mellvéd (`railOutdoorWalls`, scene.ts)
-- [ ] ▶ INNEN FOLYTATJUK: F5 videó (külön gomb, creditsVideo) — vagy előtte Márk telefonos tesztje a megosztott linken
+- [x] Javító mód újratervezve (2026-10-16): osztott 2D | 3D, falhúzás szomszéddal, sarokpontok, nyílászáró-kártya (ajtó / üvegajtó /
+      ablak / átjáró, szárnyak, nyitás, becsukva), oszlop, eredeti rajz áttetszőséggel, bejárhatóság-jelzés, telefonos nézet
+- [x] Digitalizálás 2. kör: önellenőrző kör, nyitásirány a rajzról, átjáró, oszlop, rövidítések, erkélyajtó = üvegajtó + becsukva
+- [x] Motor: ferde fal, szemközti nyitott határ, falcsatlakozás, ajtólap 90° + ütköző, kifelé vezető ajtó becsukva (bejárásban kinyílik)
+- [x] AI-berendező: helyi javítás a második AI-kör helyett
+- [ ] Márk tesztje széles képernyőn (≥ 1280 px) a Tábornok-terven + telefonon a megosztott linken
+- [ ] JAVASLAT (jóváhagyásra): `alaprajz-teszt` skill a gépi tesztekhez
+- [ ] ▶ INNEN FOLYTATJUK: F5 videó (külön gomb, creditsVideo)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

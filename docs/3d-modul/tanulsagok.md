@@ -331,3 +331,69 @@ lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
 - **Hiba:** a nyilvános oldal a nézőt a szerveren is rendereli → a minitérkép méretét (telefonon kisebb) rendereléskor `window`-ból
   számolni hidratálási eltérést okozott. Megoldás: a méret a böngészőben, a jelenet-effektben dől el (a stílust ott állítjuk).
   Tanulság: a nézőben rendereléskor ne olvassunk `window`-t — a stúdióban ez nem jött elő (ott csak kattintás után jelenik meg).
+
+## 2026-10-16 — Teljes teszt a nulláról: Tábornok 27. (38,84 m² + loggia, ferde fal, francia erkély)
+Tesztrajz (valós, NEM gitben): `.floorplan3d-meropad/valos/tabornok27.png`. Folyamat: feltöltés → digitalizálás → javítás → jóváhagyás → 3D → berendezés → bejárás → link.
+
+### Mért
+- Digitalizálás: 15 mp, 0,025 $; 9/9 helyiség, 7 nyílászáró. Jóváhagyás + 3D: 2 mp; méretpontosság 0 mm minden helyiségben.
+- Építő (nappali): 175,6 mp, 0,30 $, 2 kör (javítókörrel) — a korábbi 60–90 mp / 0,13–0,16 $ kétszerese.
+
+### Hibák és megoldások (javítva, a régi tesztlakáson is visszaellenőrizve)
+- **Szemközti nyitott határ:** a közlekedő oldalán nyitott, az előtér oldalán fal maradt → 5 helyiség elérhetetlen volt a bejárásban.
+  `wallSlabs`: ha a szomszéd éle nyitott, ezen az oldalon sem épül fal.
+- **Falcsatlakozási rés (9 cm) = külső fal (30 cm):** két szomszéd közti rövid, fedetlen szakaszt a falépítő külső falnak vett →
+  30 cm-es csonk lógott a fürdőajtóba (elakadt a bejárás). Két fedett szakasz közti rövid résben a szomszédos falvastagság érvényes.
+- **Ferde falnak nem épült fal** (a 3D-ben oldalt nyitva maradt, a bejárásban ki lehetett volna sétálni) → `slantWalls`: elforgatott
+  tömb a 3D-ben, kis négyzetek lánca az ütközéshez. Tanulság: minden tesztkészletbe kell ferde falas rajz.
+- **Nappali alap-elrendezés feladta**: a kanapé az első fal közepén 3 cm-rel belelógott egy ajtósávba, és a szabály nem próbált mást →
+  minden elég hosszú falat és 3 helyzetet végigpróbál.
+
+### Nyitott (javaslatként Márknak)
+- Digitalizálás nem determinisztikus: ugyanaz a rajz kétszer → Szoba 8,79 vs 7,99 m² (6 vs 4 pont), Konyha L-alak vs téglalap.
+- Szaggatott határból fantomajtó lett; „KÖZL." → „egyéb"; erkélyajtó nem üvegajtó; oszlop nem felismert; konyhai akna beleszámolva.
+- Szerkesztő: sarokpont-szerkesztés hiányzik (ferde fal, L-alak, kivágás); az „eredeti rajz alatta" átfedés kimaradt a mintából.
+- Bejárás: az ajtólap 70°-on belóg és nem ütköző; érkezéskor falra néz; a babaház-kamera levágja a lakás szélét; a 172 cm-es ajtó egy lap.
+
+## 2026-10-16 — Digitalizálás 2. kör + motor (üvegajtó, szárnyak, átjáró, oszlop, becsukott ajtó)
+### Mérőpad (`.floorplan3d-meropad/20261016T081857`)
+| Alaprajz | Helyiség rendben (±5%) | Nyílászáró | Figyelmeztetés | Lépték | Idő | Költség | 3D max eltérés |
+|---|---|---|---|---|---|---|---|
+| teszt-alaprajz-digitalis | 7/7 | 11 | 1 | dimensions | 114.4 mp | 0.225 $ | 0 mm |
+| tabornok27 (valós) | 9/9 (önellenőrző körrel; előtte 5/9) | 9 | 5 | areas | 63.6 mp | 0.117 $ | 30 mm |
+- Működött: önellenőrző kör (a tűrésen kívüli helyiségek újrarajzoltatása — a jobbik eredmény marad); a konyhai akna kivágva
+  (6 pont), a ferde szobafal 8 ponttal; „KÖZL." → előszoba/közlekedő; az erkély-/loggiaajtó üvegajtó + becsukva, a 173 cm-es kétszárnyú.
+- Nem működött: a szaggatott közlekedő–előtér határon továbbra is ajtót lát; két ablakot vett fel az erkélyajtók mellett (a rajzon
+  nem egyértelmű); az oszlopot (szürke téglalap) nem ismeri fel → a javító felületen egy kattintás (Átjáró / Törlés / + Oszlop).
+- Hiba és megoldás: a valós alaprajzot (harmadik fél anyaga) véletlenül a `docs/` mappába mentettem → áthelyezve a gitből kizárt
+  `.floorplan3d-meropad/valos/` mappába (a mérőpad szabálya).
+### Motor
+- Kifelé vezető ajtó (bejárati, erkély) alapból BECSUKVA (`doorClosed` / `leadsOutside`), a bejárásban odasétálva kinyílik; a belső
+  ajtó 90°-ra nyitva, a lapja ütköző. Hiba: az első változatban a 90°-os bejárati ajtólap pont a kezdőpontot foglalta → a kezdőpont
+  foglaltság esetén a legközelebbi szabad helyre kerül.
+- Újrafuttatható gépi bejárás-teszt: `node --env-file=.env.local scripts/floorplan3d-tests/run.mjs <projekt-id> …`
+
+## 2026-10-16 — Új javító szerkesztő (osztott 2D | 3D) + teljes teszt
+### Mi készült (`src/components/floorplan3d/editor/`, `src/lib/floorplan3d/edit.ts`)
+- Osztott 2D | 3D nézet húzható elválasztóval, közös kijelölés (a 3D kamera odafordul), közös visszavonás (Ctrl+Z / Ctrl+Shift+Z).
+- Falhúzás: a szomszéd szemközti fala vele mozog (a falvastagság marad; Alt: csak ez), mágnes, élő m²; sarokpont húzása /
+  beszúrása (dupla kattintás) / törlése; nyílászáró-paletta szellemképpel (2D-ben és 3D-ben is); felugró kártya (típus, méret,
+  szárny, nyitás, becsukva, hely, csúszkák élő frissítéssel, áthúzható); tartóoszlop; „Eredeti rajz" áttetszőség-csúszkával;
+  bejárhatóság-jelzés (melyik helyiségbe nem lehet bejutni); telefonon egyszerű nézet + értesítés.
+- AI-berendező: helyi javítás a második AI-kör helyett (a hibás bútor a szabályos helyére kerül vagy kimarad).
+### Mért
+- Gépi tesztek (`scripts/floorplan3d-tests/run.mjs`): szerkesztő-műveletek 2298 ellenőrzés / 0 hiba; bejárás 2 jóváhagyott lakáson hibátlan.
+### Hibák és megoldások
+- **Sarokpont egy ajtó alá szúrva** → az ajtó a két fél egyikére került és elcsúszott → a pont a nyílás közelebbi végéhez igazodik.
+- **Mellékhatás**: egy már 1 mm-rel kilógó nyílászárót minden művelet „helyre igazított" (más helyiségben is) → csak a módosított
+  helyiségek nyílászárói igazodnak.
+- **Visszavonás húzás után**: ha a húzás vége megelőzte a megjelenítést, a lépés nem került az előzménybe → a hook mindig a
+  legfrissebb tervet tartja (live/commit azonnal frissíti).
+- **Fal végén lévő rövid, fedetlen szakasz = 30 cm-es külső fal** → belelógott a szomszéd ajtajába → a szomszédos szakasz vastagsága.
+- **90°-os ajtólap kis WC-ben / keskeny közlekedőben** elzárta a bejutást vagy egy másik ajtót → az ilyen ajtó becsukva jelenik
+  meg, a bejárásban odasétálva kinyílik (`leafBlocksRoom`).
+- **Az „érintett helyiségek"** (utólagos javítás) nem figyelte az üvegezést / szárnyat / becsukott állapotot / oszlopot → pótolva.
+- Telefonon a 2D-nézet 0 px-es méretnél végtelen nagyításba futott → védelem; a panel a rajz alá került.
+### Javaslat (skill)
+- `alaprajz-teszt` skill: a `scripts/floorplan3d-tests/run.mjs` futtatása minden geometria- / szerkesztő- / bejárás-változás után
+  (melyik projekteken, mit jelent a kimenet). Csak Márk jóváhagyásával hozom létre.

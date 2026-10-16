@@ -111,6 +111,37 @@ export function layoutProblems(plan: FloorPlan, room: Room, items: FurnitureItem
 }
 
 /**
+ * HELYI JAVÍTÁS (2026-10-16): ha az építő javaslatában csak néhány bútor szabálytalan, nem kérünk új AI-kört (az kétszeres idő és
+ * költség volt: 176 mp / 0,30 $), hanem helyben javítunk: a hibás bútor a kiinduló (szabályos) elrendezés azonos típusú darabjára
+ * cserélődik, vagy ha az sem fér el, kimarad; közlekedőút-hibánál a legkevésbé fontos bútorok maradnak el egyenként.
+ * A kanapé nem maradhat el (anélkül nem nappali). null: helyben nem javítható → jöhet az AI-javítókör.
+ */
+const DROP_ORDER = ["plant", "side_table", "floor_lamp", "armchair", "shelf", "sideboard", "coffee_table", "rug"];
+export function repairLocally(plan: FloorPlan, room: Room, items: FurnitureItem[], start: FurnitureItem[]): { items: FurnitureItem[]; changes: string[] } | null {
+  let cur = [...items];
+  const changes: string[] = [];
+  for (let guard = 0; guard < 12; guard++) {
+    const bad = checkLayout(plan, room, cur);
+    if (!bad.length) break;
+    const id = bad[0].itemId, it = cur.find((x) => x.id === id);
+    if (!it) return null;
+    const alt = start.find((s) => s.type === it.type && !cur.some((c) => c.id !== it.id && c.type === s.type && Math.hypot(c.x - s.x, c.y - s.y) < 0.05));
+    const withAlt = alt ? cur.map((c) => (c.id === it.id ? { ...alt, id: it.id } : c)) : null;
+    if (withAlt && !checkLayout(plan, room, withAlt).some((x) => x.itemId === it.id)) { cur = withAlt; changes.push(`${it.label ?? it.type}: a szabályos helyére került`); continue; }
+    if (it.type === "sofa") return null;
+    cur = cur.filter((c) => c.id !== it.id); changes.push(`${it.label ?? it.type}: kimaradt (nem fért el szabályosan)`);
+  }
+  if (checkLayout(plan, room, cur).length) return null;
+  for (const type of DROP_ORDER) {
+    if (!walkwayIssues(plan, room, cur).length) break;
+    const victim = cur.find((c) => c.type === type);
+    if (victim) { cur = cur.filter((c) => c !== victim); changes.push(`${victim.label ?? victim.type}: kimaradt (a közlekedőút miatt)`); }
+  }
+  if (layoutProblems(plan, room, cur).length || !cur.some((c) => c.type === "sofa")) return null;
+  return { items: cur, changes };
+}
+
+/**
  * opts (minőségi ciklus, F3e): start = az aktuális elrendezés (ebből javít), critic = a kritikus utasítása, target = a célkép (képként kapja).
  * Ha a javított elrendezés nem megy át az ellenőrzésen, a KIINDULÓ elrendezés marad (nem a szabályalapú) — egy kör nem ronthat.
  */
@@ -136,6 +167,13 @@ export async function furnishRoom(plan: FloorPlan, room: Room, styleText: string
     if (!problems.length) {
       const costUsd = (tokensIn * cfg.visionUsdPerMTokIn + tokensOut * cfg.visionUsdPerMTokOut) / 1e6;
       return { items: r.items, source: round ? "builder-repaired" : "builder", rationale: r.rationale, issues: [], rounds,
+        seconds: Math.round((Date.now() - t0) / 100) / 10, tokensIn, tokensOut, costUsd, model };
+    }
+    // előbb helyi javítás — csak ha az sem megy, kérünk második AI-kört
+    const local = repairLocally(plan, room, r.items, start);
+    if (local) {
+      const costUsd = (tokensIn * cfg.visionUsdPerMTokIn + tokensOut * cfg.visionUsdPerMTokOut) / 1e6;
+      return { items: local.items, source: "builder-repaired", rationale: `${r.rationale}${local.changes.length ? ` (Helyben javítva: ${local.changes.join("; ")}.)` : ""}`, issues: [], rounds,
         seconds: Math.round((Date.now() - t0) / 100) / 10, tokensIn, tokensOut, costUsd, model };
     }
     feedback = problems.slice(0, 8);

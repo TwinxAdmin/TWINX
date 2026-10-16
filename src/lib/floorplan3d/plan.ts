@@ -42,7 +42,8 @@ export type Room = {
 
 export type Opening = {
   id: string;
-  kind: "door" | "window";
+  /** door: ajtó (üvegezett is) · window: ablak · passage: átjáró — fal nélküli nyílás ajtó nélkül, a teljes belmagasságban */
+  kind: "door" | "window" | "passage";
   roomId: string;
   /** A helyiség-sokszög élének indexe (polygon[edge] → polygon[edge+1]). */
   edge: number;
@@ -55,7 +56,19 @@ export type Opening = {
   /** Ajtó: melyik végén a zsanér (az él irányában) és merre nyílik (a helyiség felé = "in"). */
   hinge?: "start" | "end";
   swing?: "in" | "out";
+  /** Ajtó: üvegezett (pl. erkély-/loggiaajtó — ajtóként nyílik, ki lehet látni rajta). */
+  glazed?: boolean;
+  /** Szárnyak száma (ajtó, ablak). Hiányzik → a szélességből: ≥ 1,2 m kétszárnyú (leavesOf). */
+  leaves?: 1 | 2;
+  /** Ajtó: a 3D-ben becsukva jelenik meg (az erkély-/loggiaajtó alapból; a bejárásban odasétálva kinyílik). */
+  closed?: boolean;
 };
+
+/** Tartóoszlop / pillér (a terv része, a 3D-ben teljes magas, a bejárásban akadály). Középpont + méret, tengelyirányú. */
+export type Column = { id: string; x: number; y: number; w: number; d: number };
+
+/** Szárnyak száma: a beállított, különben ≥ 1,2 m-től kétszárnyú. */
+export const leavesOf = (o: Pick<Opening, "leaves" | "width">): 1 | 2 => o.leaves ?? (o.width >= 1.2 ? 2 : 1);
 
 /**
  * Összevont ellenőrzés: amikor a forrás (pl. a fejlesztő táblázata) több helyiséget EGYÜTT ad meg
@@ -76,6 +89,8 @@ export type FloorPlan = {
   rooms: Room[];
   openings: Opening[];
   areaGroups?: AreaGroup[];
+  /** Tartóoszlopok (elhagyható — a régi tervekben nincs). */
+  columns?: Column[];
   /** A digitalizálás megjegyzései (bizonytalan pontok) — tájékoztató, a felület kiírja. */
   notes?: string[];
 };
@@ -84,13 +99,17 @@ export const DOOR_DEFAULT = { width: 0.9, height: 2.1 };
 export const WINDOW_DEFAULT = { width: 1.2, height: 1.5, sill: 0.9 };
 
 /** Szabványos nyílászáró-méretek a javítófelülethez (szélesség × magasság, m; ablaknál parapet). „Egyedi" is választható. */
-export type OpeningPreset = { id: string; kind: Opening["kind"]; label: string; width: number; height: number; sill: number };
+export type OpeningPreset = { id: string; kind: Opening["kind"]; glazed?: boolean; label: string; width: number; height: number; sill: number };
 export const OPENING_PRESETS: OpeningPreset[] = [
   { id: "d75", kind: "door", label: "Beltéri ajtó 75×210", width: 0.75, height: 2.1, sill: 0 },
   { id: "d90", kind: "door", label: "Beltéri ajtó 90×210", width: 0.9, height: 2.1, sill: 0 },
   { id: "d100", kind: "door", label: "Bejárati ajtó 100×210", width: 1.0, height: 2.1, sill: 0 },
-  { id: "t90", kind: "door", label: "Erkély-/teraszajtó 90×240", width: 0.9, height: 2.4, sill: 0 },
-  { id: "t150", kind: "door", label: "Kétszárnyú teraszajtó 150×240", width: 1.5, height: 2.4, sill: 0 },
+  { id: "d150", kind: "door", label: "Kétszárnyú ajtó 150×210", width: 1.5, height: 2.1, sill: 0 },
+  { id: "t90", kind: "door", glazed: true, label: "Üvegajtó 90×240 (erkélyre)", width: 0.9, height: 2.4, sill: 0 },
+  { id: "t150", kind: "door", glazed: true, label: "Kétszárnyú üvegajtó 150×240", width: 1.5, height: 2.4, sill: 0 },
+  { id: "p70", kind: "passage", label: "Átjáró 70 cm", width: 0.7, height: 0, sill: 0 },
+  { id: "p90", kind: "passage", label: "Átjáró 90 cm", width: 0.9, height: 0, sill: 0 },
+  { id: "p120", kind: "passage", label: "Széles átjáró 120 cm", width: 1.2, height: 0, sill: 0 },
   { id: "w60", kind: "window", label: "Kis ablak 60×60 (parapet 150)", width: 0.6, height: 0.6, sill: 1.5 },
   { id: "w90", kind: "window", label: "Ablak 90×120 (parapet 90)", width: 0.9, height: 1.2, sill: 0.9 },
   { id: "w120", kind: "window", label: "Ablak 120×150 (parapet 90)", width: 1.2, height: 1.5, sill: 0.9 },
@@ -99,9 +118,11 @@ export const OPENING_PRESETS: OpeningPreset[] = [
 ];
 
 /** Melyik szabványos méret illik a nyílászáróra (ha egyik sem: egyedi). */
-export function presetOf(o: Pick<Opening, "kind" | "width" | "height" | "sill">): OpeningPreset | null {
+export function presetOf(o: Pick<Opening, "kind" | "width" | "height" | "sill" | "glazed">): OpeningPreset | null {
   const eq = (a: number, b: number) => Math.abs(a - b) < 0.005;
-  return OPENING_PRESETS.find((p) => p.kind === o.kind && eq(p.width, o.width) && eq(p.height, o.height) && eq(p.sill, o.sill)) ?? null;
+  // átjárónál csak a szélesség számít (a magassága a belmagasság)
+  return OPENING_PRESETS.find((p) => p.kind === o.kind && !!p.glazed === !!o.glazed && eq(p.width, o.width)
+    && (o.kind === "passage" || (eq(p.height, o.height) && eq(p.sill, o.sill)))) ?? null;
 }
 
 /** Új azonosító (rövid, ütközésmentes a tervben). */
@@ -151,9 +172,14 @@ export function sanitizePlan(raw: unknown): FloorPlan | null {
     const edge = Number.isInteger(o.edge) && (o.edge as number) >= 0 && (o.edge as number) < room.polygon.length ? (o.edge as number) : null;
     const offset = num(o.offset, 0, LIMITS.coord), width = num(o.width, 0.2, 10), height = num(o.height, 0.3, 5), sill = num(o.sill, 0, 3);
     if (edge === null || offset === null || width === null || height === null || sill === null) return null;
+    const kind = o.kind === "window" ? "window" as const : o.kind === "passage" ? "passage" as const : "door" as const;
     openings.push({
-      id: o.id.slice(0, 40), kind: o.kind === "window" ? "window" : "door", roomId: room.id, edge, offset, width, height, sill,
-      ...(o.kind === "window" ? {} : { hinge: o.hinge === "end" ? "end" as const : "start" as const, swing: o.swing === "out" ? "out" as const : "in" as const }),
+      id: o.id.slice(0, 40), kind, roomId: room.id, edge, offset, width, height: kind === "passage" ? ceilingHeight : height, sill: kind === "window" ? sill : 0,
+      ...(kind === "door" ? {
+        hinge: o.hinge === "end" ? "end" as const : "start" as const, swing: o.swing === "out" ? "out" as const : "in" as const,
+        ...(o.glazed === true ? { glazed: true } : {}), ...(o.closed === true ? { closed: true } : {}),
+      } : {}),
+      ...(kind !== "passage" && (o.leaves === 1 || o.leaves === 2) ? { leaves: o.leaves as 1 | 2 } : {}),
     });
   }
   const notes = Array.isArray(p.notes) ? (p.notes as unknown[]).filter((s): s is string => typeof s === "string").map((s) => s.slice(0, 300)).slice(0, 12) : [];
@@ -167,5 +193,11 @@ export function sanitizePlan(raw: unknown): FloorPlan | null {
     roomIds.forEach((id) => used.add(id));
     areaGroups.push({ id: g.id.slice(0, 40), label: typeof g.label === "string" ? g.label.slice(0, 60) : "Összevont", declaredArea: num(g.declaredArea, 0.1, 1000), roomIds, approved: g.approved === true });
   }
-  return { version: 1, ceilingHeight, rooms, openings, areaGroups, notes };
+  const columns: Column[] = [];
+  for (const c of (Array.isArray(p.columns) ? p.columns : []).slice(0, 60) as Record<string, unknown>[]) {
+    const x = num(c?.x, -LIMITS.coord, LIMITS.coord), y = num(c?.y, -LIMITS.coord, LIMITS.coord), w = num(c?.w, 0.05, 3), d = num(c?.d, 0.05, 3);
+    if (!c || typeof c.id !== "string" || x === null || y === null || w === null || d === null) continue;
+    columns.push({ id: c.id.slice(0, 40), x, y, w, d });
+  }
+  return { version: 1, ceilingHeight, rooms, openings, areaGroups, notes, ...(columns.length ? { columns } : {}) };
 }

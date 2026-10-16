@@ -16,7 +16,7 @@ import { applyStyle, kelvinToColor } from "@/lib/floorplan3d/materials";
 import { buildFurniture, furnitureMaterials } from "@/lib/floorplan3d/furniture3d";
 import { buildApartment, railOutdoorWalls, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { planBounds } from "@/lib/floorplan3d/geometry";
-import { colliders, findPath, moveWithCollision, startPose, EYE_HEIGHT } from "@/lib/floorplan3d/walk";
+import { bestView, colliders, findPath, moveWithCollision, startPose, viewDistance, EYE_HEIGHT } from "@/lib/floorplan3d/walk";
 
 const WALK_SPEED = 1.3;   // m/s — nyugodt séta
 const RUN_SPEED = 2.4;    // Shift-tel
@@ -121,6 +121,14 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
     const st = startPose(plan, rects);
     let pos: Pt = st.pos, yaw = st.yaw, pitch = -0.08;
     let path: Pt[] = [];
+    let turnGoal: number | null = null;   // érkezéskor a tér felé fordulás célja
+    // becsukott ajtók (pl. erkélyajtó): odasétálva kinyílnak, eltávolodva visszacsukódnak
+    type DoorPivot = { obj: THREE.Object3D; base: number; dir: number; center: Pt; angle: number };
+    const autoDoors: DoorPivot[] = [];
+    built.group.traverse((o) => {
+      const d = o.userData.doorPivot as { base: number; dir: number; closed: boolean; center: Pt } | undefined;
+      if (d?.closed) autoDoors.push({ obj: o, base: d.base, dir: d.dir, center: d.center, angle: 0 });
+    });
     let stuck = 0;
     const keys = new Set<string>();
 
@@ -140,7 +148,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
     const walkTo = (target: Pt) => {
       const p = findPath(pos, target, rects, b);
       if (!p?.length) return false;
-      path = p; stuck = 0;
+      path = p; stuck = 0; turnGoal = null;
       const end = p[p.length - 1];
       ring.position.set(end[0], 0.01, end[1]); ring.visible = true;
       setHint(false);
@@ -203,7 +211,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
       if (e.code === "Escape" && e.type === "keydown") { closeRef.current?.(); return; }
       if (!MOVE_KEYS.includes(e.code)) return;
       e.preventDefault();
-      if (e.type === "keydown") { keys.add(e.code); path = []; ring.visible = false; setHint(false); } else keys.delete(e.code);
+      if (e.type === "keydown") { keys.add(e.code); path = []; turnGoal = null; ring.visible = false; setHint(false); } else keys.delete(e.code);
     };
     const onBlur = () => keys.clear();
     window.addEventListener("keydown", onKey);
@@ -311,7 +319,14 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
       if (path.length) {
         const t = path[0];
         const dx = t[0] - pos[0], dy = t[1] - pos[1], dist = Math.hypot(dx, dy);
-        if (dist < 0.04) { path.shift(); if (!path.length) ring.visible = false; }
+        if (dist < 0.04) {
+          path.shift();
+          if (!path.length) {
+            ring.visible = false;
+            // megérkezett: ha 1,2 m-en belül falra / bútorra nézne, forduljon a tér felé (lágyan)
+            if (viewDistance(pos, yaw, rects) < 1.2) turnGoal = bestView(plan, pos, rects).yaw;
+          }
+        }
         else {
           const step = Math.min(dist, WALK_SPEED * dt * (path.length > 1 || dist > 0.6 ? 1 : Math.max(0.35, dist / 0.6))); // a cél előtt lassít
           const next = moveWithCollision(pos, [(dx / dist) * step, (dy / dist) * step], rects);
@@ -324,6 +339,18 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
           let diff = want - yaw;
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
           if (!drag) yaw += diff * Math.min(1, dt * 2.2);
+        }
+      }
+      if (turnGoal !== null && !drag && !path.length) {
+        let diff = Math.atan2(Math.sin(turnGoal - yaw), Math.cos(turnGoal - yaw));
+        if (Math.abs(diff) < 0.01) { yaw = turnGoal; turnGoal = null; } else { diff *= Math.min(1, dt * 3); yaw += diff; }
+      }
+      for (const d of autoDoors) {
+        const near = Math.hypot(pos[0] - d.center[0], pos[1] - d.center[1]) < 1.4;
+        const goal = near ? Math.PI / 2 : 0;
+        if (Math.abs(d.angle - goal) > 0.001) {
+          d.angle += Math.sign(goal - d.angle) * Math.min(Math.abs(goal - d.angle), dt * 2.2);
+          d.obj.rotation.y = d.base + d.dir * d.angle;
         }
       }
       placeCamera();

@@ -7,8 +7,8 @@
 // A geometria SOHA nem a stílusból jön — a stílus később csak anyagot és berendezést ad (szabály).
 import * as THREE from "three";
 import type { FloorPlan, Opening, Pt, Room } from "@/lib/floorplan3d/plan";
-import { OUTDOOR_KINDS } from "@/lib/floorplan3d/plan";
-import { openingSegment, polygonArea, roomEdge } from "@/lib/floorplan3d/geometry";
+import { OUTDOOR_KINDS, leavesOf } from "@/lib/floorplan3d/plan";
+import { doorClosed, openingSegment, polygonArea, roomEdge } from "@/lib/floorplan3d/geometry";
 
 export type SceneOptions = { interiorWall: number; exteriorWall: number };
 
@@ -17,7 +17,7 @@ const EPS = 0.01;
 const TOUCH_WALL = 0.06; // összeérő (nem nyitott) helyiségek közé épülő legvékonyabb válaszfal
 
 /** Egy falszelet alaprajzi leírása (a méréshez és a hibakereséshez is). */
-type Slab = { axis: "x" | "y"; line: number; outward: 1 | -1; from: number; to: number; thickness: number; roomId: string };
+type Slab = { axis: "x" | "y"; line: number; outward: 1 | -1; from: number; to: number; thickness: number; roomId: string; edge: number };
 
 /** Belső normális (óramutató szerinti körüljárás, y lefelé): a helyiség belseje felé mutat. */
 function inward(a: Pt, b: Pt): Pt {
@@ -42,7 +42,7 @@ export function wallSlabs(plan: FloorPlan, opts: SceneOptions): Slab[] {
       const lo = Math.min(e.a[k], e.b[k]), hi = Math.max(e.a[k], e.b[k]);
 
       // szemközti szomszéd-élek: párhuzamos, kifelé ≤ MAX_GAP távolságra, átfedő szakasz
-      const facing: { from: number; to: number; gap: number }[] = [];
+      const facing: { from: number; to: number; gap: number; open: boolean }[] = [];
       for (const other of plan.rooms) {
         if (other.id === room.id) continue;
         for (let j = 0; j < other.polygon.length; j++) {
@@ -51,25 +51,41 @@ export function wallSlabs(plan: FloorPlan, opts: SceneOptions): Slab[] {
           const gap = (f.a[o] - line) * outward;
           if (gap < -EPS || gap > MAX_GAP) continue;
           const flo = Math.max(lo, Math.min(f.a[k], f.b[k])), fhi = Math.min(hi, Math.max(f.a[k], f.b[k]));
-          if (fhi - flo > EPS) facing.push({ from: flo, to: fhi, gap: Math.max(gap, 0) });
+          // open: a szomszéd ezt a határt NYITOTTNAK jelölte (pl. közlekedő → előtér) — akkor ezen az oldalon sem épül fal
+          if (fhi - flo > EPS) facing.push({ from: flo, to: fhi, gap: Math.max(gap, 0), open: (other.openEdges ?? []).includes(j) });
         }
       }
       // szakaszolás a szomszédok határainál; minden szakaszra a legkisebb rés (vagy külső fal)
       const cuts = [...new Set([lo, hi, ...facing.flatMap((f) => [f.from, f.to])])].sort((a, b) => a - b);
+      const segs: { from: number; to: number; cover: typeof facing }[] = [];
       for (let c = 0; c < cuts.length - 1; c++) {
         const from = cuts[c], to = cuts[c + 1];
         if (to - from < EPS) continue;
         const mid = (from + to) / 2;
-        const cover = facing.filter((f) => f.from <= mid && f.to >= mid);
-        const thickness = cover.length ? Math.min(...cover.map((f) => f.gap)) : opts.exteriorWall;
+        segs.push({ from, to, cover: facing.filter((f) => f.from <= mid && f.to >= mid) });
+      }
+      const axis = e.axis; // (a zárt függvényben is szűkített típus)
+      segs.forEach((g, gi) => {
+        const { from, to, cover } = g;
+        if (cover.some((f) => f.open)) return; // a szemközti oldal nyitott határ → itt sincs fal (nem marad „fal-csonk")
+        let thickness = cover.length ? Math.min(...cover.map((f) => f.gap)) : opts.exteriorWall;
+        // rövid, szomszéd nélküli rés KÉT fedett szakasz között (falcsatlakozás, pl. két helyiség közti 9 cm): nem külső fal,
+        // hanem a két szomszédos falvastagság nagyobbika — különben 30 cm-es csonk lógna a csatlakozásba (2026-10-16, Tábornok 27.)
+        // ugyanez a fal VÉGÉN (a sarkánál) lévő rövid, fedetlen szakaszra is: a szomszédos fedett szakasz vastagsága — különben a
+        // 30 cm-es csonk belelóg a szomszéd ajtajába (2026-10-16, Tábornok 27. eredeti piszkozata: a közlekedőajtó beszűkült)
+        if (!cover.length && to - from < MAX_GAP) {
+          const prev = segs[gi - 1], next = segs[gi + 1];
+          const th = [prev, next].filter((g) => g?.cover.length).map((g) => Math.min(...g!.cover.map((f) => f.gap)));
+          if (th.length) thickness = Math.max(...th);
+        }
         if (thickness < TOUCH_WALL / 2) {
           // a két helyiség körvonala összeér, de a határ NEM nyitott → vékony válaszfal középre (mindkét oldalon TOUCH_WALL/2-t
           // vesz el; a méretpontosság-mérés ezt kimutatja). Nyitott határon (openEdges) ide el sem jutunk.
-          slabs.push({ axis: e.axis, line: line - (outward * TOUCH_WALL) / 2, outward, from, to, thickness: TOUCH_WALL, roomId: room.id });
-          continue;
+          slabs.push({ axis, line: line - (outward * TOUCH_WALL) / 2, outward, from, to, thickness: TOUCH_WALL, roomId: room.id, edge: i });
+          return;
         }
-        slabs.push({ axis: e.axis, line, outward, from, to, thickness, roomId: room.id });
-      }
+        slabs.push({ axis, line, outward, from, to, thickness, roomId: room.id, edge: i });
+      });
     }
   }
   // domború sarkok lezárása: a szelet meghosszabbítása annyival, amennyi a szomszéd él falvastagsága
@@ -86,6 +102,25 @@ export function wallSlabs(plan: FloorPlan, opts: SceneOptions): Slab[] {
   });
   slabs.forEach((s, i) => { s.from -= ext[i].from; s.to += ext[i].to; });
   return slabs;
+}
+
+/** Ferde fal (nem tengelyirányú él): a helyiségen KÍVÜL, a sokszög élére illesztve. Nyílászáró egyelőre nem kerülhet rá
+ *  (a digitalizálás és a javító sem tesz ferde falra nyílást). Vastagság: a külső fal (a ferde fal szinte mindig homlokzat).
+ *  2026-10-16: eddig a ferde falnak a 3D-ben egyáltalán nem épült fal (a Tábornok 27. szobája oldalt nyitva maradt). */
+export type SlantWall = { a: Pt; b: Pt; outward: Pt; thickness: number; roomId: string; edge: number };
+export function slantWalls(plan: FloorPlan, opts: SceneOptions): SlantWall[] {
+  const out: SlantWall[] = [];
+  for (const room of plan.rooms) {
+    const open = new Set(room.openEdges ?? []);
+    room.polygon.forEach((_, i) => {
+      if (open.has(i)) return;
+      const e = roomEdge(room, i);
+      if (e.axis || e.length < 0.05) return;
+      const nin = inward(e.a, e.b);
+      out.push({ a: e.a, b: e.b, outward: [-nin[0], -nin[1]], thickness: opts.exteriorWall, roomId: room.id, edge: i });
+    });
+  }
+  return out;
 }
 
 /** t (merőleges) szelet egyik vége s vonalán van-e (azaz a sarokban találkoznak)? */
@@ -140,7 +175,7 @@ export function buildApartment(plan: FloorPlan, opts: SceneOptions): BuiltScene 
     if (s.axis === "x") m.position.set(midAlong, y0 + hgt / 2, midAcross);
     else m.position.set(midAcross, y0 + hgt / 2, midAlong);
     m.castShadow = true; m.receiveShadow = true;
-    m.userData = { kind: "wall", roomId: s.roomId };
+    m.userData = { kind: "wall", roomId: s.roomId, edge: s.edge };
     group.add(m); walls.push(m);
   };
 
@@ -161,37 +196,88 @@ export function buildApartment(plan: FloorPlan, opts: SceneOptions): BuiltScene 
     if (cursor < s.to) block(s, cursor, s.to, 0, H);
   }
 
-  // nyílászárók: ablaküveg a nyílás közepén, ajtólap félig nyitva (csak a tájékozódáshoz — a stílus később cseréli)
+  // ferde falak: elforgatott tömb a helyiségen kívül (a két végén a falvastagsággal meghosszabbítva, hogy a sarok zárjon)
+  for (const w of slantWalls(plan, opts)) {
+    const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]), u: Pt = [(w.b[0] - w.a[0]) / len, (w.b[1] - w.a[1]) / len];
+    const ext = w.thickness;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len + 2 * ext, H, w.thickness), wallMat);
+    m.position.set((w.a[0] + w.b[0]) / 2 + (w.outward[0] * w.thickness) / 2, H / 2, (w.a[1] + w.b[1]) / 2 + (w.outward[1] * w.thickness) / 2);
+    m.rotation.y = -Math.atan2(u[1], u[0]);
+    m.castShadow = true; m.receiveShadow = true;
+    m.userData = { kind: "wall", roomId: w.roomId, edge: w.edge };
+    group.add(m); walls.push(m);
+  }
+
+  // nyílászárók (2026-10-16): ablak kerettel / osztóval / párkánnyal · ajtó egy- vagy kétszárnyú, üvegezve kerettel ·
+  // a NYITOTT ajtó 90°-ra kinyitva (nem lóg a térbe ferdén), a BECSUKOTT (closed — pl. erkélyajtó) a nyílásban;
+  // a lapok forgáspontja (pivot) adatot visz, hogy a bejárás odasétáláskor ki tudja nyitni (doorPivot) · átjárónál nincs lap
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xf3efe8, roughness: 0.7 });
+  const FW = 0.06; // keret szélessége
   for (const p of opens) {
+    if (p.o.kind === "passage") continue;
     const room = plan.rooms.find((r) => r.id === p.o.roomId)!;
     const seg = openingSegment(room, p.o);
-    const nin = inward(roomEdge(room, p.o.edge).a, roomEdge(room, p.o.edge).b);
+    const edge = roomEdge(room, p.o.edge);
+    const nin = inward(edge.a, edge.b);
     const w = p.to - p.from;
+    const rotY = -Math.atan2(edge.b[1] - edge.a[1], edge.b[0] - edge.a[0]);
+    const double = leavesOf(p.o) === 2;
     if (p.o.kind === "window") {
-      const geo = p.axis === "x" ? new THREE.BoxGeometry(w, p.o.height, 0.02) : new THREE.BoxGeometry(0.02, p.o.height, w);
-      const m = new THREE.Mesh(geo, glassMat);
-      const off = -0.06; // a fal síkjától kicsit kijjebb
-      m.position.set(seg.center[0] + nin[0] * off, p.o.sill + p.o.height / 2, seg.center[1] + nin[1] * off);
-      m.userData = { kind: "window" };
-      group.add(m);
-    } else {
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, p.o.height - 0.01, 0.04), doorMat);
-      leaf.position.set(w / 2, p.o.height / 2, 0); // a lap a zsanértól a helyi x tengely mentén
-      const pivot = new THREE.Group();
-      const hinge = p.o.hinge === "end" ? seg.b : seg.a, other = p.o.hinge === "end" ? seg.a : seg.b;
-      pivot.position.set(hinge[0], 0, hinge[1]);
-      pivot.add(leaf);
-      // u: zsanértól a túlsó tok felé; s: a nyitás oldala (befelé = a helyiség felé); a lap 70°-ra nyitva
+      // keret + üveg (+ középső osztó) a falsík közepén, kívül párkány
+      const fr = new THREE.Group();
+      fr.position.set(seg.center[0] - nin[0] * 0.05, p.o.sill, seg.center[1] - nin[1] * 0.05);
+      fr.rotation.y = rotY;
+      const bars: [number, number, number, number][] = [[w, FW, 0, FW / 2], [w, FW, 0, p.o.height - FW / 2], [FW, p.o.height, -w / 2 + FW / 2, p.o.height / 2], [FW, p.o.height, w / 2 - FW / 2, p.o.height / 2]];
+      if (double) bars.push([FW, p.o.height, 0, p.o.height / 2]);
+      for (const [bw, bh, x, y] of bars) { const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.06), frameMat); m.position.set(x, y, 0); m.castShadow = true; fr.add(m); }
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.01, w - 2 * FW), Math.max(0.01, p.o.height - 2 * FW), 0.012), glassMat);
+      glass.position.set(0, p.o.height / 2, 0); glass.userData = { kind: "window-glass" }; fr.add(glass);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.03, 0.2), frameMat);
+      sill.position.set(0, 0, 0.06); fr.add(sill);
+      fr.userData = { kind: "window", openingId: p.o.id };
+      group.add(fr);
+      continue;
+    }
+    // ajtó: lapok (egy / kettő), mindegyik a saját zsanérján forog
+    const into = p.o.swing === "out" ? -1 : 1;
+    const sd: Pt = [nin[0] * into, nin[1] * into];
+    const leaves: { hinge: Pt; other: Pt; lw: number }[] = double
+      ? [{ hinge: seg.a, other: seg.center, lw: w / 2 }, { hinge: seg.b, other: seg.center, lw: w / 2 }]
+      : [{ hinge: p.o.hinge === "end" ? seg.b : seg.a, other: p.o.hinge === "end" ? seg.a : seg.b, lw: w }];
+    for (const { hinge, other, lw } of leaves) {
       const ul = Math.hypot(other[0] - hinge[0], other[1] - hinge[1]) || 1;
-      const u = [(other[0] - hinge[0]) / ul, (other[1] - hinge[1]) / ul];
-      const into = p.o.swing === "out" ? -1 : 1;
-      const sd = [nin[0] * into, nin[1] * into];
-      const c = Math.cos(THREE.MathUtils.degToRad(70)), sn = Math.sin(THREE.MathUtils.degToRad(70));
-      const v = [u[0] * c + sd[0] * sn, u[1] * c + sd[1] * sn];
-      pivot.rotation.y = Math.atan2(-v[1], v[0]); // helyi x → világ (v.x, v.z)
-      pivot.userData = { kind: "door" };
+      const u: Pt = [(other[0] - hinge[0]) / ul, (other[1] - hinge[1]) / ul];
+      const base = Math.atan2(-u[1], u[0]);                 // becsukva: a lap a nyílásban (helyi x → u)
+      let dir = Math.atan2(-sd[1], sd[0]) - base;           // a nyitás iránya (±90°)
+      dir = Math.atan2(Math.sin(dir), Math.cos(dir)) > 0 ? 1 : -1;
+      const pivot = new THREE.Group();
+      pivot.position.set(hinge[0], 0, hinge[1]);
+      const H0 = p.o.height - 0.01, W0 = lw - 0.01;
+      if (p.o.glazed) {
+        // keretes üveglap (ki lehet látni rajta), középmagasságban vízszintes osztó
+        for (const [bw, bh, x, y] of [[W0, FW, W0 / 2, FW / 2], [W0, FW, W0 / 2, H0 - FW / 2], [FW, H0, FW / 2, H0 / 2], [FW, H0, W0 - FW / 2, H0 / 2], [W0, FW, W0 / 2, 0.95]] as const) {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.05), doorMat); m.position.set(x, y, 0); m.castShadow = true; pivot.add(m);
+        }
+        const g = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.01, W0 - 2 * FW), Math.max(0.01, H0 - 2 * FW), 0.012), glassMat);
+        g.position.set(W0 / 2, H0 / 2, 0); g.userData = { kind: "door-glass" }; pivot.add(g);
+      } else {
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(W0, H0, 0.04), doorMat);
+        leaf.position.set(W0 / 2, H0 / 2, 0); leaf.castShadow = true; pivot.add(leaf);
+      }
+      const closed = doorClosed(plan, p.o);
+      const angle = closed ? 0 : Math.PI / 2;
+      pivot.rotation.y = base + dir * angle;
+      pivot.userData = { kind: "door", openingId: p.o.id, doorPivot: { openingId: p.o.id, base, dir, closed, center: seg.center } };
       group.add(pivot);
     }
+  }
+
+  // tartóoszlopok: teljes belmagasságban (a méréshez nem számítanak fal-felületnek)
+  for (const c of plan.columns ?? []) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(c.w, H, c.d), wallMat);
+    m.position.set(c.x, H / 2, c.y); m.castShadow = true; m.receiveShadow = true;
+    m.userData = { kind: "column", columnId: c.id };
+    group.add(m);
   }
 
   // padló + mennyezet

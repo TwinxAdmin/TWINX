@@ -4,13 +4,14 @@ import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import { normalizeDigitized, type NormalizeStats, type RawDigitized } from "@/lib/floorplan3d/normalize";
 import { ROOM_KINDS, type FloorPlan } from "@/lib/floorplan3d/plan";
+import { applyDoorDefaults, checkPlan } from "@/lib/floorplan3d/geometry";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export type DigitizeResult = {
   plan: FloorPlan;
-  stats: NormalizeStats & { model: string; seconds: number; tokensIn: number; tokensOut: number; costUsd: number };
+  stats: NormalizeStats & { model: string; seconds: number; tokensIn: number; tokensOut: number; costUsd: number; refinedRounds: number };
 };
 
 function prompt(hand: boolean): string {
@@ -23,16 +24,20 @@ Return:
   "ceilingHeight": number|null,            // only if written on the plan (e.g. "bm. 2,70")
   "rooms": [{
     "name": string,                          // exactly as written, in the plan's language (e.g. "Nappali", "Fürdő", "Terasz")
-    "kind": one of ${JSON.stringify(ROOM_KINDS.map((k) => k.value))},
+    "kind": one of ${JSON.stringify(ROOM_KINDS.map((k) => k.value))},   // Hungarian abbreviations: "KÖZL." / "közlekedő" / "folyosó" / "előtér" → "eloszoba"; "FR.ERK." (francia erkély) / "erkély" / "loggia" → "terasz"; "kamra" / "gardrób" / "tároló" → "gardrob"
     "areaLabel": number|null,                // the written m² of this room (e.g. 13.07), null if not written
     "polygon": [[x,y], ...],                 // the INNER (clear) outline of the room along the inner face of its walls, corners in order. Use as few corners as possible; rectangles have 4.
     "openTo": [number]                       // indexes of rooms connected to this one WITHOUT a wall (only a dashed line / floor change between them, e.g. open-plan kitchen–living room). Empty if none.
   }],
   "openings": [{
-    "kind": "door"|"window",                 // a window/French window/balcony door in an exterior wall counts as "window" only if it has a sill; full-height glazed doors are "door"
+    "kind": "door"|"window"|"passage",       // door: has a leaf (drawn with a swing arc); window: has a sill (French window / balcony door without sill = "door"); passage: a gap in a wall WITHOUT any leaf or arc (archway)
     "room": number,                          // index in rooms of the room it belongs to (for a door between two rooms: the smaller room)
-    "x1": number, "y1": number, "x2": number, "y2": number   // the two ends of the opening along the wall
+    "x1": number, "y1": number, "x2": number, "y2": number,  // the two ends of the opening along the wall
+    "hinge": [x, y]|null,                    // door only: the END of the opening where the leaf is attached = the CENTER of the drawn swing arc. null if not visible
+    "swingInto": number|null,                // door only: index of the room the leaf opens INTO (the room in which the swing arc is drawn). null if not visible
+    "leaves": 1|2                            // door/window: 2 if drawn as a double door / two sashes (two arcs), else 1
   }],
+  "columns": [{ "x1": number, "y1": number, "x2": number, "y2": number }],   // free-standing structural columns / pillars: small FILLED (dark or grey) rectangles standing INSIDE or at the edge of a room that are not part of a wall line; the bounding box. Empty if none.
   "dimensions": [{
     "meters": number,                        // a written dimension converted to meters (e.g. "2,85" → 2.85; "285" cm → 2.85)
     "x1": number, "y1": number, "x2": number, "y2": number   // the two ends of the dimension line / the measured span
@@ -43,7 +48,9 @@ Return:
 
 RULES:
 - Include every room including outdoor terraces/balconies (kind "terasz"). Ignore private gardens, furniture, sanitary fixtures, grid axes, hatching and watermarks.
-- Room outlines must be accurate: follow the inner wall faces, walls are the gaps between rooms. Where two rooms are separated only by a dashed line (no wall), their outlines must touch along that line and list each other in "openTo".
+- Room outlines must be accurate: follow the inner wall faces, walls are the gaps between rooms. Where two rooms are separated only by a dashed or dotted line (no wall), their outlines must touch along that line and list each other in "openTo". A dashed / dotted boundary is NEVER a door: do not create an opening on it.
+- Trace notches precisely: shafts, chimney boxes and pillars cut out of a room (small filled rectangles in a corner) are NOT part of the room's floor area; slanted walls must keep their real angle.
+- Doors: read the swing direction from the drawing (the arc): "hinge" = the arc's center end, "swingInto" = the room containing the arc.
 - Give at least 3-6 dimensions that are clearly written, preferring long ones (room widths/depths written inside rooms are ideal).
 - Marketing / furnished / 3D-rendered plans: ignore furniture, rugs, shadows and decoration; trace only the inner faces of the walls.
 - Room NAMES and AREAS may be listed in a legend/table next to the plan instead of inside the rooms. Then match every table row to the room on the plan by function (furniture, fixtures: bed → bedroom, bathtub/shower → bathroom, toilet → WC, stove/sink → kitchen, entrance door → hall) and by relative size, and use the table's name and m² for that room.
@@ -161,8 +168,28 @@ export async function digitizeFloorplan(file: { bytes: Buffer; mime: string }, h
   const d = await callVision(apiKey, cfg.visionModel, prompt(hand) + legendHint, { bytes: work.bytes, mime: work.mime });
   add(d.usage);
 
-  const { plan, stats } = normalizeDigitized(d.json as RawDigitized, work.w, work.h, cfg.defaultCeilingHeight, located.legend);
+  let raw = d.json as RawDigitized;
+  let { plan, stats } = normalizeDigitized(raw, work.w, work.h, cfg.defaultCeilingHeight, located.legend);
   if (!plan.rooms.length) throw new Error("Nem találtam helyiségeket az alaprajzon. Élesebb, felülről készült képpel próbáld újra.");
+
+  // ÖNELLENŐRZŐ KÖR (2026-10-16): ugyanaz a rajz kétszer digitalizálva eltérő körvonalat adhat (pl. 8,79 vs 7,99 m²). Ha egy
+  // helyiség a kiírt m²-től a tűrésen túl tér el, egyszer újrarajzoltatjuk — a hibás helyiségek NEVÉVEL és a mért eltéréssel —,
+  // és a kisebb összeltérésű eredmény marad. Költség: +1 képelemző-hívás, csak ha kell (config: digitizeRefineRounds).
+  const score = (pl: FloorPlan) => checkPlan(pl, cfg.areaTolerancePct).rooms.reduce((sum, c) => sum + (c.diffPct === null ? 0 : Math.max(0, Math.abs(c.diffPct) - cfg.areaTolerancePct)), 0)
+    + Math.max(0, (raw.rooms?.length ?? 0) - pl.rooms.length) * 50;
+  let refined = 0;
+  for (let round = 0; round < cfg.digitizeRefineRounds; round++) {
+    const bad = checkPlan(plan, cfg.areaTolerancePct).rooms.filter((c) => c.diffPct !== null && Math.abs(c.diffPct) > cfg.areaTolerancePct);
+    if (!bad.length) break;
+    const list = bad.map((c) => { const r = plan.rooms.find((x) => x.id === c.roomId)!; return `- "${r.name}": written ${c.declared} m², your outline gives ${c.area.toFixed(2)} m² (${c.diffPct! > 0 ? "+" : ""}${c.diffPct!.toFixed(1)}%)`; }).join("\n");
+    const fix = `\n\nSELF-CHECK: your previous answer was:\n${JSON.stringify(raw).slice(0, 12000)}\n\nThese rooms do not match their written area:\n${list}\nRe-trace ONLY these rooms more carefully (notches, shafts, slanted walls, the exact inner wall faces), keep every other room, opening and dimension as before, and return the COMPLETE JSON again in the same format.`;
+    const r2 = await callVision(apiKey, cfg.visionModel, prompt(hand) + legendHint + fix, { bytes: work.bytes, mime: work.mime });
+    add(r2.usage);
+    const n2 = normalizeDigitized(r2.json as RawDigitized, work.w, work.h, cfg.defaultCeilingHeight, located.legend);
+    refined++;
+    if (n2.plan.rooms.length && score(n2.plan) < score(plan)) { raw = r2.json as RawDigitized; plan = n2.plan; stats = n2.stats; }
+  }
+  plan = applyDoorDefaults(plan);   // erkély-/loggiaajtó: üvegajtó, becsukva; bejárati ajtó: becsukva
 
   // az eredeti kép elhelyezése a terv alatt (kivágás + nagyítás visszaszámolva)
   const mpp = stats.metersPerPixel;
@@ -170,5 +197,5 @@ export async function digitizeFloorplan(file: { bytes: Buffer; mime: string }, h
   stats.imageOffset = [stats.imageOffset[0] + crop.left * crop.factor * mpp, stats.imageOffset[1] + crop.top * crop.factor * mpp];
 
   const costUsd = (usage.tokensIn * cfg.visionUsdPerMTokIn + usage.tokensOut * cfg.visionUsdPerMTokOut) / 1e6;
-  return { plan, stats: { ...stats, model: cfg.visionModel, seconds: Math.round((Date.now() - t0) / 100) / 10, ...usage, costUsd } };
+  return { plan, stats: { ...stats, model: cfg.visionModel, seconds: Math.round((Date.now() - t0) / 100) / 10, ...usage, costUsd, refinedRounds: refined } };
 }

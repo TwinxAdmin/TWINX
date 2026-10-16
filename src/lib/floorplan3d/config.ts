@@ -37,6 +37,8 @@ export type Floorplan3dConfig = {
   fidelityMaxAdded: number;
   /** A bejárható link élettartama napokban (lejárat után meghosszabbítható). */
   linkDays: number;
+  /** Digitalizálás: önellenőrző körök száma, ha egy helyiség a tűrésen túl tér el a kiírt m²-től (0 = kikapcsolva). */
+  digitizeRefineRounds: number;
   /** Minőségi ciklus: legfeljebb ennyi kör helyiségenként. */
   maxQualityRounds: number;
   /** Feltöltés: legnagyobb fájlméret (bájt). */
@@ -57,6 +59,7 @@ export function floorplan3dConfig(): Floorplan3dConfig {
     creditsExtend: num("FLOORPLAN3D_CREDITS_EXTEND", 3),
     creditsVideo: num0("FLOORPLAN3D_CREDITS_VIDEO", 5),
     creditsGeometryFix: num0("FLOORPLAN3D_CREDITS_GEOMETRY_FIX", 0),
+    digitizeRefineRounds: num0("FLOORPLAN3D_DIGITIZE_REFINE_ROUNDS", 1),
     openingCornerMin: num0("FLOORPLAN3D_OPENING_CORNER_MIN", 0.1),
     targetMaxAttempts: num("FLOORPLAN3D_TARGET_MAX_ATTEMPTS", 3),
     fidelityMinKept: num("FLOORPLAN3D_FIDELITY_MIN_KEPT", 0.7),

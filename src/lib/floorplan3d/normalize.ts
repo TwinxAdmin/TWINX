@@ -15,7 +15,8 @@ import { polygonArea, roomEdge } from "@/lib/floorplan3d/geometry";
 export type RawDigitized = {
   ceilingHeight?: number | null;
   rooms?: { name?: string; kind?: string; areaLabel?: number | null; polygon?: number[][]; openTo?: number[] }[];
-  openings?: { kind?: string; room?: number; x1?: number; y1?: number; x2?: number; y2?: number; swingInto?: number | null }[];
+  openings?: { kind?: string; room?: number; x1?: number; y1?: number; x2?: number; y2?: number; hinge?: number[] | null; swingInto?: number | null; leaves?: number }[];
+  columns?: { x1?: number; y1?: number; x2?: number; y2?: number }[];
   dimensions?: { meters?: number; x1?: number; y1?: number; x2?: number; y2?: number }[];
   groups?: { label?: string; area?: number; rooms?: number[] }[];
   notes?: string[];
@@ -47,6 +48,24 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000;
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const KIND_SET = new Set<string>(ROOM_KINDS.map((k) => k.value));
 
+/** Biztonsági háló a típushoz: ha a modell „egyéb"-et adott (vagy semmit), a név (rövidítés is) dönt. */
+export function kindFromName(name: string, kind: RoomKind): RoomKind {
+  if (kind !== "egyeb") return kind;
+  const n = name.toLowerCase();
+  if (/közl|kozl|folyos|előtér|eloter|előszoba|eloszoba|hall|lépcső/.test(n)) return "eloszoba";
+  if (/fr\.?\s*erk|erkély|erkely|loggia|terasz|balkon|tornác/.test(n)) return "terasz";
+  if (/kamra|gardr|tároló|tarolo|spájz/.test(n)) return "gardrob";
+  if (/fürdő|furdo|zuhany/.test(n)) return "furdo";
+  if (/\bwc\b|mosdó|toalett/.test(n)) return "wc";
+  if (/konyha/.test(n)) return "konyha";
+  if (/étkező|etkezo/.test(n)) return "etkezo";
+  if (/nappali/.test(n)) return "nappali";
+  if (/gyerek/.test(n)) return "gyerekszoba";
+  if (/dolgozó|iroda/.test(n)) return "dolgozoszoba";
+  if (/háló|halo|szoba/.test(n)) return "haloszoba";
+  return kind;
+}
+
 /** Jelmagyarázat-táblázat sora (hirdetési lapokon a m² gyakran a rajz mellett van, nem a helyiségben). */
 export type LegendRow = { name: string; area: number; outdoor: boolean };
 
@@ -57,7 +76,7 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
   // --- helyiségek képpontban ---
   const rawRooms = (raw.rooms ?? []).map((r) => ({
     name: (r.name ?? "").toString().trim().slice(0, 60),
-    kind: (KIND_SET.has(String(r.kind)) ? r.kind : "egyeb") as RoomKind,
+    kind: kindFromName((r.name ?? "").toString(), (KIND_SET.has(String(r.kind)) ? r.kind : "egyeb") as RoomKind),
     areaLabel: finite(r.areaLabel) && r.areaLabel > 0 && r.areaLabel < 500 ? r.areaLabel : null,
     poly: (r.polygon ?? []).filter((p) => Array.isArray(p) && finite(p[0]) && finite(p[1])).map((p) => px(p[0], p[1])),
     openTo: (r.openTo ?? []).filter(finite),
@@ -138,7 +157,7 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
   const openings: Opening[] = [];
   for (const o of raw.openings ?? []) {
     if (![o.x1, o.y1, o.x2, o.y2].every(finite)) continue;
-    const kind = o.kind === "window" ? "window" : "door";
+    const kind = o.kind === "window" ? "window" as const : o.kind === "passage" ? "passage" as const : "door" as const;
     const [ax, ay] = px(o.x1!, o.y1!), [bx, by] = px(o.x2!, o.y2!);
     const a: Pt = [ax * scale - minX, ay * scale - minY], b: Pt = [bx * scale - minX, by * scale - minY];
     const width = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -147,13 +166,29 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
     const horizontal = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]);
     const hit = nearestEdge(rooms, c, horizontal ? "x" : "y", finite(o.room) ? rooms[o.room]?.id : undefined);
     if (!hit) continue;
-    const d = kind === "door" ? DOOR_DEFAULT : WINDOW_DEFAULT;
+    const d = kind === "window" ? WINDOW_DEFAULT : DOOR_DEFAULT;
     const w = Math.min(Math.max(width, 0.5), hit.length);
+    const offset = r3(Math.min(Math.max(hit.along, w / 2), hit.length - w / 2));
+    // nyitásirány a rajzról: a zsanér a nyílás melyik végén van (az él irányában), és melyik helyiség felé nyílik
+    let hinge: "start" | "end" = "start", swing: "in" | "out" = "in";
+    if (kind === "door") {
+      const room = rooms.find((r) => r.id === hit.roomId)!, e = roomEdge(room, hit.edge), len = e.length || 1;
+      if (Array.isArray(o.hinge) && finite(o.hinge[0]) && finite(o.hinge[1])) {
+        const [hx, hy] = px(o.hinge[0], o.hinge[1]), h: Pt = [hx * scale - minX, hy * scale - minY];
+        const t = ((h[0] - e.a[0]) * (e.b[0] - e.a[0]) + (h[1] - e.a[1]) * (e.b[1] - e.a[1])) / len;
+        hinge = t > offset ? "end" : "start";
+      }
+      if (finite(o.swingInto)) {
+        const into = srcRoomIds[o.swingInto];
+        if (into && into !== hit.roomId) swing = "out";
+      }
+    }
     openings.push({
-      id: newId(kind === "door" ? "d" : "w"), kind, roomId: hit.roomId, edge: hit.edge,
-      offset: r3(Math.min(Math.max(hit.along, w / 2), hit.length - w / 2)), width: r3(w), height: d.height,
+      id: newId(kind === "window" ? "w" : kind === "passage" ? "p" : "d"), kind, roomId: hit.roomId, edge: hit.edge,
+      offset, width: r3(w), height: kind === "passage" ? 0 : d.height,
       sill: kind === "window" ? WINDOW_DEFAULT.sill : 0,
-      ...(kind === "door" ? { hinge: "start" as const, swing: "in" as const } : {}),
+      ...(kind === "door" ? { hinge, swing } : {}),
+      ...(kind !== "passage" && o.leaves === 2 ? { leaves: 2 as const } : {}),
     });
   }
   stats.openingCount = openings.length;
@@ -172,7 +207,15 @@ export function normalizeDigitized(raw: RawDigitized, imageW: number, imageH: nu
   }
 
   const ceiling = finite(raw.ceilingHeight) && raw.ceilingHeight > 2 && raw.ceilingHeight < 5 ? raw.ceilingHeight : defaultCeiling;
-  return { plan: { version: 1, ceilingHeight: ceiling, rooms, openings, areaGroups, notes }, stats };
+  // átjáró magassága = belmagasság (a terv szabálya)
+  for (const o of openings) if (o.kind === "passage") o.height = ceiling;
+  // tartóoszlopok (képpont → méter, a terv eltolásával); a 3 m-nél nagyobb „oszlop" valójában fal → kimarad
+  const columns = (raw.columns ?? []).filter((c) => [c.x1, c.y1, c.x2, c.y2].every(finite)).map((c) => {
+    const [ax, ay] = px(c.x1!, c.y1!), [bx, by] = px(c.x2!, c.y2!);
+    const x0 = Math.min(ax, bx) * scale - minX, x1 = Math.max(ax, bx) * scale - minX, y0 = Math.min(ay, by) * scale - minY, y1 = Math.max(ay, by) * scale - minY;
+    return { id: newId("c"), x: r3((x0 + x1) / 2), y: r3((y0 + y1) / 2), w: r3(x1 - x0), d: r3(y1 - y0) };
+  }).filter((c) => c.w >= 0.08 && c.d >= 0.08 && c.w <= 1.5 && c.d <= 1.5).slice(0, 20);
+  return { plan: { version: 1, ceilingHeight: ceiling, rooms, openings, areaGroups, notes, ...(columns.length ? { columns } : {}) }, stats };
 }
 
 // ---------------------------------------------------------------------------

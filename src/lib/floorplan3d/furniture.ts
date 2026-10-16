@@ -99,7 +99,8 @@ export function roomOpenings(plan: FloorPlan, room: Room): WallOpening[] {
       // az él elejétől mért szakasz
       const dir = e.b[k] >= e.a[k] ? 1 : -1;
       const f = dir > 0 ? from - e.a[k] : e.a[k] - to, t = dir > 0 ? to - e.a[k] : e.a[k] - from;
-      out.push({ edge: i, from: f, to: t, kind: o.kind, sill: o.sill });
+      // az átjáró (ajtó nélküli nyílás) a berendezés szempontjából ajtó: bejárat, elé nem kerülhet bútor
+      out.push({ edge: i, from: f, to: t, kind: o.kind === "window" ? "window" : "door", sill: o.sill });
     }
   }
   return out;
@@ -201,8 +202,19 @@ export function livingRoomLayout(plan: FloorPlan, room: Room): { items: Furnitur
   };
 
   const slots = freeSlots(plan, room, FURNITURE_DEFAULTS.sofa.h);
-  const sofaSlot = slots.find((s) => s.len >= 1.6);
-  if (!sofaSlot || !tryAdd(againstWall(room, sofaSlot, "sofa"), "Kanapé: nincs elég hosszú ajtómentes fal")) return { items, skipped };
+  // a kanapé helye: MINDEN elég hosszú falszakasz, azon belül közép / a két vég felé tolva — az első szabályos (2026-10-16: az első
+  // fal közepe 3 cm-rel belelógott egy ajtósávba, és a szabály feladta, pedig máshol bőven elfért volna)
+  let sofaSlot: Slot | null = null, lastErr = "nincs elég hosszú ajtómentes fal";
+  for (const s of slots.filter((x) => x.len >= 1.6)) {
+    const w = Math.min(FURNITURE_DEFAULTS.sofa.w, s.len), mid = (s.from + s.to) / 2;
+    for (const t of [mid, s.to - w / 2 - 0.05, s.from + w / 2 + 0.05]) {
+      const err = place(againstWall(room, s, "sofa", t));
+      if (!err) { sofaSlot = s; break; }
+      lastErr = err;
+    }
+    if (sofaSlot) break;
+  }
+  if (!sofaSlot) { skipped.push(`Kanapé: nincs szabályos hely (${lastErr})`); return { items, skipped }; }
   const sofa = items[0];
   const t = (sofa.rot * Math.PI) / 180, fwd: Pt = [-Math.sin(t), Math.cos(t)], side: Pt = [Math.cos(t), Math.sin(t)];
   const at = (f: number, s: number): [number, number] => [sofa.x + fwd[0] * f + side[0] * s, sofa.y + fwd[1] * f + side[1] * s];
