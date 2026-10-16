@@ -28,6 +28,8 @@ export default async function Floorplan3dPage() {
       openingCornerMin={cfg.openingCornerMin}
       styleSheet={"sheet" in style ? style.sheet : null}
       styleError={"error" in style ? style.error : null}
+      linkDays={cfg.linkDays}
+      creditsExtend={cfg.creditsExtend}
     />
   );
 }

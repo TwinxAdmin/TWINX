@@ -218,6 +218,32 @@ export function buildApartment(plan: FloorPlan, opts: SceneOptions): BuiltScene 
 // ---------------------------------------------------------------------------
 // MÉRETPONTOSSÁG — a KÉSZ modellen mérünk (sugárvetés a falakra + a padlóháló területe), nem a JSON-on
 // ---------------------------------------------------------------------------
+/** Terasz / erkély MEGJELENÍTÉSE (Márk szabálya, 2026-10-16): a külső falai — amelyek túloldalán nincs beltéri helyiség — SOHA nem
+ *  teljes belmagasságúak, hanem ~1 m-es mellvédek, fölöttük szabad ég; a lakás felőli homlokzatfal marad teljes magas.
+ *  Csak a látványt módosítja (a méréshez külön épített modell kell — measureApartment —, az ütközés a falszeletekből számol). */
+export const RAIL_HEIGHT = 1.0;
+export function railOutdoorWalls(plan: FloorPlan, built: BuiltScene): void {
+  const outdoorIds = new Set(plan.rooms.filter((r) => OUTDOOR_KINDS.includes(r.kind)).map((r) => r.id));
+  if (!outdoorIds.size) return;
+  const insidePoly = (p: Pt, poly: Pt[]) => {
+    let r = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) r = !r;
+    }
+    return r;
+  };
+  const indoorAt = (p: Pt) => plan.rooms.some((r) => !OUTDOOR_KINDS.includes(r.kind) && insidePoly(p, r.polygon));
+  for (const w of built.walls) {
+    if (!outdoorIds.has(w.userData.roomId)) continue;
+    const bb = new THREE.Box3().setFromObject(w), c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+    const thinX = sz.x < sz.z, t = (thinX ? sz.x : sz.z) / 2 + 0.3;
+    if (indoorAt(thinX ? [c.x - t, c.z] : [c.x, c.z - t]) || indoorAt(thinX ? [c.x + t, c.z] : [c.x, c.z + t])) continue; // homlokzat a lakás felé
+    if (bb.min.y >= RAIL_HEIGHT - 0.01) { w.visible = false; continue; }
+    if (bb.max.y > RAIL_HEIGHT) { w.scale.y = (RAIL_HEIGHT - bb.min.y) / sz.y; w.position.y = bb.min.y + (RAIL_HEIGHT - bb.min.y) / 2; }
+  }
+}
+
 export type RoomMeasure = {
   roomId: string;
   name: string;

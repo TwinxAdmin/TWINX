@@ -311,3 +311,23 @@ lámpa, növény) jó képnél is ~60% — önmagában nem jó elválasztó.
 - **A függőlámpa (95 cm-t lóg, alja ~1,65 m) a közlekedőben a kamera elé lóg** → csak asztal fölé kerülhet, a „pár bútor" szabályba nem.
 - **A kezdő nézet falra, majd a bejárati ajtón át kifelé nézett** → az irányt a lakáson BELÜL mért leghosszabb szabad rálátás adja.
 - **A terasz teljes magasságú falakkal „doboz" volt** → a bejárásban a külső falak 1 m-es mellvédek (a mérés/modell nem változik).
+
+## 2026-10-16 — Terasz-szabály + F4b: megosztható link
+
+### Terasz / erkély (Márk szabálya)
+- A külső falai SOHA nem teljes magasak: ~1 m-es mellvéd, fölötte ég. Közös függvény: `railOutdoorWalls` (scene.ts) — a babaház-nézet
+  és a bejárás is ezt hívja. Csak a látványt módosítja: a méréshez (measureApartment) külön modell épül, az ütközés a falszeletekből számol.
+
+### F4b — mi készült
+- `floorplan_shares` tábla (token = 24 véletlen bájt → 32 karakter base64url; lejárat; visszavonás = revoked_at; megnyitásszám
+  atomikus függvénnyel). Projektenként egy élő link; dupla kattintásra sem lesz kettő; a hosszabbítás feltételes frissítéssel (párhuzamos
+  kattintásnál csak egy fut le, a másik kreditje visszaíródik).
+- `/3d/<token>`: nyilvános, belépés nélkül; a keresők nem indexelik; a JÓVÁHAGYOTT tervet mutatja (utólagos javítás közben a legutóbbi
+  jóváhagyott pillanatképet — a link alatt nem jelenik meg félkész terv). Lejárt / visszavont / ismeretlen linknél érthető üzenet.
+- A teljes lakás bútorlistája közös függvény (`apartmentFurniture`) — a stúdió és a link ugyanazt mutatja.
+- Díj: a link létrehozása ingyenes (a 3D díja — creditsCreate — a jóváhagyáskor levonva), a hosszabbítás creditsExtend (config).
+- Teszt (SQL után): létrehozás, megnyitás sütik nélkül (200, noindex), számláló nő, mobil koppintásos séta, +30 nap (lejárt linknél mától),
+  visszavonás (megerősítéssel → „Ez a link már nem él"), lejárt állapot a kártyán (piros, Másolás tiltva).
+- **Hiba:** a nyilvános oldal a nézőt a szerveren is rendereli → a minitérkép méretét (telefonon kisebb) rendereléskor `window`-ból
+  számolni hidratálási eltérést okozott. Megoldás: a méret a böngészőben, a jelenet-effektben dől el (a stílust ott állítjuk).
+  Tanulság: a nézőben rendereléskor ne olvassunk `window`-t — a stúdióban ez nem jött elő (ott csak kattintás után jelenik meg).

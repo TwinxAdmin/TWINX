@@ -327,8 +327,11 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
       W/A/S/D + nyilak, ütközés (fal, bútor; ajtón át igen, ablakon nem), minitérkép (koppintásra oda is sétál), nap az ablakokon át árnyékkal,
       terasz 1 m-es mellvéddel, álló telefonon „fordítsd fekvőbe" jelzés. + „pár bútor" a többi helyiségbe (szabályalapú, ingyenes, a meglévő katalógusból)
 - [ ] F4a-2 — Márk tesztje telefonon (valódi érintés, teljesítmény) — mobilra a textúrák/modellek tömörítése, ha akad
-- [ ] F4b — Megosztható link (kitalálhatatlan azonosító, 30 nap, hosszabbítás kreditért, nyilvános oldal) — SQL
-- [ ] ▶ INNEN FOLYTATJUK: F4b (megosztható link — SQL)
+- [x] F4b — Megosztható link (2026-10-16): `floorplan_shares` tábla (20261016084305_floorplan-shares.sql — lefuttatva), `/3d/<token>` nyilvános
+      oldal (belépés nélkül, noindex, lejárt/visszavont/ismeretlen üzenet), „Megosztható link" kártya (létrehozás ingyenes — a 3D díja a
+      jóváhagyáskor levonva; +30 nap creditsExtend kreditért; visszavonás; megnyitásszám). A link a JÓVÁHAGYOTT tervet mutatja. Tesztelve: létrehozás, kijelentkezve megnyitás, mobil, számláló, hosszabbítás (lejártan is), visszavonás.
+- [x] Terasz/erkély: a babaház-nézetben is 1 m-es mellvéd (`railOutdoorWalls`, scene.ts)
+- [ ] ▶ INNEN FOLYTATJUK: F5 videó (külön gomb, creditsVideo) — vagy előtte Márk telefonos tesztje a megosztott linken
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
 - [ ] F5 — 9:16 videó alaprajzos pozíciójelzővel + „Koncepcióterv" jelölés — NEM automatikus: a kész link után külön „Videó készítése" gomb, külön kredit (`creditsVideo`); tervmódosításkor nem frissül magától

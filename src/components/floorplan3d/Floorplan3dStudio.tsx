@@ -14,10 +14,11 @@ import { ActionMenu, MenuDots, useActionMenu, type MenuItem } from "@/components
 import PlanCanvas, { type Underlay } from "@/components/floorplan3d/PlanCanvas";
 import ApartmentViewer, { useApartmentMeasure, type ViewerApi } from "@/components/floorplan3d/ApartmentViewer";
 import WalkthroughViewer from "@/components/floorplan3d/WalkthroughViewer";
+import ShareCard from "@/components/floorplan3d/ShareCard";
 import { roomViewpoint } from "@/lib/floorplan3d/camera";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
-import { basicRoomLayout, livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
+import { apartmentFurniture, livingRoomLayout, type FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { DOOR_DEFAULT, OPENING_PRESETS, ROOM_KINDS, WINDOW_DEFAULT, presetOf, type AreaGroup, type FloorPlan, type Opening, type Room, type RoomKind } from "@/lib/floorplan3d/plan";
 import { addOpening, checkPlan, groupOf, leaveGroup, moveOpening, openingGaps, openingWarnings, patchGroup, removeOpening, roomEdge, setWallLength, toggleGroupMember, type GroupCheck, type OpeningWarning, type RoomCheck } from "@/lib/floorplan3d/geometry";
 import type { NormalizeStats } from "@/lib/floorplan3d/normalize";
@@ -37,8 +38,9 @@ const STATUS_TEXT: Record<RoomCheck["status"], { t: string; c: string; bg: strin
 const fmt = (n: number, d = 2) => n.toLocaleString("hu-HU", { minimumFractionDigits: d, maximumFractionDigits: d });
 const parseNum = (s: string) => Number(s.replace(/\s/g, "").replace(",", "."));
 
-export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin, styleSheet, styleError }: {
+export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCreate, creditsGeometryFix, sceneOptions, openingCornerMin, styleSheet, styleError, linkDays, creditsExtend }: {
   tolerancePct: number; maxUploadMb: number; creditsCreate: number; creditsGeometryFix: number; sceneOptions: SceneOptions; openingCornerMin: number;
+  linkDays: number; creditsExtend: number;
   styleSheet: StyleSheet | null; styleError: string | null;
 }) {
   // utólagos javítás: már volt jóváhagyva (approved_at) → a díj a geometriai javításé, csak az érintett helyiségek épülnek újra
@@ -306,7 +308,7 @@ export default function Floorplan3dStudio({ tolerancePct, maxUploadMb, creditsCr
         </div>
       ) : status !== "draft" ? (
         /* ---------------- 3. 3D-ALAP (jóváhagyott terv) ---------------- */
-        <ModelStage plan={plan} sceneOptions={sceneOptions} onRestart={restart} rebuilt={rebuilt} styleSheet={styleSheet} styleError={styleError}
+        <ModelStage plan={plan} sceneOptions={sceneOptions} linkDays={linkDays} creditsExtend={creditsExtend} onRestart={restart} rebuilt={rebuilt} styleSheet={styleSheet} styleError={styleError}
           projectId={projectId} furnishing={furnishing} onFurnished={(roomId, f) => setFurnishing((cur) => ({ ...cur, [roomId]: { ...cur[roomId], ...f } }))}
           images={roomImages} onImages={(roomId, im) => setRoomImages((cur) => ({ ...cur, [roomId]: { ...cur[roomId], ...im } }))}
           fixPrice={creditsGeometryFix} reopening={reopening} reopenError={reopenError} onReopen={() => void reopen()} />
@@ -606,8 +608,8 @@ type Furnishing = {
   rounds?: number; seconds?: number; costUsd?: number; quality?: Quality;
 };
 
-function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished, images, onImages }: {
-  plan: FloorPlan; sceneOptions: SceneOptions; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
+function ModelStage({ plan, sceneOptions, linkDays, creditsExtend, onRestart, rebuilt, fixPrice, reopening, reopenError, onReopen, styleSheet, styleError, projectId, furnishing, onFurnished, images, onImages }: {
+  plan: FloorPlan; sceneOptions: SceneOptions; linkDays: number; creditsExtend: number; onRestart: () => void; rebuilt: string[] | null; styleSheet: StyleSheet | null; styleError: string | null;
   projectId: string | null; furnishing: Record<string, Furnishing>; onFurnished: (roomId: string, f: Furnishing) => void;
   images: Record<string, RoomImages>; onImages: (roomId: string, im: RoomImages) => void;
   fixPrice: number; reopening: boolean; reopenError: string | null; onReopen: () => void;
@@ -629,15 +631,8 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
     const saved = furnishing[room.id];
     return saved?.items?.length ? { room, items: saved.items, skipped: saved.issues ?? [], saved } : { room, ...livingRoomLayout(plan, room), saved: null };
   }, [plan, furnishing]);
-  // a teljes lakás berendezése: nappali (fent) + a többi helyiség (mentett berendezés, ha van; különben „pár bútor" szabály szerint)
-  const allFurniture = useMemo(() => {
-    const out: FurnitureItem[] = [...(living?.items ?? [])];
-    for (const r of plan.rooms) {
-      if (r.id === living?.room.id) continue;
-      out.push(...(furnishing[r.id]?.items?.length ? furnishing[r.id].items : basicRoomLayout(plan, r)));
-    }
-    return out;
-  }, [plan, furnishing, living]);
+  // a teljes lakás berendezése (ugyanaz a függvény adja a megosztott linkét is)
+  const allFurniture = useMemo(() => apartmentFurniture(plan, furnishing), [plan, furnishing]);
   const [walking, setWalking] = useState(false);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
@@ -732,6 +727,7 @@ function ModelStage({ plan, sceneOptions, onRestart, rebuilt, fixPrice, reopenin
         </p>
       </div>
     </div>
+      <ShareCard projectId={projectId} linkDays={linkDays} creditsExtend={creditsExtend} />
       {walking && <WalkthroughViewer plan={plan} opts={sceneOptions} style={styleSheet} furniture={allFurniture} onClose={() => setWalking(false)} />}
       <TargetCard plan={plan} room={living?.room ?? null} projectId={projectId} images={living ? images[living.room.id] ?? {} : {}}
         canCapture={!!styleSheet} getApi={() => apiRef.current} onImages={(roomId, im) => onImages(roomId, im)} />

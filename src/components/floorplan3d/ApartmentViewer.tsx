@@ -13,7 +13,7 @@ import type { FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { buildFurniture, furnitureMaterials } from "@/lib/floorplan3d/furniture3d";
 import { OUTDOOR_KINDS } from "@/lib/floorplan3d/plan";
 import type { RoomView } from "@/lib/floorplan3d/camera";
-import { buildApartment, measureApartment, type RoomMeasure, type SceneOptions } from "@/lib/floorplan3d/scene";
+import { buildApartment, measureApartment, railOutdoorWalls, type RoomMeasure, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { planBounds } from "@/lib/floorplan3d/geometry";
 
 export function useApartmentMeasure(plan: FloorPlan, opts: SceneOptions): RoomMeasure[] {
@@ -60,6 +60,7 @@ export default function ApartmentViewer({ plan, opts, style = null, furniture = 
     scene.background = new THREE.Color(0xf4f1ec);
     const built = buildApartment(plan, opts);
     built.group.traverse((o) => { if (o.userData.kind === "ceiling") o.visible = false; });
+    railOutdoorWalls(plan, built); // terasz / erkély: mellvéd, nem „doboz"
     scene.add(built.group);
 
     // fények: égbolt-derengés + nap (árnyékkal)

@@ -123,6 +123,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261015123000_floorplan-projects.sql` | 3D-alaprajz modul: alaprajz-projektek (terv JSON, mérés, státusz) + privát `floorplans` tárhely |
 | `20261015233808_floorplan-revisions.sql` | 3D-alaprajz modul: utólagos javítás (jóváhagyott pillanatkép, újraépítendő helyiségek, változat) |
 | `20261016001943_floorplan-furnishing.sql` | 3D-alaprajz modul: helyiségenkénti berendezés (építő / szabályalapú) |
+| `20261016084305_floorplan-shares.sql` | 3D-alaprajz modul: megosztható bejárás-link (token, lejárat, visszavonás, megnyitásszám) |
 
 ## Egyszeri szkriptek (`one-off/`)
 

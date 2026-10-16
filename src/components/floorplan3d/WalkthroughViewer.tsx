@@ -14,7 +14,7 @@ import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import type { FurnitureItem } from "@/lib/floorplan3d/furniture";
 import { applyStyle, kelvinToColor } from "@/lib/floorplan3d/materials";
 import { buildFurniture, furnitureMaterials } from "@/lib/floorplan3d/furniture3d";
-import { buildApartment, type SceneOptions } from "@/lib/floorplan3d/scene";
+import { buildApartment, railOutdoorWalls, type SceneOptions } from "@/lib/floorplan3d/scene";
 import { planBounds } from "@/lib/floorplan3d/geometry";
 import { colliders, findPath, moveWithCollision, startPose, EYE_HEIGHT } from "@/lib/floorplan3d/walk";
 
@@ -32,8 +32,9 @@ function inside(p: Pt, poly: Pt[]): boolean {
   return r;
 }
 
-export default function WalkthroughViewer({ plan, opts, style, furniture, onClose }: {
-  plan: FloorPlan; opts: SceneOptions; style: StyleSheet | null; furniture: FurnitureItem[]; onClose: () => void;
+/** onClose nélkül (megosztott, nyilvános link) nincs „Kilépés" gomb és Esc — helyette a lakás neve (brand) látszik. */
+export default function WalkthroughViewer({ plan, opts, style, furniture, onClose, title }: {
+  plan: FloorPlan; opts: SceneOptions; style: StyleSheet | null; furniture: FurnitureItem[]; onClose?: () => void; title?: string;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
@@ -43,8 +44,6 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
   const [hint, setHint] = useState(true);
   const [portrait, setPortrait] = useState(false);
   const [portraitOk, setPortraitOk] = useState(false);
-  // a minitérkép mérete: telefonon kisebb (a komponens csak kattintás után jelenik meg → a window itt elérhető)
-  const [MAP_SIZE] = useState(() => (typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) < 500 ? 124 : 168));
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
 
@@ -81,18 +80,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
       if (o.userData.kind === "door") o.traverse((x) => { (x as THREE.Mesh).castShadow = true; });
     });
     scene.add(built.group);
-    // terasz / erkély: a KÜLSŐ falak (amelyek túloldalán nincs beltéri helyiség) 1 m-es mellvédként — ne legyen „doboz"; az ütközés marad
-    const RAIL = 1.0;
-    const outdoorIds = new Set(plan.rooms.filter((r) => OUTDOOR_KINDS.includes(r.kind)).map((r) => r.id));
-    const indoorAt = (p: Pt) => plan.rooms.some((r) => !OUTDOOR_KINDS.includes(r.kind) && inside(p, r.polygon));
-    for (const w of built.walls) {
-      if (!outdoorIds.has(w.userData.roomId)) continue;
-      const bb = new THREE.Box3().setFromObject(w), c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
-      const thinX = sz.x < sz.z, t = (thinX ? sz.x : sz.z) / 2 + 0.3;
-      if (indoorAt(thinX ? [c.x - t, c.z] : [c.x, c.z - t]) || indoorAt(thinX ? [c.x + t, c.z] : [c.x, c.z + t])) continue; // homlokzat a lakás felé
-      if (bb.min.y >= RAIL - 0.01) { w.visible = false; continue; }
-      if (bb.max.y > RAIL) { w.scale.y = (RAIL - bb.min.y) / sz.y; w.position.y = bb.min.y + (RAIL - bb.min.y) / 2; }
-    }
+    railOutdoorWalls(plan, built); // terasz / erkély: mellvéd, nem „doboz"
 
     // fények
     const b = planBounds(plan);
@@ -212,7 +200,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
 
     const MOVE_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "KeyQ", "KeyE"];
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Escape" && e.type === "keydown") { closeRef.current(); return; }
+      if (e.code === "Escape" && e.type === "keydown") { closeRef.current?.(); return; }
       if (!MOVE_KEYS.includes(e.code)) return;
       e.preventDefault();
       if (e.type === "keydown") { keys.add(e.code); path = []; ring.visible = false; setHint(false); } else keys.delete(e.code);
@@ -224,6 +212,8 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
 
     // alaprajz (minitérkép): a helyiségek egyszer előre rajzolva, a helyzet képkockánként
     const mapCanvas = mapRef.current;
+    // a minitérkép mérete: telefonon kisebb — itt (a böngészőben) dől el, nem rendereléskor (a nyilvános oldal szerveren renderel)
+    const MAP_SIZE = Math.min(window.innerWidth, window.innerHeight) < 500 ? 124 : 168;
     const pad = 10, mScale = (MAP_SIZE - 2 * pad) / Math.max(b.maxX - b.minX, b.maxY - b.minY, 1);
     const offX = pad + (MAP_SIZE - 2 * pad - (b.maxX - b.minX) * mScale) / 2, offY = pad + (MAP_SIZE - 2 * pad - (b.maxY - b.minY) * mScale) / 2;
     const toMap = (p: Pt): Pt => [offX + (p[0] - b.minX) * mScale, offY + (p[1] - b.minY) * mScale];
@@ -243,7 +233,10 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
         g.strokeStyle = "rgba(255,255,255,0.75)"; g.lineWidth = 1.4; g.stroke();
       }
     }
-    if (mapCanvas) { mapCanvas.width = MAP_SIZE * dpr; mapCanvas.height = MAP_SIZE * dpr; }
+    if (mapCanvas) {
+      mapCanvas.width = MAP_SIZE * dpr; mapCanvas.height = MAP_SIZE * dpr;
+      mapCanvas.style.width = `${MAP_SIZE}px`; mapCanvas.style.height = `${MAP_SIZE}px`;
+    }
     const onMapTap = (e: PointerEvent) => {
       const r = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
       walkTo(fromMap([((e.clientX - r.left) / r.width) * MAP_SIZE, ((e.clientY - r.top) / r.height) * MAP_SIZE]));
@@ -363,7 +356,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
       renderer.dispose();
       host.removeChild(renderer.domElement);
     };
-  }, [plan, opts, style, furniture, MAP_SIZE]);
+  }, [plan, opts, style, furniture]);
 
   // a háttér-oldal ne görgessen a bejárás alatt
   useEffect(() => {
@@ -386,13 +379,18 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
         <button type="button" onClick={() => setShowMap((v) => !v)} aria-pressed={showMap}
           className="pointer-events-auto h-9 w-[92px] rounded-full text-[12.5px] font-semibold" style={showMap ? { ...pill, boxShadow: "inset 0 0 0 1.5px #ef7a5a" } : pill}
           title={showMap ? "Alaprajz elrejtése" : "Alaprajz megjelenítése"}>Alaprajz</button>
-        <button type="button" onClick={onClose} className="pointer-events-auto h-9 rounded-full px-4 text-[12.5px] font-semibold"
-          style={{ background: "#fff", color: "#12100e" }} title="Kilépés (Esc)">Kilépés</button>
+        {onClose ? (
+          <button type="button" onClick={onClose} className="pointer-events-auto h-9 rounded-full px-4 text-[12.5px] font-semibold"
+            style={{ background: "#fff", color: "#12100e" }} title="Kilépés (Esc)">Kilépés</button>
+        ) : (
+          <span className="pointer-events-auto hidden h-9 max-w-[260px] items-center truncate rounded-full px-4 text-[12.5px] font-semibold sm:flex"
+            style={{ background: "#fff", color: "#12100e" }} title={title}>{title ?? "3D bejárás"}</span>
+        )}
       </div>
 
       {/* alaprajz (minitérkép) — rákoppintva oda sétál */}
       <div className="absolute bottom-3 left-3 rounded-2xl p-1.5" style={{ ...pill, display: showMap ? "block" : "none" }}>
-        <canvas ref={mapRef} style={{ width: MAP_SIZE, height: MAP_SIZE, cursor: "pointer", display: "block" }} aria-label="Alaprajz: koppints, hová sétáljon" />
+        <canvas ref={mapRef} style={{ width: 168, height: 168, cursor: "pointer", display: "block" }} aria-label="Alaprajz: koppints, hová sétáljon" />
       </div>
 
       {/* súgó (az első mozdulatig) */}
@@ -400,7 +398,7 @@ export default function WalkthroughViewer({ plan, opts, style, furniture, onClos
         <div className="pointer-events-none absolute inset-x-0 top-14 flex justify-center px-3">
           <p className="max-w-[560px] rounded-2xl px-4 py-2.5 text-center text-[12.5px] leading-relaxed" style={pill}>
             Húzással nézz körül · kattints (koppints) a padlóra, és odasétálsz
-            <span className="hidden sm:inline"> · W/A/S/D vagy nyilak, Shift: gyorsabban · Esc: kilépés</span>
+            <span className="hidden sm:inline"> · W/A/S/D vagy nyilak, Shift: gyorsabban{onClose ? " · Esc: kilépés" : ""}</span>
           </p>
         </div>
       )}

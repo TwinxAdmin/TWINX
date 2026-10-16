@@ -285,6 +285,19 @@ export function basicRoomLayout(plan: FloorPlan, room: Room): FurnitureItem[] {
   return items;
 }
 
+/** A TELJES lakás berendezése (a stúdió és a megosztott link is ezt mutatja — ugyanaz a bútor mindkettőn):
+ *  helyiségenként a mentett berendezés, ha van; a nappaliban különben a szabályalapú alap-elrendezés; a többiben a „pár bútor". */
+export function apartmentFurniture(plan: FloorPlan, furnishing: Record<string, { items?: FurnitureItem[] } | undefined> | null | undefined): FurnitureItem[] {
+  const out: FurnitureItem[] = [];
+  for (const r of plan.rooms) {
+    const saved = furnishing?.[r.id]?.items;
+    if (saved?.length) out.push(...saved);
+    else if (r.kind === "nappali") out.push(...livingRoomLayout(plan, r).items);
+    else out.push(...basicRoomLayout(plan, r));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // KÖZLEKEDŐÚT — a helyiség bejáratai (ajtók + nyitott határok) a bútorok között is összeérjenek, legalább ~80 cm széles úton
 // ---------------------------------------------------------------------------
