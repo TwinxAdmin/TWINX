@@ -337,7 +337,7 @@ Döntések (2026-10-15): csak admin · digitalizálás és építő/kritikus: Ge
 - [x] Motor: ferde fal, szemközti nyitott határ, falcsatlakozás, ajtólap 90° + ütköző, kifelé vezető ajtó becsukva (bejárásban kinyílik)
 - [x] AI-berendező: helyi javítás a második AI-kör helyett
 - [ ] Márk tesztje széles képernyőn (≥ 1280 px) a Tábornok-terven + telefonon a megosztott linken
-- [ ] JAVASLAT (jóváhagyásra): `alaprajz-teszt` skill a gépi tesztekhez
+- [x] `alaprajz-teszt` skill (Márk jóváhagyta, 2026-10-16): `.claude/skills/alaprajz-teszt/SKILL.md`
 - [ ] ▶ INNEN FOLYTATJUK: F5 videó (külön gomb, creditsVideo)
 - [ ] F3 — Japandi stíluslap ✓ (Márk adta 2026-10-15; `references/japandi/stiluslap.json` + `.md`, betöltő: `lib/floorplan3d/stylesheet.ts`) + célkép helyiségenként (Nano Banana) + építő/kritikus minőségi ciklus
 - [ ] F4 — Bejárható link (asztali + mobil irányítás), hozzáférés, 30 napos lejárat, hosszabbítás kreditért
