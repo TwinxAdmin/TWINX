@@ -12,6 +12,9 @@ import { TERMS_VERSION } from "@/lib/legal";
 import Wordmark from "@/components/Wordmark";
 import { normalizeInviteCode } from "@/lib/invites";
 import { gaEvent } from "@/lib/analytics";
+import { hasMarketingConsent } from "@/lib/consent";
+import { newMetaEventId, pixelCompleteRegistration } from "@/lib/meta-pixel";
+import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
 
 export default function RegisterPage() {
   // A useSearchParams miatt Suspense-be kell tenni (Next követelmény).
@@ -43,6 +46,7 @@ function RegisterForm() {
   // Sikerképernyő: „session” = azonnal beléptetve (jelszavas vagy Google),
   // „confirm” = előbb meg kell erősíteni az e-mail címet.
   const [done, setDone] = useState<null | "session" | "confirm">(null);
+  const [fromLanding, setFromLanding] = useState(false); // a landingről (10 kredit) indult Google-regisztráció
 
   useEffect(() => {
     const fromLink = params.get("kod") ?? params.get("kód") ?? "";
@@ -51,8 +55,18 @@ function RegisterForm() {
     // a visszajelzés — nem esik be szó nélkül a kezdőlapra.
     if (params.get("siker")) {
       setDone("session");
+      const src = params.get("src") === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null;
+      setFromLanding(!!src);
       // GA konverzió: Google-fiókkal befejezett regisztráció (ide tér vissza a callback).
-      gaEvent("sign_up", { method: "google", source: "direct" });
+      gaEvent("sign_up", { method: "google", source: src ?? "direct" });
+      // Meta: csak ÚJ fióknál (a callback ekkor ad eseményazonosítót) — utána kivesszük a címből, hogy frissítéskor ne ismétlődjön.
+      const meid = params.get("meid");
+      if (meid) {
+        pixelCompleteRegistration(src, meid);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("meid");
+        window.history.replaceState(null, "", url.pathname + url.search);
+      }
     }
   }, [params]);
 
@@ -77,10 +91,11 @@ function RegisterForm() {
     // 2) API bekötés
     setLoading(true);
     try {
+      const metaEventId = newMetaEventId();
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm, acceptTerms }),
+        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm, acceptTerms, metaEventId, marketingConsent: hasMarketingConsent() }),
       });
       const data = await res.json();
 
@@ -91,6 +106,7 @@ function RegisterForm() {
       }
 
       gaEvent("sign_up", { method: "email", source: "direct" });
+      pixelCompleteRegistration(null, metaEventId);
       // Mindkét ág a sikerképernyőre visz — a felhasználó maga dönti el,
       // belép-e most, vagy bezárja az ablakot.
       setDone(data.needsConfirmation ? "confirm" : "session");
@@ -130,8 +146,8 @@ function RegisterForm() {
               </p>
             ) : (
               <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                A fiókod elkészült, és be is vagy jelentkezve. Bármikor visszatérhetsz
-                ide a belépéssel.
+                A fiókod elkészült, és be is vagy jelentkezve.{fromLanding ? ` ${LANDING_WELCOME_CREDITS} kredittel kezdesz.` : ""} Bármikor
+                visszatérhetsz ide a belépéssel.
               </p>
             )}
 

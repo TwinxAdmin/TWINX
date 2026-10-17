@@ -146,6 +146,7 @@ Lásd a **4. pontot**.
 | **fal.ai** | videóhoz mozgó képek, logó háttér-eltávolítása | ingatlanfotók, logó | USA `[ellenőrizendő]` |
 | **Shotstack** | tartalék videó-előállítás (csak ha bekapcsoljuk) | fotók, a videó névjegye (név, telefon, e-mail) | Ausztrália `[ellenőrizendő]` |
 | **Google (Analytics 4)** | weboldal-statisztika — **csak hozzájárulás után, csak a nyilvános oldalakon** | böngészési adatok, süti-azonosító | USA `[DPF]` |
+| **Meta Platforms (Facebook Pixel, Conversions API)** | hirdetéseink eredményének mérése (pl. hány regisztráció jött egy kampányból) — **csak marketing-süti hozzájárulás után, csak a nyilvános oldalakon** | böngészési adatok, süti-azonosító (`_fbp`, `_fbc`), IP-cím, böngésző típusa; sikeres regisztrációnál az e-mail cím és a felhasználói azonosító **visszafejthetetlen (SHA-256) kódolással** | Írország / USA `[DPF — ellenőrizendő; közös adatkezelés a Metával: szakértő]` |
 | **Google (Ads API, bejelentkezés)** | Google-bejelentkezés, Google Ads összekapcsolás | e-mail, Google-azonosítók, hirdetésszövegek | USA `[DPF]` |
 | **Google Fonts / Fontshare** | betűtípusok megjelenítése az arculat-szerkesztőben | IP-cím (a böngésző letölti a betűtípust) | USA / India `[ellenőrizendő — érdemes saját tárhelyről kiszolgálni]` |
 | **Stripe** | online kártyás fizetés (jelenleg **kikapcsolva**) | e-mail, felhasználói azonosító, a vásárlás adatai | USA / EU `[ellenőrizendő]` |
@@ -164,8 +165,9 @@ Lásd a **4. pontot**.
 | Supabase bejelentkezési sütik (`sb-…`) | feltétlenül szükséges | bejelentkezve tartás | a munkamenetig / `[ellenőrizendő]` | nem |
 | `twx_office_view` | feltétlenül szükséges | irodai nézet (vezető / kolléga) | 8 óra | nem |
 | `twx_view_as` | feltétlenül szükséges (csak adminnál) | előnézet | `[ellenőrizendő]` | nem |
-| Google Analytics (`_ga`, `_ga_…`) | statisztikai | látogatottság mérése a nyilvános oldalakon | `[2 év — ellenőrizendő]` | **igen** — a süti-sávban; alapból KI, hirdetési célú tárolás soha |
-| `twx-consent-analytics` (helyi tárolás) | szükséges | a süti-döntésed megjegyzése | amíg nem törlöd | nem |
+| Google Analytics (`_ga`, `_ga_…`) | statisztikai | látogatottság mérése a nyilvános oldalakon | `[2 év — ellenőrizendő]` | **igen** — a süti-sávban külön „Statisztika" kapcsolóval; alapból KI; a Google hirdetési célú tárolása soha |
+| Meta Pixel (`_fbp`, `_fbc`) | marketing | hirdetéseink eredményének mérése a nyilvános oldalakon | `[3 hónap — ellenőrizendő]` | **igen** — a süti-sávban külön „Marketing" kapcsolóval; alapból KI |
+| `twx-consent-analytics`, `twx-consent-marketing` (helyi tárolás) | szükséges | a süti-döntéseid megjegyzése (statisztika, marketing) | amíg nem törlöd | nem |
 | `twx-mv:…` (helyi tárolás) | szükséges / funkcionális | hogy a modul-megnyitást naponta csak egyszer jelezzük | 1 nap (a régieket töröljük) | `[szakértő]` |
 | `twx:mem:…` (helyi tárolás) | funkcionális | a korábban beírt szövegek felajánlása az űrlapokon — csak a te böngésződben | 12 óra | `[szakértő]` |
 

@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { validateRegisterInput } from "@/lib/validation";
 import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
 import { recordTermsAcceptance } from "@/lib/terms";
+import { cleanEventId, sendRegistrationEvent } from "@/lib/meta-capi";
+import { registrationContentName } from "@/lib/meta-pixel";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -18,6 +20,9 @@ export async function POST(request: Request) {
 
   const { name, company, phone, email, password, passwordConfirm, source } = (body ?? {}) as Record<string, string>;
   const acceptTerms = (body as { acceptTerms?: unknown } | null)?.acceptTerms === true;
+  // Meta: a böngészős esemény azonosítója + a marketing-süti hozzájárulás (csak ekkor küldjük a szerveroldali eseményt).
+  const metaEventId = cleanEventId((body as { metaEventId?: unknown } | null)?.metaEventId);
+  const marketingConsent = (body as { marketingConsent?: unknown } | null)?.marketingConsent === true;
 
   const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm, phone });
   if (!acceptTerms) errors.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et.";
@@ -52,6 +57,18 @@ export async function POST(request: Request) {
 
   // ÁSZF-elfogadás rögzítése (a profilt a trigger már létrehozta). Hiba esetén a belépés utáni ablak pótolja.
   if (data.user?.id) await recordTermsAcceptance(data.user.id).catch(() => null);
+
+  // Meta Conversions API: csak valódi új fiók (a már létező e-mailre a Supabase üres „identities"-szel válaszol), hozzájárulással.
+  // Token nélkül kihagyja; a hiba nem akadályozza a regisztrációt.
+  if (metaEventId && marketingConsent && data.user?.id && (data.user.identities?.length ?? 1) > 0) {
+    await sendRegistrationEvent(request, {
+      eventId: metaEventId,
+      contentName: registrationContentName(signupSource),
+      email,
+      userId: data.user.id,
+      sourceUrl: request.headers.get("referer"),
+    });
+  }
 
   // Ha van session -> azonnal belépett (e-mail megerősítés kikapcsolva Supabase-ben).
   // Ha nincs session -> e-mail megerősítés szükséges.

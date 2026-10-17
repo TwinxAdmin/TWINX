@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { gaEvent } from "@/lib/analytics";
+import { hasMarketingConsent } from "@/lib/consent";
 
 /**
  * `next`: hova térjen vissza a Google után. A regisztrációs oldal ezzel kéri
@@ -32,6 +33,8 @@ export default function GoogleButton({
     if (next) params.set("next", next);
     if (source) params.set("src", source);
     if (termsVersion) params.set("terms", termsVersion);
+    // Marketing-süti hozzájárulás: csak ekkor küldheti a callback az új regisztrációt a Meta szerveroldali API-jának.
+    if (hasMarketingConsent()) params.set("mc", "1");
     const qs = params.toString();
     const callback = `${window.location.origin}/auth/callback${qs ? `?${qs}` : ""}`;
     const { error } = await supabase.auth.signInWithOAuth({

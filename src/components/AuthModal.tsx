@@ -12,6 +12,8 @@ import { TERMS_VERSION } from "@/lib/legal";
 
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
 import { gaEvent } from "@/lib/analytics";
+import { hasMarketingConsent } from "@/lib/consent";
+import { newMetaEventId, pixelCompleteRegistration } from "@/lib/meta-pixel";
 
 type Mode = "login" | "register";
 
@@ -103,13 +105,14 @@ export default function AuthModal() {
 
     setLoading(true);
     try {
+      const metaEventId = newMetaEventId();
       const res = await fetch(mode === "login" ? "/api/auth/login" : "/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body:
           mode === "login"
             ? JSON.stringify({ email, password })
-            : JSON.stringify({ name, phone, email, password, passwordConfirm, source, acceptTerms }),
+            : JSON.stringify({ name, phone, email, password, passwordConfirm, source, acceptTerms, metaEventId, marketingConsent: hasMarketingConsent() }),
       });
       const data = await res.json();
 
@@ -122,6 +125,7 @@ export default function AuthModal() {
       // GA konverzió: sikeres regisztráció / belépés (személyes adat nélkül).
       if (mode === "register") {
         gaEvent("sign_up", { method: "email", source: source ?? "direct" });
+        pixelCompleteRegistration(source, metaEventId);
       } else {
         gaEvent("login", { method: "email" });
       }
