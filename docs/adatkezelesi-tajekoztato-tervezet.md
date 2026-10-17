@@ -165,13 +165,15 @@ Lásd a **4. pontot**.
 | Supabase bejelentkezési sütik (`sb-…`) | feltétlenül szükséges | bejelentkezve tartás | a munkamenetig / `[ellenőrizendő]` | nem |
 | `twx_office_view` | feltétlenül szükséges | irodai nézet (vezető / kolléga) | 8 óra | nem |
 | `twx_view_as` | feltétlenül szükséges (csak adminnál) | előnézet | `[ellenőrizendő]` | nem |
-| Google Analytics (`_ga`, `_ga_…`) | statisztikai | látogatottság mérése a nyilvános oldalakon | `[2 év — ellenőrizendő]` | **igen** — a süti-sávban külön „Statisztika" kapcsolóval; alapból KI; a Google hirdetési célú tárolása soha |
-| Meta Pixel (`_fbp`, `_fbc`) | marketing | hirdetéseink eredményének mérése a nyilvános oldalakon | `[3 hónap — ellenőrizendő]` | **igen** — a süti-sávban külön „Marketing" kapcsolóval; alapból KI |
+| Google Analytics (`_ga`, `_ga_…`) | statisztikai | látogatottság mérése a nyilvános oldalakon | `[2 év — ellenőrizendő]` | **igen** — a süti-sávban külön „Statisztika" kapcsolóval (új látogatónál alapból bekapcsolva); a Google hirdetési célú tárolása soha |
+| Meta Pixel (`_fbp`, `_fbc`) | marketing | hirdetéseink eredményének mérése a nyilvános oldalakon | `[3 hónap — ellenőrizendő]` | **igen** — a süti-sávban külön „Marketing" kapcsolóval (új látogatónál alapból bekapcsolva — lásd a szakértői megjegyzést) |
 | `twx-consent-analytics`, `twx-consent-marketing` (helyi tárolás) | szükséges | a süti-döntéseid megjegyzése (statisztika, marketing) | amíg nem törlöd | nem |
 | `twx-mv:…` (helyi tárolás) | szükséges / funkcionális | hogy a modul-megnyitást naponta csak egyszer jelezzük | 1 nap (a régieket töröljük) | `[szakértő]` |
 | `twx:mem:…` (helyi tárolás) | funkcionális | a korábban beírt szövegek felajánlása az űrlapokon — csak a te böngésződben | 12 óra | `[szakértő]` |
 
 A süti-beállításokat bármikor megváltoztathatod a lábléc **„Süti-beállítások"** linkjén.
+
+`[Szakértő: a süti-sávban a Statisztika és a Marketing kapcsoló új látogatónál ALAPBÓL BEKAPCSOLT (üzemeltetői döntés, 2026-10-17); a mérés csak az „Elfogadom" kattintás után indul. Az EUB Planet49-ítélete (C-673/17) szerint az előre bejelölt hozzájárulás nem érvényes — ezt kérjük értékelni, és szükség esetén a sávot alapból kikapcsolt állapotra állítjuk.]`
 
 ---
 

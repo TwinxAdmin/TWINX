@@ -1,8 +1,9 @@
 // Süti-sáv — lebegő kártya a bal alsó sarokban, csak a publikus oldalakon.
-// Két külön kategória (2026-10-17): Statisztika (Google Analytics) és Marketing (Meta / Facebook Pixel), mindkettő alapból KI.
-// Három EGYENRANGÚ gomb (Elutasítom / Kiválasztottak / Mindet elfogadom): azonos méret és stílus, hogy az elutasítás ne legyen
-// nehezebb az elfogadásnál. A sáv akkor jön fel, ha valamelyik kategóriáról még nincs döntés (a korábban csak statisztikáról
-// döntőknek egyszer újra, a marketing miatt). A lábléc „Süti-beállítások” linkjével (openConsentSettings) bármikor újranyitható.
+// Két külön kategória: Statisztika (Google Analytics) és Marketing (Meta / Facebook Pixel).
+// Márk döntése (2026-10-17): új látogatónál mindkét kapcsoló ALAPBÓL BEKAPCSOLVA, és egy kiemelt „Elfogadom” gomb ment
+// (aki átállít egy kapcsolót, annak a választását); alatta kicsi „Elutasítom” link. Mérés csak a kattintás UTÁN indul.
+// (Jogi megjegyzés: az előre bekapcsolt hozzájárulás az EU-gyakorlat szerint vitatható — lásd a tájékoztató-tervezetet.)
+// A sáv akkor jön fel, ha valamelyik kategóriáról még nincs döntés; a lábléc „Süti-beállítások” linkjével bármikor újranyitható.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,8 +23,9 @@ export default function CookieBanner() {
     const load = () => {
       const s = getConsentState();
       setSaved(s);
-      setAnalytics(s.analytics === "granted");
-      setMarketing(s.marketing === "granted");
+      // még nem döntött kategória: alapból bekapcsolva; korábbi döntésnél azt mutatjuk
+      setAnalytics(s.analytics !== "denied");
+      setMarketing(s.marketing !== "denied");
       return s;
     };
     const s = load();
@@ -40,9 +42,6 @@ export default function CookieBanner() {
     setOpen(false);
   }
 
-  const btn =
-    "flex-1 rounded-full px-2 py-2.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2";
-  const btnStyle = { background: "#fff", border: "1.5px solid var(--twx-ink)", color: "var(--twx-ink)" };
   const decided = saved.analytics !== null && saved.marketing !== null;
 
   return (
@@ -65,8 +64,8 @@ export default function CookieBanner() {
           Sütik <span style={{ color: "var(--twx-coral)" }}>·</span> a te döntésed
         </p>
         <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
-          Csak a hozzájárulásoddal használunk sütit. Bármelyiket külön is választhatod, és később a lábléc
-          „Süti-beállítások” linkjén módosíthatod.
+          Sütikkel mérjük, honnan érkezel (Google, Facebook), hogy jobb hirdetéseket és szolgáltatást adhassunk.
+          Később a lábléc „Süti-beállítások” linkjén módosíthatod.
         </p>
 
         <div className="mt-3 flex flex-col gap-2">
@@ -91,17 +90,22 @@ export default function CookieBanner() {
           </p>
         )}
 
-        <div className="mt-4 flex gap-2">
-          <button type="button" onClick={() => save(false, false)} className={btn} style={btnStyle}>
-            Elutasítom
-          </button>
-          <button type="button" onClick={() => save(analytics, marketing)} className={btn} style={btnStyle}>
-            Kiválasztottak
-          </button>
-          <button type="button" onClick={() => save(true, true)} className={btn} style={btnStyle}>
-            Mindet elfogadom
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => save(analytics, marketing)}
+          className="mt-4 w-full rounded-full px-4 py-3 text-sm font-semibold text-white transition-[filter] hover:brightness-105 focus:outline-none focus-visible:ring-2"
+          style={{ background: "linear-gradient(160deg,#F49274,#E9693F)", boxShadow: "0 10px 24px rgba(233,105,63,0.35)" }}
+        >
+          Elfogadom
+        </button>
+        <button
+          type="button"
+          onClick={() => save(false, false)}
+          className="mx-auto mt-2 block text-xs underline-offset-2 hover:underline focus:outline-none focus-visible:underline"
+          style={{ color: "var(--twx-ink-muted)" }}
+        >
+          Elutasítom
+        </button>
       </div>
     </div>
   );
