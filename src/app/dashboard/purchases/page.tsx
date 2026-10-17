@@ -11,15 +11,13 @@ export default async function PurchasesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // A számla oszlopai a 20261017115051_card-invoicing.sql után léteznek — előtte a régi lekérdezés (tartalékág).
-  type Row = { id: string; credits: number; amount_huf: number; created_at: string; invoice_status?: string | null; invoice_number?: string | null };
-  const withInvoice = await supabase
+  // „*": a számla- és iroda-oszlopok csak a 20261017115051_card-invoicing.sql / 20261017160355_office-card-topup.sql
+  // után léteznek — így a lekérdezés előttük is működik (a hiányzó mezők üresek).
+  type Row = { id: string; credits: number; amount_huf: number; created_at: string; invoice_status?: string | null; invoice_number?: string | null; office_id?: string | null };
+  const { data } = await supabase
     .from("credit_purchases")
-    .select("id, credits, amount_huf, created_at, invoice_status, invoice_number")
+    .select("*")
     .order("created_at", { ascending: false });
-  const { data } = withInvoice.error
-    ? await supabase.from("credit_purchases").select("id, credits, amount_huf, created_at").order("created_at", { ascending: false })
-    : withInvoice;
 
   const rows = (data ?? []) as Row[];
   const totalHuf = rows.reduce((s, r) => s + (Number(r.amount_huf) || 0), 0);
@@ -59,7 +57,10 @@ export default async function PurchasesPage() {
               {rows.map((r) => (
                 <tr key={r.id} style={{ borderBottom: "1px solid var(--twx-line)" }}>
                   <td className="p-3">{new Date(r.created_at).toLocaleString("hu-HU")}</td>
-                  <td className="p-3 text-right">{r.credits}</td>
+                  <td className="p-3 text-right">
+                    {r.credits}
+                    {r.office_id && <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }} title="Az iroda közös egyenlegére">iroda</span>}
+                  </td>
                   <td className="p-3 text-right">{huf(r.amount_huf)}</td>
                   <td className="p-3 text-right" style={{ color: r.invoice_number ? undefined : "var(--twx-ink-muted)" }}
                     title={r.invoice_number ? "A számlát e-mailben is elküldtük." : undefined}>

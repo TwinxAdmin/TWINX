@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 import { getPackage, CHECKOUT_ENABLED } from "@/lib/packages";
 import { BILLING_COLUMNS, isBillingComplete, type BillingInfo } from "@/lib/billing";
+import { getMembership, officeKind } from "@/lib/office-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   // Amíg a bankkártyás vásárlás nincs élesítve, a végpont is zárva van — nem elég
@@ -43,6 +45,27 @@ export async function POST(request: Request) {
   // (a felhasznált kreditekre az elállás megszűnik, a fel nem használtakra 14 napig megmarad).
   if ((body as { immediateConsent?: unknown })?.immediateConsent !== true) {
     return NextResponse.json({ error: "A fizetéshez fogadd el az azonnali jóváírást (jelölőnégyzet)." }, { status: 422 });
+  }
+
+  // Irodai egyenleg feltöltése kártyával: ugyanaz a szabály, mint a számlás irodai megrendelésnél —
+  // CSAK az irodai fiók létrehozója, és csak valódi irodánál (a közös munkatérnek nincs közös egyenlege).
+  let officeId: string | null = null;
+  if ((body as { target?: unknown })?.target === "office") {
+    const m = await getMembership(user.id);
+    if (!m || m.role !== "owner") {
+      return NextResponse.json({ error: "Irodai egyenleget csak az irodai fiók létrehozója tölthet fel." }, { status: 403 });
+    }
+    if ((await officeKind(m.office_id)) === "team") {
+      return NextResponse.json({ error: "Közös munkatérnek nincs közös egyenlege — mindenki a saját kreditjét tölti fel." }, { status: 403 });
+    }
+    // A jóváíráshoz kell a 20261017160355_office-card-topup.sql (office_id oszlop) — nélküle NEM indítunk fizetést,
+    // különben a kredit rossz helyre (a saját egyenlegre) kerülne.
+    const { error: colErr } = await createAdminClient().from("credit_purchases").select("office_id").limit(1);
+    if (colErr) {
+      console.error("[checkout] Hiányzik a 20261017160355_office-card-topup.sql:", colErr.message);
+      return NextResponse.json({ error: "Az irodai kártyás feltöltés még nem elérhető (adatbázis-frissítés szükséges: 20261017160355_office-card-topup.sql)." }, { status: 503 });
+    }
+    officeId = m.office_id as string;
   }
 
   // A számlához kötelező a teljes számlázási adat (a számlát a sikeres fizetés után a Számlázz.hu állítja ki).
@@ -86,7 +109,9 @@ export async function POST(request: Request) {
           },
         },
       ],
-      success_url: `${origin}/dashboard?purchase=success&credits=${pkg.credits}`,
+      success_url: officeId
+        ? `${origin}/dashboard/iroda?purchase=success&credits=${pkg.credits}&target=office`
+        : `${origin}/dashboard?purchase=success&credits=${pkg.credits}`,
       cancel_url: `${origin}/pricing?purchase=cancel`,
       client_reference_id: user.id,
       // A számlázáshoz és a partner azonosításához.
@@ -97,6 +122,7 @@ export async function POST(request: Request) {
         credits: String(pkg.credits),
         package_id: pkg.id,
         immediate_consent_at: new Date().toISOString(),
+        ...(officeId ? { office_id: officeId } : {}),
       },
     });
 

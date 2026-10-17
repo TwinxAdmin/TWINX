@@ -1,10 +1,11 @@
 // OfficeTopup — irodai egyenleg feltöltése (CSAK a létrehozó).
-// A meglévő kredit-megrendelés folyamatot használja: csomagválasztás → számla →
-// befizetés → az admin jóváhagyásakor a kredit az IRODA egyenlegére kerül.
+// Két út: (1) BANKKÁRTYA (ha élesítve): a közös fizetési lépés (PricingModal) irodai célponttal → Stripe → a kredit
+// azonnal az IRODA egyenlegére kerül, a számla e-mailben jön; (2) számlás megrendelés: számla → befizetés → az admin
+// jóváhagyásakor a kredit az iroda egyenlegére kerül.
 "use client";
 
 import { useState } from "react";
-import { CREDIT_PACKAGES } from "@/lib/packages";
+import { CREDIT_PACKAGES, CHECKOUT_ENABLED } from "@/lib/packages";
 
 export default function OfficeTopup() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -59,9 +60,25 @@ export default function OfficeTopup() {
           );
         })}
       </div>
-      <button type="button" className="twx-btn" disabled={busy || !selected} onClick={order}>
-        {busy ? "Küldés…" : "Megrendelés (számlával)"}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {CHECKOUT_ENABLED && (
+          <button type="button" className="twx-btn" disabled={!selected}
+            title={!selected ? "Előbb válassz csomagot" : undefined}
+            onClick={() => selected && window.dispatchEvent(new CustomEvent("open-pricing", { detail: { packageId: selected, target: "office" } }))}>
+            Fizetés bankkártyával
+          </button>
+        )}
+        <button type="button" disabled={busy || !selected} onClick={order}
+          className={CHECKOUT_ENABLED ? "rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40" : "twx-btn"}
+          style={CHECKOUT_ENABLED ? { border: "1px solid var(--twx-line)", background: "#fff" } : undefined}>
+          {busy ? "Küldés…" : "Megrendelés (számlával)"}
+        </button>
+      </div>
+      {CHECKOUT_ENABLED && (
+        <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+          Kártyával a kredit azonnal az iroda egyenlegére kerül; számlával a befizetés beérkezése után.
+        </p>
+      )}
       {result && (
         <p className="text-xs" style={{ color: result.ok ? "#15803d" : "#c0392b" }}>
           {result.text}{" "}

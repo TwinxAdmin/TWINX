@@ -68,10 +68,14 @@ export default function PricingModal() {
 
   // Az `open-pricing` esemény detail.packageId-vel egyenesen a fizetési lépést nyitja (pl. a /pricing oldalról).
   const directCheckout = useRef<string | null>(null);
+  // Hová menjen a kredit: saját egyenleg, vagy az iroda közös egyenlege (az irodai feltöltő ablakból).
+  const [target, setTarget] = useState<"self" | "office">("self");
   useEffect(() => {
     const onOpen = (e: Event) => {
       setError(null);
-      directCheckout.current = (e as CustomEvent<{ packageId?: string }>).detail?.packageId ?? null;
+      const detail = (e as CustomEvent<{ packageId?: string; target?: "office" }>).detail;
+      directCheckout.current = detail?.packageId ?? null;
+      setTarget(detail?.target === "office" ? "office" : "self");
       setOpen(true);
     };
     window.addEventListener("open-pricing", onOpen);
@@ -154,6 +158,7 @@ export default function PricingModal() {
     if (!d?.signedIn) { openAuth(); return; }
     setPickedId(packageId);
     setConsent(false);
+    setTarget("self");
     setMode("checkout");
   }
 
@@ -165,7 +170,7 @@ export default function PricingModal() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId, immediateConsent: consent }),
+        body: JSON.stringify({ packageId, immediateConsent: consent, ...(target === "office" ? { target: "office" } : {}) }),
       });
       const data = await res.json();
 
@@ -353,7 +358,9 @@ export default function PricingModal() {
               style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
               <span>
                 <span className="block font-display text-lg font-medium">{picked.credits} kredit</span>
-                <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>{picked.name}</span>
+                <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  {target === "office" ? "az iroda közös egyenlegére" : picked.name}
+                </span>
               </span>
               <span className="text-right">
                 <span className="block text-lg font-semibold">{formatHuf(picked.priceHuf)}</span>

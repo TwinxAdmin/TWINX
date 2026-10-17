@@ -85,11 +85,20 @@ export async function POST(request: Request) {
     livemode: event.livemode,
     credited_at: null, // a jóváírás a következő lépésben, egy tranzakcióban
   };
+  // Irodai egyenleg feltöltése (a fizetés indításakor ellenőrizve: az iroda létrehozója fizetett).
+  const officeId = md.office_id || null;
   let { error: insertError } = await admin.from("credit_purchases").insert({
     ...baseRow,
     billing_snapshot: billingSnapshot,
     immediate_consent_at: md.immediate_consent_at ?? null,
+    ...(officeId ? { office_id: officeId } : {}),
   });
+  // Irodai vásárlásnál NINCS tartalékág: oszlop nélkül a kredit a saját egyenlegre menne (rossz helyre) —
+  // inkább hibát adunk, és a Stripe újraküldi, amint a 20261017160355_office-card-topup.sql lefutott.
+  if (officeId && (insertError?.code === "42703" || insertError?.code === "PGRST204")) {
+    console.error("[stripe-webhook] IRODAI FIZETÉS — hiányzik a 20261017160355_office-card-topup.sql:", session.id);
+    return NextResponse.json({ error: "Hiányzó office_id oszlop." }, { status: 500 });
+  }
   // Tartalékág: ha a 20261017115051_card-invoicing.sql még nem futott le (nincs ilyen oszlop), a kredit akkor is menjen át.
   if (insertError?.code === "42703" || insertError?.code === "PGRST204") {
     console.error("[stripe-webhook] Hiányzó számla-oszlopok — futtasd: 20261017115051_card-invoicing.sql");
