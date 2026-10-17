@@ -63,7 +63,7 @@ A szolgáltatás: **TWINX** — mesterséges intelligenciára épülő online es
 | **Cél** | a megrendelés teljesítése, számla kiállítása, kredit jóváírása |
 | **Jogalap (javaslat)** | szerződés teljesítése — 6. cikk (1) b); a számviteli bizonylatok megőrzése: jogi kötelezettség — 6. cikk (1) c) (számviteli törvény) |
 | **Megőrzés (javaslat)** | számviteli bizonylatok: `[8 év — a szakértő erősítse meg]` |
-| **Megjegyzés** | Bankkártya-adatot a TWINX nem kezel. Online kártyás fizetés (ha bekapcsoljuk) a Stripe fizetési oldalán történik. |
+| **Megjegyzés** | Bankkártya-adatot a TWINX nem kezel. Az online kártyás fizetés a Stripe fizetési oldalán történik; a számlát a Számlázz.hu állítja ki és küldi el e-mailben. |
 
 ### 2.5 Irodai fiók és közös munkatér
 | | |
@@ -149,7 +149,8 @@ Lásd a **4. pontot**.
 | **Meta Platforms (Facebook Pixel, Conversions API)** | hirdetéseink eredményének mérése (pl. hány regisztráció jött egy kampányból) — **csak marketing-süti hozzájárulás után, csak a nyilvános oldalakon** | böngészési adatok, süti-azonosító (`_fbp`, `_fbc`), IP-cím, böngésző típusa; sikeres regisztrációnál az e-mail cím és a felhasználói azonosító **visszafejthetetlen (SHA-256) kódolással** | Írország / USA `[DPF — ellenőrizendő; közös adatkezelés a Metával: szakértő]` |
 | **Google (Ads API, bejelentkezés)** | Google-bejelentkezés, Google Ads összekapcsolás | e-mail, Google-azonosítók, hirdetésszövegek | USA `[DPF]` |
 | **Google Fonts / Fontshare** | betűtípusok megjelenítése az arculat-szerkesztőben | IP-cím (a böngésző letölti a betűtípust) | USA / India `[ellenőrizendő — érdemes saját tárhelyről kiszolgálni]` |
-| **Stripe** | online kártyás fizetés (jelenleg **kikapcsolva**) | e-mail, felhasználói azonosító, a vásárlás adatai | USA / EU `[ellenőrizendő]` |
+| **Stripe** | online bankkártyás fizetés (a kártyaadatot csak a Stripe kezeli, a TWINX nem) | e-mail, felhasználói azonosító, a vásárlás adatai, a fizetés adatai | Írország / USA `[DPF / SCC ellenőrizendő]` |
+| **KBOSS.hu Kft. (Számlázz.hu)** | számlák kiállítása és megküldése, NAV-adatszolgáltatás | a számlázási adatok (név, cím, adószám, e-mail), a vásárlás adatai | Magyarország |
 | **Smartlead, Brevo** | hírlevél-kampányok (alkalmazáson kívül) | név, e-mail | `[ellenőrizendő]` |
 | **Könyvelő** | számlák könyvelése | számlázási adatok | `[KITÖLTENDŐ — könyvelő neve, címe]` |
 | **Rackforest** | domain / DNS | — (személyes adat nem) | Magyarország |

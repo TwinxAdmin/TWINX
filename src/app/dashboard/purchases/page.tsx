@@ -11,12 +11,17 @@ export default async function PurchasesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data } = await supabase
+  // A számla oszlopai a 20261017115051_card-invoicing.sql után léteznek — előtte a régi lekérdezés (tartalékág).
+  type Row = { id: string; credits: number; amount_huf: number; created_at: string; invoice_status?: string | null; invoice_number?: string | null };
+  const withInvoice = await supabase
     .from("credit_purchases")
-    .select("id, credits, amount_huf, created_at")
+    .select("id, credits, amount_huf, created_at, invoice_status, invoice_number")
     .order("created_at", { ascending: false });
+  const { data } = withInvoice.error
+    ? await supabase.from("credit_purchases").select("id, credits, amount_huf, created_at").order("created_at", { ascending: false })
+    : withInvoice;
 
-  const rows = (data ?? []) as { id: string; credits: number; amount_huf: number; created_at: string }[];
+  const rows = (data ?? []) as Row[];
   const totalHuf = rows.reduce((s, r) => s + (Number(r.amount_huf) || 0), 0);
   const totalCredits = rows.reduce((s, r) => s + (Number(r.credits) || 0), 0);
 
@@ -47,6 +52,7 @@ export default async function PurchasesPage() {
                 <th className="p-3">Dátum</th>
                 <th className="p-3 text-right">Kredit</th>
                 <th className="p-3 text-right">Összeg</th>
+                <th className="p-3 text-right">Számla</th>
               </tr>
             </thead>
             <tbody>
@@ -55,6 +61,10 @@ export default async function PurchasesPage() {
                   <td className="p-3">{new Date(r.created_at).toLocaleString("hu-HU")}</td>
                   <td className="p-3 text-right">{r.credits}</td>
                   <td className="p-3 text-right">{huf(r.amount_huf)}</td>
+                  <td className="p-3 text-right" style={{ color: r.invoice_number ? undefined : "var(--twx-ink-muted)" }}
+                    title={r.invoice_number ? "A számlát e-mailben is elküldtük." : undefined}>
+                    {r.invoice_number ?? (r.invoice_status === "issuing" ? "készül…" : r.invoice_status === "failed" || r.invoice_status === "uncertain" ? "hamarosan" : "—")}
+                  </td>
                 </tr>
               ))}
             </tbody>

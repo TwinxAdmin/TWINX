@@ -7,11 +7,13 @@
 //      felirattal látszik, és alatta ott a MŰKÖDŐ út: Kredit igénylés.
 //   2) "request" — az igénylő nézet: csomagválasztás → (ha kell) számlázási
 //      adatok → megrendelés. A partner egy ablakban végigmegy, nem veszti el a fonalat.
+//   3) "checkout" — bankkártyás vásárlás (2026-10-17): (ha kell) számlázási adatok → „azonnali jóváírást kérem"
+//      jelölőnégyzet → Stripe. A sikeres fizetés után a kredit azonnal jár, a számlát a Számlázz.hu e-mailben küldi.
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CREDIT_PACKAGES, CHECKOUT_ENABLED } from "@/lib/packages";
-import { formatHuf, type BillingInfo } from "@/lib/billing";
+import { formatHuf, isBillingComplete, type BillingInfo } from "@/lib/billing";
 import BillingForm from "@/components/BillingForm";
 
 type Pending = {
@@ -45,7 +47,8 @@ export default function PricingModal() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<"packages" | "request">("packages");
+  const [mode, setMode] = useState<"packages" | "request" | "checkout">("packages");
+  const [consent, setConsent] = useState(false); // azonnali jóváírás kérése + az elállás szabályainak tudomásulvétele (ÁSZF 6.)
   const [state, setState] = useState<State | null>(null);
   const [pickedId, setPickedId] = useState<string>("");
   const [note, setNote] = useState("");
@@ -59,12 +62,16 @@ export default function PricingModal() {
       setMode("packages");
       setDone(false);
       setError(null);
+      setConsent(false);
     }, 180);
   }, []);
 
+  // Az `open-pricing` esemény detail.packageId-vel egyenesen a fizetési lépést nyitja (pl. a /pricing oldalról).
+  const directCheckout = useRef<string | null>(null);
   useEffect(() => {
-    const onOpen = () => {
+    const onOpen = (e: Event) => {
       setError(null);
+      directCheckout.current = (e as CustomEvent<{ packageId?: string }>).detail?.packageId ?? null;
       setOpen(true);
     };
     window.addEventListener("open-pricing", onOpen);
@@ -107,10 +114,22 @@ export default function PricingModal() {
     void (async () => {
       const d = await loadState();
       if (cancelled || !d) return;
+      const direct = directCheckout.current;
+      directCheckout.current = null;
+      if (direct && CHECKOUT_ENABLED) {
+        if (!d.signedIn) {
+          // kijelentkezve: regisztráció (ugyanaz, mint az openAuth, de a hatáson belül)
+          close();
+          window.setTimeout(() => window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "register" } })), 180);
+          return;
+        }
+        setPickedId(direct); setConsent(false); setMode("checkout");
+        return;
+      }
       if (d.signedIn && d.role === "sales") setMode("request");
     })();
     return () => { cancelled = true; };
-  }, [open, loadState]);
+  }, [open, loadState, close]);
 
   function openAuth() {
     close();
@@ -128,18 +147,34 @@ export default function PricingModal() {
     setMode("request");
   }
 
+  /** „Vásárlás" a csomaglistán → a fizetési lépés (bejelentkezés nélkül előbb regisztráció). */
+  async function startCheckout(packageId: string) {
+    setError(null);
+    const d = state ?? (await loadState());
+    if (!d?.signedIn) { openAuth(); return; }
+    setPickedId(packageId);
+    setConsent(false);
+    setMode("checkout");
+  }
+
   async function buy(packageId: string) {
+    if (state?.preview) { setError("Ez csak előnézet — nem indítunk valódi fizetést."); return; }
     setError(null);
     setLoadingId(packageId);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId }),
+        body: JSON.stringify({ packageId, immediateConsent: consent }),
       });
       const data = await res.json();
 
       if (res.status === 401) { openAuth(); return; }
+      if (res.status === 428 || data.needsBilling) {
+        await loadState();
+        setError("A fizetés előtt töltsd ki a számlázási adataidat.");
+        return;
+      }
       if (!res.ok || !data.url) {
         setError(data.error ?? "Hiba a fizetés indításakor.");
         return;
@@ -193,6 +228,8 @@ export default function PricingModal() {
 
   const picked = CREDIT_PACKAGES.find((p) => p.id === pickedId) ?? null;
   const needsBillingForm = state?.needsBilling && !state?.billingComplete;
+  // A kártyás vásárlásnál MINDENKINEK kell számlázási adat (a számla automatikusan készül).
+  const checkoutNeedsBilling = !isBillingComplete(state?.billing ?? null);
   // A sales kolléga belső keretet kap: neki nincs számla és nincs ár.
   const isSales = state?.role === "sales";
 
@@ -216,7 +253,7 @@ export default function PricingModal() {
       >
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold">
-            {mode === "packages" ? "Csomagok" : isSales ? "Keret igénylése" : "Kredit igénylés"}
+            {mode === "packages" ? "Csomagok" : mode === "checkout" ? "Fizetés bankkártyával" : isSales ? "Keret igénylése" : "Kredit igénylés"}
           </h2>
           <button
             type="button"
@@ -234,6 +271,7 @@ export default function PricingModal() {
           <>
             <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
               Fix áras csomagok. A megvásárolt egyenleg nem jár le.
+              {CHECKOUT_ENABLED ? " Bankkártyával fizetsz, a kredit azonnal megérkezik, a számlát e-mailben küldjük." : ""}
             </p>
 
             <ul className="mt-5 space-y-3">
@@ -251,11 +289,10 @@ export default function PricingModal() {
                   </div>
                   {CHECKOUT_ENABLED ? (
                     <button
-                      onClick={() => buy(pkg.id)}
-                      disabled={loadingId !== null}
+                      onClick={() => void startCheckout(pkg.id)}
                       className="twx-btn shrink-0"
                     >
-                      {loadingId === pkg.id ? "Átirányítás…" : "Vásárlás"}
+                      Vásárlás
                     </button>
                   ) : (
                     <span
@@ -294,10 +331,82 @@ export default function PricingModal() {
               </div>
             )}
 
+            {/* kártyás fizetés mellett is megmarad a számla alapú (utalásos) út */}
+            {CHECKOUT_ENABLED && (
+              <button type="button" onClick={() => void startRequest()}
+                className="mt-4 w-full text-xs underline-offset-2 hover:underline" style={{ color: "var(--twx-ink-muted)" }}>
+                Inkább számla alapján, átutalással fizetnél? Kredit igénylés →
+              </button>
+            )}
+
             {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
             <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Bejelentkezés szükséges.
+              Bejelentkezés szükséges. Az árak végösszegek (alanyi adómentes, ÁFA-t nem tartalmaz).
             </p>
+          </>
+        )}
+
+        {/* ------------------------------ BANKKÁRTYÁS FIZETÉS ------------------------------ */}
+        {mode === "checkout" && picked && (
+          <>
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl p-4"
+              style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+              <span>
+                <span className="block font-display text-lg font-medium">{picked.credits} kredit</span>
+                <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>{picked.name}</span>
+              </span>
+              <span className="text-right">
+                <span className="block text-lg font-semibold">{formatHuf(picked.priceHuf)}</span>
+                <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>végösszeg</span>
+              </span>
+            </div>
+
+            {checkoutNeedsBilling ? (
+              <div className="mt-4 rounded-xl p-4" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                <p className="text-sm font-semibold">Számlázási adatok</p>
+                <p className="mt-1 mb-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Erre a névre és címre állítjuk ki a számlát. Egyszer kell megadni, később a Beállításokban módosíthatod.
+                </p>
+                <BillingForm
+                  initial={state?.billing ?? null}
+                  embedded
+                  preview={state?.preview}
+                  onSaved={() => void loadState()}
+                />
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                  Számla erre: <strong>{state?.billing?.billing_type === "company" ? state?.billing?.billing_company_name : state?.billing?.billing_name}</strong>
+                  {" · "}a Beállításokban módosítható
+                </p>
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl p-3 text-xs leading-relaxed"
+                  style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
+                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 flex-none" />
+                  <span>
+                    Kérem, hogy a krediteket a fizetés után <strong>azonnal jóváírjátok</strong>. Tudomásul veszem, hogy a
+                    <strong> felhasznált</strong> kreditekre az elállási jog megszűnik (a fel nem használtakra 14 napig megmarad —{" "}
+                    <a href="/aszf" target="_blank" rel="noreferrer" className="underline">ÁSZF</a> 6. pont).
+                  </span>
+                </label>
+                <button type="button" onClick={() => void buy(picked.id)}
+                  disabled={!consent || loadingId !== null}
+                  title={!consent ? "Előbb fogadd el az azonnali jóváírást" : undefined}
+                  className="mt-4 w-full rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: "var(--twx-coral)" }}>
+                  {loadingId ? "Átirányítás a fizetéshez…" : `Fizetés bankkártyával — ${formatHuf(picked.priceHuf)}`}
+                </button>
+                <p className="mt-2 text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                  Biztonságos fizetés a Stripe oldalán · a kártyaadatod hozzánk nem jut el
+                </p>
+              </>
+            )}
+
+            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            <button type="button" onClick={() => { setMode("packages"); setError(null); }}
+              className="mt-3 w-full text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+              ← Vissza a csomagokhoz
+            </button>
           </>
         )}
 
@@ -324,7 +433,7 @@ export default function PricingModal() {
                 </p>
                 <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                   {state.pending.amount} kredit
-                  {state.pending.net_huf ? ` · ${formatHuf(state.pending.net_huf)} + áfa` : ""}
+                  {state.pending.net_huf ? ` · ${formatHuf(state.pending.net_huf)}` : ""}
                   {" · beadva: "}{new Date(state.pending.created_at).toLocaleDateString("hu-HU")}
                 </p>
                 <button type="button" onClick={close}

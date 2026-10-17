@@ -88,8 +88,9 @@ export default function TermsPage() {
 
         <Section n={5} title="Kreditvásárlás, árak, fizetés">
           <Ul items={[
-            "Kreditet a TWINX felületén lehet igényelni a kívánt csomag és a számlázási adatok megadásával. A mindenkori csomagokat és árakat a felület tartalmazza; a megrendelés az igényléskor feltüntetett áron jön létre.",
-            <>A Szolgáltató az igénylés alapján számlát állít ki, és a krediteket <b>a díj beérkezése után</b> írja jóvá. A fizetés banki átutalással történik (bankkártyás fizetés a jövőben bevezethető; erről a felület tájékoztat).</>,
+            "Kreditet a TWINX felületén lehet vásárolni vagy igényelni a kívánt csomag és a számlázási adatok megadásával. A mindenkori csomagokat és árakat a felület tartalmazza; a megrendelés a vásárláskor (igényléskor) feltüntetett áron jön létre.",
+            <><b>Bankkártyás fizetés:</b> a fizetés a Stripe biztonságos fizetési oldalán történik — a kártyaadatok a Szolgáltatóhoz nem jutnak el. A krediteket a <b>sikeres fizetés után azonnal</b> jóváírjuk (a Partner kifejezett kérésére, lásd 6. pont), a számlát a Szolgáltató elektronikusan állítja ki, és e-mailben küldi meg.</>,
+            <><b>Igénylés átutalással:</b> a Szolgáltató az igénylés alapján számlát állít ki, és a krediteket <b>a díj beérkezése után</b> írja jóvá.</>,
             "A feltüntetett árak a fizetendő végösszegek. A Szolgáltató a számlán az adózására vonatkozó szabályok szerint jár el.",
             "Hibás vagy hiányos számlázási adatból eredő többletköltség a Partnert terheli.",
           ]} />
@@ -99,7 +100,7 @@ export default function TermsPage() {
           <Ul items={[
             "A fogyasztónak minősülő Partner a kreditvásárlástól a jóváírástól számított 14 napon belül indokolás nélkül elállhat, a fel nem használt kreditek arányában.",
             <>A Partner tudomásul veszi, hogy a kreditek felhasználásával a digitális szolgáltatás teljesítése megkezdődik; a <b>már felhasznált kreditek</b> tekintetében — a fogyasztó kifejezett beleegyezésével megkezdett teljesítésre tekintettel — elállásnak nincs helye.</>,
-            "Az elállási szándékot az office@twinx.hu címre küldött egyértelmű nyilatkozattal lehet jelezni. A Szolgáltató a visszajáró összeget 14 napon belül, a fizetéssel azonos módon (átutalással) téríti vissza.",
+            "Az elállási szándékot az office@twinx.hu címre küldött egyértelmű nyilatkozattal lehet jelezni. A Szolgáltató a visszajáró összeget 14 napon belül, a fizetéssel azonos módon (átutalással, illetve bankkártyás fizetésnél a fizetéshez használt kártyára) téríti vissza.",
             "Az induló (ajándék) kreditekre elállás nem vonatkozik.",
           ]} />
         </Section>

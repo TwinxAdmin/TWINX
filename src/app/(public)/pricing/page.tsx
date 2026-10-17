@@ -1,36 +1,15 @@
 // twinx.hu/pricing — Csomagvásárlás (wireframe).
-// Gomb -> /api/checkout -> átirányítás a Stripe Checkout oldalra.
+// Gomb -> a közös csomagablak fizetési lépése (PricingModal) -> /api/checkout -> Stripe Checkout.
 "use client";
 
-import { useState } from "react";
 import { CREDIT_PACKAGES, CHECKOUT_ENABLED } from "@/lib/packages";
 import Wordmark from "@/components/Wordmark";
+import PricingModal from "@/components/PricingModal";
 
 export default function PricingPage() {
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function buy(packageId: string) {
-    setError(null);
-    setLoadingId(packageId);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.url) {
-        setError(data.error ?? "Hiba a fizetés indításakor.");
-        return;
-      }
-      window.location.href = data.url as string;
-    } catch {
-      setError("Hálózati hiba. Próbáld újra.");
-    } finally {
-      setLoadingId(null);
-    }
+  // A vásárlás a közös csomagablakban folytatódik (számlázási adatok, azonnali jóváírás elfogadása, Stripe).
+  function buy(packageId: string) {
+    window.dispatchEvent(new CustomEvent("open-pricing", { detail: { packageId } }));
   }
 
   return (
@@ -55,12 +34,8 @@ export default function PricingPage() {
                 </p>
               </div>
               {CHECKOUT_ENABLED ? (
-                <button
-                  onClick={() => buy(pkg.id)}
-                  disabled={loadingId !== null}
-                  className="twx-btn"
-                >
-                  {loadingId === pkg.id ? "Átirányítás…" : "Vásárlás"}
+                <button onClick={() => buy(pkg.id)} className="twx-btn">
+                  Vásárlás
                 </button>
               ) : (
                 <span
@@ -92,11 +67,11 @@ export default function PricingPage() {
           </div>
         )}
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           Bejelentkezés szükséges.
         </p>
       </div>
+      <PricingModal />
     </main>
   );
 }

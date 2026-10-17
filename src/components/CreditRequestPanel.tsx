@@ -171,7 +171,7 @@ export default function CreditRequestPanel({
           </p>
           <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             {pending.amount} kredit
-            {pending.net_huf ? ` · ${formatHuf(pending.net_huf)} + áfa` : ""}
+            {pending.net_huf ? ` · ${formatHuf(pending.net_huf)}` : ""}
             {pending.invoice_number ? ` · számlaszám: ${pending.invoice_number}` : ""}
             {" · beadva: "}{new Date(pending.created_at).toLocaleString("hu-HU")}
           </p>
@@ -193,7 +193,7 @@ export default function CreditRequestPanel({
                       <span className="block text-lg font-bold" style={{ color: on ? "var(--twx-coral)" : undefined }}>
                         {p.credits} kredit
                       </span>
-                      <span className="block text-sm font-semibold">{formatHuf(p.priceHuf)} + áfa</span>
+                      <span className="block text-sm font-semibold">{formatHuf(p.priceHuf)}</span>
                       <span className="block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                         {Math.round(p.priceHuf / p.credits)} Ft / kredit
                       </span>
@@ -246,7 +246,7 @@ export default function CreditRequestPanel({
             {busy
               ? "Küldés…"
               : needsBilling
-                ? selected ? `Megrendelés — ${formatHuf(selected.priceHuf)} + áfa` : "Megrendelés"
+                ? selected ? `Megrendelés — ${formatHuf(selected.priceHuf)}` : "Megrendelés"
                 : "Kérés elküldése"}
           </button>
         </div>
@@ -265,7 +265,7 @@ export default function CreditRequestPanel({
                   <span>
                     <strong>{it.amount} kredit</strong>
                     {it.net_huf ? (
-                      <span style={{ color: "var(--twx-ink-muted)" }}>{" · "}{formatHuf(it.net_huf)} + áfa</span>
+                      <span style={{ color: "var(--twx-ink-muted)" }}>{" · "}{formatHuf(it.net_huf)}</span>
                     ) : null}
                     {it.granted_amount != null && it.granted_amount !== it.amount && (
                       <> → jóváírva: <strong>{it.granted_amount}</strong></>

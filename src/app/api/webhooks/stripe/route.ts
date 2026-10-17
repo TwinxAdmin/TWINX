@@ -9,10 +9,17 @@
 //   ment át — és két párhuzamos webhook sem adhat kétszer kreditet.
 // - Hibánál 500-at adunk: a Stripe újraküldi az eseményt (3 napig), és a
 //   függvény befejezi a félbemaradt jóváírást.
+// SZÁMLA (2026-10-17): a kredit jóváírása UTÁN a Számlázz.hu Számla Agent kiállítja a számlát (lib/purchase-invoice.ts).
+// A számla hibája NEM veszi el a kreditet; egyértelmű hibánál 500-zal kérjük az újraküldést (a számla újrapróbálásához).
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
+import { issueInvoiceForPurchase } from "@/lib/purchase-invoice";
+
+export const runtime = "nodejs";
+export const maxDuration = 60; // a számla kiállítása (Számla Agent) is ebben a kérésben fut
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -63,17 +70,31 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
+  // A számlához: a számlázási adat pillanatképe (a fizetés indításakor kötelezően kitöltött profiladat).
+  const { data: billingRow } = await admin.from("profiles").select(BILLING_COLUMNS).eq("id", userId).maybeSingle();
+  const billingSnapshot = (billingRow as BillingInfo | null) ?? null;
+
   // 1) Vásárlás rögzítése. A session id egyedi → ez adja az idempotenciát.
-  const { error: insertError } = await admin.from("credit_purchases").insert({
+  const baseRow = {
     stripe_session_id: session.id,
     user_id: userId,
     service_id: serviceId,
     credits,
-    // A ténylegesen fizetett összeg (HUF) — a bevétel/profit metrikához.
+    // A ténylegesen fizetett összeg (HUF) — a bevétel/profit metrikához és a számlához.
     amount_huf: Math.round((session.amount_total ?? 0) / 100),
     livemode: event.livemode,
     credited_at: null, // a jóváírás a következő lépésben, egy tranzakcióban
+  };
+  let { error: insertError } = await admin.from("credit_purchases").insert({
+    ...baseRow,
+    billing_snapshot: billingSnapshot,
+    immediate_consent_at: md.immediate_consent_at ?? null,
   });
+  // Tartalékág: ha a 20261017115051_card-invoicing.sql még nem futott le (nincs ilyen oszlop), a kredit akkor is menjen át.
+  if (insertError?.code === "42703" || insertError?.code === "PGRST204") {
+    console.error("[stripe-webhook] Hiányzó számla-oszlopok — futtasd: 20261017115051_card-invoicing.sql");
+    ({ error: insertError } = await admin.from("credit_purchases").insert(baseRow));
+  }
 
   // 23505 = unique violation → az eseményt már láttuk. NEM lépünk ki: lehet,
   // hogy a jóváírás korábban félbemaradt, és most kell befejezni.
@@ -92,5 +113,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: applyError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ received: true, credited: credited === true });
+  // 3) Számla (Számlázz.hu). A kredit már jóvá van írva — a számla hibája ezt nem érinti.
+  const invoice = await issueInvoiceForPurchase(session.id);
+  if (invoice.kind === "failed" && invoice.retry) {
+    return NextResponse.json({ received: true, credited: credited === true, invoice: "failed" }, { status: 500 });
+  }
+  return NextResponse.json({ received: true, credited: credited === true, invoice: invoice.kind });
 }

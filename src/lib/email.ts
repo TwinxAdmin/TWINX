@@ -124,7 +124,7 @@ export async function sendCreditRequestNotification(req: {
     <p><strong>Kérelmező:</strong> ${escapeHtml(req.requesterName || "-")} (${escapeHtml(req.requesterEmail)})</p>
     <p><strong>Kért mennyiség:</strong> ${req.amount} kredit</p>
     ${typeof req.netHuf === "number"
-      ? `<p><strong>Fizetendő:</strong> ${req.netHuf.toLocaleString("hu-HU")} Ft + áfa</p>`
+      ? `<p><strong>Fizetendő:</strong> ${req.netHuf.toLocaleString("hu-HU")} Ft (alanyi adómentes)</p>`
       : `<p><strong>Elszámolás:</strong> ingyenes belső keret (sales)</p>`}
     ${typeof req.balance === "number" ? `<p><strong>Jelenlegi egyenlege:</strong> ${req.balance} kredit</p>` : ""}
     ${req.reason ? `<p><strong>Megjegyzés:</strong><br>${escapeHtml(req.reason).replace(/\n/g, "<br>")}</p>` : ""}
@@ -142,7 +142,7 @@ export async function sendCreditRequestNotification(req: {
       reply_to: req.requesterEmail,
       subject: isFree
         ? `Keret-igény: ${req.amount} kredit — ${req.requesterName || req.requesterEmail}`
-        : `SZÁMLÁZANDÓ — ${req.amount} kredit / ${(req.netHuf ?? 0).toLocaleString("hu-HU")} Ft + áfa — ${req.requesterName || req.requesterEmail}`,
+        : `SZÁMLÁZANDÓ — ${req.amount} kredit / ${(req.netHuf ?? 0).toLocaleString("hu-HU")} Ft — ${req.requesterName || req.requesterEmail}`,
       html,
     }),
   });
@@ -399,4 +399,43 @@ export async function sendConsultationNotification(
     const text = await res.text();
     throw new Error(`Resend hiba (${res.status}): ${text.slice(0, 300)}`);
   }
+}
+
+/** Bankkártyás vásárlás után a számla NEM készült el (hiba vagy bizonytalan állapot) — az adminok kapják.
+ *  A kredit ilyenkor már jóvá van írva; a számlát kézzel kell pótolni / ellenőrizni a Számlázz.hu-ban. */
+export async function sendInvoiceProblemNotification(p: {
+  sessionId: string;
+  status: "failed" | "uncertain";
+  error: string;
+  buyerEmail: string | null;
+  credits: number;
+  amountHuf: number;
+  billing?: BillingInfo | null;
+  attempts: number;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.CREDIT_NOTIFY_EMAIL || process.env.LEADS_NOTIFY_EMAIL;
+  if (!apiKey || !to) throw new Error("Hiányzó RESEND_API_KEY vagy értesítési e-mail cím.");
+  const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
+  const uncertain = p.status === "uncertain";
+  const html = `
+    <h2>${uncertain ? "Számla — BIZONYTALAN, ellenőrizd a Számlázz.hu-ban" : "Számla — NEM készült el"}</h2>
+    <p>Bankkártyás kreditvásárlás történt, a <strong>kredit jóvá van írva</strong>, de a számla ${uncertain
+      ? "elkészülte nem biztos (nem jött egyértelmű válasz). <strong>Ne állítsd ki újra</strong>, amíg meg nem nézted a Számlázz.hu-ban (külső azonosító = a Stripe session)."
+      : "kiállítása hibára futott. A rendszer a Stripe újraküldésekor magától újrapróbálja; ha a hiba tartós (pl. hiányzó kulcs vagy adat), javítsd, vagy állítsd ki kézzel."}</p>
+    <p><strong>Hiba:</strong> ${escapeHtml(p.error)}</p>
+    <p><strong>Stripe session:</strong> ${escapeHtml(p.sessionId)} · <strong>próbálkozás:</strong> ${p.attempts}</p>
+    <p><strong>Vevő:</strong> ${escapeHtml(p.buyerEmail || "-")} · <strong>${p.credits} kredit</strong> · ${p.amountHuf.toLocaleString("hu-HU")} Ft</p>
+    ${p.billing ? `<pre style="background:#f6f3ef;padding:10px;border-radius:8px;font-family:monospace;font-size:13px;white-space:pre-wrap">${escapeHtml(billingCopyBlock(p.billing))}</pre>` : "<p><em>Nincs mentett számlázási adat.</em></p>"}
+  `;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from, to,
+      subject: `${uncertain ? "SZÁMLA ELLENŐRIZENDŐ" : "SZÁMLA HIBA"} — ${p.credits} kredit / ${p.amountHuf.toLocaleString("hu-HU")} Ft — ${p.buyerEmail || p.sessionId}`,
+      html,
+    }),
+  });
+  if (!res.ok) throw new Error(`Resend hiba (${res.status}): ${(await res.text()).slice(0, 300)}`);
 }

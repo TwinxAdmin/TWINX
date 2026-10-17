@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 import { getPackage, CHECKOUT_ENABLED } from "@/lib/packages";
+import { BILLING_COLUMNS, isBillingComplete, type BillingInfo } from "@/lib/billing";
 
 export async function POST(request: Request) {
   // Amíg a bankkártyás vásárlás nincs élesítve, a végpont is zárva van — nem elég
@@ -36,6 +37,19 @@ export async function POST(request: Request) {
   const pkg = getPackage(packageId);
   if (!pkg) {
     return NextResponse.json({ error: "Ismeretlen csomag." }, { status: 400 });
+  }
+
+  // Elállási jog (ÁSZF 6.): az azonnali jóváíráshoz a fogyasztó kifejezett kérése + tudomásulvétele kell
+  // (a felhasznált kreditekre az elállás megszűnik, a fel nem használtakra 14 napig megmarad).
+  if ((body as { immediateConsent?: unknown })?.immediateConsent !== true) {
+    return NextResponse.json({ error: "A fizetéshez fogadd el az azonnali jóváírást (jelölőnégyzet)." }, { status: 422 });
+  }
+
+  // A számlához kötelező a teljes számlázási adat (a számlát a sikeres fizetés után a Számlázz.hu állítja ki).
+  const { data: billingRow } = await supabase.from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
+  const billing = (billingRow as BillingInfo | null) ?? null;
+  if (!isBillingComplete(billing)) {
+    return NextResponse.json({ error: "A fizetés előtt töltsd ki a számlázási adataidat.", needsBilling: true }, { status: 428 });
   }
 
   // A modul (service) azonosítója a slug alapján.
@@ -72,16 +86,17 @@ export async function POST(request: Request) {
           },
         },
       ],
-      success_url: `${origin}/dashboard?purchase=success`,
+      success_url: `${origin}/dashboard?purchase=success&credits=${pkg.credits}`,
       cancel_url: `${origin}/pricing?purchase=cancel`,
       client_reference_id: user.id,
       // A számlázáshoz és a partner azonosításához.
-      customer_email: user.email ?? undefined,
+      customer_email: billing?.billing_email || user.email || undefined,
       metadata: {
         user_id: user.id,
         service_id: service.id,
         credits: String(pkg.credits),
         package_id: pkg.id,
+        immediate_consent_at: new Date().toISOString(),
       },
     });
 

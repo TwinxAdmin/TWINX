@@ -53,7 +53,7 @@ export default function OfficeTopup() {
               style={{ border: `1.5px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "rgba(239,122,90,0.08)" : "transparent" }}>
               <span className="block font-display text-lg font-semibold">{p.credits} kredit</span>
               <span className="block text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {p.priceHuf.toLocaleString("hu-HU")} Ft + áfa
+                {p.priceHuf.toLocaleString("hu-HU")} Ft
               </span>
             </button>
           );

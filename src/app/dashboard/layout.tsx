@@ -7,6 +7,8 @@ import AccountMenu from "@/components/AccountMenu";
 import MobileNav from "@/components/MobileNav";
 import B2BModal from "@/components/B2BModal";
 import PricingModal from "@/components/PricingModal";
+import PurchaseSuccessNotice from "@/components/PurchaseSuccessNotice";
+import { Suspense } from "react";
 import Wordmark from "@/components/Wordmark";
 import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
@@ -124,6 +126,8 @@ export default async function DashboardLayout({
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
       <PricingModal />
+      {/* bankkártyás fizetés utáni visszajelzés (?purchase=success) */}
+      <Suspense fallback={null}><PurchaseSuccessNotice /></Suspense>
       {/* Elfogyott irodai keret → „Folytatás saját kreditből?" (minden modulra, egy helyen) */}
       {dock && <OfficeFallbackProvider />}
       <OfficeModals />

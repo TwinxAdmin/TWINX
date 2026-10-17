@@ -226,7 +226,7 @@ export default function CreditRequestList({ items }: { items: CreditRequestRow[]
                   <div className="text-right">
                     <p className="text-lg font-bold" style={{ color: "var(--twx-coral)" }}>{r.amount} kredit</p>
                     {r.net_huf != null && (
-                      <p className="text-xs font-semibold">{formatHuf(r.net_huf)} + áfa</p>
+                      <p className="text-xs font-semibold">{formatHuf(r.net_huf)}</p>
                     )}
                   </div>
                 </div>
