@@ -60,8 +60,9 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
           boxShadow: "0 30px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
         }}
       >
-        {/* Média-terület — fix arány, hogy a váltásnál ne ugráljon a magasság */}
-        <div className="relative aspect-[16/10] w-full sm:aspect-[16/9]">
+        {/* Média-terület — fix arány, hogy a váltásnál ne ugráljon a magasság. MOBILON 4:5 (2026-10-18): a 16:10-es,
+            ~200 px magas sávból az értékbecslés- és a videó-űrlap (300–350 px) fölül-alul kilógott — így a teljes kitöltés látszik. */}
+        <div className="relative aspect-[4/5] w-full sm:aspect-[16/9]">
           {slides.map((s, i) => (
             <div
               key={s.title}
