@@ -8,7 +8,7 @@ import { useFieldMemory, FieldSuggestions } from "@/components/field-memory";
 
 import ValuationEditor from "@/components/valuation/ValuationEditor";
 import ValuationStartModal, { type PagePhotoPick } from "@/components/valuation/ValuationStartModal";
-import type { OnePagerAudit } from "@/lib/valuation-onepager";
+import type { OnePagerAudit, OnePagerOverrides } from "@/lib/valuation-onepager";
 import FolderLibrary, {
   type LibraryFolder,
   type LibraryItem,
@@ -61,6 +61,9 @@ type HistoryItem = {
   edited_at: string | null;
   valuation_folder_id: string | null;
   valuation_audit?: unknown;
+  /** A partner elfogadott módosításai + az elfogadás ideje (20261018223526_valuation-accept.sql). */
+  valuation_overrides?: unknown;
+  valuation_accepted_at?: string | null;
 };
 
 // A FolderLibrary-nek megfelelő elem (a nyers becslés-adattal együtt).
@@ -79,6 +82,9 @@ type EditorState = {
   facts?: Partial<ValuationInput>;
   /** A motor levezetése — ebből épül az „Miért ennyi az ár?" lista. */
   audit?: OnePagerAudit;
+  /** A partner elfogadott módosításai és az elfogadás ideje (null = piszkozat). */
+  overrides?: OnePagerOverrides | null;
+  acceptedAt?: string | null;
 };
 
 function historyTitle(h: HistoryItem): string {
@@ -233,6 +239,8 @@ export default function ValuationPage() {
               dateLabel: new Date().toLocaleDateString("hu-HU"),
               facts,
               audit: (row?.valuation_audit ?? data.audit ?? null) as OnePagerAudit,
+              overrides: null, // frissen kész becslés: még nincs módosítás, nincs elfogadva
+              acceptedAt: null,
             });
             setEditorOpen(true);
           }
@@ -330,6 +338,8 @@ export default function ValuationPage() {
       dateLabel: new Date(h.created_at).toLocaleDateString("hu-HU"),
       facts: facts as Partial<ValuationInput>,
       audit: (h.valuation_audit ?? null) as OnePagerAudit,
+      overrides: (h.valuation_overrides ?? null) as OnePagerOverrides | null,
+      acceptedAt: h.valuation_accepted_at ?? null,
     });
     setEditorOpen(true);
   }
@@ -432,6 +442,8 @@ export default function ValuationPage() {
           dateLabel: new Date().toLocaleDateString("hu-HU"),
           facts,
           audit: (row?.valuation_audit ?? data.audit ?? null) as OnePagerAudit,
+          overrides: null,
+          acceptedAt: null,
         });
         setEditorOpen(true);
       }
@@ -845,7 +857,7 @@ export default function ValuationPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{result.doc.title}</p>
               <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                {result.doc.subtitle || "Elkészült értékbecslés"} · szerkeszthető
+                {result.doc.subtitle || "Elkészült értékbecslés"} · {result.url ? "elfogadva, szerkeszthető" : "piszkozat — nyisd meg és fogadd el a letöltéshez"}
               </p>
             </div>
             <button type="button" className="twx-btn" onClick={() => setEditorOpen(true)}>
@@ -879,8 +891,7 @@ export default function ValuationPage() {
               <div className="space-y-1.5">
                 <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                   {new Date(v.createdAt).toLocaleString("hu-HU")}
-                  {v.editedAt ? " · szerkesztve" : ""}
-                  {v.url ? "" : " · nincs még PDF"}
+                  {v.url ? (v.editedAt ? " · elfogadva, szerkesztve" : " · elfogadva") : " · piszkozat — elfogadás után tölthető le"}
                 </p>
                 <button
                   type="button"
@@ -947,13 +958,15 @@ export default function ValuationPage() {
               historyId={result.id}
               initialDoc={result.doc}
               initialUrl={result.url}
+              initialOverrides={result.overrides ?? null}
+              initialAcceptedAt={result.acceptedAt ?? null}
               dateLabel={result.dateLabel}
               // Az egyoldalas laphoz az ingatlan adatai + a választott arculat és fotók.
               facts={result.facts ?? values}
               audit={result.audit ?? null}
               onClose={closeEditor}
-              onSaved={(url) => {
-                setResult((prev) => (prev ? { ...prev, url } : prev));
+              onSaved={(url, overrides) => {
+                setResult((prev) => (prev ? { ...prev, url, overrides, acceptedAt: new Date().toISOString() } : prev));
                 loadHistory();
               }}
             />

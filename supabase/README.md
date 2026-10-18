@@ -126,6 +126,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261016084305_floorplan-shares.sql` | 3D-alaprajz modul: megosztható bejárás-link (token, lejárat, visszavonás, megnyitásszám) |
 | `20261017115051_card-invoicing.sql` | Bankkártyás kreditvásárlás: automatikus számla (Számla Agent) állapota a vásárlási naplóban, zárolás a dupla számla ellen |
 | `20261017160355_office-card-topup.sql` | Irodai egyenleg feltöltése bankkártyával: `office_id` a vásárlásokon, jóváírás az iroda egyenlegére + irodai napló |
+| `20261018223526_valuation-accept.sql` | Értékbecslés szerkesztése és elfogadása: `valuation_overrides`, `valuation_accepted_at` / `_by` a használati naplóban; a régi, PDF-es becslések elfogadottnak számítanak |
 
 ## Egyszeri szkriptek (`one-off/`)
 

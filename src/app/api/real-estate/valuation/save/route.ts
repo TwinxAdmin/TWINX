@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canEditWork, LOCK_TTL_MS } from "@/lib/office-folders";
+import { sanitizeOverrides } from "@/lib/valuation-onepager";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  let body: { id?: string; text?: string; pdfBase64?: unknown };
+  // accept: true = a partner elfogadta (véglegesítette) a lapot → a PDF CSAK ilyenkor menthető (2026-10-18);
+  // overrides = a partner módosításai (ár, sáv, cím, alcím, indoklás) — az eredeti szöveg érintetlen marad.
+  let body: { id?: string; text?: string; pdfBase64?: unknown; accept?: unknown; overrides?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -67,6 +70,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ez a bejegyzés nem értékbecslés." }, { status: 400 });
 
   let publicUrl: string | null = row.output_file_url ?? null;
+  const accept = body.accept === true;
+  // Piszkozatból nem készül letölthető PDF: fájlt csak az elfogadással együtt fogadunk el.
+  if (body.pdfBase64 !== undefined && !accept)
+    return NextResponse.json({ error: "A PDF csak az elfogadással együtt menthető." }, { status: 400 });
+  if (accept && body.pdfBase64 === undefined)
+    return NextResponse.json({ error: "Az elfogadáshoz hiányzik a PDF." }, { status: 400 });
 
   if (body.pdfBase64 !== undefined) {
     // A Buffer.from() base64-nél SOHA nem dob (a hibás karaktereket eldobja),
@@ -95,14 +104,17 @@ export async function POST(request: Request) {
     // A korábbi PDF-et szándékosan megtartjuk (módosítási napló → visszaállítható).
   }
 
-  const { error: updErr } = await admin
-    .from("usage_history")
-    .update({
-      output_text: text,
-      output_file_url: publicUrl,
-      edited_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  const now = new Date().toISOString();
+  const baseUpdate = { output_text: text, output_file_url: publicUrl, edited_at: now };
+  const acceptUpdate = accept
+    ? { valuation_overrides: sanitizeOverrides(body.overrides), valuation_accepted_at: now, valuation_accepted_by: user.id }
+    : {};
+  let { error: updErr } = await admin.from("usage_history").update({ ...baseUpdate, ...acceptUpdate }).eq("id", id);
+  // Tartalékág: ha a 20261018223526_valuation-accept.sql még nem futott le, a PDF (= az elfogadott lap) akkor is mentődjön.
+  if (updErr && accept && (updErr.code === "42703" || updErr.code === "PGRST204")) {
+    console.error("[valuation/save] Hiányzó oszlopok — futtasd: 20261018223526_valuation-accept.sql");
+    ({ error: updErr } = await admin.from("usage_history").update(baseUpdate).eq("id", id));
+  }
 
   if (updErr) return NextResponse.json({ error: `Mentési hiba: ${updErr.message}` }, { status: 500 });
 

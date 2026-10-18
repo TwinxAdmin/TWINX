@@ -13,17 +13,21 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [{ data, error }, { data: folders }] = await Promise.all([
+  const BASE_COLS = "id, input_data, output_text, output_file_url, created_at, edited_at, valuation_folder_id, valuation_audit";
+  const listQuery = (cols: string) =>
     supabase
       .from("usage_history")
-      .select("id, input_data, output_text, output_file_url, created_at, edited_at, valuation_folder_id, valuation_audit")
+      .select(cols)
       .eq("feature_used", "valuation")
       // FONTOS: az RLS az adminnak MINDEN sort átenged, ezért itt is szűrünk a
       // saját felhasználóra — különben az admin más partnerek riportjait látná.
       .eq("user_id", user.id)
       .is("hidden_at", null)            // „törölt" (elrejtett) becslések nem látszanak
       .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(50);
+  const [first, { data: folders }] = await Promise.all([
+    // a partneri módosítások + az elfogadás (20261018223526_valuation-accept.sql) — nélküle a régi oszlopok (tartalékág)
+    listQuery(`${BASE_COLS}, valuation_overrides, valuation_accepted_at`),
     supabase
       .from("valuation_folders")
       .select("id, name")
@@ -31,6 +35,7 @@ export async function GET() {
       .order("name", { ascending: true }),
   ]);
 
+  const { data, error } = first.error ? await listQuery(BASE_COLS) : first;
   if (error) return NextResponse.json({ error: "Az előzmények nem tölthetők be." }, { status: 500 });
 
   return NextResponse.json({ items: data ?? [], folders: folders ?? [] });

@@ -438,3 +438,67 @@ export function buildOnePager(
     dateLabel: String(dateLabel ?? "").trim().replace(/\.+$/, ""),
   };
 }
+
+// ---------------------------------------------------------------------------
+// PARTNERI MÓDOSÍTÁSOK (2026-10-18) — ár, értéksáv, cím, alcím, indoklás.
+// Külön tároljuk (usage_history.valuation_overrides), az eredeti riport és a motor levezetése érintetlen marad.
+// A lap adatai = buildOnePager(eredeti) + applyOverrides(módosítások) — az előnézet és a PDF is ebből készül.
+// ---------------------------------------------------------------------------
+
+export type OnePagerOverrides = {
+  title?: string;
+  subtitle?: string;
+  priceHuf?: number;
+  lowHuf?: number;
+  highHuf?: number;
+  reasons?: string[];
+};
+
+export const OVERRIDE_LIMITS = { titleMax: 80, subtitleMax: 120, reasonMax: 140, reasonsMin: 1, reasonsMax: 8, hufMax: 100_000_000_000 };
+
+/** Bármilyen bemenetből (böngésző, adatbázis) csak az érvényes mezőket tartja meg. */
+export function sanitizeOverrides(raw: unknown): OnePagerOverrides {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const out: OnePagerOverrides = {};
+  const txt = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const num = (v: unknown) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n > 0 && n <= OVERRIDE_LIMITS.hufMax ? n : undefined;
+  };
+  if (typeof o.title === "string" && txt(o.title, OVERRIDE_LIMITS.titleMax)) out.title = txt(o.title, OVERRIDE_LIMITS.titleMax);
+  if (typeof o.subtitle === "string") out.subtitle = txt(o.subtitle, OVERRIDE_LIMITS.subtitleMax);
+  const p = num(o.priceHuf), lo = num(o.lowHuf), hi = num(o.highHuf);
+  if (p) out.priceHuf = p;
+  if (lo && hi && hi > lo) { out.lowHuf = lo; out.highHuf = hi; }
+  if (Array.isArray(o.reasons)) {
+    const r = o.reasons.map((x) => txt(x, OVERRIDE_LIMITS.reasonMax)).filter(Boolean).slice(0, OVERRIDE_LIMITS.reasonsMax);
+    if (r.length >= OVERRIDE_LIMITS.reasonsMin) out.reasons = r;
+  }
+  return out;
+}
+
+/** Üres-e (nincs módosítás)? */
+export function overridesEmpty(o: OnePagerOverrides | null | undefined): boolean {
+  return !o || Object.keys(sanitizeOverrides(o)).length === 0;
+}
+
+/** A módosítások rávetítése a lap adataira. Az nm-ár az új árból és az alapterületből újraszámolódik. */
+export function applyOverrides(data: OnePagerData, o: OnePagerOverrides | null | undefined, input: Partial<ValuationInput>): OnePagerData {
+  if (!o) return data;
+  const next: OnePagerData = { ...data };
+  if (o.title) next.title = o.title;
+  if (o.subtitle !== undefined) next.subtitle = o.subtitle;
+  if (o.priceHuf) {
+    next.priceNum = o.priceHuf;
+    next.price = huf(o.priceHuf);
+    const sizeM2 = Number(String(input.meret ?? "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+    if (sizeM2) next.pricePerM2 = `${Math.round(o.priceHuf / sizeM2).toLocaleString("hu-HU")} Ft/m²`;
+  }
+  if (o.lowHuf && o.highHuf && o.highHuf > o.lowHuf) {
+    next.rangeLow = o.lowHuf;
+    next.rangeHigh = o.highHuf;
+    next.range = `${huf(o.lowHuf)} – ${huf(o.highHuf)}`;
+  }
+  if (o.reasons?.length) next.reasons = o.reasons;
+  return next;
+}
