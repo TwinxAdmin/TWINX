@@ -322,7 +322,7 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
               poster={VIDEO_POSTER}
               muted
               playsInline
-              preload="auto"
+              preload={active ? "auto" : "none"} /* csak akkor töltjük le, amikor a dia sorra kerül (mobil adatforgalom) */
               disablePictureInPicture
               className="absolute inset-0 h-full w-full object-cover"
               style={{ transform: "translateZ(0)", WebkitTransform: "translateZ(0)", willChange: "transform" }}

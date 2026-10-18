@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       eventId: metaEventId,
       contentName: registrationContentName(signupSource),
       email,
+      phone: phoneTrimmed || null,
       userId: data.user.id,
       sourceUrl: request.headers.get("referer"),
     });

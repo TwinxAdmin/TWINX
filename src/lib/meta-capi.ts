@@ -17,10 +17,21 @@ function cookie(request: Request, name: string): string | undefined {
   return m ? decodeURIComponent(m[1]) : undefined;
 }
 
+/** Telefonszám a Meta formátumára: csak számjegyek, országkóddal (06 30 … → 3630…). Üres, ha nem értelmezhető. */
+export function normalizePhone(raw: string | null | undefined): string {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  else if (d.startsWith("06")) d = "36" + d.slice(2);
+  else if (d.length === 9 && /^(20|30|31|50|70)/.test(d)) d = "36" + d; // 30 123 4567 — országkód nélkül
+  return d.length >= 10 && d.length <= 15 ? d : "";
+}
+
 export type RegistrationEvent = {
   eventId: string;
   contentName: string;
   email?: string | null;
+  /** Telefonszám (nem kötelező) — a párosítás minőségét (EMQ) javítja; kódolva megy ki. */
+  phone?: string | null;
   userId?: string | null;
   /** Az oldal, ahol a regisztráció történt (abszolút URL). */
   sourceUrl?: string | null;
@@ -38,6 +49,9 @@ export async function sendRegistrationEvent(request: Request, ev: RegistrationEv
     fbc: cookie(request, "_fbc"),
   };
   if (ev.email) userData.em = [sha256(ev.email)];
+  const ph = normalizePhone(ev.phone);
+  if (ph) userData.ph = [sha256(ph)];
+  userData.country = [sha256("hu")]; // a szolgáltatás magyar — a párosítást segíti
   if (ev.userId) userData.external_id = [sha256(ev.userId)];
   const body: Record<string, unknown> = {
     data: [{

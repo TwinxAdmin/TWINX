@@ -67,14 +67,15 @@ export default function IngatlanLanding() {
           </a>
         </nav>
 
-        <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-16 sm:pt-20 lg:py-24">
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-8 sm:pt-20 lg:py-24">
           {/* Bal oszlop: fix maximális szélesség, hogy a jobb szélre tett
               főcímeknek asztalon biztosan maradjon saját sávja. */}
           <div className="lg:max-w-[540px] xl:max-w-[600px]">
             <p className="font-display text-sm font-semibold uppercase" style={{ color: "var(--twx-coral)", letterSpacing: "0.2em" }}>
               TWINX ingatlanos eszköztár
             </p>
-            <h1 className="mt-4 font-display font-semibold leading-[1.02]" style={{ fontSize: "clamp(2.4rem, 6vw, 4.2rem)", color: "var(--twx-on-dark)" }}>
+            {/* mobilon kisebb: a 38 px-es betűvel az „ingatlanközvetítést" kilógott a képernyő szélén (2026-10-18) */}
+            <h1 className="mt-4 font-display font-semibold leading-[1.02]" style={{ fontSize: "clamp(1.9rem, 8vw, 4.2rem)", color: "var(--twx-on-dark)" }}>
               Turbózd fel az ingatlanközvetítést a TWINX profi eszközeivel!
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>

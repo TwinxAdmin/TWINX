@@ -4,6 +4,8 @@
 // (aki átállít egy kapcsolót, annak a választását); alatta kicsi „Elutasítom” link. Mérés csak a kattintás UTÁN indul.
 // (Jogi megjegyzés: az előre bekapcsolt hozzájárulás az EU-gyakorlat szerint vitatható — lásd a tájékoztató-tervezetet.)
 // A sáv akkor jön fel, ha valamelyik kategóriáról még nincs döntés; a lábléc „Süti-beállítások” linkjével bármikor újranyitható.
+// 2026-10-18: VÉKONY SÁV mobilon és asztalon is (Márk: a nagy kártya sokat kitakart a képből) — egysoros szöveg + kis
+// „Elfogadom"; a kapcsolók csak a „Beállítások" alatt (a láblécből nyitva rögtön azokkal) — alapból bekapcsolva, mint eddig.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,6 +19,7 @@ export default function CookieBanner() {
   const [saved, setSaved] = useState<ConsentState>({ analytics: null, marketing: null });
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  const [details, setDetails] = useState(false); // a kapcsolók csak kérésre látszanak
 
   // Első betöltéskor: ha valamelyik kategóriáról még nem döntött, feljön a kártya.
   useEffect(() => {
@@ -30,7 +33,7 @@ export default function CookieBanner() {
     };
     const s = load();
     if (s.analytics === null || s.marketing === null) setOpen(true);
-    const reopen = () => { load(); setOpen(true); };
+    const reopen = () => { load(); setDetails(true); setOpen(true); }; // a láblécből nyitva: rögtön a kapcsolókkal
     window.addEventListener(OPEN_CONSENT_EVENT, reopen);
     return () => window.removeEventListener(OPEN_CONSENT_EVENT, reopen);
   }, []);
@@ -49,63 +52,56 @@ export default function CookieBanner() {
       role="dialog"
       aria-live="polite"
       aria-label="Süti-beállítások"
-      className="fixed bottom-4 left-4 right-4 z-[60] sm:right-auto sm:w-[380px]"
+      className="fixed bottom-3 left-3 right-3 z-[60] sm:bottom-4 sm:left-4 sm:right-auto sm:w-[340px]"
     >
       <div
-        className="rounded-2xl p-5"
+        className="rounded-xl px-3.5 py-3"
         style={{
           background: "var(--twx-cream-card)",
           border: "1px solid var(--twx-line)",
           color: "var(--twx-ink)",
-          boxShadow: "0 18px 50px rgba(20,14,10,0.28)",
+          boxShadow: "0 10px 30px rgba(20,14,10,0.25)",
         }}
       >
-        <p className="font-display text-base font-semibold">
-          Sütik <span style={{ color: "var(--twx-coral)" }}>·</span> a te döntésed
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
-          Sütikkel mérjük, honnan érkezel (Google, Facebook), hogy jobb hirdetéseket és szolgáltatást adhassunk.
-          Később a lábléc „Süti-beállítások” linkjén módosíthatod.
-        </p>
-
-        <div className="mt-3 flex flex-col gap-2">
-          <Toggle
-            label="Statisztika"
-            hint="Google Analytics — mérjük, mi működik az oldalon."
-            checked={analytics}
-            onChange={setAnalytics}
-          />
-          <Toggle
-            label="Marketing"
-            hint="Meta (Facebook) Pixel — hirdetéseink eredményének mérése."
-            checked={marketing}
-            onChange={setMarketing}
-          />
+        <div className="flex items-center gap-3">
+          <p className="min-w-0 flex-1 text-[12.5px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>
+            <span aria-hidden>🍪 </span>Sütikkel mérjük, honnan érkezel (Google, Facebook).
+          </p>
+          <button
+            type="button"
+            onClick={() => save(analytics, marketing)}
+            className="flex-none rounded-full px-4 py-2 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105 focus:outline-none focus-visible:ring-2"
+            style={{ background: "linear-gradient(160deg,#F49274,#E9693F)" }}
+          >
+            Elfogadom
+          </button>
         </div>
 
-        {decided && (
-          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-            Jelenleg: statisztika <strong>{saved.analytics === "granted" ? "be" : "ki"}</strong>, marketing{" "}
-            <strong>{saved.marketing === "granted" ? "be" : "ki"}</strong>
-          </p>
+        {details && (
+          <div className="mt-2.5 flex flex-col gap-1.5">
+            <Toggle label="Statisztika" hint="Google Analytics — mi működik az oldalon." checked={analytics} onChange={setAnalytics} />
+            <Toggle label="Marketing" hint="Meta (Facebook) Pixel — hirdetéseink mérése." checked={marketing} onChange={setMarketing} />
+            {decided && (
+              <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                Jelenleg: statisztika <strong>{saved.analytics === "granted" ? "be" : "ki"}</strong>, marketing{" "}
+                <strong>{saved.marketing === "granted" ? "be" : "ki"}</strong> · később a lábléc „Süti-beállítások” linkjén módosíthatod
+              </p>
+            )}
+          </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => save(analytics, marketing)}
-          className="mt-4 w-full rounded-full px-4 py-3 text-sm font-semibold text-white transition-[filter] hover:brightness-105 focus:outline-none focus-visible:ring-2"
-          style={{ background: "linear-gradient(160deg,#F49274,#E9693F)", boxShadow: "0 10px 24px rgba(233,105,63,0.35)" }}
-        >
-          Elfogadom
-        </button>
-        <button
-          type="button"
-          onClick={() => save(false, false)}
-          className="mx-auto mt-2 block text-xs underline-offset-2 hover:underline focus:outline-none focus-visible:underline"
-          style={{ color: "var(--twx-ink-muted)" }}
-        >
-          Elutasítom
-        </button>
+        <div className="mt-1.5 flex items-center gap-3 text-[11.5px]" style={{ color: "var(--twx-ink-muted)" }}>
+          {!details && (
+            <button type="button" onClick={() => setDetails(true)}
+              className="underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
+              Beállítások
+            </button>
+          )}
+          <button type="button" onClick={() => save(false, false)}
+            className="underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
+            Elutasítom
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -114,12 +110,12 @@ export default function CookieBanner() {
 function Toggle({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label
-      className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 focus-within:ring-2"
+      className="flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-1.5 focus-within:ring-2"
       style={{ background: "#fff", border: "1px solid var(--twx-line)" }}
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="block text-xs leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{hint}</span>
+        <span className="block text-[13px] font-semibold">{label}</span>
+        <span className="block text-[11px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{hint}</span>
       </span>
       <input
         type="checkbox"
