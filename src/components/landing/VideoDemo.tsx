@@ -247,14 +247,15 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
           {MUSIC.map((m, i) => {
             const sel = i === MUSIC_PICK && musicOn;
             return (
-              <div key={m} className="flex items-center gap-1.5 rounded-md px-2 py-1.5"
+              <div key={m} className="flex items-center justify-center gap-1.5 rounded-md px-1.5 py-1.5 sm:justify-start sm:px-2"
                 style={{
                   background: sel ? "rgba(239,122,90,0.18)" : "rgba(255,255,255,0.06)",
                   border: `1px solid ${sel ? "var(--twx-coral)" : "rgba(255,255,255,0.14)"}`,
                   boxShadow: sel ? "0 0 0 3px rgba(239,122,90,0.22)" : "none",
                   transition: "background .3s, border-color .3s, box-shadow .3s",
                 }}>
-                <Waveform live={sel} />
+                {/* mobilon a hullám-ikon rejtve, hogy a teljes szó kiférjen (különben „Nyu…", „Ener…") */}
+                <span className="hidden sm:inline-flex"><Waveform live={sel} /></span>
                 <span className="truncate text-[9px] font-medium" style={{ color: sel ? "var(--twx-on-dark)" : "var(--twx-on-dark-muted)" }}>{m}</span>
               </div>
             );
