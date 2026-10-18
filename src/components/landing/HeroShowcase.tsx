@@ -75,13 +75,15 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
         </div>
 
         {/* Felirat-sáv a kártya alján */}
-        {/* Nem törik sorba: a szöveg rugalmas és levágódik, a lapozó mindig jobb szélen marad. */}
-        <div className="flex flex-nowrap items-center justify-between gap-4 border-t px-5 py-4" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
+        {/* Asztalon egy sor (a szöveg levágódik, a lapozó jobb szélen); MOBILON két sor: a cím és az alcím teljes
+            szélességben fölül (az alcím max. 2 sor, fix magassággal — lapozáskor nem ugrál), a lapozó alatta középen.
+            2026-10-18: mobilon a cím „Pár adatb…"-ra vágódott. */}
+        <div className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between sm:gap-4" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
           <div className="min-w-0 flex-1">
             <div className="font-display truncate text-base font-semibold sm:text-lg" style={{ color: "var(--twx-on-dark)" }}>
               {cur.title}
             </div>
-            <div className="truncate text-xs" style={{ color: "var(--twx-on-dark-muted)" }} title={cur.note}>{cur.note}</div>
+            <div className="line-clamp-2 min-h-[2rem] text-xs leading-4 sm:line-clamp-none sm:min-h-0 sm:truncate" style={{ color: "var(--twx-on-dark-muted)" }} title={cur.note}>{cur.note}</div>
           </div>
           {/* Lapozó — kiemelve, hogy látsszon: kézzel is válthatsz. A „Lapozz"
               felirat a gombok ALATT, középen. */}
