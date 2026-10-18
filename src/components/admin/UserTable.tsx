@@ -3,6 +3,7 @@
 // kinyílik a funkciónkénti bontás. Mobilon kártyás elrendezés.
 // A Kredit oszlopban egy „+" gombbal HELYBEN lehet kreditet adni bárkinek —
 // nem kell átmenni külön kredit-oldalra és ott újra kikeresni a partnert.
+// 2026-10-18: „Regisztrált" oszlop — első kattintásra a legfrissebb regisztráció felül, újabb kattintásra a legrégebbi.
 "use client";
 
 import { useMemo, useState } from "react";
@@ -11,9 +12,16 @@ import { showToast } from "@/components/Toast";
 import type { UserMetric } from "@/lib/metrics";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
 
-type SortKey = "name" | "balance" | "uses" | "cost" | "revenue";
+type SortKey = "name" | "created" | "balance" | "uses" | "cost" | "revenue";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
+
+/** Regisztráció dátuma röviden (pl. 2026. 10. 18. 14:05). */
+function regDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("hu-HU", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+const regTime = (u: UserMetric) => (u.createdAt ? Date.parse(u.createdAt) : 0);
 
 function huf(n: number): string {
   return `${Math.round(n).toLocaleString("hu-HU")} Ft`;
@@ -24,6 +32,13 @@ export default function UserTable({
 }: { users: UserMetric[]; hufPerUsd: number }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
+  const [newestFirst, setNewestFirst] = useState(true); // csak a „Regisztrált" oszlopnál fordítható
+
+  /** Fejlécre kattintás: a „Regisztrált" oszlopon ismételt kattintás megfordítja az irányt. */
+  function pickSort(k: SortKey) {
+    if (k === "created" && sort === "created") setNewestFirst((v) => !v);
+    else { if (k === "created") setNewestFirst(true); setSort(k); }
+  }
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Kredit-adás: melyik partnernek nyílt ki az ablak.
@@ -94,6 +109,8 @@ export default function UserTable({
     const sorted = [...filtered];
     if (sort === "name") {
       sorted.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, "hu", { sensitivity: "base" }));
+    } else if (sort === "created") {
+      sorted.sort((a, b) => (newestFirst ? regTime(b) - regTime(a) : regTime(a) - regTime(b)));
     } else if (sort === "balance") {
       sorted.sort((a, b) => b.balance - a.balance);
     } else if (sort === "uses") {
@@ -104,7 +121,7 @@ export default function UserTable({
       sorted.sort((a, b) => b.revenueHuf - a.revenueHuf);
     }
     return sorted;
-  }, [users, query, sort]);
+  }, [users, query, sort, newestFirst]);
 
   const totals = useMemo(
     () => ({
@@ -120,10 +137,11 @@ export default function UserTable({
   const Th = ({ k, label, right }: { k: SortKey; label: string; right?: boolean }) => (
     <th className={`pb-2 text-[11px] font-bold uppercase tracking-wide ${right ? "text-right" : "text-left"}`}
       style={{ color: "var(--twx-ink-muted)" }}>
-      <button type="button" onClick={() => setSort(k)}
+      <button type="button" onClick={() => pickSort(k)}
         className="transition hover:opacity-70"
+        title={k === "created" ? (sort === "created" && newestFirst ? "Kattints: a legrégebbi felül" : "Kattints: a legfrissebb felül") : undefined}
         style={{ color: sort === k ? "var(--twx-coral)" : "inherit" }}>
-        {label}{sort === k ? " ↓" : ""}
+        {label}{sort === k ? (k === "created" && !newestFirst ? " ↑" : " ↓") : ""}
       </button>
     </th>
   );
@@ -138,6 +156,11 @@ export default function UserTable({
           placeholder="Keresés név, cég vagy e-mail alapján…"
           className="twx-input w-full text-sm sm:max-w-sm"
         />
+        <button type="button" onClick={() => pickSort("created")}
+          className="rounded-full px-3 py-1.5 text-xs font-semibold sm:hidden"
+          style={sort === "created" ? { background: "var(--twx-coral-soft)", color: "#7a2e17" } : { border: "1px solid var(--twx-line)" }}>
+          Regisztráció {sort === "created" ? (newestFirst ? "↓ legfrissebb" : "↑ legrégebbi") : "szerint"}
+        </button>
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           {rows.length} felhasználó{query ? ` (${users.length}-ből)` : ""}
         </p>
@@ -145,13 +168,14 @@ export default function UserTable({
 
       {/* Asztali nézet: táblázat */}
       <div className="twx-card hidden overflow-x-auto p-4 sm:block">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--twx-line)" }}>
               <Th k="name" label="Név / cég / e-mail" />
               <th className="pb-2 text-left text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                 Szerep
               </th>
+              <Th k="created" label="Regisztrált" />
               <Th k="balance" label="Egyenleg" right />
               <Th k="uses" label="Generálás" right />
               <Th k="cost" label="Költség" right />
@@ -187,6 +211,7 @@ export default function UserTable({
                   )}
                 </td>
                 <td className="py-2.5 pr-3"><RolePicker u={u} /></td>
+                <td className="whitespace-nowrap py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{regDate(u.createdAt)}</td>
                 {/* AKTUÁLIS kredit-egyenleg — a 0 kiemelve, mert az blokkolja a partnert. */}
                 <td className="py-2.5 text-right font-bold"
                   style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>
@@ -205,7 +230,7 @@ export default function UserTable({
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={7} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              <tr><td colSpan={8} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Nincs találat.
               </td></tr>
             )}
@@ -213,7 +238,7 @@ export default function UserTable({
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td className="pt-3 text-xs font-semibold" colSpan={2}>Összesen</td>
+                <td className="pt-3 text-xs font-semibold" colSpan={3}>Összesen</td>
                 <td className="pt-3 text-right text-xs font-semibold">{totals.balance}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{totals.uses}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
@@ -232,6 +257,7 @@ export default function UserTable({
             <p className="font-semibold">{u.name || "(nincs név megadva)"}</p>
             {u.company && <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>}
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
+            <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Regisztrált: {regDate(u.createdAt)}</p>
             <div className="mt-2"><RolePicker u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
               <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
@@ -255,7 +281,8 @@ export default function UserTable({
       </div>
 
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-        Egy sorra kattintva megjelenik a funkciónkénti bontás. Az oszlopfejlécek kattintással rendezik a listát.
+        Egy sorra kattintva megjelenik a funkciónkénti bontás. Az oszlopfejlécek kattintással rendezik a listát
+        (a „Regisztrált” fejlécre újra kattintva a legrégebbi kerül felülre).
         A Kredit oszlop „+” gombjával kreditet írhatsz jóvá.
       </p>
 
