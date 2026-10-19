@@ -161,7 +161,32 @@ export default function VideoWizard({
       showToast((e as Error).message || "Nem sikerült menteni a kedvencet.", "error");
     }
   }
-  const visibleFamilies = favOnly ? ENGINE_FAMILIES.filter((f) => favorites.has(f.templateId)) : ENGINE_FAMILIES;
+  // SABLONOK ELÉRHETŐSÉGE (Admin → Videólabor pipa): a rejtett sablon a partnernél nem látszik; a valódi admin
+  // (és a labor) „Rejtett" jelöléssel látja és tesztelheti. A szerver az indításnál is ellenőriz (kredit előtt).
+  const [tplHidden, setTplHidden] = useState<string[]>([]);
+  const [showHidden, setShowHidden] = useState<boolean>(Boolean(lab));
+  useEffect(() => {
+    if (!engine) return;
+    let alive = true;
+    fetch("/api/real-estate/video/templates", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { hidden: [], showHidden: false }))
+      .then((d: { hidden?: string[]; showHidden?: boolean }) => {
+        if (!alive) return;
+        setTplHidden(d.hidden ?? []);
+        setShowHidden(Boolean(lab) || Boolean(d.showHidden));
+      })
+      .catch(() => { /* lista nélkül: a szerver úgyis ellenőriz indításkor */ });
+    return () => { alive = false; };
+  }, [engine, lab]);
+  const availableFamilies = showHidden ? ENGINE_FAMILIES : ENGINE_FAMILIES.filter((f) => !tplHidden.includes(f.templateId));
+  // Ha a kijelölt sablon rejtett lett, az első elérhetőre váltunk.
+  useEffect(() => {
+    if (showHidden || !engineFamily || !tplHidden.includes(engineFamily.templateId)) return;
+    const first = availableFamilies[0]?.colors[0]?.id;
+    if (first) pickEngine(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tplHidden, showHidden]);
+  const visibleFamilies = favOnly ? availableFamilies.filter((f) => favorites.has(f.templateId)) : availableFamilies;
   // A sablonlista magassága az „Összes sablon” nézetben — a Kedvencekre váltva is ennyi marad,
   // így a szerkesztő ablaka nem ugrik össze, ha kevés (vagy nincs) kedvenc.
   const listRef = useRef<HTMLDivElement>(null);
@@ -488,6 +513,7 @@ export default function VideoWizard({
                           <EngineFamilyCard key={f.templateId} family={f} colorId={colorId}
                             on={engineFamily?.templateId === f.templateId} photo={design.previewPhoto}
                             favorite={favorites.has(f.templateId)} onToggleFavorite={() => toggleFavorite(f.templateId)}
+                            hidden={tplHidden.includes(f.templateId)}
                             onPick={(id) => { setFamilyColor((m) => ({ ...m, [f.templateId]: id })); pickEngine(id); }} />
                         );
                       })}
@@ -1063,8 +1089,10 @@ function Combo({ label, value, onChange, options, placeholder }: {
  * kör alakú színválasztó gombok. Színváltáskor az előnézet azonnal átszíneződik.
  *   Aurora-család: sötét ferde panel · Skandi-család: krém „háztető" panel alul.
  */
-function EngineFamilyCard({ family, colorId, on, photo, onPick, favorite, onToggleFavorite }: {
+function EngineFamilyCard({ family, colorId, on, photo, onPick, favorite, onToggleFavorite, hidden }: {
   family: EngineFamily; colorId: string; on: boolean; photo?: string; onPick: (id: string) => void;
+  /** Rejtett sablon (csak az admin látja) — „Rejtett" jelölés a név mellett. */
+  hidden?: boolean;
   /** Kedvenc-e (csillag a bal felső sarokban); onToggleFavorite nélkül nincs csillag. */
   favorite?: boolean; onToggleFavorite?: () => void;
 }) {
@@ -1096,7 +1124,15 @@ function EngineFamilyCard({ family, colorId, on, photo, onPick, favorite, onTogg
       </button>
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
         <button type="button" onClick={() => onPick(color.id)} className="min-w-0 text-left">
-          <p className="text-sm font-semibold leading-tight" style={{ color: "var(--twx-ink)" }}>{family.name}</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold leading-tight" style={{ color: "var(--twx-ink)" }}>
+            {family.name}
+            {hidden && (
+              <span className="rounded-full px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide" style={{ background: "#fdecea", color: "#a1302a" }}
+                title="Rejtett sablon — a partnerek nem látják. Adminként tesztelheted; az Admin → Videólaborban kapcsolható vissza.">
+                Rejtett
+              </span>
+            )}
+          </p>
           <p className="mt-0.5 text-[11px] leading-snug" title={family.tagline} style={{ color: "var(--twx-ink-muted)" }}>{family.tagline}</p>
         </button>
         {/* FIX elrendezés: a színgombok mindig EGYMÁS ALATT, teljes szélességben — így a

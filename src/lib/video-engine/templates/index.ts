@@ -76,6 +76,14 @@ export function engineFamilies(): EngineFamily[] {
   }));
 }
 
+/** Melyik sablon-családhoz tartozik egy sablon / színváltozat azonosítója (ismeretlen → aurora, mint a feloldásnál).
+ *  A ki-be kapcsolás (Admin → Videólabor) családonként érvényes: a színváltozatok a családdal együtt rejtődnek. */
+export function engineFamilyOf(id: string): string {
+  if (ENGINE_TEMPLATES.some((t) => t.id === id)) return id;
+  const v = ENGINE_VARIANTS.find((x) => x.id === id);
+  return v && ENGINE_TEMPLATES.some((t) => t.id === v.templateId) ? v.templateId : "aurora";
+}
+
 /** Sablon (és ha kell, színváltozat) azonosító alapján; ismeretlen → Aurora. */
 export function resolveEngineTemplate(id: string): TwinxTemplate {
   const base = ENGINE_TEMPLATES.find((t) => t.id === id);

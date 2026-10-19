@@ -10,6 +10,7 @@
 import { toDownloadUrl } from "@/lib/files";
 import { useEffect, useState } from "react";
 import VideoWizard from "@/components/video/VideoWizard";
+import { showToast } from "@/components/Toast";
 import type { BrandingProfile } from "@/lib/branding";
 
 type Result = {
@@ -36,6 +37,7 @@ export default function VideoLab({ profiles }: { profiles: BrandingProfile[] }) 
   return (
     <div className="space-y-5">
       <EngineSwitch />
+      <TemplateAvailability />
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5" style={card}>
         <div>
@@ -234,6 +236,123 @@ function EngineSwitch() {
           addig {info.source === "env" ? "a VIDEO_RENDERER beállítás" : "az alapértelmezés (saját motor)"} dönt.
         </p>
       )}
+      {error && <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "#fdecea", color: "#a1302a" }}>{error}</p>}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SABLONOK ELÉRHETŐSÉGE — „Elérhető mindenkinek" pipa sablononként (2026-10-20).
+// Pipa nélkül a sablon NEM törlődik: a partnereknél nem jelenik meg és nem indítható (szerveroldalon is tiltva),
+// az admin viszont látja „Rejtett" jelöléssel és tesztelheti a fenti szerkesztővel. Mentés gomb nincs — azonnal
+// érvényes; a változás naplózva (ki, mikor). Telefonon is: nagy, könnyen eltalálható pipák.
+// ---------------------------------------------------------------------------
+type TemplateRow = { templateId: string; name: string; tagline: string; colors: string[]; enabled: boolean; updatedAt: string | null; updatedBy: string | null };
+type LogRow = { templateId: string; name: string; enabled: boolean; at: string; by: string | null };
+type AvailabilityInfo = { migrated: boolean; migration: string; templates: TemplateRow[]; log: LogRow[] };
+
+const when = (iso: string) => new Date(iso).toLocaleString("hu-HU", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function TemplateAvailability() {
+  const [info, setInfo] = useState<AvailabilityInfo | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/video-templates", { cache: "no-store" })
+      .then((r) => r.json().then((d) => (r.ok ? setInfo(d as AvailabilityInfo) : setError(d.error))))
+      .catch(() => setError("A sablonok állapota nem olvasható."));
+  }, []);
+
+  async function toggle(t: TemplateRow) {
+    if (!info?.migrated || busy) return;
+    const enabled = !t.enabled;
+    setBusy(t.templateId); setError(null);
+    // Azonnali visszajelzés a felületen; hiba esetén visszaáll.
+    setInfo((cur) => cur && { ...cur, templates: cur.templates.map((x) => (x.templateId === t.templateId ? { ...x, enabled } : x)) });
+    try {
+      const r = await fetch("/api/admin/video-templates", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: t.templateId, enabled }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "A módosítás nem sikerült.");
+      setInfo(d as AvailabilityInfo);
+      showToast(`${t.name}: ${enabled ? "Elérhető" : "Elrejtve"}`, "success");
+    } catch (e) {
+      setInfo((cur) => cur && { ...cur, templates: cur.templates.map((x) => (x.templateId === t.templateId ? { ...x, enabled: t.enabled } : x)) });
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl p-5" style={card}>
+      <div>
+        <h2 className="text-base font-semibold">Sablonok elérhetősége</h2>
+        <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+          Pipa = <strong>elérhető mindenkinek</strong>. Pipa nélkül a sablon rejtett: a partnerek nem látják és nem indíthatnak vele videót,
+          de semmi nem törlődik, és te továbbra is tesztelheted a fenti szerkesztőben. Azonnal érvényes, a már futó videókat nem érinti.
+        </p>
+      </div>
+
+      {!info && !error && <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
+
+      {info && (
+        <ul className="overflow-hidden rounded-xl" style={{ border: "1px solid var(--twx-line)" }}>
+          {info.templates.map((t, i) => (
+            <li key={t.templateId} style={i ? { borderTop: "1px solid var(--twx-line)" } : undefined}>
+              <label className={`flex min-h-[64px] items-center gap-4 px-4 py-3 ${info.migrated ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
+                style={{ background: t.enabled ? "#fff" : "#faf6f0" }}
+                title={info.migrated ? undefined : `Futtasd le a ${info.migration} migrációt`}>
+                <input type="checkbox" checked={t.enabled} disabled={!info.migrated || busy !== null}
+                  onChange={() => void toggle(t)}
+                  aria-label={`${t.name} — elérhető mindenkinek`}
+                  className="h-7 w-7 flex-none cursor-pointer disabled:cursor-not-allowed" style={{ accentColor: "#2e7d52" }} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold">{t.name}</span>
+                    {t.enabled ? (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#eef7f1", color: "#2e7d52" }}>Elérhető</span>
+                    ) : (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#fdecea", color: "#a1302a" }}>Rejtett</span>
+                    )}
+                    {busy === t.templateId && <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Mentés…</span>}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                    {t.colors.join(" · ") || t.tagline}
+                  </span>
+                  {t.updatedAt && (
+                    <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      Utoljára: {when(t.updatedAt)}{t.updatedBy ? ` · ${t.updatedBy}` : ""}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {info && !info.migrated && (
+        <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "#fdf3e2", color: "#8a5a12" }}>
+          A kapcsoló még nincs az adatbázisban — futtasd a <code>{info.migration}</code>-t a Supabase SQL Editorban. Addig minden sablon elérhető.
+        </p>
+      )}
+
+      {info && info.log.length > 0 && (
+        <details className="rounded-xl px-4 py-2 text-xs" style={{ border: "1px solid var(--twx-line)" }}>
+          <summary className="cursor-pointer py-1 font-semibold">Napló — ki és mikor kapcsolta</summary>
+          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pb-1">
+            {info.log.map((l, i) => (
+              <li key={`${l.at}-${i}`} style={{ color: "var(--twx-ink-muted)" }}>
+                {when(l.at)} — <strong style={{ color: "var(--twx-ink)" }}>{l.name}</strong> {l.enabled ? "bekapcsolva" : "elrejtve"}{l.by ? ` (${l.by})` : ""}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       {error && <p className="rounded-lg px-3 py-2 text-xs" style={{ background: "#fdecea", color: "#a1302a" }}>{error}</p>}
     </section>
   );

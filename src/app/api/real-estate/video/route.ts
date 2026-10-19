@@ -18,6 +18,8 @@ import type { AspectId } from "@/lib/video-engine/template-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit, refundCredit, payFromRequest, type PayFrom } from "@/lib/credits";
+import { resolveViewContext } from "@/lib/view-as";
+import { isTemplateStartable, TEMPLATE_UNAVAILABLE_MESSAGE } from "@/lib/video-template-availability";
 import { insufficientResponse } from "@/lib/credit-response";
 import {
   CARD_OPEN_SECONDS, CARD_CLOSE_SECONDS, PHOTO_SECONDS, AI_CLIP_SECONDS,
@@ -468,6 +470,17 @@ export async function POST(request: Request) {
 const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 
 async function postWithEngine(form: FormData, userId: string, payFrom: PayFrom) {
+  // 0) A sablon elérhető-e (Admin → Videólabor „Elérhető mindenkinek"). Kredit ELŐTT — rejtett sablonnal nem indul
+  //    videó és nem vonódik kredit akkor sem, ha a partnernél még a régi oldal van nyitva. Az admin tesztelheti.
+  {
+    const engineTemplateId = String(form.get("engineTemplate") ?? "").trim().slice(0, 40)
+      || (String(form.get("colorVariant") ?? "") === "ejkek" ? "nocturne" : "aurora");
+    const { data: me } = await createAdminClient().from("profiles").select("role").eq("id", userId).single();
+    const view = await resolveViewContext(me?.role as string | undefined);
+    if (!(await isTemplateStartable(engineTemplateId, view.role))) {
+      return NextResponse.json({ error: TEMPLATE_UNAVAILABLE_MESSAGE, code: "template_unavailable" }, { status: 409 });
+    }
+  }
   // 1) Validáció (kredit előtt) — ugyanazok a mezők, mint a Videólaborban.
   const aspect: AspectId = String(form.get("aspect") ?? "") === "1:1" ? "1:1" : "9:16";
   const format = getFormat(aspect);
