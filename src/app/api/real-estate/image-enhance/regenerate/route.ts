@@ -6,13 +6,14 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { generateImage } from "@/lib/nanobanana";
+import { generateVerified, type VerifiedResult } from "@/lib/image-enhance-server";
+import { STRUCTURE_LOCK } from "@/lib/image-enhance";
 import { buildEnhancePromptActive } from "@/lib/prompts";
-import { logCost, googleImageCostUsd } from "@/lib/costs";
+import { logCost, enhanceCostUsd } from "@/lib/costs";
 import { isEnhanceMode } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120; // generálás + automatikus ellenőrzés (+ eltérésnél újrapróba)
 
 const BUCKET = "reports";
 const SERVICE_SLUG = "real-estate";
@@ -43,8 +44,15 @@ export async function POST(request: Request) {
     if (!srcRes.ok) throw new Error("A forráskép nem érhető el.");
     const srcBytes = new Uint8Array(await srcRes.arrayBuffer());
     const srcMime = srcRes.headers.get("content-type") ?? "image/jpeg";
+    const source = { bytes: srcBytes, mimeType: srcMime };
+    // Az automatikus ellenőrzés MINDIG az eredeti fotóhoz mér (utójavításnál is).
+    let verifyAgainst: { bytes: Uint8Array; mimeType: string } | undefined;
+    if (useRejectedAsSource) {
+      const o = await fetch(original);
+      if (o.ok) verifyAgainst = { bytes: new Uint8Array(await o.arrayBuffer()), mimeType: o.headers.get("content-type") ?? "image/jpeg" };
+    }
 
-    let result: { bytes: Buffer; mimeType: string };
+    let result: VerifiedResult;
     if (mode === "feljavitas") {
       // Ugyanaz a motor és prompt, mint az első körben — az eredeti képről újra.
       // A partner indoklása külön hangsúlyt kap: leggyakrabban az a panasz, hogy
@@ -53,10 +61,10 @@ export async function POST(request: Request) {
       const extra = reason
         ? `\n\nIMPORTANT — the previous attempt was rejected by the user for this reason: "${reason}". Address it directly, while still keeping the room, its contents and the framing completely unchanged.`
         : "";
-      result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt: base + extra });
+      result = await generateVerified({ source, prompt: base + extra, mode, verifyAgainst });
     } else if (useRejectedAsSource) {
       // Célzott JAVÍTÁS a már rendberakott képen: csak a felsorolt tárgyakat kell eltüntetni.
-      const prompt = `You are a professional real-estate photo retoucher. This photo has ALREADY been decluttered, but a few items were missed. Your ONLY job is a small, surgical touch-up.
+      const prompt = `${STRUCTURE_LOCK}You are a professional real-estate photo retoucher. This photo has ALREADY been decluttered, but a few items were missed. Your ONLY job is a small, surgical touch-up.
 
 ${reason
   ? `REMOVE EXACTLY these leftover items the user listed (and nothing else):\n"${reason}"`
@@ -68,13 +76,13 @@ How to do it:
 - Do NOT re-render or restyle the whole image, do NOT add, invent or hallucinate any new object, furniture, plant or decoration.
 
 Output exactly one photorealistic image — the same photo with only those leftover items removed. Return only the image.`;
-      result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt });
+      result = await generateVerified({ source, prompt, mode, verifyAgainst });
     } else {
       const base = await buildEnhancePromptActive("rendrakas");
       const extra = reason
         ? `\n\nIMPORTANT — the previous attempt was rejected by the user for this reason: "${reason}". Make sure these items are removed, and never invent, add or hallucinate any object that is not present in the input photo.`
         : "\n\nIMPORTANT: never invent, add or hallucinate any object, furniture or decoration that is not present in the input photo.";
-      result = await generateImage({ source: { bytes: srcBytes, mimeType: srcMime }, prompt: base + extra });
+      result = await generateVerified({ source, prompt: base + extra, mode, verifyAgainst });
     }
 
     const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
@@ -102,11 +110,11 @@ Output exactly one photorealistic image — the same photo with only those lefto
         feature: FEATURE,
         serviceName: "google-studio",
         units: 1,
-        estimatedCostUsd: googleImageCostUsd(1),
+        estimatedCostUsd: enhanceCostUsd(result.generations, result.verifications),
       });
     }
 
-    return NextResponse.json({ ok: true, item: { original, enhanced } });
+    return NextResponse.json({ ok: true, item: { original, enhanced, check: result.check } });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

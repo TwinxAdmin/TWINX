@@ -20,7 +20,8 @@ import {
 } from "@/lib/image-enhance";
 
 type Pick = { file: File; url: string };
-type Item = { original: string; enhanced: string };
+// check: a szerveroldali automatikus ellenőrzés eredménye (2026-10-19) — „warning" esetén figyelmeztetünk.
+type Item = { original: string; enhanced: string; check?: "ok" | "fixed" | "warning" | "skipped" };
 type Job = { id: string; mode: string; items: Item[]; created_at: string };
 type Fav = { id?: string; original: string | null; enhanced: string; mode?: string | null };
 
@@ -710,6 +711,7 @@ export default function ImageEnhancePage() {
                     keyboard={!lightbox}
                     badge={producedMode ? <WorkChips kinds={[producedMode as WorkKind]} light /> : null}
                   />
+                  <CheckWarning item={results[resultIdx]} />
 
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                     Kattints egy bélyegképre a nagy nézethez — letöltés és kedvenc ott érhető el.
@@ -783,6 +785,7 @@ export default function ImageEnhancePage() {
                 keyboard={!lightbox}
                 badge={producedMode ? <WorkChips kinds={[producedMode as WorkKind]} light /> : null}
               />
+              <CheckWarning item={pending[reviewIdx]} />
 
               {/* Bélyegképek */}
               {pending.length > 1 && (
@@ -932,5 +935,16 @@ function StarIcon({ filled, light }: { filled?: boolean; light?: boolean }) {
       fill={filled ? color : "none"} stroke={color} aria-hidden>
       <path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 18.3 6.2 21.4l1.1-6.5L2.6 10l6.5-.9L12 3Z" />
     </svg>
+  );
+}
+
+function CheckWarning({ item }: { item?: Item }) {
+  if (item?.check !== "warning") return null;
+  return (
+    <div className="mt-3 rounded-xl p-3 text-sm" style={{ background: "#fff8ec", border: "1px solid #f0c96b", color: "#7a5a12" }}>
+      <b>Nézd át alaposan ezt a képet.</b> Az automatikus ellenőrzés eltérést talált az eredetihez képest (pl. új tárgy
+      vagy megváltozott részlet), és az újrapróba sem volt hibátlan. Hirdetésben csak akkor használd, ha minden a
+      valóságnak megfelelő — különben generáld újra, vagy maradj az eredeti fotónál.
+    </div>
   );
 }

@@ -18,7 +18,12 @@ export async function POST(request: Request) {
 
   const raw = Array.isArray(body?.items) ? body.items : [];
   const items = raw
-    .map((i: { original?: unknown; enhanced?: unknown }) => ({ original: String(i?.original ?? ""), enhanced: String(i?.enhanced ?? "") }))
+    // check: az automatikus ellenőrzés jelölése (ok / fixed / warning / skipped) — csak ismert értéket mentünk.
+    .map((i: { original?: unknown; enhanced?: unknown; check?: unknown }) => ({
+      original: String(i?.original ?? ""),
+      enhanced: String(i?.enhanced ?? ""),
+      ...(["ok", "fixed", "warning", "skipped"].includes(String(i?.check)) ? { check: String(i.check) } : {}),
+    }))
     .filter((i: { original: string; enhanced: string }) => i.enhanced);
   if (!items.length) return NextResponse.json({ error: "Nincs elfogadható kép." }, { status: 422 });
 

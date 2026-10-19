@@ -12,15 +12,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
-import { generateImage } from "@/lib/nanobanana";
-import { logCost, googleImageCostUsd } from "@/lib/costs";
+import { generateVerified } from "@/lib/image-enhance-server";
+import { logCost, enhanceCostUsd } from "@/lib/costs";
 import { buildEnhancePromptActive } from "@/lib/prompts";
 import {
   isEnhanceMode, validateImageFiles, enhanceModeLabel, EXTREME_DECLUTTER_SUFFIX, ENHANCE_MAX_IMAGES,
 } from "@/lib/image-enhance";
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // több kép egymás után
+export const maxDuration = 120; // képenként generálás + automatikus ellenőrzés (+ eltérésnél újrapróba és újraellenőrzés)
 
 const SERVICE_SLUG = "real-estate";
 const FEATURE = "image_enhance";
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     const prompt = mode === "rendrakas" && extreme ? basePrompt + EXTREME_DECLUTTER_SUFFIX : basePrompt;
 
     // Párhuzamos feldolgozás — a képek ne fussanak a 60 mp-es limitbe egymás után.
-    const items = await Promise.all(files.map(async (file) => {
+    const runs = await Promise.all(files.map(async (file) => {
       const inputBytes = new Uint8Array(await file.arrayBuffer());
       const mime = file.type || "image/jpeg";
 
@@ -103,8 +103,9 @@ export async function POST(request: Request) {
       if (origErr) throw new Error(`Storage feltöltés hiba: ${origErr.message}`);
       const original = admin.storage.from(BUCKET).getPublicUrl(origPath).data.publicUrl;
 
-      // EGYETLEN lépés: a feltöltött kép megy be, a mód promptjával.
-      const result = await generateImage({ source: { bytes: inputBytes, mimeType: mime }, prompt });
+      // A feltöltött kép megy be, a mód promptjával — utána AUTOMATIKUS ELLENŐRZÉS (új tárgy / tér / ablak?),
+      // eltérésnél egy automatikus újrapróba (lásd image-enhance-server.ts).
+      const result = await generateVerified({ source: { bytes: inputBytes, mimeType: mime }, prompt, mode });
 
       const ext = result.mimeType.includes("jpeg") ? "jpg" : "png";
       const filePath = `image-enhance/${user.id}/${randomUUID()}.${ext}`;
@@ -113,8 +114,9 @@ export async function POST(request: Request) {
       if (upErr) throw new Error(`Storage feltöltés hiba: ${upErr.message}`);
       const enhanced = admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
 
-      return { original, enhanced };
+      return { item: { original, enhanced, check: result.check }, generations: result.generations, verifications: result.verifications };
     }));
+    const items = runs.map((r) => r.item);
 
     // Job mentése (dátum-mappák + before/after) — halasztott módban csak jóváhagyás után.
     let job = null;
@@ -142,8 +144,11 @@ export async function POST(request: Request) {
       feature: FEATURE,
       serviceName: "google-studio",
       units: files.length,
-      // Mindkét mód egy Nano Banana hívás képenként — nincs más API a láncban.
-      estimatedCostUsd: googleImageCostUsd(files.length),
+      // Képenként 1 Nano Banana hívás + 1 ellenőrzés; eltérésnél +1 generálás és +1 ellenőrzés.
+      estimatedCostUsd: enhanceCostUsd(
+        runs.reduce((n, r) => n + r.generations, 0),
+        runs.reduce((n, r) => n + r.verifications, 0),
+      ),
     });
 
     return NextResponse.json({ ok: true, job, items, charged: !charge.bypassed });

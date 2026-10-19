@@ -14,6 +14,7 @@ export const COST_USD = {
     "sonar-deep-research": 0.5,
   } as Record<string, number>,
   googleImagePerImage: 0.04, // Google Studio / Nano Banana, per kép
+  googleVisionCheck: 0.004, // képjavító automatikus ellenőrzése (Gemini Flash, 2 kép → rövid JSON), per ellenőrzés
   lumaPerClip: 0.3, // Luma Image-to-Video, per snitt (6.6)
   falI2vPerSecond: 0.056, // fal.ai Kling 1.6 standard image-to-video, per másodperc
   shotstackPerRender: 0.2, // Shotstack render (6.6)
@@ -25,6 +26,11 @@ export function perplexityCostUsd(model: string): number {
 
 export function googleImageCostUsd(images: number): number {
   return images * COST_USD.googleImagePerImage;
+}
+
+/** Képjavító: a generálások és az automatikus ellenőrzések együttes becsült költsége. */
+export function enhanceCostUsd(generations: number, verifications: number): number {
+  return generations * COST_USD.googleImagePerImage + verifications * COST_USD.googleVisionCheck;
 }
 
 export function lumaCostUsd(clips: number): number {

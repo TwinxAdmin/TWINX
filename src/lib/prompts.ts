@@ -152,7 +152,8 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     // ÚJ KULCS (_v2): a Feljavítás átállt fal.ai-ról Nano Bananára, és a régi
     // kulcson lehet mentett, AKTÍV verzió a fal.ai rövid kulcsszavas promptjával.
     // Az felülírná az új utasítást — a kulcs cseréjével ez kizárt.
-    key: "image_enhance_feljavitas_v2",
+    // _v3 (2026-10-19): szerkezeti zár (nincs új tér / ablak / ajtó) — az esetleg mentett _v2 admin-változat ne írja felül.
+    key: "image_enhance_feljavitas_v3",
     label: "Képjavító — Feljavítás (Nano Banana)",
     dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek, az EREDETI feltöltött képpel együtt.)",
     dataBlockAfter: "prompt",
@@ -168,7 +169,8 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
   {
     // ÚJ KULCS (_v2): a rendrakás prompt teljesen átírva (nulla maradék). A régi
     // kulcson mentett aktív verzió a félmunkát végző szöveget tárolná — ne írja felül.
-    key: "image_enhance_rendrakas_v2",
+    // _v3 (2026-10-19): szerkezeti zár — lásd fent.
+    key: "image_enhance_rendrakas_v3",
     label: "Képjavító — Rendrakás",
     dataBlockPreview: "(A képhez nem fűzünk változót — a fenti utasítás megy a képgeneráló modellnek.)",
     dataBlockAfter: "prompt",
@@ -566,7 +568,7 @@ export async function buildSimulationPromptActive(summaryText: string): Promise<
 
 // Képjavító (Nano Banana) — mindkét mód egy-egy szöveges prompt.
 export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<string> {
-  const key = mode === "rendrakas" ? "image_enhance_rendrakas_v2" : "image_enhance_feljavitas_v2";
+  const key = mode === "rendrakas" ? "image_enhance_rendrakas_v3" : "image_enhance_feljavitas_v3";
   const segments = await getActiveSegments(key);
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
 }
