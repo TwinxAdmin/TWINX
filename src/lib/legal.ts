@@ -20,5 +20,7 @@ export const HOSTING_PROVIDER = {
 };
 
 /** Az ÁSZF aktuális változata — módosításkor növelni (az elfogadás ehhez kötődik). */
+// FIGYELEM: az emelés MINDEN felhasználónál egyszer újra feldobja a kötelező elfogadó ablakot —
+// CSAK Márk kifejezett kérésére emeld (szövegjavítás, fejlesztés miatt NEM).
 export const TERMS_VERSION = "1.1"; // 1.1 (2026-10-17): bankkártyás fizetés (Stripe), azonnali jóváírás, automatikus e-számla; visszatérítés kártyára
 export const TERMS_EFFECTIVE = "2026. október 17.";
