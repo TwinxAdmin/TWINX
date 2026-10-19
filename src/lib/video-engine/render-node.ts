@@ -372,8 +372,20 @@ function ew(x: number | string): string {
   return (Number(x) - 0.002).toFixed(3);
 }
 
-/** Egységes H.264-beállítás (a darabok veszteségmentes összefűzéséhez is ugyanez kell). */
-const X264 = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2"];
+/**
+ * Egységes H.264-beállítás (a darabok veszteségmentes összefűzéséhez is ugyanez kell).
+ * Minőség: CRF 20, DE bitráta-plafonnal (VBV) — konfigurációból: VIDEO_MAX_MBPS (alap 10 Mbps a 9:16-os
+ * 1080×1920-ra; kisebb vászonnál a képpontszámmal arányosan, pl. 1:1 → ~5,6 Mbps).
+ * MIÉRT (2026-10-19): a Polaroid mozgó filmszemcséje plafon nélkül ~42 Mbps-ot (30 mp → 160 MB) adott —
+ * ez töltötte meg a szerver ideiglenes tárhelyét és lépte túl a tárhely-limitet.
+ */
+const MAX_MBPS_PORTRAIT = Number(process.env.VIDEO_MAX_MBPS || 10);
+function x264(W: number, H: number): string[] {
+  const mbps = Math.max(2, MAX_MBPS_PORTRAIT * ((W * H) / (1080 * 1920)));
+  const k = Math.round(mbps * 1000);
+  return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-maxrate", `${k}k`, "-bufsize", `${k * 2}k`,
+    "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2"];
+}
 
 type FxWindow = { file: string; a: number; b: number };
 
@@ -386,7 +398,7 @@ type FxWindow = { file: string; a: number; b: number };
  */
 async function applyFxWindows(o: {
   ffmpeg: string; mainFile: string; audioFile: string | null; windows: FxWindow[];
-  totalFrames: number; fps: number; tmp: string; out: string;
+  totalFrames: number; fps: number; tmp: string; out: string; enc: string[];
 }): Promise<void> {
   const { fps } = o;
   type Seg = { a: number; b: number; fx?: FxWindow };
@@ -411,7 +423,7 @@ async function applyFxWindows(o: {
       `[0:v]trim=end_frame=${n},setpts=PTS-STARTPTS,format=gbrp[m];` +
         `[1:v]trim=end_frame=${n},setpts=PTS-STARTPTS,format=gbrp[f];` +
         `[m][f]blend=all_mode=screen:shortest=1,format=yuv420p[w]`,
-      "-map", "[w]", "-an", "-frames:v", String(n), "-r", String(fps), ...X264, "-bf", "0",
+      "-map", "[w]", "-an", "-frames:v", String(n), "-r", String(fps), ...o.enc, "-bf", "0",
       path.join(o.tmp, `seg${i}.mp4`),
     ]);
   }
@@ -443,8 +455,14 @@ async function applyFxWindows(o: {
 // ffmpeg-futás gyártja (képkockánként pontos kivágás + méretezés + fehér keret), teljes
 // vászonméretű, átlátszó PNG-sorozatként. Gyors (nincs vektoros rajzolás), és a jelenet
 // rétegsorrendjébe illeszthető: az érkező a kis képek ALÁ, a távozó (leendő kis kép) legfelülre.
+//
+// 2026-10-19: a kockák NEM PNG-sorozatként kerülnek lemezre (421 db, valódi fotókkal ~200 MB → „No space
+// left on device" a Vercel 512 MB-os /tmp-jén), hanem moverenként KÉT kis H.264-klipbe: színkép (yuv444p,
+// hogy a széleken ne mosódjon a szín) + átlátszóság-maszk (szürke). A fő menet alphamerge-dzsel rakja össze.
+// Előzetes menet kell, mert az ffmpeg crop szűrője képkockánként NEM tud méretet váltani (mérve).
 // ---------------------------------------------------------------------------
-type SwapSeq = { inPattern: string; outPattern: string; frames: number };
+type SwapClip = { color: string; mask: string };
+type SwapSeq = { in: SwapClip; out: SwapClip; frames: number };
 /** Doboz → pixel (ugyanaz a kerekítés, mint a nagyító rétegnél: páros méret). */
 function pxBox(b: Box, W: number, H: number, even = true) {
   const r = (v: number) => (even ? Math.round(v / 2) * 2 : Math.round(v));
@@ -487,7 +505,7 @@ async function swapSequences(o: {
     const big = pxBox(curMain.box, o.W, o.H);
     const s0 = Math.min(1, Math.max((big.w * 1.08 * (1 + A)) / iw0, (big.h * 1.08 * (1 + A)) / ih0));
     const IW = Math.max(2, Math.round((iw0 * s0) / 2) * 2), IH = Math.max(2, Math.round((ih0 * s0) / 2) * 2);
-    args.push("-i", file);
+    args.push("-framerate", String(o.fps), "-i", file);
     filters.push(`[${idx}:v]${rot}scale=${IW}:${IH}:flags=lanczos,setsar=1,split=${N}${Array.from({ length: N }, (_, f) => `[${tag}s${f}]`).join("")}`);
     for (let f = 0; f < N; f++) {
       const e = ease(f);
@@ -502,10 +520,18 @@ async function swapSequences(o: {
       filters.push(
         `[${tag}s${f}]crop=${cw}:${ch}:${cx}:${cy},scale=${rw}:${rh}:flags=bicubic,` +
           (b ? `pad=${rw + 2 * b}:${rh + 2 * b}:${b}:${b}:color=white,` : "") +
-          `format=rgba,pad=${o.W}:${o.H}:${px}:${py}:color=black@0[${tag}f${f}]`,
+          `format=rgba,pad=${o.W}:${o.H}:${px}:${py}:color=black@0,setsar=1[${tag}f${f}]`, // concat: azonos SAR kell
       );
-      outs.push("-map", `[${tag}f${f}]`, "-frames:v", "1", path.join(o.dir, `${tag}${String(f).padStart(4, "0")}.png`));
     }
+    // A kockák egy folyamba fűzve → szín + maszk klip (nincs képkockánkénti fájl).
+    filters.push(
+      `${Array.from({ length: N }, (_, f) => `[${tag}f${f}]`).join("")}concat=n=${N}:v=1:a=0,setpts=N/${o.fps}/TB,split=2[${tag}c0][${tag}a0]`,
+      `[${tag}c0]format=yuv444p[${tag}c]`,
+      `[${tag}a0]alphaextract,format=gray[${tag}a]`,
+    );
+    const enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-r", String(o.fps), "-an"];
+    outs.push("-map", `[${tag}c]`, ...enc, "-pix_fmt", "yuv444p", path.join(o.dir, `${tag}-color.mp4`));
+    outs.push("-map", `[${tag}a]`, ...enc, "-pix_fmt", "gray", path.join(o.dir, `${tag}-mask.mp4`));
   };
   // Érkező: a kis helyéről (fehér kerettel) a nagy kép helyére (keret nélkül).
   // (A kis képek a rajzoló kerekítésével, a nagy kép a nagyító réteg páros méretével egyezik.)
@@ -514,7 +540,8 @@ async function swapSequences(o: {
   // Távozó: a nagy kép helyéről (a nagyítás végállapotából) a megüresedett kis helyre.
   mover(1, outFile, { px: mainPx(prevMain), b: 0, z: 1 + A }, { px: slotPx(toSlot), b: bpx, z: 1 }, "o");
   await run(o.ffmpeg, [...args, "-filter_complex", filters.join(";"), ...outs]);
-  return { inPattern: path.join(o.dir, "i%04d.png"), outPattern: path.join(o.dir, "o%04d.png"), frames: N };
+  const clip = (tag: string): SwapClip => ({ color: path.join(o.dir, `${tag}-color.mp4`), mask: path.join(o.dir, `${tag}-mask.mp4`) });
+  return { in: clip("i"), out: clip("o"), frames: N };
 }
 
 /**
@@ -544,6 +571,26 @@ export function filmLookChain(look: TwinxTemplate["look"], still = false): strin
   return parts.length ? parts.join(",") + ",format=yuv420p" : null;
 }
 
+/**
+ * Ottmaradt munkamappák törlése (2026-10-19). Ha egy render időtúllépés / memóriahiány miatt megszakad, a
+ * `finally` takarítás nem fut le, és egy „meleg" szerverpéldány /tmp-je fokozatosan megtelik. A 30 percnél
+ * régebbi layers-* és jobs/* mappa biztosan nem tartozik futó renderhez (egy render legfeljebb 5 perc).
+ */
+function cleanupStale(workDir: string) {
+  const limit = Date.now() - 30 * 60 * 1000;
+  const sweep = (dir: string, match: (name: string) => boolean) => {
+    let names: string[] = [];
+    try { names = fs.readdirSync(dir); } catch { return; }
+    for (const name of names) {
+      if (!match(name)) continue;
+      const full = path.join(dir, name);
+      try { if (fs.statSync(full).mtimeMs < limit) fs.rmSync(full, { recursive: true, force: true }); } catch { /* már törölték */ }
+    }
+  };
+  sweep(workDir, (n) => n.startsWith("layers-"));
+  sweep(path.join(workDir, "jobs"), () => true);
+}
+
 // ---------------------------------------------------------------------------
 // Fő menet
 // ---------------------------------------------------------------------------
@@ -556,6 +603,7 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
   const fps = tpl.fps;
   fs.mkdirSync(input.workDir, { recursive: true });
   const out = path.join(input.workDir, input.outName ?? `twinx-${tpl.id}-${aspect.replace(":", "x")}.mp4`);
+  cleanupStale(input.workDir);
   const layerDir = path.join(input.workDir, `layers-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(layerDir, { recursive: true });
   try {
@@ -657,7 +705,7 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
   type Overlay =
     | { kind: "png"; file: string; start: number; end: number; appear?: Appear; hide?: number; box: Bbox }
     | { kind: "zoom"; file: string; start: number; end: number; amount: number; box: Bbox }
-    | { kind: "seq"; file: string; start: number; end: number; box: Bbox }
+    | { kind: "seq"; file: string; mask: string; start: number; end: number; box: Bbox }
     // Lefújás: a réteg a jelenet elején kirepül a vászonról (forgás + gyorsuló sodródás).
     | { kind: "blow"; file: string; start: number; end: number; box: Bbox; dir: 1 | -1 }
     // Díszelem: folyamatos forgás / lüktetés (abszolút idő → jelenetváltáskor sem ugrik).
@@ -761,12 +809,12 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
       });
       // Csere: az érkező (nagyra növő) kép a nagy kép SZINTJÉN mozog — a felirat és a kis képek alatt.
       const sw = swaps.get(i);
-      if (sw) overlays.push({ kind: "seq", file: sw.inPattern, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
+      if (sw) overlays.push({ kind: "seq", file: sw.in.color, mask: sw.in.mask, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
     }
     await flush(part);
     // …a távozó (kis képpé zsugorodó) kép VÉGIG a kis képek szintjén, legfelül — nincs „előreugrás".
     const sw = swaps.get(i);
-    if (sw) overlays.push({ kind: "seq", file: sw.outPattern, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
+    if (sw) overlays.push({ kind: "seq", file: sw.out.color, mask: sw.out.mask, start: starts[i], end: starts[i] + sw.frames / fps, box: { x: 0, y: 0, w: W, h: H } });
   }
   timings.layers = (Date.now() - t1) / 1000;
   log(`rétegek: ${overlays.length} kép — ${timings.layers.toFixed(1)} mp`);
@@ -885,9 +933,14 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
       return;
     }
     if (ov.kind === "seq") {
-      args.push("-framerate", String(fps), "-i", ov.file);
+      // Csere-klip: szín + maszk → alphamerge (a maszk a második bemenet).
+      args.push("-i", ov.file);
+      const midx = inputIdx++;
+      args.push("-i", ov.mask);
       filters.push(
-        `[${idx}:v]format=rgba,setpts=PTS-STARTPTS+${ov.start.toFixed(3)}/TB[l${k}]`,
+        `[${idx}:v]format=yuva444p[sc${k}]`,
+        `[${midx}:v]format=gray[sm${k}]`,
+        `[sc${k}][sm${k}]alphamerge,setpts=PTS-STARTPTS+${ov.start.toFixed(3)}/TB[l${k}]`,
         `[${last}][l${k}]overlay=eof_action=pass[o${k}]`,
       );
       last = `o${k}`;
@@ -1043,7 +1096,7 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
       "-map", `[${last}]`,
       ...audioMap,
       "-t", String(total), "-r", String(fps),
-      ...X264, "-movflags", "+faststart", out,
+      ...x264(W, H), "-movflags", "+faststart", out,
     );
     await run(input.ffmpegPath, args);
   } else {
@@ -1056,14 +1109,14 @@ export async function renderVideo(input: RenderInput): Promise<RenderResult> {
     args.push(
       "-filter_complex", filters.join(";"),
       "-map", `[${last}]`, "-an", "-t", String(total), "-r", String(fps),
-      ...X264, "-bf", "0", "-force_key_frames", keyTimes, mainFile,
+      ...x264(W, H), "-bf", "0", "-force_key_frames", keyTimes, mainFile,
     );
     if (audioFile) args.push("-map", "[aout]", "-vn", "-c:a", "aac", "-b:a", "192k", "-t", String(total), audioFile);
     await run(input.ffmpegPath, args);
     timings.encode = (Date.now() - t2) / 1000;
     // 2. menet: csak az effekt-ablakok keverése + veszteségmentes összefűzés.
     const t3 = Date.now();
-    await applyFxWindows({ ffmpeg: input.ffmpegPath, mainFile, audioFile, windows: fxWindows, totalFrames: Math.round(total * fps), fps, tmp, out });
+    await applyFxWindows({ ffmpeg: input.ffmpegPath, mainFile, audioFile, windows: fxWindows, totalFrames: Math.round(total * fps), fps, tmp, out, enc: x264(W, H) });
     timings.fx = (Date.now() - t3) / 1000;
   }
   timings.encode = timings.encode ?? (Date.now() - t2) / 1000;

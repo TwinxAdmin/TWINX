@@ -111,3 +111,17 @@ A sablonkártya képe a VALÓDI motor nyitóképe: `public/video-previews/mozaik
   régi film hatás, lendületes feliratok, mozgó díszek. Következő döntés: élesítés (devOnly levétele) vagy további finomítás.
 - Próbák: `node .cache/jobtest.mjs <sablon> <9:16|1:1>` (PH env: fotók), előnézetek: `scripts/video-*-preview.mjs`.
 - Villanás-ellenőrzés: a kész videó képkockáinak átlagos fényességét nézzük (kiugró kocka = hiba) — lásd a beszélgetésben használt python-mérést.
+
+## Ideiglenes tárhely és bitráta (2026-10-19)
+Hiba élesben: „No space left on device" (mozaik, polaroid). A render Vercel-függvényben fut, a `/tmp` 512 MB.
+- **Mozaik:** a csere-animáció eddig 421 db teljes vászonméretű PNG-kockát írt (~220 MB). Most moverenként
+  KÉT kis H.264-klip (színkép yuv444p + szürke maszk), a fő menet `alphamerge`-dzsel rakja össze (`swapSequences`).
+  Előzetes menet kell: az ffmpeg `crop` képkockánként nem vált méretet (mérve), a `scale … eval=frame` igen.
+- **Polaroid:** a mozgó filmszemcse plafon nélkül ~42 Mbps-ot adott (30 mp → 145 MB). Most CRF 20 + VBV-plafon:
+  `VIDEO_MAX_MBPS` (alap 10 Mbps a 9:16-ra, kisebb vászonnál képpontarányosan, 1:1 ≈ 5,6 Mbps) — `x264()`.
+- **Takarítás:** a render elején a 30 percnél régebbi `layers-*` és `jobs/*` mappák törlődnek (`cleanupStale`),
+  mert megszakadt rendernél (időtúllépés, memóriahiány) a `finally` nem fut le.
+- Mérés (helyben, 5 db 2000 px-es fotó, 9:16): mozaik tmp-csúcs 222 → 25 MB, render 36 → 25 mp, fájl 6 MB;
+  polaroid 168 → 46 MB, 32 → 30 mp, fájl 145 → 37 MB; aurora változatlan (12 MB, 11 MB).
+- NYITOTT: a zene `-stream_loop -1`-gyel kerül be; ha a zene rövidebb a videónál, az ffmpeg 6.0 a kész fájl
+  után KILÉPÉSKOR beragadhat (helyben a 12 mp-es próbazenével reprodukálva). Javítás: véges ismétlésszám.
