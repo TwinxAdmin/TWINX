@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="hu" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<!--
+  TWINX — Regisztráció megerősítése (Supabase → Authentication → Email Templates → „Confirm signup").
+  Tárgy: Egy kattintás, és indulhat a TWINX
+  A megerősítő link a Supabase változójából jön: {{ .ConfirmationURL }} — ne írd át.
+  Képek: https://twinx.hu/email/… (a repó public/email/ mappája). Táblázatos elrendezés, inline CSS, JS nélkül.
+  Forrás a repóban: emails/confirm-signup.html — módosítás után a Supabase-be is be kell másolni.
+-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Egy kattintás, és indulhat a TWINX</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap');
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+    a { color: #C2512F; }
+    @media screen and (max-width: 620px) {
+      .container { width: 100% !important; }
+      .px { padding-left: 22px !important; padding-right: 22px !important; }
+      .h1 { font-size: 26px !important; line-height: 32px !important; }
+      .btn a { display: block !important; padding: 18px 20px !important; font-size: 18px !important; }
+      .ba-col { display: block !important; width: 100% !important; padding: 0 0 14px 0 !important; }
+      .ba-img { width: 100% !important; max-width: 100% !important; height: auto !important; }
+      .p3d-col { display: block !important; width: auto !important; padding: 22px 22px 6px 22px !important; }
+      .p3d-img { padding: 0 22px 20px 22px !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .bg-outer { background-color: #121110 !important; }
+      .card { background-color: #1C1A17 !important; }
+      .card-soft { background-color: #26231F !important; border-color: #3A352F !important; }
+      .txt { color: #EFE8DF !important; }
+      .muted { color: #B9AFA4 !important; }
+      .line { border-color: #3A352F !important; }
+    }
+    [data-ogsc] .bg-outer { background-color: #121110 !important; }
+    [data-ogsc] .card { background-color: #1C1A17 !important; }
+    [data-ogsc] .card-soft { background-color: #26231F !important; }
+    [data-ogsc] .txt { color: #EFE8DF !important; }
+    [data-ogsc] .muted { color: #B9AFA4 !important; }
+  </style>
+</head>
+<body class="bg-outer" style="margin:0; padding:0; background-color:#EFE7DD; word-spacing:normal;">
+  <!-- Előnézeti szöveg (preheader) — a levelezőlistában a tárgy mellett látszik -->
+  <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">
+    Erősítsd meg az e-mail címed, és készítsd el az első látványterved percek alatt.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;
+  </div>
+
+  <table role="presentation" class="bg-outer" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EFE7DD;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+
+          <!-- ===== 1. FEJLÉC — sötét TWINX-arculat, szöveges logó (képek nélkül is látszik) ===== -->
+          <tr>
+            <td class="px" style="background-color:#1C1A17; border-radius:18px 18px 0 0; padding:26px 36px;" bgcolor="#1C1A17">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:'Manrope', 'Segoe UI', Helvetica, Arial, sans-serif; font-size:26px; line-height:30px; font-weight:800; letter-spacing:2px; color:#F6F1EA;">
+                    TWIN<span style="color:#F08A68;">X</span>
+                  </td>
+                  <td align="right" style="font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; line-height:16px; color:#BFB4A8;">
+                    <a href="https://twinx.hu" style="color:#BFB4A8; text-decoration:none;">twinx.hu</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ===== 2. FŐCÍM + SZÖVEG + NAGY GOMB ===== -->
+          <tr>
+            <td class="card px" style="background-color:#FFFFFF; padding:40px 36px 34px 36px;" bgcolor="#FFFFFF">
+              <h1 class="h1 txt" style="margin:0 0 14px 0; font-family:'Manrope', 'Segoe UI', Helvetica, Arial, sans-serif; font-size:30px; line-height:36px; font-weight:800; color:#1C1A17;">
+                Üdv a TWINX-ben!
+              </h1>
+              <p class="txt" style="margin:0 0 28px 0; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:16px; line-height:25px; color:#2E2A25;">
+                Már csak egy lépés választ el attól, hogy a lakásfotókból profi látványterv és pörgős marketingvideó legyen – percek alatt, nem napok alatt.
+              </p>
+
+              <!-- Gomb (Outlookban is gomb: VML) -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="left" class="btn">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{ .ConfirmationURL }}" style="height:56px; v-text-anchor:middle; width:320px;" arcsize="50%" stroke="f" fillcolor="#D9572E">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff; font-family:Arial, sans-serif; font-size:17px; font-weight:bold;">E-mail cím megerősítése</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <a href="{{ .ConfirmationURL }}" target="_blank"
+                       style="display:inline-block; background-color:#D9572E; background-image:linear-gradient(160deg,#F08A68,#D9572E); color:#FFFFFF; font-family:'Manrope', 'Segoe UI', Helvetica, Arial, sans-serif; font-size:17px; line-height:22px; font-weight:800; text-decoration:none; padding:17px 34px; border-radius:999px; mso-hide:all;">
+                      E-mail cím megerősítése
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- 3. Tartalék link -->
+              <p class="muted" style="margin:22px 0 0 0; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#7A7067;">
+                Ha a gomb nem működik, másold be ezt a linket a böngésződbe:<br>
+                <a href="{{ .ConfirmationURL }}" style="color:#C2512F; word-break:break-all; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- ===== 4. GYORSABB NAPI MUNKA — előnyök (nem modulreklám) ===== -->
+          <tr>
+            <td class="card px" style="background-color:#FFFFFF; padding:0 36px 10px 36px;" bgcolor="#FFFFFF">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td class="line" style="border-top:1px solid #EFE7DD; font-size:0; line-height:0;">&nbsp;</td></tr>
+              </table>
+              <p class="txt" style="margin:28px 0 4px 0; font-family:'Manrope', 'Segoe UI', Helvetica, Arial, sans-serif; font-size:19px; line-height:26px; font-weight:800; color:#1C1A17;">
+                Gyorsabb napi munka a TWINX-szel
+              </p>
+              <p class="muted" style="margin:0 0 20px 0; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:14px; line-height:21px; color:#5E564E;">
+                Kevesebb idő a gép előtt, több idő az ügyfeleidre.
+              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                <tr>
+                  <td width="56" valign="top" style="padding:2px 0 0 0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td width="40" height="40" align="center" valign="middle" bgcolor="#FBE3D8" style="width:40px; height:40px; background-color:#FBE3D8; border-radius:10px; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:18px; line-height:20px; color:#C2512F;">
+                        <img src="https://twinx.hu/email/ikon-gyors.png" width="40" height="40" alt="&#9201;" style="width:40px; height:40px; border-radius:10px; font-size:18px; line-height:40px; text-align:center; color:#C2512F;">
+                      </td>
+                    </tr></table>
+                  </td>
+                  <td valign="top" style="font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                    <p class="txt" style="margin:0 0 3px 0; font-size:15px; line-height:21px; font-weight:700; color:#1C1A17;">Órák helyett percek</p>
+                    <p class="muted" style="margin:0; font-size:14px; line-height:21px; color:#5E564E;">Ami eddig egy délutánt vitt el, most néhány kattintás: feltöltöd a fotókat, a TWINX elvégzi a többit.</p>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;">
+                <tr>
+                  <td width="56" valign="top" style="padding:2px 0 0 0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td width="40" height="40" align="center" valign="middle" bgcolor="#FBE3D8" style="width:40px; height:40px; background-color:#FBE3D8; border-radius:10px; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:18px; line-height:20px; color:#C2512F;">
+                        <img src="https://twinx.hu/email/ikon-egy-helyen.png" width="40" height="40" alt="&#9776;" style="width:40px; height:40px; border-radius:10px; font-size:18px; line-height:40px; text-align:center; color:#C2512F;">
+                      </td>
+                    </tr></table>
+                  </td>
+                  <td valign="top" style="font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                    <p class="txt" style="margin:0 0 3px 0; font-size:15px; line-height:21px; font-weight:700; color:#1C1A17;">Minden anyag egy helyen</p>
+                    <p class="muted" style="margin:0; font-size:14px; line-height:21px; color:#5E564E;">Hirdetésszöveg, kép, videó és elemzés ugyanabban a fiókban – nem kell több programot nyitogatnod.</p>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6px;">
+                <tr>
+                  <td width="56" valign="top" style="padding:2px 0 0 0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td width="40" height="40" align="center" valign="middle" bgcolor="#FBE3D8" style="width:40px; height:40px; background-color:#FBE3D8; border-radius:10px; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:18px; line-height:20px; color:#C2512F;">
+                        <img src="https://twinx.hu/email/ikon-profi.png" width="40" height="40" alt="&#9733;" style="width:40px; height:40px; border-radius:10px; font-size:18px; line-height:40px; text-align:center; color:#C2512F;">
+                      </td>
+                    </tr></table>
+                  </td>
+                  <td valign="top" style="font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                    <p class="txt" style="margin:0 0 3px 0; font-size:15px; line-height:21px; font-weight:700; color:#1C1A17;">Profi eredmény, szakértő nélkül</p>
+                    <p class="muted" style="margin:0; font-size:14px; line-height:21px; color:#5E564E;">Igényes, egységes anyagok, amiket rögtön használhatsz – grafikus, vágó és fotós nélkül.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ===== 5. EGYETLEN MODULREKLÁM: 3D bejárás — prémium, hamarosan ===== -->
+          <tr>
+            <td class="card px" style="background-color:#FFFFFF; padding:18px 36px 32px 36px;" bgcolor="#FFFFFF">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1C1A17" style="background-color:#1C1A17; border-radius:16px;">
+                <tr>
+                  <td class="p3d-col" width="58%" valign="middle" style="padding:24px 10px 24px 24px; font-family:'Segoe UI', Helvetica, Arial, sans-serif;">
+                    <p style="margin:0 0 10px 0;">
+                      <span style="display:inline-block; background-color:#F08A68; color:#1C1A17; font-size:11px; line-height:16px; font-weight:800; padding:2px 9px; border-radius:999px; letter-spacing:0.5px;">HAMAROSAN</span>
+                      <span style="display:inline-block; border:1px solid #E2B07A; color:#E2B07A; font-size:11px; line-height:14px; font-weight:700; padding:2px 8px; border-radius:999px; letter-spacing:0.5px;">PRÉMIUM</span>
+                    </p>
+                    <p style="margin:0 0 8px 0; font-family:'Manrope', 'Segoe UI', Helvetica, Arial, sans-serif; font-size:20px; line-height:26px; font-weight:800; color:#F6F1EA;">3D bejárás</p>
+                    <p style="margin:0; font-size:14px; line-height:21px; color:#CFC5BA;">Az alaprajzból bejárható, méretarányos 3D lakás, amit linken küldhetsz el a vevőnek. Hamarosan érkezik.</p>
+                  </td>
+                  <td class="p3d-col p3d-img" width="42%" align="center" valign="middle" style="padding:16px 18px 16px 0;">
+                    <img src="https://twinx.hu/email/3d-premium.png" width="180" alt="3D bejárás: méretarányos lakás ábrája" style="width:100%; max-width:180px; height:auto; color:#CFC5BA; font-size:12px;">
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ===== ZÁRÁS ===== -->
+          <tr>
+            <td class="card px" style="background-color:#FFFFFF; padding:0 36px 34px 36px; border-radius:0 0 18px 18px;" bgcolor="#FFFFFF">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td class="line" style="border-top:1px solid #EFE7DD; font-size:0; line-height:0;">&nbsp;</td></tr>
+              </table>
+              <p class="txt" style="margin:22px 0 0 0; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:15px; line-height:22px; color:#2E2A25;">
+                Kérdésed van? Írj nekünk: <a href="mailto:office@twinx.hu" style="color:#C2512F; font-weight:700; text-decoration:none;">office@twinx.hu</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- ===== 7. LÁBLÉC ===== -->
+          <tr>
+            <td class="px" style="padding:22px 36px 8px 36px; font-family:'Segoe UI', Helvetica, Arial, sans-serif; font-size:12px; line-height:18px; color:#7A7067;" align="center">
+              <p class="muted" style="margin:0 0 6px 0; color:#7A7067;">
+                <a href="https://twinx.hu" style="color:#7A7067; font-weight:700; text-decoration:none;">twinx.hu</a>
+                &nbsp;·&nbsp;
+                <a href="mailto:office@twinx.hu" style="color:#7A7067; text-decoration:none;">office@twinx.hu</a>
+              </p>
+              <p class="muted" style="margin:0; color:#8F857B;">
+                Ezt az e-mailt azért kaptad, mert regisztráltál a twinx.hu oldalon. Ha nem te voltál, nyugodtan hagyd figyelmen kívül.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
