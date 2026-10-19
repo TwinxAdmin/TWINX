@@ -40,9 +40,11 @@ Minden egyetlen domain alatt fut, Next.js **Route Groups** használatával:
 
 ### Adatmegőrzés
 - A felhasználói előzményekben **maximum 50 elemet** listázunk.
-- A tárhelyről **egyelőre semmit nem törlünk** (soft-listing, nem hard-delete).
-- A felületen a **„Törlés" = elrejtés** (`hidden_at` oszlop: usage_history, video_jobs, ad_checks);
-  a „Korábbi munkák → Elrejtett munkák" nézetből visszahozható. Fájlt a tárhelyről nem távolítunk el.
+- **Lomtár (2026-10-20, Márk döntése):** a felületen a „Törlés" a lomtárba tesz (`hidden_at`: usage_history,
+  video_jobs, ad_checks); a „Korábbi munkák → Lomtár" nézetből visszaállítható. `WORKS_TRASH_DAYS` (alap 30) nap
+  után a napi ütemezett takarítás (Vercel Cron → `/api/cron/purge-trash`) **véglegesen törli** a munkát és a fájljait
+  a Storage-ból; a Lomtárból kézzel is véglegesen törölhető. Közös logika: `src/lib/works-trash.ts` — fájlt csak akkor
+  törlünk, ha másik munka már nem hivatkozik rá, és csak a tulajdonos saját mappájából. A kredit nem jár vissza.
 
 ### Jogosultságok
 - Szerepkörök közül az **`admin`** és a **`sales`** prezentációs célból

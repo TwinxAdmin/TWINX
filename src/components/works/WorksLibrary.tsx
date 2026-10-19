@@ -6,6 +6,12 @@
 //   JOBB fő rész:   fejléc (név, darabszám) · kereső · típus-szűrő · kártyarács
 //                   kártyán: bélyegkép + típus/fájl címke; „Mappába" gyorsgomb; kattintásra a közös nézegető.
 // Mobilon az oldalsáv egy vízszintesen görgethető választó-sávvá alakul.
+//
+// LOMTÁR (2026-10-20): a „Törlés" a lomtárba tesz (pár mp-ig „Visszavonás"); a Lomtárban „Visszaállítás" és
+// „Végleges törlés" (megerősítéssel — a fájlok a tárhelyről is törlődnek), „Lomtár ürítése", és minden elemnél
+// „X nap múlva véglegesen törlődik". TÖBB ELEM KIJELÖLÉSE: asztalon jelölőnégyzet a kártya sarkában (egérrel
+// fölé víve) + Shift+kattintás tartományra; telefonon „Kijelölés" gomb, utána koppintással. Kijelöléskor alul
+// műveletsáv. Minden művelet a /api/works/bulk-on fut (elemenként szerveroldali jogosultság-ellenőrzés).
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -25,14 +31,24 @@ type Sel =
   | { kind: "mine"; id: string }
   | { kind: "cat"; cat: WorkCategory }
   | { kind: "office"; id: string }
-  | { kind: "hidden" };
+  | { kind: "hidden" }; // = Lomtár
 
 /** Egy kártya adatai — saját és irodai munkához egyaránt. */
 type Card = {
   id: string; feature: string; title: string; typeLabel: string; url: string | null; createdAt: string;
   mine: boolean; ownerName?: string | null;
   canRemove?: boolean;   // irodai mappában: kiveheti-e (készítő / betevő / mappa-kezelő)
+  hiddenAt?: string | null; // lomtárban: mikor került oda
 };
+
+/** Hány nap van még hátra a végleges törlésig (a lomtárba helyezéstől számítva). */
+function daysLeft(hiddenAt: string | null | undefined, trashDays: number): number {
+  if (!hiddenAt) return trashDays;
+  const end = new Date(hiddenAt).getTime() + trashDays * 86_400_000;
+  return Math.max(0, Math.ceil((end - Date.now()) / 86_400_000));
+}
+const fmtBytes = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} kB`);
+type BulkResult = { id: string; ok: boolean; error?: string };
 
 /** Saját drag-típus: csak a munkakártyák húzhatók a mappákra (más húzott tartalom nem). */
 const DRAG_TYPE = "application/x-twx-work";
@@ -56,8 +72,8 @@ const CAT_PLURAL: Record<WorkCategory, string> = {
   ad: "Hirdetések", text: "Elemzések", other: "Egyéb",
 };
 
-export default function WorksLibrary({ items, isMember, initial }: {
-  items: WorkItem[]; isMember: boolean; initial: Sel;
+export default function WorksLibrary({ items, isMember, isManager = false, trashDays = 30, initial }: {
+  items: WorkItem[]; isMember: boolean; isManager?: boolean; trashDays?: number; initial: Sel;
 }) {
   const [sel, setSel] = useState<Sel>(initial);
   const [mine, setMine] = useState<{ folders: WorkFolder[]; links: WorkFolderLink[]; error?: string } | null>(null);
@@ -72,7 +88,14 @@ export default function WorksLibrary({ items, isMember, initial }: {
   const [renameVal, setRenameVal] = useState("");
   const [dragging, setDragging] = useState(false);
   // helyi módosítások (átnevezés / elrejtés) — azonnal látszanak, újratöltés nélkül
-  const [patches, setPatches] = useState<Record<string, { title?: string; hidden?: boolean }>>({});
+  const [patches, setPatches] = useState<Record<string, { title?: string; hidden?: boolean; hiddenAt?: string | null; purged?: boolean }>>({});
+  // TÖBB ELEM KIJELÖLÉSE
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false); // telefonon: „Kijelölés" gomb után koppintással jelöl
+  const [anchor, setAnchor] = useState<number | null>(null); // Shift+kattintás tartomány kezdőpontja
+  const [busy, setBusy] = useState(false);
+  const [confirmPurge, setConfirmPurge] = useState<string[] | null>(null); // végleges törlés megerősítése
+  const [undo, setUndo] = useState<{ ids: string[]; text: string } | null>(null); // lomtárba helyezés visszavonása
   const [cardRename, setCardRename] = useState<{ id: string; value: string } | null>(null);
   const menu = useActionMenu();
   const [menuCard, setMenuCard] = useState<Card | null>(null);
@@ -107,6 +130,7 @@ export default function WorksLibrary({ items, isMember, initial }: {
   // választás → URL (megosztható / visszalépésnél megmarad)
   function choose(s: Sel) {
     setSel(s); setCat("all"); setQ(""); setView(null);
+    setSelected(new Set()); setSelectMode(false); setAnchor(null);
     const url = new URL(window.location.href);
     ["tab", "folder", "mappa", "tipus"].forEach((k) => url.searchParams.delete(k));
     if (s.kind === "mine") url.searchParams.set("mappa", s.id);
@@ -116,10 +140,11 @@ export default function WorksLibrary({ items, isMember, initial }: {
   }
 
   // ---- kártyák az aktuális nézethez ----
-  const allOwn = useMemo(() => items.map((h) => ({
+  const allOwn = useMemo(() => items.filter((h) => !patches[h.id]?.purged).map((h) => ({
     card: {
       id: h.id, feature: h.feature, title: patches[h.id]?.title ?? h.title, typeLabel: h.typeLabel,
       url: h.output_file_url, createdAt: h.created_at, mine: true,
+      hiddenAt: patches[h.id] && "hiddenAt" in patches[h.id] ? patches[h.id].hiddenAt : h.hiddenAt ?? null,
     } as Card,
     hidden: patches[h.id]?.hidden ?? !!h.hidden,
   })), [items, patches]);
@@ -136,7 +161,7 @@ export default function WorksLibrary({ items, isMember, initial }: {
       return ownCards.filter((c) => ids.has(c.id));
     }
     if (!officeItems) return null;
-    return officeItems.map((it) => ({
+    return officeItems.filter((it) => !patches[it.historyId]?.hidden && !patches[it.historyId]?.purged).map((it) => ({
       id: it.historyId, feature: it.feature, typeLabel: it.typeLabel, url: it.url, createdAt: it.createdAt,
       title: patches[it.historyId]?.title ?? it.title,
       mine: !!it.mine, ownerName: it.mine ? null : it.ownerName, canRemove: it.canRemove,
@@ -165,7 +190,7 @@ export default function WorksLibrary({ items, isMember, initial }: {
   // fejléc
   const curMine = sel.kind === "mine" ? mine?.folders.find((f) => f.id === sel.id) ?? null : null;
   const curOffice = sel.kind === "office" ? office?.find((f) => f.id === sel.id) ?? null : null;
-  const head = sel.kind === "hidden" ? { kicker: "Munkák", title: "Elrejtett munkák", sub: "Amit töröltél a listádból. A fájlok megvannak — innen visszahozhatod őket." }
+  const head = sel.kind === "hidden" ? { kicker: "Munkák", title: "Lomtár", sub: `A törölt munkák ${trashDays} napig itt maradnak — addig visszaállíthatod őket, utána véglegesen törlődnek (a fájlokkal együtt).` }
     : sel.kind === "all" ? { kicker: "Korábbi munkák", title: "Összes munkám", sub: "Minden, amit a modulokban elkészítettél." }
     : sel.kind === "cat" ? { kicker: "Típus szerint", title: CAT_PLURAL[sel.cat], sub: "Automatikusan csoportosítva." }
     : sel.kind === "mine" ? { kicker: "Saját mappa · csak te látod", title: curMine?.name ?? "Mappa", sub: "Saját rendszerezés — a munkák a helyükön maradnak." }
@@ -245,13 +270,76 @@ export default function WorksLibrary({ items, isMember, initial }: {
     setPatches((p) => ({ ...p, [id]: { ...p[id], title } }));
     window.dispatchEvent(new CustomEvent("twx-works-changed"));
   }
-  async function setHidden(c: Card, hidden: boolean) {
-    if (hidden && !window.confirm(`Törlöd a(z) „${c.title}” munkát a listádból?\n\nA fájl megmarad — az „Elrejtett munkák” közül bármikor visszahozhatod.`)) return;
-    const res = await fetch("/api/works", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id, hidden }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return; }
-    setPatches((p) => ({ ...p, [c.id]: { ...p[c.id], hidden } }));
-    showToast(hidden ? "Törölve a listádból — az Elrejtett munkák közül visszahozható." : "Visszahoztad a munkát.", "success");
+  // ---- LOMTÁR: egy vagy több elem, egy lépésben (/api/works/bulk) ----
+  async function bulk(action: "trash" | "restore" | "purge", ids: string[]): Promise<{ ok: string[]; failed: BulkResult[]; bytesFreed?: number } | null> {
+    if (!ids.length) return null;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/works/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ids }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return null; }
+      const results = (d.results ?? []) as BulkResult[];
+      const ok = results.filter((x) => x.ok).map((x) => x.id);
+      const failed = results.filter((x) => !x.ok);
+      if (failed.length) {
+        const byErr = new Map<string, number>();
+        for (const f of failed) byErr.set(f.error ?? "ismeretlen hiba", (byErr.get(f.error ?? "ismeretlen hiba") ?? 0) + 1);
+        showToast(`${failed.length} elem nem sikerült: ${[...byErr.entries()].map(([e, n]) => `${e}${n > 1 ? ` (${n}×)` : ""}`).join("; ")}`, "error");
+      }
+      return { ok, failed, bytesFreed: d.bytesFreed };
+    } catch {
+      showToast("Hálózati hiba — próbáld újra.", "error");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function trash(ids: string[]) {
+    const r = await bulk("trash", ids);
+    if (!r?.ok.length) return;
+    const at = new Date().toISOString();
+    setPatches((p) => { const n = { ...p }; for (const id of r.ok) n[id] = { ...n[id], hidden: true, hiddenAt: at }; return n; });
+    clearSelection();
+    setUndo({ ids: r.ok, text: `${r.ok.length} elem a lomtárba került` });
+  }
+  async function restore(ids: string[], quiet = false) {
+    const r = await bulk("restore", ids);
+    if (!r?.ok.length) return;
+    setPatches((p) => { const n = { ...p }; for (const id of r.ok) n[id] = { ...n[id], hidden: false, hiddenAt: null }; return n; });
+    clearSelection();
+    if (!quiet) showToast(`${r.ok.length} elem visszaállítva.`, "success");
+  }
+  async function purge(ids: string[]) {
+    setConfirmPurge(null);
+    const r = await bulk("purge", ids);
+    if (!r?.ok.length) return;
+    setPatches((p) => { const n = { ...p }; for (const id of r.ok) n[id] = { ...n[id], purged: true }; return n; });
+    clearSelection();
+    showToast(`${r.ok.length} elem véglegesen törölve${r.bytesFreed ? ` — ${fmtBytes(r.bytesFreed)} tárhely szabadult fel` : ""}.`, "success");
+  }
+  // A visszavonás sáv pár másodperc után eltűnik.
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(null), 7000);
+    return () => clearTimeout(t);
+  }, [undo]);
+
+  // ---- kijelölés ----
+  function clearSelection() { setSelected(new Set()); setSelectMode(false); setAnchor(null); }
+  /** Kijelölhető-e a kártya ebben a nézetben (saját munka; közös mappában a vezető a kollégáét is). */
+  const selectable = (c: Card) => c.mine || (sel.kind === "office" && isManager);
+  function toggleSelect(i: number, shift: boolean) {
+    const c = shown[i];
+    if (!c || !selectable(c)) return;
+    setSelected((cur) => {
+      const n = new Set(cur);
+      if (shift && anchor !== null) {
+        const [a, b] = anchor < i ? [anchor, i] : [i, anchor];
+        for (let k = a; k <= b; k++) if (shown[k] && selectable(shown[k])) n.add(shown[k].id);
+      } else if (n.has(c.id)) n.delete(c.id); else n.add(c.id);
+      return n;
+    });
+    setAnchor(i);
   }
   async function moveMine(c: Card, toId: string) {
     if (sel.kind !== "mine") return;
@@ -314,9 +402,14 @@ export default function WorksLibrary({ items, isMember, initial }: {
         disabled: !c.canRemove, hint: "Csak a készítő, a betevő vagy a mappa kezelője veheti ki.",
       });
     } else if (sel.kind === "hidden") {
-      list.push({ label: "Visszahozás", icon: MI.restore, onClick: () => void setHidden(c, false) });
+      list.push({ label: "Visszaállítás", icon: MI.restore, onClick: () => void restore([c.id]) });
+      list.push({ kind: "divider" }, { label: "Végleges törlés", icon: MI.trash, danger: true, onClick: () => setConfirmPurge([c.id]) });
     } else if (c.mine) {
-      list.push({ kind: "divider" }, { label: "Törlés", icon: MI.trash, danger: true, onClick: () => void setHidden(c, true) });
+      list.push({ kind: "divider" }, { label: "Törlés", icon: MI.trash, danger: true, onClick: () => void trash([c.id]) });
+    }
+    if (sel.kind === "office" && !c.mine && isManager) {
+      list.push({ label: "Törlés (lomtárba)", icon: MI.trash, danger: true, onClick: () => void trash([c.id]),
+        hint: "Irodai vezetőként a kolléga munkáját is lomtárba teheted — a saját Lomtárából visszaállíthatja." });
     }
     return list;
   }
@@ -366,7 +459,7 @@ export default function WorksLibrary({ items, isMember, initial }: {
 
           <SideItem on={sel.kind === "hidden"} onClick={() => choose({ kind: "hidden" })} count={hiddenCards.length}
             icon={<><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m6 6 1 14h10l1-14" /></>}>
-            <span style={{ opacity: hiddenCards.length ? 1 : 0.6 }}>Elrejtett munkák</span>
+            <span style={{ opacity: hiddenCards.length ? 1 : 0.6 }}>Lomtár</span>
           </SideItem>
 
           <button type="button" onClick={() => setCreating(true)}
@@ -454,10 +547,28 @@ export default function WorksLibrary({ items, isMember, initial }: {
             </h2>
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{head.sub}</p>
           </div>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          {/* Telefonon: „Kijelölés" (asztalon a kártya sarkában lévő jelölőnégyzet is elég) */}
+          {shown.some(selectable) && (
+            <button type="button" onClick={() => (selectMode ? clearSelection() : setSelectMode(true))}
+              className="h-9 rounded-full px-3.5 text-[13px] font-semibold lg:hidden"
+              style={selectMode ? { background: "#1C1A17", color: "#fff" } : { background: "#fff", border: "1px solid var(--twx-line)", color: "#2E2A25" }}>
+              {selectMode ? "Kész" : "Kijelölés"}
+            </button>
+          )}
+          {sel.kind === "hidden" && (
+            <button type="button" disabled={!hiddenCards.length || busy} onClick={() => setConfirmPurge(hiddenCards.map((c) => c.id))}
+              title={hiddenCards.length ? undefined : "A lomtár üres"}
+              className="h-9 rounded-full px-3.5 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background: "#fff", border: "1px solid #E5B3A6", color: "#B4432A" }}>
+              Lomtár ürítése
+            </button>
+          )}
           <div className="flex h-9 w-full items-center gap-2 rounded-full px-3.5 sm:w-[260px]" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8F857B" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Keresés cím vagy típus szerint…" aria-label="Keresés"
               className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+          </div>
           </div>
         </div>
 
@@ -478,9 +589,9 @@ export default function WorksLibrary({ items, isMember, initial }: {
           {!base && <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</p>}
           {base && base.length === 0 && (
             <Empty
-              title={sel.kind === "hidden" ? "Nincs elrejtett munkád" : sel.kind === "mine" ? "Ez a mappa még üres" : sel.kind === "office" ? "Ebben a közös mappában még nincs munka" : "Még nincs elkészült munkád"}
+              title={sel.kind === "hidden" ? "A lomtár üres" : sel.kind === "mine" ? "Ez a mappa még üres" : sel.kind === "office" ? "Ebben a közös mappában még nincs munka" : "Még nincs elkészült munkád"}
               text={sel.kind === "hidden"
-                ? "Ha egy munkát a ⋯ menüből törölsz, ide kerül — a fájl megmarad, és innen visszahozhatod."
+                ? `Ha egy munkát törölsz, ide kerül, és ${trashDays} napig visszaállíthatod — utána véglegesen törlődik.`
                 : sel.kind === "mine" || sel.kind === "office"
                 ? "Húzz ide egy munkát az „Összes munkám” nézetből, vagy a kártya ⋯ menüjében válaszd az „Áthelyezés” pontot."
                 : "Válassz egy modult a menüből — az eredmény itt fog megjelenni."} />
@@ -502,8 +613,22 @@ export default function WorksLibrary({ items, isMember, initial }: {
                   onDragEnd={() => setDragging(false)}
                   onContextMenu={(e) => openMenu(e, c, "event")}
                   className={`group relative flex flex-col overflow-hidden rounded-2xl transition-shadow hover:shadow-lg ${c.mine ? "cursor-grab active:cursor-grabbing" : ""}`}
-                  style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream-card)", opacity: sel.kind === "hidden" ? 0.85 : 1 }}>
-                  <button type="button" onClick={() => setView(i)} className="block w-full text-left" aria-label={`${c.title} megnézése`}>
+                  style={{
+                    // a keret mindig 1 px — kijelöléskor csak a színe és egy belső gyűrű vált (nincs ugrálás)
+                    border: `1px solid ${selected.has(c.id) ? "#E9693F" : "var(--twx-line)"}`,
+                    boxShadow: selected.has(c.id) ? "inset 0 0 0 2px #E9693F" : undefined,
+                    background: "var(--twx-cream-card)", opacity: sel.kind === "hidden" && !selected.has(c.id) ? 0.88 : 1,
+                  }}>
+                  {/* Jelölőnégyzet: asztalon egérrel fölé víve; ha már van kijelölés vagy telefonos kijelölő mód, mindig látszik */}
+                  {selectable(c) && (
+                    <button type="button" role="checkbox" aria-checked={selected.has(c.id)} aria-label={`Kijelölés: ${c.title}`}
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(i, e.shiftKey); }}
+                      className={`absolute right-2 top-2 z-10 h-7 w-7 items-center justify-center rounded-lg transition ${selected.size || selectMode ? "flex" : "hidden group-hover:flex"}`}
+                      style={{ background: selected.has(c.id) ? "#E9693F" : "rgba(255,255,255,0.94)", border: `1.5px solid ${selected.has(c.id) ? "#E9693F" : "#BFB4A8"}`, color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+                      {selected.has(c.id) && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12 5 5L20 7" /></svg>}
+                    </button>
+                  )}
+                  <button type="button" onClick={(e) => (selected.size || selectMode ? toggleSelect(i, e.shiftKey) : setView(i))} className="block w-full text-left" aria-label={`${c.title} megnézése`}>
                     <div className="relative aspect-[4/3] overflow-hidden" style={{ background: "var(--twx-cream)" }}>
                       <WorkThumb url={c.url} title={c.title} />
                       <span className="absolute left-2 top-2 flex gap-1"><WorkTypeBadge feature={c.feature} /><FileTag url={c.url} /></span>
@@ -520,14 +645,20 @@ export default function WorksLibrary({ items, isMember, initial }: {
                           className="block h-[40px] w-full resize-none rounded-md px-1.5 py-0.5 text-[13px] font-semibold leading-[18px] outline-none"
                           style={{ background: "#FFF6F1", border: "1px solid #F08A68" }} />
                       ) : (
-                        <button type="button" onClick={() => setView(i)} title={c.title}
+                        <button type="button" onClick={(e) => (selected.size || selectMode ? toggleSelect(i, e.shiftKey) : setView(i))} title={c.title}
                           className="line-clamp-2 block h-[40px] w-full text-left text-[13px] font-semibold leading-[20px]">
                           {c.title}
                         </button>
                       )}
-                      <p className="mt-0.5 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                        {c.ownerName ? `${c.ownerName} · ` : ""}{fmtWhen(c.createdAt, false)}
-                      </p>
+                      {sel.kind === "hidden" ? (
+                        <p className="mt-0.5 truncate text-xs font-medium" style={{ color: daysLeft(c.hiddenAt, trashDays) <= 3 ? "#B4432A" : "#8a5a12" }}>
+                          {daysLeft(c.hiddenAt, trashDays) === 0 ? "Hamarosan véglegesen törlődik" : `${daysLeft(c.hiddenAt, trashDays)} nap múlva véglegesen törlődik`}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+                          {c.ownerName ? `${c.ownerName} · ` : ""}{fmtWhen(c.createdAt, false)}
+                        </p>
+                      )}
                     </div>
                     <MenuDots onClick={(e) => openMenu(e, c, "button")} label={`Műveletek: ${c.title}`} />
                   </div>
@@ -537,6 +668,75 @@ export default function WorksLibrary({ items, isMember, initial }: {
           )}
         </div>
       </section>
+
+      {/* ===== KIJELÖLÉSI SÁV — fix magasság, alul középen ===== */}
+      {(selected.size > 0 || selectMode) && (
+        <div className="fixed inset-x-3 bottom-24 z-[45] mx-auto flex h-14 max-w-2xl items-center gap-2 rounded-2xl px-3 shadow-2xl sm:bottom-28"
+          style={{ background: "#1C1A17", color: "#fff" }} role="toolbar" aria-label="Kijelölt munkák műveletei">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold tabular-nums">
+            {selected.size ? `${selected.size} kijelölve` : "Koppints a munkákra"}
+          </span>
+          <button type="button" onClick={() => setSelected(new Set(shown.filter(selectable).map((c) => c.id)))}
+            className="h-9 rounded-full px-3 text-xs font-semibold" style={{ background: "rgba(255,255,255,0.12)" }} title="Összes kijelölése">
+            <span className="hidden sm:inline">Összes kijelölése</span><span className="sm:hidden">Mind</span>
+          </button>
+          <button type="button" onClick={clearSelection} className="h-9 rounded-full px-3 text-xs font-semibold" style={{ background: "rgba(255,255,255,0.12)" }}
+            title="Kijelölés megszüntetése">
+            <span className="hidden sm:inline">Kijelölés megszüntetése</span><span className="sm:hidden">Mégse</span>
+          </button>
+          {sel.kind === "hidden" ? (
+            <>
+              <button type="button" disabled={!selected.size || busy} onClick={() => void restore([...selected])}
+                className="h-9 rounded-full px-3 text-xs font-semibold disabled:opacity-40" style={{ background: "#fff", color: "#1C1A17" }}>
+                Visszaállítás
+              </button>
+              <button type="button" disabled={!selected.size || busy} onClick={() => setConfirmPurge([...selected])}
+                className="h-9 rounded-full px-3 text-xs font-semibold disabled:opacity-40" style={{ background: "#B4432A", color: "#fff" }}>
+                Végleges törlés
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={!selected.size || busy} onClick={() => void trash([...selected])}
+              className="h-9 rounded-full px-4 text-xs font-semibold disabled:opacity-40" style={{ background: "#E9693F", color: "#fff" }}>
+              {busy ? "…" : "Törlés"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ===== VISSZAVONÁS — pár másodpercig a lomtárba helyezés után ===== */}
+      {undo && !selected.size && !selectMode && (
+        <div className="fixed inset-x-3 bottom-24 z-[45] mx-auto flex h-12 max-w-md items-center gap-3 rounded-2xl px-4 shadow-2xl sm:bottom-28"
+          style={{ background: "#1C1A17", color: "#fff" }} role="status">
+          <span className="min-w-0 flex-1 truncate text-[13px]">{undo.text}</span>
+          <button type="button" onClick={() => { const ids = undo.ids; setUndo(null); void restore(ids, true).then(() => showToast("Visszavonva.", "success")); }}
+            className="h-8 rounded-full px-3 text-xs font-bold" style={{ background: "#fff", color: "#1C1A17" }}>
+            Visszavonás
+          </button>
+        </div>
+      )}
+
+      {/* ===== VÉGLEGES TÖRLÉS MEGERŐSÍTÉSE ===== */}
+      {confirmPurge && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.6)" }}
+          onClick={() => setConfirmPurge(null)} role="dialog" aria-modal="true" aria-label="Végleges törlés megerősítése">
+          <div className="w-full max-w-sm rounded-2xl p-5 shadow-2xl" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <p className="font-display text-lg font-semibold">Végleges törlés</p>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+              Ez a művelet nem vonható vissza. Biztosan törlöd? <strong style={{ color: "var(--twx-ink)" }}>({confirmPurge.length} elem)</strong>
+            </p>
+            <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>A munkák és a fájljaik a tárhelyről is törlődnek. A felhasznált kredit nem jár vissza.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmPurge(null)} className="twx-btn-outline px-4 py-2 text-sm">Mégse</button>
+              <button type="button" disabled={busy} onClick={() => void purge(confirmPurge)}
+                className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: "#B4432A" }}>
+                {busy ? "Törlés…" : "Végleges törlés"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {menu.open && menuCard && <ActionMenu at={menu.at} items={menuItems(menuCard)} onClose={menu.close} />}
       {view !== null && viewerWorks[view] && (

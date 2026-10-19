@@ -128,6 +128,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261017160355_office-card-topup.sql` | Irodai egyenleg feltöltése bankkártyával: `office_id` a vásárlásokon, jóváírás az iroda egyenlegére + irodai napló |
 | `20261018223526_valuation-accept.sql` | Értékbecslés szerkesztése és elfogadása: `valuation_overrides`, `valuation_accepted_at` / `_by` a használati naplóban; a régi, PDF-es becslések elfogadottnak számítanak |
 | `20261020093000_video-template-availability.sql` | Videósablonok ki-be kapcsolása (Admin → Videólabor): `video_template_availability` (sablononként elérhető / rejtett; sor nélkül rejtett) + `video_template_availability_log` napló |
+| `20261020120000_works-trash.sql` | Korábbi munkák lomtár + végleges törlés: egyszeri lomtár-óraindítás a már elrejtett munkáknak, `work_purge_log` napló, `work_storage_sizes()` és `work_paths_in_use()` (csak szerver) |
 
 ## Egyszeri szkriptek (`one-off/`)
 

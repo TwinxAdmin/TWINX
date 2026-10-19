@@ -11,6 +11,7 @@ import WorksLibrary from "@/components/works/WorksLibrary";
 import type { WorkCategory } from "@/components/works/WorkTypeBadge";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview } from "@/lib/view-as";
+import { TRASH_DAYS } from "@/lib/works-trash";
 
 export const runtime = "nodejs";
 
@@ -43,7 +44,7 @@ export default async function MyWorksPage({ searchParams }: { searchParams: Prom
 
   // Irodai tag? → a nézegetőben megjelenik a „Megosztás az irodával" gomb.
   const { data: memberships } = await supabase
-    .from("office_members").select("office_id").eq("user_id", user.id).limit(1);
+    .from("office_members").select("office_id, role, can_allocate").eq("user_id", user.id).limit(1);
   // „Nincs iroda" előnézet: úgy jelenik meg, mintha nem lenne irodai tagság
   const membership = (await officeNonePreview()) ? null : memberships?.[0] ?? null;
   const items: WorkItem[] = rows.map((h) => ({
@@ -54,7 +55,10 @@ export default async function MyWorksPage({ searchParams }: { searchParams: Prom
     output_file_url: h.output_file_url,
     created_at: h.created_at,
     hidden: !!h.hidden_at,
+    hiddenAt: h.hidden_at ?? null,
   }));
+  // Irodai létrehozó / vezető: a közös mappákban a kollégák munkáit is lomtárba teheti (a szerver is ellenőrzi).
+  const isManager = !!membership && (membership.role === "owner" || !!membership.can_allocate);
 
   return (
     <main className="space-y-6">
@@ -66,7 +70,7 @@ export default async function MyWorksPage({ searchParams }: { searchParams: Prom
         </p>
       </div>
 
-      <WorksLibrary items={items} isMember={!!membership}
+      <WorksLibrary items={items} isMember={!!membership} isManager={isManager} trashDays={TRASH_DAYS}
         initial={sp.mappa ? { kind: "mine", id: sp.mappa }
           : sp.folder ? { kind: "office", id: sp.folder }
           : sp.tipus && CATS.includes(sp.tipus as WorkCategory) ? { kind: "cat", cat: sp.tipus as WorkCategory }

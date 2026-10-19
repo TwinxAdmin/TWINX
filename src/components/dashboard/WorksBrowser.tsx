@@ -30,7 +30,8 @@ export type WorkItem = {
   typeLabel: string;
   output_file_url: string | null;
   created_at: string;
-  hidden?: boolean;     // „Törlés" = elrejtés: csak az Elrejtett munkák nézetben látszik
+  hidden?: boolean;     // lomtárban van (hidden_at) — csak a Lomtár nézetben látszik
+  hiddenAt?: string | null; // mikor került a lomtárba (a „X nap múlva véglegesen törlődik" felirathoz)
 };
 
 type Kind = "image" | "pdf" | "video" | "other";
