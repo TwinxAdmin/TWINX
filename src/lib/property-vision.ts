@@ -4,7 +4,9 @@
 // (a ±5% nettó plafonon belül). A fotók hirdetési célúak, lehetnek beállítottak —
 // ezért a modellnek konzervatívan, óvatosan kell értékelnie.
 
-const TEXT_MODEL = process.env.GOOGLE_TEXT_MODEL || "gemini-2.5-flash";
+// 2026-10-19: a „gemini-2.5-flash" ezzel a kulccsal már 404-et ad („no longer available to new users") — a hívás
+// csendben null-t adott, így az értékbecslés fotó-elemzése és a szórólap-elrendezés kimaradt. Új alap: gemini-3.5-flash.
+const TEXT_MODEL = process.env.GOOGLE_TEXT_MODEL || "gemini-3.5-flash";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export type VisionImage = { bytes: Uint8Array; mimeType: string };
