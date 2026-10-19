@@ -3,6 +3,8 @@
 // "válassz a listából vagy írj sajátot" (native <datalist>).
 
 export type ValuationInput = {
+  // 2026-10-19: Lakás | Családi ház váltó. Hiányzik (régi becslés) = lakás.
+  kategoria?: string; // "lakas" | "haz"
   telepules: string;
   utca: string;
   tipus: string;
@@ -24,6 +26,15 @@ export type ValuationInput = {
   // Lokációs prémium: a környék megítélése és a partner által megadott felár.
   lokacioKategoria: string;
   lokacioSzazalek: string;
+  // --- Csak családi háznál (a lakás-ágon üresek) ---
+  hazSzint: string;     // földszintes / tetőteres / emeletes …
+  garazs: string;       // nincs / beálló / 1-2 állásos garázs
+  kozmuvek: string;     // összközműves / szikkasztó / hiányos …
+  pince: string;        // "igen" / ""
+  mellekepulet: string; // "igen" / ""
+  kert: string;         // gondozott kert: "igen" / ""
+  medence: string;      // "igen" / ""
+  napelem: string;      // "igen" / ""
   // Megjelenés (az indító ablakban választva): melyik arculattal és milyen
   // fotókkal készül az egyoldalas lap. Nem befolyásolja a számítást.
   brandingProfileId?: string;
@@ -34,9 +45,20 @@ export type ValuationInput = {
 export const VALUATION_CREDITS = 1;
 
 /** Az űrlap szöveges mezői (a megjelenés-beállítások nélkül). */
-export type ValuationFieldKey = Exclude<keyof ValuationInput, "brandingProfileId" | "pagePhotos">;
+export type ValuationFieldKey = Exclude<keyof ValuationInput, "brandingProfileId" | "pagePhotos" | "kategoria">;
+
+/** Lakás vagy családi ház ág. */
+export type ValuationCategory = "lakas" | "haz";
+export const VALUATION_CATEGORIES: { value: ValuationCategory; label: string }[] = [
+  { value: "lakas", label: "Lakás" },
+  { value: "haz", label: "Családi ház" },
+];
+export function valuationCategory(input: Partial<Pick<ValuationInput, "kategoria">> | null | undefined): ValuationCategory {
+  return input?.kategoria === "haz" ? "haz" : "lakas";
+}
 
 export const EMPTY_VALUATION: ValuationInput = {
+  kategoria: "lakas",
   telepules: "",
   utca: "",
   tipus: "",
@@ -57,6 +79,14 @@ export const EMPTY_VALUATION: ValuationInput = {
   egyeb: "",
   lokacioKategoria: "Átlagos",
   lokacioSzazalek: "",
+  hazSzint: "",
+  garazs: "",
+  kozmuvek: "",
+  pince: "",
+  mellekepulet: "",
+  kert: "",
+  medence: "",
+  napelem: "",
 };
 
 export type ValuationField = {
@@ -67,6 +97,10 @@ export type ValuationField = {
   fullWidth?: boolean;
   options?: string[]; // datalist javaslatok
   type?: "checkbox"; // ha checkbox: "igen"/"" értékkel
+  /** Csak ennél az ágnál látszik (üres = mindkettőnél). */
+  only?: ValuationCategory;
+  /** Családi háznál eltérő felirat / javaslatlista / súgószöveg (üres lista = szabad beírás). */
+  house?: { label?: string; placeholder?: string; options?: string[] };
 };
 
 // Az épület összes szintje (nem az emelet, ahol a lakás van).
@@ -110,6 +144,40 @@ export const PROPERTY_TYPE_OPTIONS = [
   "Csúsztatott zsalus lakás",
   "Építési telek",
   "Nyaraló / Hétvégi ház",
+];
+
+// A Lakás | Családi ház váltó szerinti típuslisták (a fenti közös lista a Hirdetéskészítőé, az marad).
+export const APARTMENT_TYPE_OPTIONS = [
+  "Új építésű lakás",
+  "Tégla építésű társasházi lakás",
+  "Panellakás",
+  "Csúsztatott zsalus lakás",
+];
+export const HOUSE_TYPE_OPTIONS = ["Új építésű családi ház", "Használt családi ház", "Sorház"];
+
+// Családi ház szintjei.
+export const HOUSE_LEVEL_OPTIONS = [
+  "Földszintes",
+  "Földszintes, beépíthető tetőtérrel",
+  "Földszint + beépített tetőtér",
+  "Földszint + emelet",
+  "Földszint + emelet + tetőtér",
+  "Többszintes (lejtős telken / félszintes)",
+];
+export const GARAGE_OPTIONS = [
+  "Nincs",
+  "Kocsibeálló (nyitott)",
+  "Fedett kocsibeálló",
+  "1 állásos garázs",
+  "2 állásos garázs",
+  "3 vagy több állásos garázs",
+];
+export const UTILITY_OPTIONS = [
+  "Összközműves (víz, villany, gáz, csatorna)",
+  "Víz, villany, gáz + szikkasztó / emésztő",
+  "Víz, villany, csatorna (gáz nélkül)",
+  "Víz, villany (gáz és csatorna nélkül)",
+  "Hiányos közművek",
 ];
 
 export const FLOOR_OPTIONS = [
@@ -317,13 +385,15 @@ export const VALUATION_FIELDS: ValuationField[] = [
     label: "Ingatlan típusa",
     placeholder: "Válassz a listából vagy írj sajátot",
     required: true,
-    options: PROPERTY_TYPE_OPTIONS,
+    options: APARTMENT_TYPE_OPTIONS,
+    house: { options: HOUSE_TYPE_OPTIONS },
   },
   {
     key: "meret",
     label: "Méret (lakóterület nm-ben)",
     placeholder: "pl. 65 nm",
     required: true,
+    house: { placeholder: "pl. 140 nm" },
   },
   {
     key: "telek",
@@ -331,6 +401,7 @@ export const VALUATION_FIELDS: ValuationField[] = [
     placeholder: "Válassz vagy írd be (pl. 400 nm)",
     required: true,
     options: ["Nincs (társasházi lakás)", "Osztatlan közös kert", "Belső udvar / Gang"],
+    house: { placeholder: "pl. 720 nm", options: [] },
   },
   {
     key: "szint",
@@ -338,6 +409,15 @@ export const VALUATION_FIELDS: ValuationField[] = [
     placeholder: "Válassz a listából",
     required: false,
     options: BUILDING_LEVEL_OPTIONS,
+    only: "lakas",
+  },
+  {
+    key: "hazSzint",
+    label: "A ház szintjei",
+    placeholder: "Válassz a listából",
+    required: true,
+    options: HOUSE_LEVEL_OPTIONS,
+    only: "haz",
   },
   {
     key: "emelet",
@@ -345,6 +425,7 @@ export const VALUATION_FIELDS: ValuationField[] = [
     placeholder: "Válassz a listából",
     required: true,
     options: APARTMENT_FLOOR_OPTIONS,
+    only: "lakas",
   },
   // Az építés éve SZÁNDÉKOSAN itt van: így az emelettel egy sorba kerül a
   // kétoszlopos rácsban, és nem marad üres hely az űrlapon.
@@ -364,12 +445,15 @@ export const VALUATION_FIELDS: ValuationField[] = [
       "1950 előtt (Klasszikus/Polgári)",
     ],
   },
+  { key: "garazs", label: "Garázs / beálló", placeholder: "Válassz a listából (opcionális)", required: false, options: GARAGE_OPTIONS, only: "haz" },
+  { key: "kozmuvek", label: "Közművek", placeholder: "Válassz a listából (opcionális)", required: false, options: UTILITY_OPTIONS, only: "haz", fullWidth: true },
   {
     key: "lift",
     label: "Van lift az épületben",
     placeholder: "",
     required: false,
     type: "checkbox",
+    only: "lakas",
   },
   {
     key: "erkely",
@@ -377,7 +461,14 @@ export const VALUATION_FIELDS: ValuationField[] = [
     placeholder: "",
     required: false,
     type: "checkbox",
+    house: { label: "Van terasz / erkély" },
   },
+  // Családi ház pipálós jellemzői — a lakásnál nem látszanak.
+  { key: "pince", label: "Van pince", placeholder: "", required: false, type: "checkbox", only: "haz" },
+  { key: "mellekepulet", label: "Van melléképület", placeholder: "", required: false, type: "checkbox", only: "haz" },
+  { key: "kert", label: "Gondozott kert", placeholder: "", required: false, type: "checkbox", only: "haz" },
+  { key: "medence", label: "Van medence", placeholder: "", required: false, type: "checkbox", only: "haz" },
+  { key: "napelem", label: "Van napelem", placeholder: "", required: false, type: "checkbox", only: "haz" },
   {
     key: "szobak",
     label: "Szobák száma",
@@ -473,12 +564,34 @@ export const VALUATION_FIELDS: ValuationField[] = [
   },
 ];
 
+/** Az adott ághoz (lakás / családi ház) tartozó mezők, a ház-ágon a saját felirattal és listával. */
+export function fieldsFor(kategoria: ValuationCategory): ValuationField[] {
+  return VALUATION_FIELDS.filter((f) => !f.only || f.only === kategoria).map((f) => {
+    if (kategoria !== "haz" || !f.house) return f;
+    const { house, ...rest } = f;
+    return {
+      ...rest,
+      label: house.label ?? f.label,
+      placeholder: house.placeholder ?? f.placeholder,
+      options: house.options ? (house.options.length ? house.options : undefined) : f.options,
+    };
+  });
+}
+
+/** Beküldés előtt: a másik ág mezőit kiürítjük (váltás után ne menjen tovább pl. a lakás emelete egy háznál). */
+export function stripForCategory(input: ValuationInput): ValuationInput {
+  const kategoria = valuationCategory(input);
+  const out: ValuationInput = { ...input, kategoria };
+  for (const f of VALUATION_FIELDS) if (f.only && f.only !== kategoria) out[f.key] = "";
+  return out;
+}
+
 export function validateValuationInput(input: Partial<ValuationInput>): {
   valid: boolean;
   errors: Record<string, string>;
 } {
   const errors: Record<string, string> = {};
-  for (const field of VALUATION_FIELDS) {
+  for (const field of fieldsFor(valuationCategory(input))) {
     if (field.required) {
       const value = String(input[field.key] ?? "").trim();
       if (value.length === 0) {
@@ -497,6 +610,7 @@ function vv(value: string): string {
 
 // Zárolt adat-blokk: az értékelt ingatlan 14 mezője (a változók helye zárolt).
 export function valuationDataBlock(input: ValuationInput): string {
+  if (valuationCategory(input) === "haz") return houseDataBlock(input);
   return `Az értékelt ingatlan adatai:
 - Település, kerület/környék: ${vv(input.telepules)}
 - Pontosabb helyszín/utca: ${vv(input.utca)}
@@ -517,6 +631,39 @@ export function valuationDataBlock(input: ValuationInput): string {
     const b = parseBaths(input.furdok);
     return b.bath || b.wc ? ` (fürdőszoba: ${b.bath}, külön WC: ${b.wc})` : "";
   })()}
+- Építés éve: ${vv(input.epitesEve)}
+- Szerkezet: ${vv(input.szerkezet)}
+- Műszaki és esztétikai állapot: ${vv(input.allapot)}
+- Fűtésrendszer és energetika: ${vv(input.futes)}
+- Jogi háttér / Tulajdoni viszonyok: ${vv(input.jogi)}
+- Egyéb főbb jellemzők/extrák: ${vv(input.egyeb)}
+${locationBlock(input)}`;
+}
+
+const yes = (v: string | undefined) => (v === "igen" ? "van" : "nincs");
+
+/** Családi ház adat-blokkja: emelet / lift helyett szintek, telek, garázs, közművek és a ház extrái. */
+function houseDataBlock(input: ValuationInput): string {
+  const r = parseRooms(input.szobak);
+  const b = parseBaths(input.furdok);
+  const terasz = String(input.erkelyMeret ?? "").trim();
+  return `Az értékelt ingatlan adatai (CSALÁDI HÁZ — csak családi házakkal / sorházakkal hasonlíts):
+- Település, kerület/környék: ${vv(input.telepules)}
+- Pontosabb helyszín/utca: ${vv(input.utca)}
+- Típus: ${vv(input.tipus)}
+- Méret (lakóterület): ${vv(input.meret)}
+- Telek terület: ${vv(input.telek)}
+- A ház szintjei: ${vv(input.hazSzint)}
+- Garázs / beálló: ${vv(input.garazs)}
+- Közművek: ${vv(input.kozmuvek)}
+- Pince: ${yes(input.pince)}
+- Melléképület: ${yes(input.mellekepulet)}
+- Gondozott kert: ${yes(input.kert)}
+- Medence: ${yes(input.medence)}
+- Napelem: ${yes(input.napelem)}
+- Terasz / erkély: ${input.erkely === "igen" ? `van${terasz ? ` (${terasz} nm)` : ""}` : "nincs"}
+- Szobák száma: ${vv(input.szobak)}${r.full || r.half ? ` (egész: ${r.full}, fél: ${r.half})` : ""}
+- Fürdőszobák/mellékhelyiségek: ${vv(input.furdok)}${b.bath || b.wc ? ` (fürdőszoba: ${b.bath}, külön WC: ${b.wc})` : ""}
 - Építés éve: ${vv(input.epitesEve)}
 - Szerkezet: ${vv(input.szerkezet)}
 - Műszaki és esztétikai állapot: ${vv(input.allapot)}

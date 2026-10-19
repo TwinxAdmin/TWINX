@@ -197,6 +197,10 @@ export function buildCompsPrompt(input: ValuationInput, cfg: EngineConfig): stri
     input.szobak ? `szobák: ${input.szobak}` : "",
     input.furdok ? `fürdő/WC: ${input.furdok}` : "",
     input.emelet ? `emelet: ${input.emelet}` : "",
+    // Családi ház (2026-10-19): a telek és a szintek döntik el, mi hasonló — lakással ne hasonlítson.
+    input.kategoria === "haz" ? "CSAK családi házak / sorházak (lakás NEM)" : "",
+    input.kategoria === "haz" && input.telek ? `telek: ${input.telek}` : "",
+    input.kategoria === "haz" && input.hazSzint ? `szintek: ${input.hazSzint}` : "",
     input.epitesEve ? `építés éve: ${input.epitesEve}` : "",
     input.allapot ? `állapot: ${input.allapot}` : "",
   ].filter(Boolean).join(" · ");

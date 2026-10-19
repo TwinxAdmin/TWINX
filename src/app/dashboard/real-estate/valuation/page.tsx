@@ -25,8 +25,13 @@ import {
   type ValuationFacts,
 } from "@/lib/valuation-report";
 import {
-  VALUATION_FIELDS,
   EMPTY_VALUATION,
+  VALUATION_CATEGORIES,
+  APARTMENT_TYPE_OPTIONS,
+  HOUSE_TYPE_OPTIONS,
+  fieldsFor,
+  stripForCategory,
+  valuationCategory,
   validateValuationInput,
   LOCATION_CATEGORIES,
   LOCATION_DISCOUNT_FIXED,
@@ -40,17 +45,13 @@ import {
   formatBaths,
   type ValuationInput,
   type ValuationFieldKey,
+  type ValuationCategory,
 } from "@/lib/valuation";
 import NumberStepper from "@/components/NumberStepper";
 import { toDownloadUrl } from "@/lib/files";
 
 // A lokációs prémium mezői külön blokkban jelennek meg, ezért kimaradnak a fő rácsból.
 const LOCATION_KEYS: string[] = ["lokacioKategoria", "lokacioSzazalek"];
-
-// A pipálós mezők EGY sorban, egymás mellett jelennek meg (lásd az űrlapot),
-// ezért külön gyűjtjük őket, és csak az elsőnél rajzoljuk ki a blokkot.
-const checkboxFields = VALUATION_FIELDS.filter((f) => f.type === "checkbox");
-const firstCheckboxKey = checkboxFields[0]?.key;
 
 type HistoryItem = {
   id: string;
@@ -372,6 +373,23 @@ export default function ValuationPage() {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Lakás | Családi ház: a közös adatok megmaradnak; a másik ág típusa törlődik, a csak-lakás / csak-ház
+  // mezők a háttérben megmaradnak (visszaváltáskor ott vannak), de beküldéskor kiürítjük őket (stripForCategory).
+  const category = valuationCategory(values);
+  const fields = fieldsFor(category);
+  // A pipálós mezők EGY sorban, egymás mellett jelennek meg — csak az elsőnél rajzoljuk ki a blokkot.
+  const checkboxFields = fields.filter((f) => f.type === "checkbox");
+  const firstCheckboxKey = checkboxFields[0]?.key;
+  function setCategory(next: ValuationCategory) {
+    if (next === category) return;
+    setValues((prev) => {
+      const otherTypes = next === "haz" ? APARTMENT_TYPE_OPTIONS : HOUSE_TYPE_OPTIONS;
+      return { ...prev, kategoria: next, tipus: otherTypes.includes(prev.tipus) ? "" : prev.tipus };
+    });
+    setErrors({});
+    setServerError(null);
+  }
+
   // 1. lépés: az űrlap ellenőrzése, majd az indító ablak (arculat + fotók).
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -404,7 +422,7 @@ export default function ValuationPage() {
       // Mindig multipart: a lap fotói (fájl vagy URL) és az arculat is ebben megy.
       const fd = new FormData();
       const brandingProfileId = choice.profileId || undefined;
-      fd.append("data", JSON.stringify({ ...values, brandingProfileId }));
+      fd.append("data", JSON.stringify({ ...stripForCategory(values), brandingProfileId }));
       photos.forEach((p, i) => fd.append("images", p.file, `foto-${i + 1}.jpg`));
       fd.append("systemUrls", JSON.stringify(photoUrls));
       choice.photos.forEach((p, i) => { if (p.file) fd.append("pageImages", p.file, `lap-${i + 1}.jpg`); });
@@ -474,8 +492,27 @@ export default function ValuationPage() {
 
       <form onSubmit={onSubmit} noValidate className="twx-card space-y-4 p-5 sm:p-6"
         onInputCapture={track.formStarted} onChangeCapture={track.formStarted} onClickCapture={track.formStarted}>
+        {/* Lakás | Családi ház — két AZONOS méretű gomb; amelyik ki van választva, azon az ágon megy tovább az űrlap. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div role="tablist" aria-label="Ingatlan fajtája" className="inline-grid grid-cols-2 rounded-full p-1" style={{ background: "#EFE7DD" }}>
+            {VALUATION_CATEGORIES.map((c) => {
+              const on = category === c.value;
+              return (
+                <button key={c.value} type="button" role="tab" aria-selected={on} onClick={() => setCategory(c.value)}
+                  className="flex h-9 w-[130px] items-center justify-center rounded-full text-[13px] font-semibold transition sm:w-[150px]"
+                  style={on ? { background: "#fff", color: "var(--twx-ink)", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" } : { color: "#6B6258" }}>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            {category === "haz" ? "Családi ház és sorház — telekkel, szintekkel, extrákkal." : "Társasházi, panel- és új építésű lakás."}
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {VALUATION_FIELDS.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
+          {fields.filter((f) => !LOCATION_KEYS.includes(f.key)).map((field) => {
             const fm = fieldMem[field.key];
 
             // PIPÁLÓS MEZŐK (lift, erkély): egy közös, teljes szélességű sorba
@@ -484,7 +521,7 @@ export default function ValuationPage() {
             if (field.type === "checkbox") {
               if (field.key !== firstCheckboxKey) return null; // a többit itt rajzoljuk ki
               return (
-                <div key="checkbox-row" className="sm:col-span-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div key="checkbox-row" className={`sm:col-span-2 grid grid-cols-1 gap-3 ${checkboxFields.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                   {checkboxFields.map((cf) => {
                     const on = values[cf.key] === "igen";
                     return (
@@ -585,7 +622,7 @@ export default function ValuationPage() {
                 <ComboField
                   id={field.key}
                   className="mt-1 w-full"
-                  value={values[field.key]}
+                  value={values[field.key] ?? ""}
                   onChange={(v) => setField(field.key, v)}
                   options={field.options}
                   placeholder={field.placeholder}
