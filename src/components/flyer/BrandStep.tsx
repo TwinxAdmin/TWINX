@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import SelectField from "@/components/SelectField";
 import type { BrandingProfile } from "@/lib/branding";
-import { BRANDING_FONTS } from "@/lib/branding";
+import { pickerFonts } from "@/lib/branding";
 import { COLOR_WORLDS, OWN_WORLD_ID, adColors, colorWorld, type AdColors } from "@/lib/color-worlds";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 import { compressImage } from "@/lib/image-compress";
@@ -412,6 +412,17 @@ function LivePreview({ worldId, profile, template, size, images, worldName, data
 /** Ha még nincs mentett arculat: egyszeri űrlap — a „Tovább" elmenti arculatként, onnantól a pipás nézet látszik. */
 function QuickForm({ quick, onQuick }: { quick: QuickBrand; onQuick: (q: QuickBrand) => void }) {
   const set = (k: keyof QuickBrand, v: string) => onQuick({ ...quick, [k]: v });
+  // A választható betűk betöltése, hogy a nevük a saját betűjükkel látszódjon.
+  useEffect(() => {
+    for (const f of pickerFonts(quick.font)) {
+      if (document.querySelector(`link[data-twx-font="${f.value}"]`)) continue;
+      const el = document.createElement("link");
+      el.rel = "stylesheet";
+      el.href = f.link;
+      el.dataset.twxFont = f.value;
+      document.head.appendChild(el);
+    }
+  }, [quick.font]);
   return (
     <section className="space-y-3.5">
       <div>
@@ -439,12 +450,21 @@ function QuickForm({ quick, onQuick }: { quick: QuickBrand; onQuick: (q: QuickBr
               className="twx-input w-28 text-sm" />
           </div>
         </div>
-        <div className="min-w-[12rem] flex-1">
-          <span className="block text-xs font-medium" style={{ color: MUTED }}>Betűtípus (a „Saját szín” színvilághoz)</span>
-          <div className="mt-1">
-            <SelectField value={quick.font} onChange={(v) => set("font", v)} ariaLabel="Betűtípus"
-              options={BRANDING_FONTS.map((f) => ({ value: f.value, label: f.label }))} />
-          </div>
+      </div>
+      {/* Betűtípus — válogatott lista, minden név a SAJÁT betűjével */}
+      <div>
+        <span className="block text-xs font-medium" style={{ color: MUTED }}>Betűtípus (a „Saját szín” színvilághoz)</span>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {pickerFonts(quick.font).map((f) => {
+            const on = quick.font === f.value;
+            return (
+              <button key={f.value} type="button" onClick={() => set("font", f.value)} aria-pressed={on} title={f.label}
+                className="flex min-h-[44px] items-center rounded-xl bg-white px-3 text-left transition hover:shadow-sm"
+                style={{ border: `1px solid ${on ? INK : LINE}`, boxShadow: on ? `0 0 0 1px ${INK}` : undefined }}>
+                <span className="truncate text-[15px]" style={{ fontFamily: f.family, color: INK }}>{f.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

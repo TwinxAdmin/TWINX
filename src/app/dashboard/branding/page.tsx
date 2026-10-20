@@ -4,11 +4,9 @@ import ModuleIntro from "@/components/ModuleIntro";
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
-  BRANDING_FONTS,
   BRANDING_THEMES,
   EMPTY_BRANDING,
-  FONT_CATEGORIES,
-  getBrandingFont,
+  pickerFonts,
   type BrandingInput,
   type BrandingProfile,
 } from "@/lib/branding";
@@ -55,7 +53,6 @@ export default function BrandingPage() {
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
   // Képtár: több logó / fotó egy profilhoz, közülük egy az aktív.
   const [assets, setAssets] = useState<{ id: string; kind: string; url: string }[]>([]);
-  const [fontFilter, setFontFilter] = useState<string>("all");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -79,7 +76,7 @@ export default function BrandingPage() {
   useEffect(() => {
     if (!showForm) return;
     const added: HTMLLinkElement[] = [];
-    for (const f of BRANDING_FONTS) {
+    for (const f of pickerFonts(values.font)) {
       if (document.querySelector(`link[data-twx-font="${f.value}"]`)) continue;
       const el = document.createElement("link");
       el.rel = "stylesheet";
@@ -89,7 +86,7 @@ export default function BrandingPage() {
       added.push(el);
     }
     return () => { /* a betöltött fontokat meghagyjuk a további megnyitásokhoz */ };
-  }, [showForm]);
+  }, [showForm, values.font]);
 
   function openNew() {
     setEditing(null);
@@ -377,58 +374,26 @@ export default function BrandingPage() {
             {errors.accent_color && <p className="mt-1 text-xs text-red-600">{errors.accent_color}</p>}
           </div>
 
-          {/* Betűtípus — kompakt, kategóriákra bontott, görgethető lista */}
+          {/* Betűtípus — válogatott lista; minden betű neve a SAJÁT betűjével (így látszik, milyen) */}
           <div>
-            <div className="flex items-baseline justify-between gap-2">
-              <label className="block text-sm font-semibold">Betűtípus</label>
-              <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                {BRANDING_FONTS.length} betűtípus · mind ékezetes
-              </span>
-            </div>
-
-            {/* Kategória-szűrő */}
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {[{ value: "all", label: "Mind" }, ...FONT_CATEGORIES].map((c) => {
-                const on = fontFilter === c.value;
+            <label className="block text-sm font-semibold">Betűtípus</label>
+            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {pickerFonts(values.font).map((f) => {
+                const on = values.font === f.value;
                 return (
-                  <button key={c.value} type="button" onClick={() => setFontFilter(c.value)}
-                    className="rounded-full px-3 py-1 text-[11px] font-medium transition"
+                  <button key={f.value} type="button" onClick={() => setField("font", f.value)}
+                    title={f.label} aria-pressed={on}
+                    className="flex min-h-[44px] items-center rounded-lg px-3 text-left transition hover:shadow-sm"
                     style={on
-                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" }
-                      : { background: "#fff", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
-                    {c.label}
+                      ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }
+                      : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+                    <span className="truncate text-[15px]" style={{ fontFamily: f.family, color: on ? "#7a2e17" : "var(--twx-ink)" }}>
+                      {f.label}
+                    </span>
                   </button>
                 );
               })}
             </div>
-
-            {/* Kompakt lista — a minta a saját betűjével, egy sorban */}
-            <div className="mt-2 max-h-56 overflow-y-auto rounded-xl p-2"
-              style={{ border: "1px solid var(--twx-line)", background: "var(--twx-cream)" }}>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {BRANDING_FONTS
-                  .filter((f) => fontFilter === "all" || f.category === fontFilter)
-                  .map((f) => {
-                    const on = values.font === f.value;
-                    return (
-                      <button key={f.value} type="button" onClick={() => setField("font", f.value)}
-                        title={f.label}
-                        className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left transition hover:shadow-sm"
-                        style={on
-                          ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)" }
-                          : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                        <span className="truncate text-sm" style={{ fontFamily: f.family, color: on ? "#7a2e17" : "var(--twx-ink)" }}>
-                          Árvíztűrő
-                        </span>
-                        <span className="shrink-0 text-[10px]" style={{ color: "var(--twx-ink-muted)" }}>{f.label}</span>
-                      </button>
-                    );
-                  })}
-              </div>
-            </div>
-            <p className="mt-1 text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-              Kiválasztva: <strong style={{ fontFamily: getBrandingFont(values.font).family }}>{getBrandingFont(values.font).label}</strong>
-            </p>
           </div>
 
           {/* Téma — chipek */}

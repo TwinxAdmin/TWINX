@@ -91,6 +91,24 @@ export const BRANDING_FONTS: BrandingFont[] = [
   { value: "clash", label: "Clash Display", category: "display", family: "'Clash Display', sans-serif", link: "https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&display=swap" },
 ];
 
+/**
+ * A VÁLASZTÓKBAN mutatott, válogatott betűtípusok (Arculatom oldal, hirdetéskép-varázsló).
+ * A teljes BRANDING_FONTS lista megmarad: a korábban mentett arculatok betűje így is működik,
+ * és a választóban is látszik (pickerFonts), ha az épp kiválasztott nincs a válogatásban.
+ */
+export const FEATURED_FONT_VALUES = [
+  "inter", "montserrat", "poppins", "manrope", "dmsans", "outfit",
+  "playfair", "lora", "cormorant", "merriweather",
+  "oswald", "bebas",
+] as const;
+
+/** A választóban megjelenő betűk: a válogatás + (ha más) az éppen kiválasztott. */
+export function pickerFonts(current?: string): BrandingFont[] {
+  const list = FEATURED_FONT_VALUES.map((v) => BRANDING_FONTS.find((f) => f.value === v)).filter(Boolean) as BrandingFont[];
+  const cur = current ? BRANDING_FONTS.find((f) => f.value === current) : undefined;
+  return cur && !list.includes(cur) ? [cur, ...list] : list;
+}
+
 export const FONT_CATEGORIES: { value: BrandingFont["category"]; label: string }[] = [
   { value: "sans", label: "Talpatlan" },
   { value: "serif", label: "Talpas" },
