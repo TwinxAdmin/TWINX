@@ -360,8 +360,25 @@ export default function WorksLibrary({ items, isMember, isManager = false, trash
     showToast("Kivetted a közös mappából.", "success");
   }
 
+  /**
+   * Több munka kijelölve, és a menüt (jobb klikk / ⋯) egy KIJELÖLT munkán nyitották meg → a művelet a teljes
+   * kijelölésre vonatkozik (mint a fájlkezelőkben). Nem kijelölt munkán nyitva csak arra az egyre.
+   */
+  function groupMenuItems(ids: string[]): MenuItem[] {
+    const n = ids.length;
+    if (sel.kind === "hidden") {
+      return [
+        { label: `${n} munka visszaállítása`, icon: MI.restore, onClick: () => void restore(ids) },
+        { kind: "divider" },
+        { label: `${n} munka végleges törlése`, icon: MI.trash, danger: true, onClick: () => setConfirmPurge(ids) },
+      ];
+    }
+    return [{ label: `${n} munka törlése`, icon: MI.trash, danger: true, onClick: () => void trash(ids) }];
+  }
+
   /** A ⋯ menü tartalma — a nézettől és attól függ, hogy a munka a sajátod-e. */
   function menuItems(c: Card): MenuItem[] {
+    if (selected.size > 1 && selected.has(c.id)) return groupMenuItems([...selected]);
     const list: MenuItem[] = [];
     if (c.url) list.push({ kind: "link", label: "Letöltés", icon: MI.download, href: toDownloadUrl(c.url) });
     if (c.mine && sel.kind !== "hidden") {
