@@ -6,8 +6,16 @@
 // A többi elrendezés külön fájlban: flyer-satori-openhouse / flyer-satori-unit.
 // A közös építőelemek (box, img, ikonok, rövidítés) a flyer-satori-kit-ben laknak.
 import React from "react";
-import { buildTheme, truncate, flyerGeom, parsePrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
-import { box, img, hexA, onColor, numOf, compact, icon, type Style } from "@/lib/flyer-satori-kit";
+import { flyerTheme, truncate, flyerGeom, compactPrice, formatSize, type RenderOpts } from "@/lib/flyer-poster";
+import { box, img, hexA, numOf, compact, icon, fitFs, veil, textGlow, type Style } from "@/lib/flyer-satori-kit";
+import { contrast } from "@/lib/color-worlds";
+
+/** Két szín keveréke: k=0 → a, k=1 → b (a pecsét fényátmenetéhez). */
+function mixHex(a: string, b: string, k: number): string {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, "0")).join("");
+}
 import { buildOpenHouseElement } from "@/lib/flyer-satori-openhouse";
 import { buildUnitElement } from "@/lib/flyer-satori-unit";
 
@@ -30,9 +38,10 @@ export function buildFlyerElement(o: RenderOpts, family: string): React.ReactEle
 export function buildPremiumElement(o: RenderOpts, family: string): React.ReactElement {
   const { width: W, height: H } = o;
   const u = W / 1080;
-  const t = buildTheme(o.mood, o.profile.accent_color);
-  const accent = /^#[0-9a-fA-F]{6}$/.test(o.profile.accent_color) ? o.profile.accent_color : "#1e3a5f";
-  const accInk = onColor(accent);
+  // Színek: a választott színvilágból — „Saját szín" / régi hívás → a korábbi megjelenés (flyer-poster.ts: flyerTheme).
+  const t = flyerTheme(o);
+  const accent = t.accent;
+  const accInk = t.accInk;
   const images = (o.images ?? []).filter(Boolean).slice(0, 4);
   const hero = images[0] || "";
   const thumbs = images.slice(1, 4);
@@ -56,10 +65,11 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   const contact = [p.phone, p.email, p.website].filter(Boolean).map((x) => truncate(x, 32)).join("   ·   ");
 
   // Ár: a pecséten a SZÁM nagyban, a mértékegység kisebben áll alatta/mellette.
-  // A tagolást és az egységet a parsePrice adja (lásd flyer-poster.ts).
-  const parsed = parsePrice(String(o.text.price ?? ""));
+  // A tagolást és az egységet a compactPrice adja (lásd flyer-poster.ts).
+  // A kör alakú pecsétbe a RÖVID forma kerül (89,9 M Ft) — a teljes összeg kilógna belőle.
+  const parsed = compactPrice(String(o.text.price ?? ""));
   const rawPrice = parsed ? `${parsed.value} ${parsed.unit}` : String(o.text.price ?? "").trim();
-  const priceNum = parsed ? parsed.value : truncate(rawPrice, 16);
+  const priceNum = parsed ? parsed.value : truncate(rawPrice, 24); // szöveges ár: a pecsétben két sorba törhet
   const priceSuffix = parsed ? parsed.unit : "";
 
   // --- Geometria: KÖZÖS forrásból (flyerGeom) — méretenként más kompozíció ---
@@ -67,7 +77,7 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   const amp = g.amp;
   const bandH = g.bandH;                     // a tömör sáv magassága
   const boundary = bandH;                    // a sáv felső éle (alulról mérve)
-  const sealD = Math.round((g.story ? 220 : g.wide ? 140 : g.land ? 165 : 190) * u);
+  const sealD = Math.round((g.story ? 236 : g.wide ? 150 : g.land ? 178 : 205) * u); // a fő információ: hangsúlyos méret
   const thumbD = g.thumbD;
 
   // --- Réteg 1: teljes képes háttér (a kivágás igazítható: heroPos %) ---
@@ -111,7 +121,8 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   // --- Réteg 2: felső sötétítés (állóban rövidebb — a cím relatíve kisebb részt foglal) ---
   const scrim = box({
     position: "absolute", top: 0, left: 0, width: W, height: Math.round(H * (g.story ? 0.36 : 0.50)),
-    backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.12) 62%, rgba(0,0,0,0) 100%)",
+    // A cím mögötti sötétítés felül, ívelten (smoothstep) fogy el — nincs törés; a cím olvashatóságát a glow is segíti.
+    backgroundImage: veil("#000000", 0.6, 0, 38),
   });
 
   // --- Réteg 3: cím-blokk ---
@@ -119,9 +130,9 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
     { position: "absolute", top: Math.round((g.wide ? 28 : 58) * u), left: Math.round(60 * u), width: g.land ? Math.round(W * 0.56) : W - Math.round(230 * u), flexDirection: "column" },
     [
       t.hair ? box({ width: Math.round(70 * u), height: Math.max(2, Math.round(3 * u)), background: t.hair, marginBottom: Math.round(18 * u) }, "") : null,
-      box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: "0 2px 18px rgba(0,0,0,0.45)" }, title),
-      subtitle ? box({ fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), lineHeight: 1.22, lineClamp: 2, textShadow: "0 1px 10px rgba(0,0,0,0.5)" }, subtitle) : null,
-      topLine ? box({ fontSize: topFs, fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), lineHeight: 1.25, lineClamp: 2, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }, topLine) : null,
+      box({ fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04, letterSpacing: Math.round(1 * u), textShadow: textGlow(u), ...(o.headFamily ? { fontFamily: o.headFamily } : {}) }, title),
+      subtitle ? box({ fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.95, marginTop: Math.round(14 * u), letterSpacing: Math.round(1 * u), lineHeight: 1.22, lineClamp: 2, textShadow: textGlow(u) }, subtitle) : null,
+      topLine ? box({ fontSize: topFs, fontWeight: 700, color: "#ffffff", opacity: 0.9, marginTop: Math.round(14 * u), letterSpacing: Math.round(2 * u), lineHeight: 1.25, lineClamp: 2, textShadow: textGlow(u) }, topLine) : null,
     ].filter(Boolean)
   );
 
@@ -134,12 +145,11 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   // egyébként ívelt hullám az arculati sávszínnel ---
   let wave: React.ReactElement;
   if (g.land) {
-    // A szöveg mögött tömör, majd rövid szakaszon 0-ra halványul — a fotó szabad marad.
-    const fadeW = Math.round(W * 0.40);
-    // FONTOS: a Satori a szög alakot kezeli megbízhatóan (270deg = balra), a "to left"-et nem.
+    // NINCS tömör panel: a jobb széltől befelé lágyan (smoothstep) halványuló színfátyol — a fotó végig látszik.
+    // Az adatok és az értékesítő fehérek, a betűk mögötti glow adja az olvashatóságot (lásd lInk / lGlow).
     wave = box({
-      position: "absolute", right: 0, top: 0, width: fadeW, height: H,
-      backgroundImage: `linear-gradient(270deg, ${t.band} 0%, ${t.band} 62%, ${hexA(t.band, 0.55)} 82%, ${hexA(t.band, 0)} 100%)`,
+      position: "absolute", right: 0, top: 0, width: Math.round(W * 0.62), height: H,
+      backgroundImage: veil(t.veil, 0.88, 90),
     });
   } else {
     const y0 = amp, y1 = Math.round(amp * 0.35);
@@ -153,8 +163,9 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   // Fekvőben a bal alsó blokk (kis képek + értékesítő) alá lágy sötétítés.
   const bottomScrim = g.land
     ? box({
-        position: "absolute", left: 0, bottom: 0, width: Math.round(W * 0.64), height: Math.round(H * 0.44),
-        backgroundImage: "linear-gradient(0deg, rgba(18,20,24,0.64) 0%, rgba(18,20,24,0.28) 58%, rgba(18,20,24,0) 100%)",
+        // Teljes szélességű (korábban 64% — a jobb szélén függőleges él látszott a fotón).
+        position: "absolute", left: 0, bottom: 0, width: W, height: Math.round(H * 0.44),
+        backgroundImage: veil("#121418", 0.64, 180),
       })
     : null;
 
@@ -170,15 +181,46 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
         bottom: g.story ? boundary - Math.round(sealD * 0.18) : boundary - Math.round(sealD / 2),
       };
   // A pecsét szövege a kör méretével ARÁNYOSAN kicsinyedik — így sosem lóg ki.
-  const sealK = Math.min(1, sealD / (190 * u));
+  const sealK = Math.min(1.1, sealD / (190 * u));
+  // A szám + mértékegység egy sorban fér el a körben: a szám mérete a sor becsült szélességéhez igazodik
+  // (számjegy ≈ 0,6 em, vessző ≈ 0,3 em; a belső hely a kör átmérője a margókkal és a kerettel csökkentve).
+  // Az ár a FŐ információ: a talpas címbetűk (pl. Cormorant) régies, alacsony számjegyei kis méretben nehezen
+  // olvashatók — ilyenkor a szám a jól olvasható szövegbetűt kapja (félkövér); a sans címbetű megmarad.
+  const serifHead = !!o.headFamily && /garamond|cormorant|playfair|serif|fraunces|lora|bodoni|didot/i.test(o.headFamily);
+  const priceFamily = o.headFamily && !serifHead ? o.headFamily : undefined;
+  const sealUnitFs = Math.round(18 * u * sealK);
+  const sealGap = Math.round(6 * u * sealK);
+  const sealPad = Math.round(12 * u * sealK);
+  const sealInner = sealD - 2 * sealPad - Math.round(14 * u);
+  const unitW = priceSuffix ? priceSuffix.length * 0.62 * sealUnitFs + sealGap : 0;
+  const digitEm = 0.6;
+  const numEm = [...priceNum].reduce((w, ch) => w + (/[,.\s]/.test(ch) ? 0.28 : digitEm), 0) || 1;
+  const sealNumFs = Math.round(Math.min(56 * u * sealK, (sealInner - unitW) / numEm));
+  // PRÉMIUM PECSÉT (érme-hatás): finom fényátmenet a kiemelő színből (bal felül világosabb, jobb alul mélyebb),
+  // belül vékony díszgyűrű (arany / a színvilág kiemelő színe), mély, lágy árnyék — vastag fehér keret nélkül.
+  const ringInset = Math.round(7 * u * sealK);
+  const ringW = Math.max(1, Math.round(1.6 * u * sealK));
+  const ring = t.hair && contrast(t.hair, accent) >= 1.8 ? t.hair : hexA(accInk, 0.55);
   const seal = rawPrice
     ? box(
-        { position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999, background: accent, flexDirection: "column", alignItems: "center", justifyContent: "center", padding: Math.round(20 * u * sealK), border: `${Math.round(4 * u)}px solid #ffffff`, boxShadow: "0 10px 32px rgba(0,0,0,0.35)" },
+        {
+          position: "absolute", ...sealPos, width: sealD, height: sealD, borderRadius: 9999,
+          backgroundColor: accent,
+          backgroundImage: `linear-gradient(145deg, ${mixHex(accent, "#ffffff", 0.16)} 0%, ${accent} 52%, ${mixHex(accent, "#000000", 0.28)} 100%)`,
+          flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: sealPad,
+          boxShadow: `0 ${Math.round(16 * u)}px ${Math.round(40 * u)}px rgba(0,0,0,0.45), 0 ${Math.round(3 * u)}px ${Math.round(8 * u)}px rgba(0,0,0,0.30)`,
+        },
         [
-          box({ fontSize: Math.round(18 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.9, letterSpacing: Math.round(3 * u * sealK), marginBottom: Math.round(4 * u) }, "ÁR"),
-          box({ alignItems: "baseline", justifyContent: "center", flexWrap: "nowrap", gap: Math.round(6 * u * sealK) }, [
-            box({ fontSize: Math.round((priceNum.length > 8 ? 28 : priceNum.length > 4 ? 34 : 42) * u * sealK), fontWeight: 700, color: accInk, lineHeight: 1.05, flexShrink: 0, whiteSpace: "nowrap" }, priceNum),
-            priceSuffix ? box({ fontSize: Math.round(20 * u * sealK), fontWeight: 700, color: accInk, opacity: 0.95, flexShrink: 0, whiteSpace: "nowrap" }, priceSuffix) : null,
+          box({ position: "absolute", left: ringInset, top: ringInset, width: sealD - 2 * ringInset, height: sealD - 2 * ringInset, borderRadius: 9999, border: `${ringW}px solid ${ring}` }, ""),
+          // Nincs „ÁR" felirat: a szám + mellette a mértékegység (M Ft / Mrd Ft / Ft) EGY sorban,
+          // együtt a kör pontos közepén (alapvonalra igazítva).
+          // Szöveges ár (pl. „Megegyezés szerint"): legfeljebb két sorban, középre zárva, olvasható méretben.
+          !parsed
+            ? box({ width: sealInner, justifyContent: "center", textAlign: "center", fontSize: Math.round(Math.min(30, (30 * 12) / Math.max(12, priceNum.length)) * 1.25 * u * sealK), fontWeight: 700, color: accInk, lineHeight: 1.12, ...(priceFamily ? { fontFamily: priceFamily } : {}) } as Style, priceNum)
+            : box({ alignItems: "baseline", justifyContent: "center", flexWrap: "nowrap", gap: sealGap }, [
+            box({ fontSize: sealNumFs, fontWeight: 700, color: accInk, lineHeight: 1, letterSpacing: -Math.round(sealNumFs * 0.02), flexShrink: 0, whiteSpace: "nowrap", ...(priceFamily ? { fontFamily: priceFamily } : {}) }, priceNum),
+            priceSuffix ? box({ fontSize: sealUnitFs, fontWeight: 700, color: accInk, opacity: 0.82, letterSpacing: Math.round(sealUnitFs * 0.04), flexShrink: 0, whiteSpace: "nowrap" }, priceSuffix) : null,
           ].filter(Boolean)),
         ]
       )
@@ -272,11 +314,11 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
   // A fotó és a céglogó KÖR elemben, egymás alatt a jobb alsó sarokban (cornerCol).
   const circleD = Math.round((g.story ? 124 : 112) * u); // közös méret; story-ban kicsit nagyobb
   const agentHeader = box({ flexDirection: "column" }, [
-    box({ fontSize: Math.round(28 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+    box({ fontSize: fitFs(p.display_name || p.company, 28 * u, 22, 0.72), fontWeight: 700, color: t.bandInk, lineHeight: 1.25, whiteSpace: "nowrap" }, truncate(p.display_name || p.company, 32)),
     p.title ? box({ fontSize: Math.round(19 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 28)) : null,
   ].filter(Boolean));
   const contactLine = (v: string, i: number) =>
-    box({ key: i, fontSize: Math.round(20 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.5 } as Style, truncate(v, 34));
+    box({ key: i, fontSize: fitFs(v, 20 * u, 26, 0.72), fontWeight: 700, color: t.bandInk, lineHeight: 1.5, whiteSpace: "nowrap" } as Style, truncate(v, 40));
   const agentBlock = box(
     { flexDirection: "column", width: Math.round(W * 0.38), gap: Math.round(6 * u), paddingRight: Math.round((p.agent_photo_url || p.logo_url ? 180 : 0) * u), paddingBottom: Math.round(18 * u) },
     [
@@ -317,10 +359,13 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
     const dataFs = Math.round((g.wide ? 24 : 27) * u);
     const dataIcon = Math.round(36 * u);
     const dataTop = Math.round((g.wide ? 252 : 285) * u);
+    // A fotóra írt (fátyolos) oszlop: fehér betű + sötét glow.
+    const lInk = "#ffffff";
+    const lGlow = textGlow(u);
     const landItem = (it: { k: string; v: string }, i: number) =>
       box({ key: i, alignItems: "center", gap: Math.round(14 * u), height: rowH } as Style, [
-        icon(it.k, dataIcon, t.bandInk),
-        box({ fontSize: dataFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.2 }, it.v),
+        icon(it.k, dataIcon, lInk),
+        box({ fontSize: dataFs, fontWeight: 700, color: lInk, textShadow: lGlow, lineHeight: 1.2 }, it.v),
       ]);
     // A jobb oldali OSZLOP közös bal éle: az adatok és az értékesítő ugyanabban a
     // sávban ülnek (right-margóval rögzítve), semmi nem lóg ki belőle.
@@ -371,13 +416,13 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
       bandContent = box(
         { position: "absolute", right: colRight, top: agentTop, width: panelW, flexDirection: "column", gap: Math.round(2 * u) },
         [
-          box({ width: "100%", height: 1, background: t.bandInk, opacity: 0.28, marginBottom: Math.round(10 * u) }, ""),
+          box({ width: "100%", height: 1, background: lInk, opacity: 0.4, marginBottom: Math.round(10 * u) }, ""),
           circlesRow,
-          box({ fontSize: Math.round(21 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
-          p.title ? box({ fontSize: Math.round(14 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.4 }, truncate(p.title, 30)) : null,
-          p.phone ? box({ fontSize: Math.round(23 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.4, marginTop: Math.round(2 * u) }, truncate(p.phone, 24)) : null,
-          p.email ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.email, 34)) : null,
-          p.website ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: t.bandInk, opacity: 0.95, lineHeight: 1.5 }, truncate(p.website, 34)) : null,
+          box({ fontSize: fitFs(p.display_name || p.company, 21 * u, 22, 0.72), fontWeight: 700, color: lInk, textShadow: lGlow, lineHeight: 1.25, whiteSpace: "nowrap" }, truncate(p.display_name || p.company, 32)),
+          p.title ? box({ fontSize: Math.round(14 * u), fontWeight: 400, color: lInk, textShadow: lGlow, opacity: 0.85, lineHeight: 1.4 }, truncate(p.title, 30)) : null,
+          p.phone ? box({ fontSize: Math.round(23 * u), fontWeight: 700, color: lInk, textShadow: lGlow, lineHeight: 1.4, marginTop: Math.round(2 * u) }, truncate(p.phone, 24)) : null,
+          p.email ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: lInk, textShadow: lGlow, opacity: 0.95, lineHeight: 1.5 }, truncate(p.email, 34)) : null,
+          p.website ? box({ fontSize: Math.round(14 * u), fontWeight: 700, color: lInk, textShadow: lGlow, opacity: 0.95, lineHeight: 1.5 }, truncate(p.website, 34)) : null,
         ].filter(Boolean)
       );
     }
@@ -416,7 +461,7 @@ export function buildPremiumElement(o: RenderOpts, family: string): React.ReactE
     const agentStory = box(
       { flexDirection: "column", alignItems: "flex-end", gap: Math.round(2 * u) },
       [
-        box({ fontSize: Math.round(34 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.25 }, truncate(p.display_name || p.company, 24)),
+        box({ fontSize: fitFs(p.display_name || p.company, 34 * u, 22, 0.72), fontWeight: 700, color: t.bandInk, lineHeight: 1.25, whiteSpace: "nowrap" }, truncate(p.display_name || p.company, 32)),
         p.title ? box({ fontSize: Math.round(21 * u), fontWeight: 400, color: t.bandInk, opacity: 0.85, lineHeight: 1.35 }, truncate(p.title, 30)) : null,
         pill,
         p.email ? box({ fontSize: Math.round(22 * u), fontWeight: 700, color: t.bandInk, lineHeight: 1.45 }, truncate(p.email, 32)) : null,

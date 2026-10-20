@@ -7,10 +7,10 @@
 // egymás alá kerülnek, a fekvőnél (4:3) egymás mellé.
 import React from "react";
 import {
-  buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts,
+  flyerTheme, truncate, flyerGeom, fitPrice, formatSize, type RenderOpts,
 } from "@/lib/flyer-poster";
 import {
-  box, img, onColor, compact, numOf, icon, checkBox, heroFill, fitFs, fitHeadline, fitParagraph,
+  box, img, compact, numOf, icon, checkBox, veil, textGlow, heroFill, fitFs, fitHeadline, fitParagraph,
   type Style,
 } from "@/lib/flyer-satori-kit";
 
@@ -18,9 +18,10 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const { width: W, height: H } = o;
   const u = W / 1080;
   const g = flyerGeom(W, H);
-  const t = buildTheme(o.mood, o.profile.accent_color);
-  const accent = /^#[0-9a-fA-F]{6}$/.test(o.profile.accent_color) ? o.profile.accent_color : "#1e3a5f";
-  const accInk = onColor(accent);
+  // Színek: a választott színvilágból — „Saját szín" / régi hívás → a korábbi megjelenés (flyer-poster.ts: flyerTheme).
+  const t = flyerTheme(o);
+  const accent = t.accent;
+  const accInk = t.accInk;
   const p = o.profile;
   const d = o.text.details ?? {};
 
@@ -38,12 +39,11 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   // 1) FŐKÉP-SÁV
   // ===========================================================================
   const heroImg = heroFill(hero, W, heroH, o.heroPos?.x ?? 50, o.heroPos?.y ?? 50, o.heroDim?.w ?? 0, o.heroDim?.h ?? 0);
-  // A nagy főcím a fotó világosabb részére is átnyúlhat, ezért a sötétítés a
-  // TELJES fotósávra kiterjed — alul erős, fölfelé fokozatosan elfogy.
+  // A főképen csak egy lágyan halványuló SZÍN-fátyol (a színvilág színe): a fotó felső ~30%-a teljesen tiszta,
+  // lefelé ívelten erősödik. A cím olvashatóságát a betűk mögötti glow adja (korábban 86%-os fekete sötétítés volt).
   const heroScrim = box({
     position: "absolute", left: 0, bottom: 0, width: W, height: heroH,
-    backgroundImage:
-      "linear-gradient(0deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.58) 34%, rgba(0,0,0,0.22) 64%, rgba(0,0,0,0) 100%)",
+    backgroundImage: veil(t.veil, 0.8, 180, 30),
   });
 
   // Hosszabb cím is TELJESEN kifér: a méret igazodik hozzá, nem vágjuk le.
@@ -88,7 +88,7 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
     fontSize: titleFs, fontWeight: 700, color: "#ffffff", lineHeight: 1.04,
     // A serif magától is elegáns, nem kell szétfeszíteni; a sansnál marad a ritkítás.
     letterSpacing: o.displayFamily ? 0 : Math.round(1 * u),
-    textShadow: "0 2px 18px rgba(0,0,0,0.55)",
+    textShadow: textGlow(u),
   };
   if (o.displayFamily) titleStyle.fontFamily = o.displayFamily;
 
@@ -105,16 +105,17 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
           // Visszafogott: normál vastagság, enyhén halványítva — a főcím marad a hangsúlyos.
           fontSize: subFs, fontWeight: 400, color: "#ffffff", opacity: 0.94,
           lineHeight: 1.28, whiteSpace: "nowrap",
-          textShadow: "0 2px 10px rgba(0,0,0,0.55)",
+          textShadow: textGlow(u),
         },
         subtitle
       )
     : null;
 
   // Kiemelt infó-blokk (a minta dátum-blokkjának helyén): ÁR + kulcsadat.
-  // A mértékegységet (Ft / M Ft) a formatPrice teszi ki — itt már NEM toldunk hozzá,
+  // A mértékegységet (Ft / M Ft) a fitPrice teszi ki — itt már NEM toldunk hozzá,
   // különben "63 900 000 Ft M Ft" lenne belőle.
-  const rawPrice = formatPrice(String(o.text.price ?? ""));
+  // Ha a teljes összeg túl hosszú (pl. 1 250 000 000 Ft), a rövid forma kerül ki (1,25 Mrd Ft).
+  const rawPrice = fitPrice(String(o.text.price ?? ""), 14);
   const priceTxt = truncate(rawPrice, 20);
   const keyBits = [formatSize(d.size ?? ""), numOf(d.rooms) ? `${numOf(d.rooms)} szoba` : compact(d.rooms ?? "", 14)]
     .filter(Boolean).join("  ·  ");
@@ -126,7 +127,7 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
             ? box({ fontSize: Math.round(20 * u), fontWeight: 700, color: "#ffffff", opacity: 0.85, letterSpacing: Math.round(4 * u), marginBottom: Math.round(6 * u) }, "IRÁNYÁR")
             : null,
           rawPrice
-            ? box({ fontSize: fitFs(priceTxt, 54 * u, 12, 0.55), fontWeight: 700, color: "#ffffff", lineHeight: 1.1, whiteSpace: "nowrap", textShadow: "0 2px 14px rgba(0,0,0,0.45)" }, priceTxt)
+            ? box({ fontSize: fitFs(priceTxt, 54 * u, 12, 0.55), fontWeight: 700, color: "#ffffff", lineHeight: 1.1, whiteSpace: "nowrap", textShadow: textGlow(u) }, priceTxt)
             : null,
           keyBits
             ? box({ fontSize: Math.round(24 * u), fontWeight: 400, color: "#ffffff", opacity: 0.92, marginTop: Math.round(8 * u), whiteSpace: "nowrap" }, truncate(keyBits, 30))
@@ -193,8 +194,8 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const hiBox = Math.round((g.land ? 34 : 38) * u);
   const hiRow = (s: string, i: number) =>
     box({ key: i, alignItems: "center", gap: Math.round(16 * u), marginTop: Math.round(14 * u) } as Style, [
-      checkBox(hiBox, t.band, Math.max(2, Math.round(2.5 * u))),
-      box({ fontSize: fitFs(s, hiFs, 18, 0.7), fontWeight: 700, color: t.band, lineHeight: 1.25 }, s),
+      checkBox(hiBox, t.mark, Math.max(2, Math.round(2.5 * u))),
+      box({ fontSize: fitFs(s, hiFs, 18, 0.7), fontWeight: 700, color: t.mark, lineHeight: 1.25 }, s),
     ]);
 
   // A szövegoszlop MAGASSÁGRA illesztve: előbb a pipás előnyök férjenek el, a
@@ -218,7 +219,7 @@ export function buildOpenHouseElement(o: RenderOpts, family: string): React.Reac
   const blurbBox = box(
     {
       width: textColW, flexShrink: 0, fontSize: par.fs, fontWeight: 400,
-      color: "#3a3733", lineHeight: 1.45,
+      color: t.bodyAlt, lineHeight: 1.45,
       // Állóban a két oszlop első sora egy vonalban induljon.
       marginTop: g.story ? Math.round(14 * u) : 0,
     },

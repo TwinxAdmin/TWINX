@@ -9,6 +9,7 @@
 // GALÉRIA (2. fotótól): nagy kép + kis képek oszlopa, „csere" áttűnés, papírcsík-felirat.
 //
 // IDŐVONAL (5 fotó, 34,4 mp): 0–6 nyitó · 6–28,4 galéria (4 × 5,6 mp) · 28,4–34,4 zárókép
+import { videoPalette } from "@/lib/color-worlds";
 import type { TwinxTemplate, Layer, StackItem, AspectId, Box, TemplateVariant } from "@/lib/video-engine/template-schema";
 
 const HEAD = "Outfit";
@@ -220,14 +221,8 @@ function buildMozaik(count: number): TwinxTemplate {
       // A papírcsík felirata: csak ENYHÉN kézírásos, jól olvasható (Google Fonts, OFL).
       { family: NOTE, weight: 500, file: "assets/fonts/video/ShantellSans-Medium.ttf" },
     ],
-    palette: {
-      shadow: "#3a3631",  // antracit (sötét szöveg, vonalak)
-      base: "#f3f1ee",    // márvány alap
-      glow: "#e4e0da",    // halvány erezet / árnyalat
-      accent: "#a65d36",  // terrakotta (főcím, ár)
-      text: "#3a3631",    // antracit szöveg
-      muted: "#77716a",   // másodlagos szöveg, erezet
-    },
+    // A színek a közös színvilág-forrásból (src/lib/color-worlds.ts) jönnek.
+    palette: videoPalette("mozaik"),
     photos: { min: 4, max: 5 },
     captionMaxChars: 80,
     audio: { volume: 1, fadeIn: 0.6, fadeOut: 2.2 },
@@ -272,6 +267,6 @@ export const MOZAIK: TwinxTemplate = buildMozaik(5);
 export const MOZAIK_VARIANTS: TemplateVariant[] = [
   {
     id: "mozaik-smaragd", templateId: "mozaik", name: "TWINX Mozaik — Smaragd + arany",
-    palette: { shadow: "#0b1c17", base: "#173229", glow: "#24463b", accent: "#d4b06a", text: "#f3ece0", muted: "#9fb6a9" },
+    palette: videoPalette("mozaik-smaragd"),
   },
 ];

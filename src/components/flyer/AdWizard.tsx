@@ -1,4 +1,4 @@
-// Hirdetés-varázsló: Arculat → Képek → Adatok → Stílus → Előnézet.
+// Hirdetés-varázsló: Megjelenés → Arculat → Képek → Adatok → Előnézet.
 // A hirdetést kódból rajzoljuk (nincs AI): a fotókat egy igényes sablonba rendezzük,
 // a feliratokat élesen írjuk rá — így az ékezetek, a telefonszám és az e-mail mindig hibátlan.
 "use client";
@@ -23,6 +23,23 @@ import {
   FLYER_SIZES, FLYER_TEMPLATES, getFlyerSize, getFlyerTemplate, flyerGeom,
 } from "@/lib/flyer-poster";
 import type { FlyerProfileData } from "@/lib/flyer-template";
+import { Fraunces } from "next/font/google";
+import BrandStep, { BRAND_FIELDS, isKnownWorld, type BrandFieldKey, type QuickBrand } from "@/components/flyer/BrandStep";
+import { DEFAULT_WORLD_ID } from "@/lib/color-worlds";
+
+// Talpas címbetű a varázsló fejlécéhez (prémium hatás).
+const serif = Fraunces({ subsets: ["latin", "latin-ext"], weight: ["600"], display: "swap" });
+/** A fejléc nagy címe: az Arculat lépésben kérdés, a többinél (amelyeknek saját alcímük van) a varázsló neve. */
+const stepTitle = (step: number) => (step === 1 ? "Hogyan nézzen ki a hirdetésed?" : "Új hirdetéskép");
+
+// Az Arculat lépés utolsó választása (pipák + színvilág + arculat) — a következő hirdetésnél is ez az alap.
+// Csak ebben a böngészőben (localStorage); ha nem elérhető, az alapértékek élnek.
+const BRAND_MEMORY_KEY = "twx:flyer:arculat";
+type BrandMemory = { profileId?: string; world?: string; shown?: Partial<Record<BrandFieldKey, boolean>> };
+function readBrandMemory(): BrandMemory {
+  try { return JSON.parse(window.localStorage.getItem(BRAND_MEMORY_KEY) || "{}") as BrandMemory; } catch { return {}; }
+}
+const ALL_SHOWN = Object.fromEntries(BRAND_FIELDS.map((f) => [f.key, true])) as Record<BrandFieldKey, boolean>;
 
 // A MEGJELENÉS (sablon + méret) tudatosan az ELSŐ lépés: a partner előbb lássa
 // kész minta-hirdetéseken, mibe vág bele, és csak utána adjon meg bármit.
@@ -66,13 +83,23 @@ export default function AdWizard({
   // tölcsér-mérés (ME2): a varázsló első érintése = űrlap elkezdése; „Elfogadom" = futtatás; letöltés / megosztás
   const track = useModuleTracker("/dashboard/flyer");
 
-  // 1) Arculat — mentett vagy egyszeri
-  const [brandMode, setBrandMode] = useState<"saved" | "quick">(profiles.length ? "saved" : "quick");
-  const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
-  const [quick, setQuick] = useState({
+  // 1) Arculat — a mentett arculat adatai (pipálva, mi kerüljön a hirdetésre) + színvilág.
+  //    Ha még nincs mentett arculat: egyszeri űrlap, amit a „Tovább" arculatként elment.
+  const [localProfiles, setLocalProfiles] = useState<BrandingProfile[]>(profiles);
+  const [memory] = useState<BrandMemory>(() => readBrandMemory());
+  const [profileId, setProfileId] = useState(() =>
+    memory.profileId && profiles.some((p) => p.id === memory.profileId) ? memory.profileId : (profiles[0]?.id ?? ""));
+  const [shown, setShown] = useState<Record<BrandFieldKey, boolean>>(() => ({ ...ALL_SHOWN, ...memory.shown }));
+  const [worldId, setWorldId] = useState(() => (memory.world && isKnownWorld(memory.world) ? memory.world : DEFAULT_WORLD_ID));
+  const [quick, setQuick] = useState<QuickBrand>({
     display_name: "", title: "", phone: "", email: "", company: "", website: "",
     accent_color: "#1e3a5f", font: BRANDING_FONTS[0].value,
   });
+  const [savingBrand, setSavingBrand] = useState(false);
+  const brandMode: "saved" | "quick" = localProfiles.length ? "saved" : "quick";
+  useEffect(() => {
+    try { window.localStorage.setItem(BRAND_MEMORY_KEY, JSON.stringify({ profileId, world: worldId, shown })); } catch { /* nem elérhető — nem baj */ }
+  }, [profileId, worldId, shown]);
 
   // 2) Képek
   const [images, setImages] = useState<string[]>([]);
@@ -150,11 +177,13 @@ export default function AdWizard({
   const thumbSlots = slotsFor(curSize);
 
   const profileData: FlyerProfileData = (() => {
-    const p = brandMode === "saved" ? profiles.find((x) => x.id === profileId) : null;
+    const p = brandMode === "saved" ? localProfiles.find((x) => x.id === profileId) : null;
     if (p) {
+      // A ki nem pipált adat üres — a sablonok kihagyják, így nem marad rés.
+      const v = (k: BrandFieldKey) => (shown[k] ? p[k] : "");
       return {
-        display_name: p.display_name, title: p.title, phone: p.phone, email: p.email,
-        company: p.company, website: p.website, slogan: p.slogan,
+        display_name: v("display_name"), title: v("title"), phone: v("phone"), email: v("email"),
+        company: v("company"), website: v("website"), slogan: p.slogan,
         logo_url: p.logo_url, agent_photo_url: p.agent_photo_url,
         accent_color: p.accent_color, font: p.font, theme: p.theme === "dark" ? "dark" : "light",
       };
@@ -269,6 +298,7 @@ export default function AdWizard({
     }
     fd.append("profile", JSON.stringify(profileData));
     fd.append("mood", mood);
+    fd.append("world", worldId);
     fd.append("size", sizeVal);
     fd.append("template", template);
     fd.append("watermark", watermark ? "1" : "0");
@@ -414,11 +444,48 @@ export default function AdWizard({
     if (step === 4) { setPreviews({}); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroPos, slotsBySize]);
+  // Arculat-változásnál (pipák, színvilág, arculat) is érvénytelen — különben az Előnézetből visszalépve
+  // és színt váltva a régi, gyorsítótárazott előnézet jönne vissza.
+  const brandKey = JSON.stringify([worldId, profileData]);
+  useEffect(() => {
+    setPreviews({});
+  }, [brandKey]);
   // Sablon- vagy felirat-váltásnál minden korábbi előnézet érvénytelen.
   useEffect(() => {
     setPreviews({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template, thumbLabelsKey, blurb]);
+
+  /** Az egyszeri űrlap mentése arculatként (új felhasználó) — utána a pipás nézet látszik. */
+  async function saveQuickBrand(): Promise<boolean> {
+    setSavingBrand(true);
+    try {
+      const name = quick.display_name.trim() || quick.company.trim();
+      const fd = new FormData();
+      const fields = {
+        label: name, display_name: name, title: quick.title.trim(), phone: quick.phone.trim(), email: quick.email.trim(),
+        company: quick.company.trim(), website: quick.website.trim(), slogan: "",
+        accent_color: /^#[0-9a-fA-F]{6}$/.test(quick.accent_color) ? quick.accent_color : "#1e3a5f", font: quick.font,
+      };
+      for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+      fd.append("theme", "light");
+      const res = await fetch("/api/branding", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || (data.errors ? Object.values(data.errors as Record<string, string>).join(" ") : "Nem sikerült menteni az arculatot."));
+        return false;
+      }
+      const saved: BrandingProfile = { id: data.id as string, ...fields, theme: "light", logo_url: null, agent_photo_url: null };
+      setLocalProfiles([saved]);
+      setProfileId(saved.id);
+      setShown(ALL_SHOWN);
+      showToast("Arculat elmentve — legközelebb már csak pipálsz.", "success");
+      return true;
+    } catch {
+      setError("Nem sikerült menteni az arculatot.");
+      return false;
+    } finally { setSavingBrand(false); }
+  }
 
   function next() {
     if (step === 0 && !sizes.length) { setError("Válassz legalább egy méretet."); return; }
@@ -429,6 +496,15 @@ export default function AdWizard({
       }
       if (brandMode === "quick" && !quick.phone.trim() && !quick.email.trim()) {
         setError("Adj meg legalább egy elérhetőséget."); return;
+      }
+      if (brandMode === "saved" && !BRAND_FIELDS.some((f) => profileData[f.key]?.trim())) {
+        setError("Pipálj be legalább egy megjelenő adatot."); return;
+      }
+      if (brandMode === "quick") {
+        if (savingBrand) return;
+        setError(null);
+        void saveQuickBrand().then((ok) => { if (ok) setStep(2); });
+        return;
       }
     }
     if (step === 2 && !images.length) { setError("Adj hozzá legalább egy képet."); return; }
@@ -449,7 +525,6 @@ export default function AdWizard({
     setStep((s) => Math.min(STEPS.length - 1, s + 1));
   }
 
-  const set = <K extends keyof typeof quick>(k: K, v: string) => setQuick({ ...quick, [k]: v });
   const setF = <K extends keyof FlyerFacts>(k: K, v: string) => setFacts({ ...facts, [k]: v });
   const setT = <K extends keyof FlyerText>(k: K, v: FlyerText[K]) => setText({ ...text, [k]: v });
 
@@ -485,34 +560,42 @@ export default function AdWizard({
     // FONTOS: a háttérre kattintás NEM zár be — több lépésnyi munka veszne el egy
     // véletlen mellékattintás miatt. Bezárni csak az × / Esc tud, és ha már van
     // elveszíthető adat, akkor is csak megerősítés után.
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-4" style={{ background: "rgba(20,12,8,0.55)" }}>
       <div onInputCapture={track.formStarted} onChangeCapture={track.formStarted}
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl"
-        style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}>
+        className="flex h-full w-full max-w-[1120px] flex-col overflow-hidden sm:h-auto sm:max-h-[94vh] sm:rounded-[22px]"
+        style={{ background: "#FCFAF7", boxShadow: "0 40px 90px rgba(0,0,0,0.35)" }}>
 
-        {/* Fejléc + lépésjelző */}
-        <div className="border-b p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">Új hirdetéskép</h2>
-            <button onClick={requestClose} className="rounded-lg px-2 text-xl" style={{ color: "var(--twx-ink-muted)" }} aria-label="Bezár">×</button>
+        {/* Fejléc: lépés-felirat + nagy, talpas cím + 5 szakaszos haladásjelző (a kész szakaszra kattintva visszaléphetsz) */}
+        <div className="px-5 pt-5 sm:px-8 sm:pt-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block text-[11px] font-semibold tracking-[0.25em]" style={{ color: "#A8432B" }}>
+                {step + 1} / {STEPS.length} · {STEPS[step].toUpperCase()}
+              </span>
+              <h2 className={`${serif.className} mt-1 text-[22px] font-semibold leading-tight tracking-[-0.01em] sm:text-[28px]`} style={{ color: "#1C1917" }}>
+                {stepTitle(step)}
+              </h2>
+            </div>
+            <button onClick={requestClose} aria-label="Bezár"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white"
+              style={{ border: "1px solid #E8E0D7" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1C1917" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
           </div>
-          <div className="mt-3 flex items-center gap-1.5">
+          <div className="mt-2 flex gap-1.5">
             {STEPS.map((s, i) => (
-              <div key={s} className="flex flex-1 items-center gap-1.5">
-                <button type="button" onClick={() => i < step && setStep(i)} className="flex items-center gap-1.5 text-[11px] font-semibold"
-                  style={{ color: i === step ? "var(--twx-coral)" : i < step ? "var(--twx-ink)" : "var(--twx-ink-muted)" }}>
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px]"
-                    style={i <= step ? { background: "var(--twx-coral)", color: "#1c1005" } : { border: "1px solid var(--twx-line)" }}>{i + 1}</span>
-                  <span className="hidden sm:inline">{s}</span>
-                </button>
-                {i < STEPS.length - 1 && <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />}
-              </div>
+              <button key={s} type="button" onClick={() => i < step && !busy && setStep(i)} disabled={i >= step}
+                aria-label={`${i + 1}. lépés: ${s}${i < step ? " (vissza ide)" : ""}`} title={s}
+                className="flex h-6 flex-1 items-center disabled:cursor-default">
+                <span className="block h-[3px] w-full rounded-full"
+                  style={{ background: i < step ? "#1C1917" : i === step ? "#C4553A" : "#E8E0D7" }} />
+              </button>
             ))}
           </div>
         </div>
 
         {/* Tartalom */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
           {/* 1) MEGJELENÉS — sablon ÉS méret egy helyen, kész minta-hirdetéssel */}
           {step === 0 && (
             <div className="space-y-4">
@@ -627,70 +710,15 @@ export default function AdWizard({
             </div>
           )}
 
-          {/* 2) ARCULAT */}
+          {/* 2) ARCULAT — pipálós adatok + színvilág + élő előnézet (BrandStep.tsx) */}
           {step === 1 && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setBrandMode("saved")} disabled={!profiles.length}
-                  className="flex-1 rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-40"
-                  style={brandMode === "saved" ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                  Mentett arculatom
-                </button>
-                <button type="button" onClick={() => setBrandMode("quick")}
-                  className="flex-1 rounded-xl px-4 py-2 text-sm font-medium"
-                  style={brandMode === "quick" ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
-                  Most adom meg
-                </button>
-              </div>
-
-              {brandMode === "saved" ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {profiles.map((p) => {
-                    const on = profileId === p.id;
-                    return (
-                      <button key={p.id} type="button" onClick={() => setProfileId(p.id)}
-                        className="flex items-center gap-3 rounded-xl p-3 text-left transition hover:shadow-sm"
-                        style={{ border: `1px solid ${on ? "var(--twx-coral)" : "var(--twx-line)"}`, background: on ? "var(--twx-coral-soft)" : "#fff" }}>
-                        <span className="h-9 w-9 shrink-0 rounded-lg" style={{ background: p.accent_color }} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">{p.label}</span>
-                          <span className="block truncate text-xs" style={{ color: "var(--twx-ink-muted)" }}>{p.display_name}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Nem kell arculatot létrehoznod — ezekből készül a hirdetés.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Név" value={quick.display_name} onChange={(v) => set("display_name", v)} placeholder="pl. Kovács Péter" />
-                    <Field label="Titulus" value={quick.title} onChange={(v) => set("title", v)} placeholder="pl. ingatlanértékesítő" />
-                    <Field label="Telefon" value={quick.phone} onChange={(v) => set("phone", v)} placeholder="pl. +36 30 123 4567" />
-                    <Field label="E-mail" value={quick.email} onChange={(v) => set("email", v)} placeholder="pl. peter@iroda.hu" />
-                    <Field label="Cégnév" value={quick.company} onChange={(v) => set("company", v)} placeholder="pl. Prémium Ingatlanok" />
-                    <Field label="Weboldal" value={quick.website} onChange={(v) => set("website", v)} placeholder="pl. iroda.hu" />
-                  </div>
-                  <div className="flex flex-wrap items-end gap-4">
-                    <div>
-                      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Fő szín</label>
-                      <div className="mt-1 flex items-center gap-2">
-                        <input type="color" value={quick.accent_color} onChange={(e) => set("accent_color", e.target.value)} className="h-9 w-12 cursor-pointer rounded" style={{ border: "1px solid var(--twx-line)" }} />
-                        <input type="text" value={quick.accent_color} onChange={(e) => set("accent_color", e.target.value)} className="twx-input w-28 text-sm" />
-                      </div>
-                    </div>
-                    <div className="min-w-[12rem] flex-1">
-                      <label className="block text-xs font-medium" style={{ color: "var(--twx-ink-muted)" }}>Betűtípus</label>
-                      <select value={quick.font} onChange={(e) => set("font", e.target.value)} className="twx-input mt-1 w-full text-sm">
-                        {BRANDING_FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <BrandStep
+              profiles={localProfiles} profileId={profileId} onProfile={setProfileId}
+              shown={shown} onShown={setShown} worldId={worldId} onWorld={setWorldId}
+              quick={quick} onQuick={setQuick} template={template} size={sizes[0] ?? SIZES[0].value}
+              images={images} previewProfile={profileData}
+              onProfileSaved={(np) => setLocalProfiles((prev) => prev.map((x) => (x.id === np.id ? np : x)))}
+            />
           )}
 
           {/* 3) KÉPEK */}
@@ -1020,14 +1048,16 @@ export default function AdWizard({
         </div>
 
         {/* Lábléc */}
-        <div className="flex items-center justify-between gap-3 border-t p-4" style={{ borderColor: "var(--twx-line)" }}>
-          <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || accepting}
-            className="rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-40" style={{ border: "1px solid var(--twx-line)" }}>
+        <div className="flex items-center justify-between gap-3 border-t bg-white px-5 py-3.5 sm:px-8" style={{ borderColor: "#EDE6DE" }}>
+          <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || accepting || savingBrand}
+            className="h-12 shrink-0 rounded-full bg-white px-5 text-[15px] disabled:opacity-40" style={{ border: "1px solid #DDD3C9", color: "#1C1917" }}>
             Vissza
           </button>
           {step < STEPS.length - 1 ? (
-            <button type="button" onClick={next} className="rounded-xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "var(--twx-coral)" }}>
-              Tovább
+            <button type="button" onClick={next} disabled={savingBrand}
+              className="flex h-12 flex-1 items-center justify-center gap-2.5 whitespace-nowrap rounded-full px-5 text-[15px] font-semibold text-white disabled:opacity-60 sm:flex-none sm:px-7" style={{ background: "#1C1917" }}>
+              {step === 1 ? (savingBrand ? "Mentés…" : "Tovább a képekhez") : "Tovább"}
+              <svg className="hidden sm:block" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </button>
           ) : finalUrl ? (
             <div className="flex flex-wrap gap-2">

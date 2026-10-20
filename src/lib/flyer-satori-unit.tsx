@@ -7,10 +7,10 @@
 // kerül teljes szélességben, a fekvő és négyzetes méretnél mellé.
 import React from "react";
 import {
-  buildTheme, truncate, flyerGeom, formatPrice, formatSize, type RenderOpts,
+  flyerTheme, truncate, flyerGeom, fitPrice, formatSize, type RenderOpts,
 } from "@/lib/flyer-poster";
 import {
-  box, img, onColor, compact, numOf, icon, factItems, heroFill, fitFs, fitHeadline, fitParagraph,
+  box, img, compact, numOf, icon, factItems, veil, textGlow, heroFill, fitFs, fitHeadline, fitParagraph,
   type Style,
 } from "@/lib/flyer-satori-kit";
 
@@ -24,9 +24,10 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const { width: W, height: H } = o;
   const u = W / 1080;
   const g = flyerGeom(W, H);
-  const t = buildTheme(o.mood, o.profile.accent_color);
-  const accent = /^#[0-9a-fA-F]{6}$/.test(o.profile.accent_color) ? o.profile.accent_color : "#1e3a5f";
-  const accInk = onColor(accent);
+  // Színek: a választott színvilágból — „Saját szín" / régi hívás → a korábbi megjelenés (flyer-poster.ts: flyerTheme).
+  const t = flyerTheme(o);
+  const accent = t.accent;
+  const accInk = t.accInk;
   const p = o.profile;
   const d = o.text.details ?? {};
 
@@ -41,8 +42,10 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // FEKVŐN (4:3) magasabb a sötét sáv: a rövid vászonmagasság miatt korábban
   // beleért az utolsó adatsor a világos blokkba. Ezzel az áttekintés és a képrács
   // is lejjebb csúszik — csak a 4:3-at érinti.
-  const heroH = Math.round(H * (g.story ? 0.33 : g.land ? 0.24 : 0.28));
-  const bandH = Math.round(H * (g.story ? 0.23 : g.land ? 0.23 : 0.20));
+  // A fotó a fő vonzerő: négyzetben és fekvőben magasabb (korábban 28% / 24% — túl keskeny csík volt);
+  // ennél több már az alsó adatblokk rovására menne (kiesne adat).
+  const heroH = Math.round(H * (g.story ? 0.33 : g.land ? 0.27 : 0.31));
+  const bandH = Math.round(H * (g.story ? 0.23 : g.land ? 0.21 : 0.20));
   const footH = Math.round(H * (g.story ? 0.10 : g.land ? 0.10 : 0.11));
   const midH = H - heroH - bandH - footH;
   const P = Math.round((g.land ? 56 : 60) * u);
@@ -51,41 +54,23 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   // ===========================================================================
   // 1) FŐKÉP + ÍVELT ALSÓ ÉL
   // ===========================================================================
-  const heroImg = heroFill(hero, W, heroH, o.heroPos?.x ?? 50, o.heroPos?.y ?? 50, o.heroDim?.w ?? 0, o.heroDim?.h ?? 0);
+  // A főkép a cím-sáv ALÁ is kifut: a sávban nincs tömör szín, csak halványuló átmenet (lásd veil).
+  const heroImg = heroFill(hero, W, heroH + bandH, o.heroPos?.x ?? 50, o.heroPos?.y ?? 50, o.heroDim?.w ?? 0, o.heroDim?.h ?? 0);
   const heroBand = box(
-    { position: "absolute", left: 0, top: 0, width: W, height: heroH, overflow: "hidden", background: "#e9e5df" },
+    { position: "absolute", left: 0, top: 0, width: W, height: heroH + bandH, overflow: "hidden", background: "#e9e5df" },
     heroImg ?? undefined
   );
 
-  // Az ív a főkép aljába lóg bele. FONTOS: nem tömör folt — alul teljesen fedő,
-  // fölfelé fokozatosan átlátszó, így a fotóból sokkal több marad látható.
-  const curveH = Math.round(Math.min(heroH * 0.46, 230 * u));
-  const curvePath =
-    `M0,${curveH} L0,${Math.round(curveH * 0.42)} ` +
-    `C ${Math.round(W * 0.30)},${Math.round(curveH * 0.02)} ${Math.round(W * 0.64)},${Math.round(curveH * 0.86)} ${W},${Math.round(curveH * 0.46)} ` +
-    `L ${W},${curveH} Z`;
-  const curve = React.createElement(
-    "svg",
-    { width: W, height: curveH, viewBox: `0 0 ${W} ${curveH}`, style: { position: "absolute", left: 0, top: heroH - curveH } },
-    [
-      React.createElement(
-        "defs",
-        { key: "d" },
-        React.createElement(
-          "linearGradient",
-          { id: "twxCurveFade", x1: "0", y1: "1", x2: "0", y2: "0" },
-          [
-            // EGYENLETES (lineáris) átmenet: alul tömör, fölfelé egyenletes ütemben
-            // fogy el. Közbülső pontok NINCSENEK — azok korábban egy szűk sávba
-            // sűrítették a világosodást, fölötte pedig alig változott a szín.
-            React.createElement("stop", { key: 0, offset: "0%", stopColor: t.band, stopOpacity: 1 }),
-            React.createElement("stop", { key: 1, offset: "100%", stopColor: t.band, stopOpacity: 0 }),
-          ]
-        )
-      ),
-      React.createElement("path", { key: "p", d: curvePath, fill: "url(#twxCurveFade)" }),
-    ]
-  );
+  // Halványuló színátmenet a fotón: fölül teljesen átlátszó, a cím-sáv aljáig lágyan (smoothstep) erősödik.
+  // A szöveg olvashatóságát a betűk mögötti sötét glow adja (textGlow) — nem a tömör szín.
+  const veilTop = Math.round(heroH * 0.45);
+  const veilH = heroH + bandH - veilTop;
+  const curve = box({
+    position: "absolute", left: 0, top: veilTop, width: W, height: veilH,
+    backgroundImage: veil(t.veil, 0.82, 180),
+  });
+  const glow = textGlow(u);
+  const onPhoto = "#ffffff";
 
   // ===========================================================================
   // 2) SÖTÉT SÁV — főcím + ár + adattábla
@@ -124,11 +109,11 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const titleCol = box(
     { flexDirection: "column", width: titleColW, flexShrink: 0, overflow: "hidden" },
     [
-      box({ fontSize: titleFs, fontWeight: 700, color: t.bandInk, lineHeight: 1.06, letterSpacing: Math.round(1 * u) }, title),
+      box({ fontSize: titleFs, fontWeight: 700, color: onPhoto, textShadow: glow, lineHeight: 1.06, letterSpacing: Math.round(1 * u), ...(o.headFamily ? { fontFamily: o.headFamily } : {}) }, title),
       subTxt
         ? box(
             {
-              fontSize: subFs, fontWeight: g.story ? 700 : 400, color: t.bandInk,
+              fontSize: subFs, fontWeight: g.story ? 700 : 400, color: onPhoto, textShadow: glow,
               opacity: g.story ? 0.96 : 0.82, marginTop: subTop, lineHeight: 1.28,
             },
             subTxt
@@ -137,16 +122,17 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
     ].filter(Boolean)
   );
 
-  // A mértékegységet (Ft / M Ft) a formatPrice teszi ki — itt már NEM toldunk hozzá.
-  const rawPrice = formatPrice(String(o.text.price ?? ""));
+  // A mértékegységet (Ft / M Ft) a fitPrice teszi ki — itt már NEM toldunk hozzá.
+  // Ha a teljes összeg túl hosszú (pl. 1 250 000 000 Ft), a rövid forma kerül ki (1,25 Mrd Ft).
+  const rawPrice = fitPrice(String(o.text.price ?? ""), 14);
   const priceTxt = truncate(rawPrice, 20);
 
   const hair = (key: string) =>
-    box({ key, width: "100%", height: Math.max(1, Math.round(1.5 * u)), background: t.bandInk, opacity: hairOp, marginTop: Math.round(12 * u), marginBottom: Math.round(12 * u) } as Style, "");
+    box({ key, width: "100%", height: Math.max(1, Math.round(1.5 * u)), background: onPhoto, opacity: hairOp, marginTop: Math.round(12 * u), marginBottom: Math.round(12 * u) } as Style, "");
   const specLabel = (s: string, key: string) =>
-    box({ key, fontSize: Math.round(19 * u), fontWeight: 700, color: t.bandInk, opacity: 0.72, letterSpacing: Math.round(2 * u), whiteSpace: "nowrap" } as Style, s);
+    box({ key, fontSize: Math.round(19 * u), fontWeight: 700, color: onPhoto, opacity: 0.85, textShadow: glow, letterSpacing: Math.round(2 * u), whiteSpace: "nowrap" } as Style, s);
   const specValue = (s: string, key: string) =>
-    box({ key, fontSize: fitFs(s, 24 * u, 20, 0.72), fontWeight: 700, color: t.bandInk, whiteSpace: "nowrap" } as Style, s);
+    box({ key, fontSize: fitFs(s, 24 * u, 20, 0.72), fontWeight: 700, color: onPhoto, textShadow: glow, whiteSpace: "nowrap" } as Style, s);
 
   const typeTxt = compact(o.text.chips.filter(Boolean)[1] || "", 24);
   const sizeTxt = formatSize(d.size ?? "");
@@ -187,7 +173,7 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
       rawPrice
         ? box({ key: "pr", width: "100%", alignItems: "baseline", justifyContent: "space-between", gap: Math.round(18 * u) } as Style, [
             specLabel("IRÁNYÁR", "lp"),
-            box({ key: "vp", fontSize: fitFs(priceTxt, 58 * u, 12, 0.5), fontWeight: 700, color: t.bandInk, lineHeight: 1.05, whiteSpace: "nowrap" } as Style, priceTxt),
+            box({ key: "vp", fontSize: fitFs(priceTxt, 58 * u, 12, 0.5), fontWeight: 700, color: onPhoto, textShadow: glow, lineHeight: 1.05, whiteSpace: "nowrap" } as Style, priceTxt),
           ])
         : null,
       ...specRows,
@@ -196,7 +182,7 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
 
   const darkBand = box(
     {
-      position: "absolute", left: 0, top: heroH, width: W, height: bandH, background: t.band,
+      position: "absolute", left: 0, top: heroH, width: W, height: bandH,
       overflow: "hidden",
       paddingLeft: P, paddingRight: P,
       paddingTop: Math.round(P * (g.story ? 0.34 : 0.5)), paddingBottom: Math.round(P * (g.story ? 0.34 : 0.5)),
@@ -237,7 +223,9 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   const allItems = factItems(d, sizeTxt).slice(0, 4);
   const statIcon = Math.round((g.land ? 28 : 34) * u);
   const statTop = Math.round((g.land ? 10 : 14) * u);
-  const statCellW = Math.floor((overW - gap) / 2);
+  // Fekvőben széles az áttekintő blokk: a 4 adat EGY sorba fér (így a nagyobb főkép mellett sem esik ki adat).
+  const perRow = g.land ? 4 : 2;
+  const statCellW = Math.floor((overW - gap * (perRow - 1)) / perRow);
   const headH = Math.round(24 * u * 1.3) + Math.round(12 * u);
   const blurbLineH = Math.round(21 * u * 1.45);
   const statRowH = statTop + statIcon + Math.round(5 * u) + Math.round(21 * u * 1.3);
@@ -254,7 +242,7 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   ));
   const overWant =
     headH + blurbLines0 * blurbLineH +
-    (allItems.length ? hairH + Math.ceil(allItems.length / 2) * statRowH : 0) +
+    (allItems.length ? hairH + Math.ceil(allItems.length / perRow) * statRowH : 0) +
     addrH;
 
   // Állóban EGY SORBAN áll a három kép — így természetes arányúak maradnak
@@ -288,7 +276,7 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
         img(src, { width: w, height: h, objectFit: "cover" })
       ),
       box(
-        { key: "cp", height: capH, alignItems: "center", fontSize: Math.round(18 * u), fontWeight: 700, color: "#4a4642", letterSpacing: Math.round(2 * u), whiteSpace: "nowrap" } as Style,
+        { key: "cp", height: capH, alignItems: "center", fontSize: Math.round(18 * u), fontWeight: 700, color: t.body, letterSpacing: Math.round(2 * u), whiteSpace: "nowrap" } as Style,
         labelOf(labels[i] ?? "", FALLBACK_LABELS[i] ?? "FOTÓ")
       ),
     ]);
@@ -330,10 +318,10 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   rem -= minBlurbH;
   let statRowCount = 0;
   if (rem >= hairH + statRowH) {
-    statRowCount = Math.min(Math.ceil(allItems.length / 2), Math.floor((rem - hairH) / statRowH));
+    statRowCount = Math.min(Math.ceil(allItems.length / perRow), Math.floor((rem - hairH) / statRowH));
     if (statRowCount > 0) rem -= hairH + statRowCount * statRowH;
   }
-  const items = allItems.slice(0, statRowCount * 2);
+  const items = allItems.slice(0, statRowCount * perRow);
   const showAddr = rem >= addrH;
   if (showAddr) rem -= addrH;
   // A leírás a minimumon FELÜL megkapja a maradékot; a betűméret annyira csökken,
@@ -343,30 +331,30 @@ export function buildUnitElement(o: RenderOpts, family: string): React.ReactElem
   );
   const statCell = (it: { k: string; v: string }, i: number) =>
     box({ key: `s${i}`, flexDirection: "column", width: statCellW, marginTop: statTop, flexShrink: 0 } as Style, [
-      icon(it.k, statIcon, "#4a4642", 1.6),
-      box({ key: "v", fontSize: fitFs(it.v, 21 * u, 14, 0.72), fontWeight: 700, color: "#2c2926", marginTop: Math.round(5 * u), whiteSpace: "nowrap" } as Style, it.v),
+      icon(it.k, statIcon, t.body, 1.6),
+      box({ key: "v", fontSize: fitFs(it.v, 21 * u, 14, 0.72), fontWeight: 700, color: t.ink, marginTop: Math.round(5 * u), whiteSpace: "nowrap" } as Style, it.v),
     ]);
   const statRows: React.ReactElement[] = [];
-  for (let r = 0; r < Math.ceil(items.length / 2); r++) {
-    const slice = items.slice(r * 2, r * 2 + 2);
-    statRows.push(box({ key: `sr${r}`, gap, width: overW, flexShrink: 0 } as Style, slice.map((it, j) => statCell(it, r * 2 + j))));
+  for (let r = 0; r < Math.ceil(items.length / perRow); r++) {
+    const slice = items.slice(r * perRow, r * perRow + perRow);
+    statRows.push(box({ key: `sr${r}`, gap, width: overW, flexShrink: 0 } as Style, slice.map((it, j) => statCell(it, r * perRow + j))));
   }
 
-  const lightHair = box({ width: "100%", height: 1, background: "#cfc9c1", marginTop: Math.round(16 * u), marginBottom: Math.round(4 * u), flexShrink: 0 }, "");
+  const lightHair = box({ width: "100%", height: 1, background: t.line, marginTop: Math.round(16 * u), marginBottom: Math.round(4 * u), flexShrink: 0 }, "");
   const address = truncate([o.text.subtitle].filter(Boolean).join(" ") || p.company || "", 46);
 
   const overview = box(
     { flexDirection: "column", width: overW, height: Math.max(0, overAvail), overflow: "hidden", flexShrink: 0 },
     [
-      box({ fontSize: Math.round(24 * u), fontWeight: 700, color: "#2c2926", letterSpacing: Math.round(5 * u), flexShrink: 0 }, "ÁTTEKINTÉS"),
-      box({ fontSize: par.fs, fontWeight: 400, color: "#4a4642", lineHeight: 1.45, marginTop: Math.round(12 * u), flexShrink: 0 }, par.text),
+      box({ fontSize: Math.round(24 * u), fontWeight: 700, color: t.ink, letterSpacing: Math.round(5 * u), flexShrink: 0 }, "ÁTTEKINTÉS"),
+      box({ fontSize: par.fs, fontWeight: 400, color: t.body, lineHeight: 1.45, marginTop: Math.round(12 * u), flexShrink: 0 }, par.text),
       items.length ? lightHair : null,
       ...statRows,
       address && showAddr ? lightHair : null,
       address && showAddr
         ? box({ alignItems: "center", gap: Math.round(10 * u), marginTop: Math.round(10 * u) }, [
-            icon("pin", Math.round(24 * u), "#4a4642", 1.6),
-            box({ fontSize: Math.round(19 * u), fontWeight: 400, color: "#4a4642", lineHeight: 1.35, lineClamp: 1 }, address),
+            icon("pin", Math.round(24 * u), t.body, 1.6),
+            box({ fontSize: Math.round(19 * u), fontWeight: 400, color: t.body, lineHeight: 1.35, lineClamp: 1 }, address),
           ])
         : null,
     ].filter(Boolean)

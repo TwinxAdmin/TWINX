@@ -24,7 +24,8 @@ const require = createRequire(import.meta.url);
 
 // --- 1) Fordítás CommonJS-re, az importok átírásával ---
 fs.mkdirSync(BUILD, { recursive: true });
-const files = ["template-schema.ts", "transitions.ts", "layers.ts", "png-bbox.ts", "render-node.ts", "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/mozaik.ts", "templates/polaroid.ts", "templates/index.ts"];
+// A közös színvilág-forrás (src/lib/color-worlds.ts) is kell: a sablonok palettája onnan jön.
+const files = ["../color-worlds.ts", "template-schema.ts", "transitions.ts", "layers.ts", "png-bbox.ts", "render-node.ts", "templates/aurora.ts", "templates/skandi.ts", "templates/prestige.ts", "templates/mozaik.ts", "templates/polaroid.ts", "templates/index.ts"];
 const OG = require.resolve("next/dist/compiled/@vercel/og/index.node.js");
 for (const f of files) {
   let js = ts.transpileModule(fs.readFileSync(path.join(SRC, f), "utf8"), {
@@ -32,6 +33,7 @@ for (const f of files) {
   }).outputText;
   js = js
     .replace(/require\("next\/og"\)/g, `require(${JSON.stringify(OG)})`)
+    .replace(/require\("@\/lib\/color-worlds"\)/g, `require(${JSON.stringify(path.join(BUILD, "..", "color-worlds.cjs"))})`)
     .replace(/require\("@\/lib\/video-engine\/([^"]+)"\)/g, (_, p) => `require(${JSON.stringify(path.join(BUILD, p + ".cjs"))})`)
     .replace(/require\("\.\/([^"]+)"\)/g, (_, p) => `require(${JSON.stringify(path.join(BUILD, path.dirname(f), p + ".cjs"))})`);
   const out = path.join(BUILD, f.replace(/\.ts$/, ".cjs"));

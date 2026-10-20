@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Színvilágok – hirdetéskép</title>
+<!-- Látványterv: a hirdetéskép-készítő Arculat lépésének javasolt színvilágai (jóváhagyásra).
+     A színek a videósablonokból jönnek (közös forrás lesz: src/lib/color-worlds.ts);
+     a hirdetésen a kontraszt-automatika miatt a sáv/ár árnyalata kicsit eltérhet. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Jost:wght@400;500&family=Cormorant+Garamond:wght@600&family=Outfit:wght@400;700&family=Arimo:wght@400;700&family=Inter:wght@400;600&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1c1917;--muted:#6b6259;--line:#e8e0d7;--cream:#fcfaf7;--coral:#a8432b}
+*{box-sizing:border-box}
+body{margin:0;background:#f4efe8;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 64px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:3px;color:var(--coral)}
+h1{margin:6px 0 0;font-family:Fraunces,Georgia,serif;font-size:32px;font-weight:600;letter-spacing:-.5px}
+.explain{margin-top:18px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.box{background:#fff;border-radius:16px;padding:18px 20px;box-shadow:0 0 0 1px var(--line)}
+.box b{display:block;font-size:14px;margin-bottom:6px}
+.box p{margin:0;font-size:13.5px;line-height:1.55;color:#3d3833}
+.grid{margin-top:30px;display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.card{position:relative;background:#fff;border-radius:16px;padding:10px;box-shadow:0 0 0 1px var(--line)}
+.card.sel{box-shadow:0 0 0 2px var(--ink),0 10px 24px rgba(0,0,0,.12)}
+.tick{position:absolute;top:18px;right:18px;width:24px;height:24px;border-radius:12px;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:2}
+.ad{border-radius:11px;overflow:hidden;display:flex;flex-direction:column;height:300px}
+.photo{height:130px;position:relative;background:linear-gradient(135deg,#cfc6ba,#a99f92)}
+.photo:after{content:"";position:absolute;inset:auto 0 0 0;height:46px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.18))}
+.badge{position:absolute;top:10px;left:10px;font-size:9px;font-weight:700;letter-spacing:2px;padding:4px 8px;border-radius:3px;z-index:1}
+.body{padding:12px 14px 0;display:flex;flex-direction:column;gap:4px}
+.title{font-size:19px;line-height:1.1}
+.sub{font-size:11px;opacity:.72}
+.price{font-size:20px;font-weight:700;margin-top:2px}
+.band{margin-top:auto;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.mono{width:30px;height:30px;border-radius:15px;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.band .n{font-size:12.5px;font-weight:700;display:block}
+.band .c{font-size:10.5px;opacity:.9;display:block}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 4px 0}
+.name{font-size:15px;font-weight:600}
+.dots{display:flex;gap:4px}
+.dots i{width:14px;height:14px;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+.mood{font-size:12.5px;color:var(--muted);padding:2px 4px 0}
+.src{font-size:11px;color:#9a9087;padding:8px 4px 2px;border-top:1px dashed var(--line);margin-top:10px}
+.foot{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow">LÁTVÁNYTERV · HIRDETÉSKÉP · ARCULAT LÉPÉS</span>
+  <h1>A 12 javasolt színvilág</h1>
+
+  <div class="explain">
+    <div class="box"><b>Mi ez?</b><p>Az Arculat lépés alsó részén ezekből a kártyákból választ a felhasználó egy kattintással. Minden kártyán egy kis minta-hirdetés mutatja a színeket és a betűt – így látja, milyen lesz a kész hirdetése.</p></div>
+    <div class="box"><b>Mit kell jóváhagyni?</b><p>A kártyák <strong>nevét</strong> (félkövér) és a <strong>hangulat</strong>-feliratot (alatta, szürkén). Ez a két szöveg látszik a felhasználónak. Ha valamelyik nem tetszik, írd meg a helyette valót.</p></div>
+    <div class="box"><b>Honnan jönnek a színek?</b><p>A 10 „videós" színvilág ugyanaz, mint a videósablonoké (a kártya alján szürkén jelölve – ez a jelölés csak neked szól, a felületen nem lesz ott). A TWINX és a Saját szín ehhez jön pluszban.</p></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="foot">A minta-hirdetés csak érzékeltetés; a kész hirdetésen a meglévő elrendezések (Prémium, Nyílt nap, Lakás) kapják meg ezeket a színeket és betűket. Ahol egy szín túl halvány lenne a szöveghez (pl. Skandináv, Zsálya), a rendszer automatikusan sötétebb árnyalatot használ a sávon és az áron, hogy olvasható maradjon. A „Saját szín" itt egy mintaszínnel látszik – élesben a mentett arculatod színe és betűtípusa lesz.</p>
+</div>
+
+<script>
+// Színvilágok: háttér, szöveg, kiemelő (ár/címke), sáv, sávszöveg, címbetű, szövegbetű, pöttyök, forrás.
+const W = [
+  { name: "TWINX", mood: "Meleg, barátságos", bg: "#faf8f4", ink: "#1c1815", price: "#b4492c", band: "#b4492c", bandInk: "#ffffff", head: "Manrope", headW: 800, body: "Manrope", dots: ["#ef7a5a", "#faf8f4", "#1c1815"], src: "TWINX-alap (új)", sel: true },
+  { name: "Saját szín", mood: "A mentett arculatod", bg: "#faf8f4", ink: "#1c1815", price: "#1e3a5f", band: "#1e3a5f", bandInk: "#ffffff", head: "Inter", headW: 600, body: "Inter", dots: ["#1e3a5f", "#faf8f4", "#1c1815"], src: "a mentett arculat fő színe + betűtípusa" },
+  { name: "Borostyán éj", mood: "Látványos, figyelemfelkeltő", bg: "#1a1230", ink: "#ffffff", price: "#f0c20c", band: "#f0c20c", bandInk: "#110420", head: "Manrope", headW: 800, body: "Manrope", dots: ["#f0c20c", "#1a1230", "#a17a3e"], src: "videó: Aurora · Borostyán" },
+  { name: "Éjkék & Arany", mood: "Exkluzív, elegáns", bg: "#0b1a36", ink: "#ffffff", price: "#dcb985", band: "#dcb985", bandInk: "#08142c", head: "Manrope", headW: 800, body: "Manrope", dots: ["#dcb985", "#0b1a36", "#c99a5e"], src: "videó: Aurora · Éjkék" },
+  { name: "Skandináv", mood: "Letisztult, világos", bg: "#f6f2ec", ink: "#2b2622", price: "#86643f", band: "#86643f", bandInk: "#ffffff", head: "Jost", headW: 500, body: "Jost", dots: ["#a9805a", "#f6f2ec", "#2b2622"], src: "videó: Skandi · Homok" },
+  { name: "Zsálya", mood: "Természetes, nyugodt", bg: "#f1f2ec", ink: "#26302a", price: "#56704f", band: "#56704f", bandInk: "#ffffff", head: "Jost", headW: 500, body: "Jost", dots: ["#6f8a6a", "#f1f2ec", "#26302a"], src: "videó: Skandi · Zsálya" },
+  { name: "Pezsgőarany", mood: "Luxus, prémium", bg: "#14110e", ink: "#f5efe4", price: "#c9a96e", band: "#c9a96e", bandInk: "#14110e", head: "Cormorant Garamond", headW: 600, body: "Jost", dots: ["#c9a96e", "#14110e", "#f5efe4"], src: "videó: Prestige · Pezsgőarany" },
+  { name: "Grafit & Platina", mood: "Modern, visszafogott", bg: "#17191d", ink: "#f3f4f6", price: "#cfd4db", band: "#cfd4db", bandInk: "#17191d", head: "Cormorant Garamond", headW: 600, body: "Jost", dots: ["#cfd4db", "#17191d", "#a6abb3"], src: "videó: Prestige · Grafit + platina" },
+  { name: "Terrakotta", mood: "Meleg, otthonos", bg: "#f3f1ee", ink: "#3a3631", price: "#a65d36", band: "#a65d36", bandInk: "#ffffff", head: "Outfit", headW: 700, body: "Outfit", dots: ["#a65d36", "#f3f1ee", "#3a3631"], src: "videó: Mozaik · Márvány + terrakotta" },
+  { name: "Smaragd & Arany", mood: "Gazdag, klasszikus", bg: "#173229", ink: "#f3ece0", price: "#d4b06a", band: "#d4b06a", bandInk: "#0b1c17", head: "Outfit", headW: 700, body: "Outfit", dots: ["#d4b06a", "#173229", "#f3ece0"], src: "videó: Mozaik · Smaragd + arany" },
+  { name: "Bíbor", mood: "Merész, feltűnő", bg: "#ad1328", ink: "#ffffff", price: "#ffffff", band: "#5c0713", bandInk: "#ffffff", head: "Arimo", headW: 700, body: "Arimo", dots: ["#ad1328", "#5c0713", "#ffffff"], src: "videó: Polaroid · Bíborpiros" },
+  { name: "Drámai kék", mood: "Erőteljes, megbízható", bg: "#11307f", ink: "#ffffff", price: "#ffffff", band: "#06143a", bandInk: "#ffffff", head: "Arimo", headW: 700, body: "Arimo", dots: ["#11307f", "#06143a", "#ffffff"], src: "videó: Polaroid · Drámai kék" },
+];
+const tick = '<span class="tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L19 7"/></svg></span>';
+document.getElementById("grid").innerHTML = W.map((w) => `
+  <div class="card${w.sel ? " sel" : ""}">
+    ${w.sel ? tick : ""}
+    <div class="ad" style="background:${w.bg};color:${w.ink};font-family:'${w.body}',sans-serif">
+      <div class="photo"><span class="badge" style="background:${w.band};color:${w.bandInk}">ELADÓ</span></div>
+      <div class="body">
+        <span class="title" style="font-family:'${w.head}',serif;font-weight:${w.headW}">Újépítésű családi ház</span>
+        <span class="sub">Budapest XIV. · 128 m² · 4 szoba</span>
+        <span class="price" style="color:${w.price}">89,9 M Ft</span>
+      </div>
+      <div class="band" style="background:${w.band};color:${w.bandInk}">
+        <span class="mono" style="border:1.5px solid ${w.bandInk}">KM</span>
+        <span><span class="n">Kovács Márk</span><span class="c">+36 30 123 4567 · info@iroda.hu</span></span>
+      </div>
+    </div>
+    <div class="meta"><span class="name">${w.name}</span><span class="dots">${w.dots.map((d) => `<i style="background:${d}"></i>`).join("")}</span></div>
+    <div class="mood">${w.mood}</div>
+    <div class="src">${w.src}</div>
+  </div>`).join("");
+</script>
+</body>
+</html>

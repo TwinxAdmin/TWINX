@@ -12,6 +12,7 @@
 //
 // Szövegbiztonság: minden szöveg dobozban, sor-korláttal; ha nem fér el, a betű
 // kisebb lesz (nem vágódik le, nem lóg ki) — 9:16-ban és 1:1-ben is.
+import { videoPalette } from "@/lib/color-worlds";
 import type { TwinxTemplate, TemplateVariant, Layer } from "@/lib/video-engine/template-schema";
 
 const JOST = "Jost";
@@ -121,14 +122,8 @@ export const SKANDI: TwinxTemplate = {
     { family: JOST, weight: 400, file: "assets/fonts/video/Jost-Regular.ttf" },
     { family: JOST, weight: 500, file: "assets/fonts/video/Jost-Medium.ttf" },
   ],
-  palette: {
-    shadow: "#2f2a26", // meleg szénszürke
-    base: "#f6f2ec",   // krém — kártyák, panelek, átúsztatás
-    glow: "#e8e0d4",   // homok
-    accent: "#a9805a", // tölgy-karamell kiemelés
-    text: "#2b2622",   // sötét szöveg a világos kártyán
-    muted: "#7b7168",  // másodlagos szöveg
-  },
+  // A színek a közös színvilág-forrásból (src/lib/color-worlds.ts) jönnek.
+  palette: videoPalette("skandi"),
   photos: { min: 4, max: 5 },
   // 80 karakter ≈ 3 teljes sor a feliratdobozban (9:16-ban ~30 karakter/sor).
   captionMaxChars: 80,
@@ -257,6 +252,6 @@ export const SKANDI_VARIANTS: TemplateVariant[] = [
     id: "skandi-zsalya",
     templateId: "skandi",
     name: "TWINX Skandi · Zsálya",
-    palette: { base: "#f1f2ec", glow: "#dfe3d6", accent: "#6f8a6a", text: "#26302a", muted: "#6f766c", shadow: "#26302a" },
+    palette: videoPalette("skandi-zsalya"),
   },
 ];

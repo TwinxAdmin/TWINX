@@ -231,3 +231,26 @@ export function fitFs(text: string, base: number, refLen: number, min = 0.6): nu
   const k = Math.max(min, refLen / len);
   return Math.round(base * k);
 }
+
+/**
+ * Halványuló fátyol (CSS gradient) ÍVELT (smoothstep) átmenettel — nincs látható „törés" / csík.
+ * @param color  a fátyol színe (#rrggbb)
+ * @param maxA   a legerősebb pont átlátszatlansága (0–1)
+ * @param deg    a gradient iránya (180 = fentről le erősödik, 0 = lentről fel erősödik)
+ * @param from   hány %-tól kezd erősödni (előtte teljesen átlátszó)
+ */
+export function veil(color: string, maxA: number, deg = 180, from = 0): string {
+  const stops: string[] = [`${hexA(color, 0)} 0%`];
+  if (from > 0) stops.push(`${hexA(color, 0)} ${from}%`);
+  for (let i = 1; i <= 10; i++) {
+    const x = i / 10;
+    const a = maxA * x * x * (3 - 2 * x);
+    stops.push(`${hexA(color, Math.round(a * 1000) / 1000)} ${Math.round((from + (100 - from) * x) * 10) / 10}%`);
+  }
+  return `linear-gradient(${deg}deg, ${stops.join(", ")})`;
+}
+
+/** Lágy sötét fényudvar (glow) a fotóra írt fehér szövegek mögé — ettől olvasható tömör sáv nélkül. */
+export function textGlow(u: number): string {
+  return `0 0 ${Math.round(18 * u)}px rgba(0,0,0,0.55), 0 ${Math.round(2 * u)}px ${Math.round(6 * u)}px rgba(0,0,0,0.45)`;
+}

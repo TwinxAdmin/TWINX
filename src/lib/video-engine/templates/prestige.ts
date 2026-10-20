@@ -13,6 +13,7 @@
 //   0–6   nyitó: 1. fotó, alul sötét átmenet + adatblokk, arany keret, lebegő ikonok
 //   6–30  2–5. fotó, fotónként 6 mp, sötét kártyás felirat (max 80 karakter)
 //   30–36 zárókép: elsötétített fotó, középen ingatlanos (fotó arany gyűrűben) + összegzés
+import { videoPalette } from "@/lib/color-worlds";
 import type { TwinxTemplate, TemplateVariant, Layer, StackItem } from "@/lib/video-engine/template-schema";
 
 const SERIF = "Cormorant Garamond";
@@ -131,14 +132,8 @@ export const PRESTIGE: TwinxTemplate = {
     { family: SERIF, weight: 500, file: "assets/fonts/video/CormorantGaramond-Medium.ttf" },
     { family: SANS, weight: 400, file: "assets/fonts/video/Jost-Regular.ttf" },
   ],
-  palette: {
-    shadow: "#0b0a09", // mély fekete
-    base: "#14110e",   // a feliratkártya sötét alapja
-    glow: "#c9a96e",   // pezsgőarany
-    accent: "#c9a96e", // arany: ikonok, vonalak, ár
-    text: "#f5efe4",   // elefántcsont szöveg
-    muted: "#bfb29c",  // másodlagos szöveg
-  },
+  // A színek a közös színvilág-forrásból (src/lib/color-worlds.ts) jönnek.
+  palette: videoPalette("prestige"),
   photos: { min: 4, max: 5 },
   captionMaxChars: 80,
   audio: { volume: 1, fadeIn: 0.8, fadeOut: 2.4 },
@@ -249,6 +244,6 @@ export const PRESTIGE_VARIANTS: TemplateVariant[] = [
     templateId: "prestige",
     name: "TWINX Prestige · Grafit",
     // Antracit alap + hűvös ezüst-platina kiemelés (ikonok, vonalak, ár, keret).
-    palette: { shadow: "#0b0c0e", base: "#17191d", glow: "#cfd3d9", accent: "#cfd4db", text: "#f3f4f6", muted: "#a6abb3" },
+    palette: videoPalette("prestige-grafit"),
   },
 ];

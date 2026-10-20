@@ -9,6 +9,7 @@
 // Betű: Liberation Sans (Helvetica-jellegű grotesk, szoros betűközzel — a referencia betűképe; a repóban).
 //
 // IDŐVONAL (5 fotó, 30,4 mp): 0–5,2 nyitó (1. fotó) · 4 × 4,8 mp (2–5. fotó) · 6 mp zárókép
+import { videoPalette } from "@/lib/color-worlds";
 import type { TwinxTemplate, Layer, AspectId, Box, TemplateVariant, TextLayer } from "@/lib/video-engine/template-schema";
 
 const SANS = "Liberation Sans";
@@ -177,14 +178,8 @@ function buildPolaroid(count: number): TwinxTemplate {
       { family: SANS, weight: 400, file: "assets/fonts/video/LiberationSans-Regular.ttf" },
       { family: SANS, weight: 700, file: "assets/fonts/video/LiberationSans-Bold.ttf" },
     ],
-    palette: {
-      shadow: "#5c0713",  // mély bordó
-      base: "#ad1328",    // BÍBORPIROS háttér (a referencia színe)
-      glow: "#c42239",
-      accent: "#ffffff",  // fehér kiemelés
-      text: "#ffffff",    // világos szöveg (a régi-film tónus után is jól olvasható)
-      muted: "#f1d3cf",   // halvány rózsás másodlagos szöveg
-    },
+    // A színek a közös színvilág-forrásból (src/lib/color-worlds.ts) jönnek.
+    palette: videoPalette("polaroid"),
     photos: { min: 4, max: 5 },
     captionMaxChars: 80,
     audio: { volume: 1, fadeIn: 0.6, fadeOut: 2.2 },
@@ -236,6 +231,6 @@ export const POLAROID: TwinxTemplate = buildPolaroid(5);
 export const POLAROID_VARIANTS: TemplateVariant[] = [
   {
     id: "polaroid-kek", templateId: "polaroid", name: "TWINX Polaroid — Drámai kék",
-    palette: { shadow: "#06143a", base: "#11307f", glow: "#1d45a6", muted: "#cfdcf5" },
+    palette: videoPalette("polaroid-kek"),
   },
 ];

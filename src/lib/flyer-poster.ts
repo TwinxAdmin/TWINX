@@ -5,6 +5,7 @@
 // A böngészőben (html2canvas) renderelünk, ezért minden méret PIXELBEN van, és kerüljük
 // a levágott betűket: SOHA nincs `font` rövidítés, minden szöveget előre rövidítünk
 // (nem `overflow:hidden`-nel vágunk), és bő sormagasságot + alsó ráhagyást adunk.
+import { adColors, bestInk, colorWorld, contrast, OWN_WORLD_ID, readableOn } from "@/lib/color-worlds";
 import { getBrandingFont } from "@/lib/branding";
 import type { FlyerProfileData } from "@/lib/flyer-template";
 
@@ -213,6 +214,29 @@ export function parsePrice(raw: string): PriceParts | null {
   return { value: groupThousands(String(Math.round(n))), unit: "Ft" };
 }
 
+/**
+ * RÖVID ár szűk helyre (pl. a kör alakú ár-pecsét): 89 900 000 Ft → „89,9 M Ft", 100 000 000 → „100 M Ft",
+ * 1 250 000 000 → „1,25 Mrd Ft". Max. 2 tizedes, a felesleges nullák nélkül — az összeg nem torzul.
+ * Millió alatti összeg és a már milliós formájú ár változatlan.
+ */
+export function compactPrice(raw: string): PriceParts | null {
+  const p = parsePrice(raw);
+  if (!p || p.unit !== "Ft") return p;
+  const n = Number(p.value.replace(/\s/g, ""));
+  const short = (x: number) => String(Math.round(x * 100) / 100).replace(".", ",");
+  if (n >= 1e9) return { value: short(n / 1e9), unit: "Mrd Ft" };
+  if (n >= 1e6) return { value: short(n / 1e6), unit: "M Ft" };
+  return p;
+}
+
+/** Az ár a rendelkezésre álló helyhez: ha a teljes forma hosszabb, mint `max` karakter, a rövid forma. */
+export function fitPrice(raw: string, max: number): string {
+  const full = formatPrice(raw);
+  if (full.length <= max) return full;
+  const c = compactPrice(raw);
+  return c ? `${c.value} ${c.unit}` : full;
+}
+
 /** A megjelenítendő ár egy sorban: "63 900 000 Ft" / "63,9 M Ft". */
 export function formatPrice(raw: string): string {
   const p = parsePrice(raw);
@@ -284,6 +308,63 @@ export function buildTheme(mood: string, accentRaw: string): Theme {
   }
 }
 
+// --- Téma egy SZÍNVILÁGBÓL (Arculat lépés) -----------------------------------
+/**
+ * A hirdetéssablonok teljes színkészlete. A „Saját szín" (és a színvilág nélküli, régi hívás) PONTOSAN a korábbi
+ * megjelenést adja (luxus téma az arculati fő színből) — a meglévő arculatok kinézete nem változik.
+ * A többi színvilág a közös színforrásból (src/lib/color-worlds.ts) jön, minden szöveg/háttér pár min. 4.5:1.
+ */
+export type FlyerTheme = Theme & {
+  ink: string;      // fő szöveg a papíron (címkék, értékek)
+  body: string;     // másodlagos szöveg / ikonok a papíron
+  bodyAlt: string;  // folyószöveg a papíron (Nyílt nap)
+  line: string;     // halvány elválasztó vonal a papíron
+  accent: string;   // kiemelő felület (ár-pecsét, csík, gomb)
+  accInk: string;   // szöveg a kiemelő felületen
+  mark: string;     // kiemelés a PAPÍRON (pipás előnyök) — mindig olvasható az alapszínen
+  veil: string;     // fotóra kerülő halványuló színátmenet színe (fehér szöveg alá): sötét / közepes tónus
+};
+
+export function flyerTheme(o: Pick<RenderOpts, "mood" | "profile" | "world">): FlyerTheme {
+  const rawAccent = /^#[0-9a-fA-F]{6}$/.test(o.profile.accent_color) ? o.profile.accent_color : "#1e3a5f";
+  if (!o.world || o.world === OWN_WORLD_ID || !colorWorld(o.world)) {
+    return {
+      ...buildTheme(o.mood, o.profile.accent_color),
+      ink: "#2c2926", body: "#4a4642", bodyAlt: "#3a3733", line: "#cfc9c1",
+      accent: rawAccent, accInk: onColor(rawAccent),
+      mark: buildTheme(o.mood, o.profile.accent_color).band, // a korábbi megjelenés: a sáv színe
+      veil: buildTheme(o.mood, o.profile.accent_color).band,
+    };
+  }
+  const w = colorWorld(o.world)!;
+  const c = adColors(o.world);
+  const sealBg = c.band.toLowerCase() === w.palette.shadow.toLowerCase() ? w.palette.accent : w.palette.shadow;
+  const sealInk = readableOn(bestInk(sealBg, [w.palette.accent, w.palette.text, w.palette.shadow]), sealBg);
+  return {
+    paper: c.bg, band: c.band, bandInk: c.bandInk,
+    hair: w.palette.accent,
+    // Az „ELADÓ" címke a pecsét színét kapja: a fotón ÉS a (fekvő méretben) sávszínű panelen is kiválik.
+    badgeBg: sealBg, badgeInk: sealInk,
+    chipBg: c.bg, chipInk: c.ink,
+    priceBg: c.band, priceInk: c.bandInk, radius: 6,
+    ink: c.ink, body: c.muted, bodyAlt: c.muted, line: blendHex(c.ink, c.bg, 0.3),
+    // Ár-pecsét / csík / gomb: ne olvadjon bele a sávba — a sötét tónus kiemelő színű felirattal
+    // (ha a sáv maga a sötét tónus, akkor fordítva: kiemelő szín a sötét tónus feliratával).
+    accent: sealBg, accInk: sealInk,
+    // A papíron a sáv színe a kiemelés, ha jól látszik rajta; különben a színvilág kiemelő színe (olvashatóra igazítva)
+    // — pl. a Bíbor piros alapján a mély bordó nem látszana, ott fehér.
+    mark: contrast(c.band, c.bg) >= 3 ? readableOn(c.band, c.bg) : readableOn(w.palette.accent, c.bg),
+    // Fehér szöveg alá: ha a sávon fehér a betű, a sáv színe; világos sávnál (sárga, arany, platina) a mély tónus.
+    veil: c.bandInk.toLowerCase() === "#ffffff" ? c.band : w.palette.shadow,
+  };
+}
+/** Két szín keveréke: k=0 → b, k=1 → a. */
+function blendHex(a: string, b: string, k: number): string {
+  const [r1, g1, b1] = rgbOf(a);
+  const [r2, g2, b2] = rgbOf(b);
+  return toHex(r2 + (r1 - r2) * k, g2 + (g1 - g2) * k, b2 + (b1 - b2) * k);
+}
+
 // --- A hirdetés adatai a rendernek --------------------------------------------
 /** Az alsó ikonos adatsáv tételei (nyers értékek — a render formázza őket). */
 export type RenderDetails = {
@@ -317,6 +398,10 @@ export type RenderOpts = {
    * a cím is az arculati betűvel készül.
    */
   displayFamily?: string;
+  /** A választott színvilág (src/lib/color-worlds.ts). Nincs / "own" → a régi megjelenés az arculati fő színből. */
+  world?: string;
+  /** A színvilág címbetűje (a Satorinak átadott név) — csak színvilágnál, ha betöltődött és ékezethelyes. */
+  headFamily?: string;
   /** A főkép kivágásának igazítása százalékban (50/50 = középre). */
   heroPos?: { x: number; y: number };
   /** A főkép eredeti mérete (px) — ebből számoljuk a VALÓDI mozgásteret. */

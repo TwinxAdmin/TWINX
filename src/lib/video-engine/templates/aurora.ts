@@ -13,6 +13,7 @@
 //   30–36 zárókártya: felnyíló átlós panelek, rajta az ingatlan és az ingatlanos adatai
 //
 // A színek MIND palettahivatkozások — a Nocturne csak egy másik paletta (lent).
+import { videoPalette } from "@/lib/color-worlds";
 import type { TwinxTemplate, TemplateVariant } from "@/lib/video-engine/template-schema";
 
 const MANROPE = "Manrope";
@@ -30,14 +31,8 @@ export const AURORA: TwinxTemplate = {
     { family: MANROPE, weight: 300, file: "assets/fonts/video/Manrope-Light.ttf" },
   ],
   // Az eredeti színek (mérve a Shotstack-grafikákon és a JSON-ban).
-  palette: {
-    shadow: "#110420", // mély indigó: a nyíl-áttűnés és a zárópanel alapja
-    base: "#1a1230",   // a nyitópanel és a zárókártya felülete
-    glow: "#a17a3e",   // meleg borostyán izzás az áttűnésekben
-    accent: "#f0c20c", // sárga kiemelés: cím, ár, ügynök neve, csíkok
-    text: "#ffffff",
-    muted: "#e8e4ee",
-  },
+  // A színek a közös színvilág-forrásból (src/lib/color-worlds.ts) jönnek.
+  palette: videoPalette("aurora"),
   photos: { min: 4, max: 5 },
   audio: { volume: 1, fadeIn: 0, fadeOut: 2 },
 
@@ -234,14 +229,6 @@ export const AURORA_VARIANTS: TemplateVariant[] = [
     id: "nocturne",
     templateId: "aurora",
     name: "TWINX Nocturne",
-    // A Videó-generátor éles Nocturne-változatának színei (video-color.ts).
-    palette: {
-      shadow: "#08142c",
-      base: "#0b1a36",
-      glow: "#c99a5e",
-      accent: "#dcb985",
-      text: "#ffffff",
-      muted: "#dcdfe6",
-    },
+    palette: videoPalette("nocturne"),
   },
 ];

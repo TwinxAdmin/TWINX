@@ -1,6 +1,7 @@
 // A SAJÁT MOTOR SABLONJAI — egy helyen. Új sablon = egy új fájl + egy sor itt.
 import type { TwinxTemplate, TemplateVariant } from "@/lib/video-engine/template-schema";
 import { applyVariant } from "@/lib/video-engine/template-schema";
+import { COLOR_WORLDS } from "@/lib/color-worlds";
 import { AURORA, AURORA_VARIANTS } from "@/lib/video-engine/templates/aurora";
 import { SKANDI, SKANDI_VARIANTS } from "@/lib/video-engine/templates/skandi";
 import { PRESTIGE, PRESTIGE_VARIANTS } from "@/lib/video-engine/templates/prestige";
@@ -42,8 +43,8 @@ export function engineGallery(): EngineGalleryItem[] {
 
 /**
  * SABLONCSALÁDOK a szerkesztőhöz: egy sablon = egy kártya, a színváltozatai
- * kör alakú színválasztó gombok. A család neve és a színek nevei itt állnak —
- * új színváltozatnál csak egy sor kell a COLOR_NAMES-be.
+ * kör alakú színválasztó gombok. A család neve itt áll, a színek neve a közös
+ * színvilág-forrásban (src/lib/color-worlds.ts, videoLabel).
  */
 const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   aurora: { name: "Aurora", tagline: "Elegáns, sötét — nyíl-áttűnések, ferde panelek" },
@@ -52,18 +53,10 @@ const FAMILY_NAMES: Record<string, { name: string; tagline: string }> = {
   polaroid: { name: "Polaroid", tagline: "Előhívott fotók paklija telt színen — a szél lefújja a legfelsőt, régi film hangulat" },
   prestige: { name: "Prestige", tagline: "Luxus, sötét elegancia — filmes „filmburn” áttűnés hanggal" },
 };
-const COLOR_NAMES: Record<string, string> = {
-  aurora: "Borostyán",
-  nocturne: "Éjkék",
-  skandi: "Homok",
-  "skandi-zsalya": "Zsálya",
-  prestige: "Pezsgőarany",
-  "prestige-grafit": "Grafit + platina",
-  mozaik: "Márvány + terrakotta",
-  "mozaik-smaragd": "Smaragd + arany",
-  polaroid: "Bíborpiros",
-  "polaroid-kek": "Drámai kék",
-};
+// A színváltozatok címkéi a közös színvilág-forrásból (src/lib/color-worlds.ts → videoLabel).
+const COLOR_NAMES: Record<string, string> = Object.fromEntries(
+  COLOR_WORLDS.filter((w) => w.videoLabel).map((w) => [w.id, w.videoLabel as string]),
+);
 export type EngineColor = EngineGalleryItem & { colorName: string };
 export type EngineFamily = { templateId: string; name: string; tagline: string; colors: EngineColor[] };
 export function engineFamilies(): EngineFamily[] {

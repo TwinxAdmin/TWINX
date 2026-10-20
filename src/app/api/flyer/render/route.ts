@@ -9,6 +9,7 @@ import { getFlyerSize, getFlyerTemplate, type RenderOpts } from "@/lib/flyer-pos
 import { buildFlyerElement } from "@/lib/flyer-satori";
 import { loadGoogleFont, googleFamilyOf, supportsHungarian } from "@/lib/google-font";
 import type { FlyerProfileData } from "@/lib/flyer-template";
+import { colorWorld, OWN_WORLD_ID } from "@/lib/color-worlds";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,6 +44,9 @@ export async function POST(request: Request) {
   // A sablon csak az ismert értékek egyike lehet (ismeretlen → prémium).
   const template = getFlyerTemplate(String(form.get("template") ?? "premium")).value;
   const mood = String(form.get("mood") ?? "luxus");
+  // Színvilág (Arculat lépés): ismeretlen / "own" / hiányzó → a régi megjelenés az arculati fő színből.
+  const worldId = String(form.get("world") ?? "");
+  const world = worldId && worldId !== OWN_WORLD_ID ? colorWorld(worldId) : undefined;
   const watermark = String(form.get("watermark") ?? "") === "1";
   const strList = (key: string, max: number): string[] => {
     try {
@@ -84,8 +88,8 @@ export async function POST(request: Request) {
     ].join(" ");
     const charset = Array.from(new Set(used.split(""))).join("");
 
-    // Betűk: az arculati család, tartalékkal.
-    const wanted = googleFamilyOf(getBrandingFont(profile.font).family);
+    // Betűk: színvilágnál annak szövegbetűje, különben az arculati család — tartalékkal.
+    const wanted = world ? world.fonts.body.family : googleFamilyOf(getBrandingFont(profile.font).family);
     let family = wanted;
     let loaded = await loadGoogleFont(wanted, charset).catch(() => null);
     if (!loaded) { family = FALLBACK_FAMILY; loaded = await loadGoogleFont(FALLBACK_FAMILY, charset); }
@@ -98,7 +102,26 @@ export async function POST(request: Request) {
     // marad az arculati betűn). Csak akkor kapcsoljuk be, ha a betű TÉNYLEG
     // tartalmazza a magyar ékezeteket (ő ű Ő Ű) — különben üres négyzet lenne.
     let displayFamily: string | undefined;
-    if (template === "openhouse") {
+    // Színvilág: a címek a színvilág címbetűjével (ha más, mint a szövegbetű, betöltődött és ékezethelyes).
+    let headFamily: string | undefined;
+    if (world && world.fonts.heading.family !== family) {
+      const head = await loadGoogleFont(world.fonts.heading.family, charset).catch(() => null);
+      if (head && supportsHungarian(head)) {
+        headFamily = world.fonts.heading.family;
+        fonts.push(
+          ...head.map((f) => ({
+            name: world.fonts.heading.family, data: f.data, style: "normal" as const,
+            weight: (f.weight >= 700 ? 700 : 400) as 400 | 700,
+          }))
+        );
+      }
+    } else if (world) {
+      headFamily = family;
+    }
+    if (world) {
+      // A Nyílt nap főcíme is a színvilág címbetűjét kapja (a fix magazin-serif helyett).
+      displayFamily = headFamily;
+    } else if (template === "openhouse") {
       const disp = await loadGoogleFont(DISPLAY_FAMILY, charset).catch(() => null);
       if (disp && supportsHungarian(disp)) {
         displayFamily = DISPLAY_FAMILY;
@@ -131,12 +154,14 @@ export async function POST(request: Request) {
     // minőség, de a renderidő a szerverkorlát alatt marad (a 3× nagy méretnél time-outolt).
     // Env-ből felülírható (FLYER_FINAL_SCALE). A kész képet a kliens JPEG-ként tölti fel.
     const finalScale = Number(process.env.FLYER_FINAL_SCALE) || 2.5;
-    const SCALE = watermark ? 2 : finalScale;
+    // Az Arculat lépés élő előnézete kisebb méretet kér (gyorsabb) — csak vízjeles előnézetnél, 0,4–2 között.
+    const askedScale = Number(form.get("scale"));
+    const SCALE = watermark ? (askedScale >= 0.4 && askedScale <= 2 ? askedScale : 2) : finalScale;
     const W = Math.round(size.w * SCALE);
     const H = Math.round(size.h * SCALE);
     const opts: RenderOpts = {
       images, width: W, height: H, profile, text, mood, watermark, template, thumbLabels,
-      displayFamily,
+      displayFamily, headFamily, world: world?.id,
       heroPos, thumbSlots, heroDim: heroDim.w && heroDim.h ? heroDim : undefined,
     };
     const element = buildFlyerElement(opts, family);
