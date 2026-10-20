@@ -23,6 +23,18 @@
         "design"
       ],
       "port": 4310
+    },
+    {
+      "name": "twinx-dev-3d2",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "dev",
+        ".claude/worktrees/3d-2-kor-81447b",
+        "-p",
+        "3002"
+      ],
+      "port": 3002
     }
   ]
 }

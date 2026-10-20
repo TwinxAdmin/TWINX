@@ -1,23 +1,22 @@
 // ModuleTour — a 3D lakás modul oktató bemutatója (első belépéskor + „Hogyan működik?" gombbal). Látványterv: design/3d-bemutato-latvanyterv.html.
-// 5 jelenet, végtelenítve: 1. feltöltés · 2. digitalizálás · 3. javítás (falhúzás, nyílászáró-kártya) — saját rajzolású animáció;
-// 4. valódi 3D babaház (IntroDollhouse) · 5. valódi 3D bejárás + elfogadás + link (IntroWalkthrough) — a modul saját motorján, a mintalakáson.
-// A két 3D-jelenet már az elején betölt (a háttérben vár), hogy a váltáskor azonnal induljon.
+// 4 jelenet, végtelenítve: 1. feltöltés · 2. digitalizálás · 3. javítás (falhúzás, nyílászáró-kártya) — saját rajzolású animáció;
+// 4. valódi 3D babaház (IntroDollhouse): a szobák egymás után felépülnek (bútor nélkül, helyiségenként saját padlóval), a modell
+// körbefordul, szobánkénti m², végül elfogadás → link → e-mail az érdeklődőnek — a modul saját motorján, a mintalakáson. A POV bejárás (IntroWalkthrough) 2026-10-20-tól nincs a bemutatóban
+// (Márk kérése); a komponens megmaradt (előnézet-oldal). A 3D-jelenet már az elején betölt, hogy a váltáskor azonnal induljon.
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import IntroDollhouse from "@/components/floorplan3d/intro/IntroDollhouse";
-import IntroWalkthrough from "@/components/floorplan3d/intro/IntroWalkthrough";
 
 const STEPS = [
   { t: "Töltsd fel az alaprajzot", d: "JPG, PNG vagy PDF — akár egy hirdetési lapról." },
   { t: "Digitalizáljuk", d: "Felismerjük a helyiségeket, falakat, ajtókat, ablakokat, és ellenőrizzük a m²-eket." },
   { t: "Te ellenőrzöd és javítod", d: "Fal arrébb: megfogod és húzod. Ajtó, ablak: egy kattintás a nyílászáró-kártyán." },
-  { t: "Méretpontos 3D modell épül", d: "Forgatod, ráközelítesz, a falra kattintasz — és az ablak a szemed előtt nő bele a falba." },
-  { t: "Bejárás, elfogadás, link", d: "Szemmagasságból, berendezve: az ajtók kinyílnak előtted. Jóváhagyod — és küldöd a linket a vevőnek." },
+  { t: "Méretpontos 3D modell, elfogadás, link", d: "Szobáról szobára felépül, körbeforgatod, minden helyiségnél látod a m²-t. Jóváhagyod — és az érdeklődő e-mailben kapja a bejárható 3D lakás linkjét." },
 ];
-const DURS = [5200, 5200, 6400]; // az 1–3. jelenet hossza (ms); a 4–5. a saját idővonala szerint lép tovább
+const DURS = [5200, 5200, 6400]; // az 1–3. jelenet hossza (ms); a 4. a saját idővonala szerint lép tovább
 
 // 3. jelenet: a kurzor útja a kártya-koordinátákban (px), vagy egy elem (data-k) közepe
 type Key = { t: number; p: [number, number] | string; click?: boolean };
@@ -25,8 +24,10 @@ const CUR3: Key[] = [{ t: 250, p: [231, 116] }, { t: 700, p: [231, 116], click: 
   { t: 3150, p: [131, 49], click: true }, { t: 3900, p: "glass" }, { t: 4300, p: "glass", click: true }, { t: 5200, p: [330, 250] }];
 const smooth = (t: number) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 
-export default function ModuleTour({ opts, style, credits, linkDays, creditsExtend, onStart }: {
-  opts: SceneOptions; style: StyleSheet | null; credits: number; linkDays: number; creditsExtend: number; onStart: () => void;
+export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, creditsExtend = 0, onStart, preview = false }: {
+  opts: SceneOptions; style: StyleSheet | null; credits?: number; linkDays?: number; creditsExtend?: number; onStart?: () => void;
+  /** „Hamarosan" előnézet (Prémium 3D, nem admin): nincs „Kezdjük", ár, kredit és link-napok — csak a bemutató + „Szemléltető" jelölés. */
+  preview?: boolean;
 }) {
   const [cur, setCur] = useState(0);
   const [run, setRun] = useState(0); // minden váltásnál új → a CSS-animációk elölről indulnak
@@ -79,8 +80,7 @@ export default function ModuleTour({ opts, style, credits, linkDays, creditsExte
   }, [cur, run, go]);
 
   const progress = useCallback((f: number) => { if (barRef.current) barRef.current.style.width = `${Math.min(100, f * 100)}%`; }, []);
-  const next4 = useCallback(() => { window.setTimeout(() => go(4), 500); }, [go]);
-  const next5 = useCallback(() => go(0), [go]);
+  const next4 = useCallback(() => { window.setTimeout(() => go(0), 900); }, [go]); // a 4. után elölről
 
   return (
     <div className="twt" ref={rootRef}>
@@ -157,7 +157,7 @@ export default function ModuleTour({ opts, style, credits, linkDays, creditsExte
         <div className="twt-txt">
           <span className="twt-eyebrow">Új · 3D lakás</span>
           <h1 className="twt-h font-display">Alaprajzból bejárható,<br />méretpontos 3D lakás</h1>
-          <p className="twt-lead">Feltöltöd az alaprajzot — a többit a TWINX végzi. A vevő a hirdetésből egy linkkel, belépés nélkül, telefonon is bejárhatja a lakást.</p>
+          <p className="twt-lead">Feltöltöd az alaprajzot — a többit a TWINX végzi: méretpontos 3D modell, szobánként ellenőrzött m²-rel. Hamarosan a vevőnek is elküldheted egy linkkel.</p>
           <div className="twt-steps">
             {STEPS.map((s, i) => (
               <button type="button" key={s.t} data-step={i} onClick={() => go(i)} className={`twt-st${i === cur ? " on" : ""}${i < cur ? " done" : ""}`}>
@@ -166,12 +166,19 @@ export default function ModuleTour({ opts, style, credits, linkDays, creditsExte
               </button>
             ))}
           </div>
+          {preview ? (
+            <div className="twt-cta">
+              <button type="button" className="twt-ghost" onClick={() => go(0)}>↻ Újra</button>
+              <span className="twt-trust">Szemléltető bemutató – a modul fejlesztés alatt áll.</span>
+            </div>
+          ) : (
           <div className="twt-cta">
             <button type="button" className="twt-go" onClick={onStart}>Kezdjük <span aria-hidden>→</span></button>
             <span className="twt-price"><b className="font-display">{credits} kredit</b> / 3D lakás</span>
             <button type="button" className="twt-ghost" onClick={() => go(0)}>↻ Újra</button>
             <span className="twt-trust">Kb. 3 perc · a krediteket csak a jóváhagyott tervnél vonjuk le · a link {linkDays} napig él (+{linkDays} nap: {creditsExtend} kredit)</span>
           </div>
+          )}
         </div>
         <div className="twt-vis">
           {cur === 0 && (
@@ -234,10 +241,7 @@ export default function ModuleTour({ opts, style, credits, linkDays, creditsExte
           )}
           {/* a 3D-jelenetek végig a helyükön (előre betöltve), csak az aktív látszik és fut */}
           <div className="twt-3dbox" style={{ opacity: cur === 3 ? 1 : 0, pointerEvents: "none" }}>
-            <IntroDollhouse opts={opts} style={style} playing={cur === 3} onProgress={cur === 3 ? progress : undefined} onEnd={next4} />
-          </div>
-          <div className="twt-3dbox twt-walk" style={{ opacity: cur === 4 ? 1 : 0, pointerEvents: "none" }}>
-            <IntroWalkthrough opts={opts} style={style} credits={credits} playing={cur === 4} loop={false} onProgress={cur === 4 ? progress : undefined} onEnd={next5} />
+            <IntroDollhouse opts={opts} style={style} playing={cur === 3} restart={run} onProgress={cur === 3 ? progress : undefined} onEnd={next4} />
           </div>
           <div className="twt-dots">
             {STEPS.map((s, i) => <button type="button" key={s.t} aria-label={s.t} className={i === cur ? "on" : ""} onClick={() => go(i)} />)}

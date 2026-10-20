@@ -8,6 +8,7 @@ import PricingTrigger from "@/components/PricingTrigger";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { resolveViewContext } from "@/lib/view-as";
+import { premium3dStatus } from "@/lib/premium3d";
 import WelcomeHero from "@/components/dashboard/WelcomeHero";
 import InviteRedeem from "@/components/dashboard/InviteRedeem";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
@@ -35,6 +36,7 @@ export default async function DashboardHome() {
   const view = await resolveViewContext(me?.role as string | undefined);
   const role = view.role;
   const isAdmin = role === "admin"; // korlátlan, prezentációs mód (nincs kreditlevonás)
+  const catalogView = { isAdmin, premium3d: (await premium3dStatus()).status };
   const isSales = role === "sales"; // az admin által biztosított keretet fogyasztja
 
   // Időszakok a folyamat-számláláshoz (hét = hétfőtől, hónap = 1-jétől).
@@ -181,21 +183,28 @@ export default async function DashboardHome() {
       <section>
         <h2 className="font-display text-xl font-medium">Mit szeretnél csinálni?</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {visibleCategories().map((cat) => (
-            <div key={cat.slug} className="twx-card flex flex-col p-5">
-              <h3 className="font-display text-lg font-medium">{cat.label}</h3>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-ink-muted)" }}>
+          {visibleCategories(catalogView).map((cat) => (
+            <div key={cat.slug} className="twx-card flex flex-col p-5"
+              style={cat.premium ? { background: "linear-gradient(150deg,#2a221b,#1a1612)", border: "1px solid rgba(212,170,92,0.35)", color: "#F4EFE7" } : undefined}>
+              <h3 className="font-display text-lg font-medium" style={cat.premium ? { color: "#F3D9A4" } : undefined}>{cat.label}</h3>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: cat.premium ? "#CFC6BB" : "var(--twx-ink-muted)" }}>
                 {cat.blurb}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {visibleModules(cat).map((m) => (
+                {visibleModules(cat, false, catalogView).map((m) => (
                   <a
                     key={m.href}
                     href={m.href}
-                    className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
-                    style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
+                    style={cat.premium
+                      ? { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(212,170,92,0.35)", color: "#F4EFE7" }
+                      : { background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}
                   >
                     {m.label}
+                    {m.badge && (
+                      <span className="rounded-full px-1.5 py-px text-[10px] font-extrabold"
+                        style={m.badge === "Hamarosan" ? { background: "linear-gradient(135deg,#F3D9A4,#D4AA5C)", color: "#2a1d0e" } : { background: "var(--twx-coral)", color: "#1c1005" }}>{m.badge}</span>
+                    )}
                   </a>
                 ))}
               </div>

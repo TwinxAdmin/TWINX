@@ -230,3 +230,78 @@ body {
 .twx-range:focus-visible { outline: 2px solid rgba(239,122,90,.4); outline-offset: 4px; border-radius: 99px; }
 /* üveghatású felugró kártya (szerkesztő) */
 .twx-glass { background: rgba(253,250,245,.82); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); border: 1px solid rgba(255,255,255,.75); box-shadow: 0 26px 70px rgba(28,24,21,.28), inset 0 1px 0 rgba(255,255,255,.8); }
+
+/* Prémium felső menüpont (✦ Prémium 3D): bronz–arany gomb, lassú fényvillanással (design/3d-bemutato-latvanyterv.html) */
+.twx-prem {
+  position: relative;
+  overflow: hidden;
+  color: #ffe7b8;
+  background: linear-gradient(135deg, #5a3d22 0%, #8a6234 45%, #5a3d22 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 150, 0.35), 0 4px 14px rgba(212, 170, 92, 0.25);
+}
+.twx-prem::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 240, 210, 0.35), transparent);
+  animation: twx-prem-shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes twx-prem-shine {
+  0%, 60% { left: -60%; }
+  100% { left: 130%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twx-prem::after { animation: none; }
+}
+
+/* Prémium 3D „Hamarosan" blokk: lassan körbefutó arany keret + halkan mozgó díszítő ábrák */
+.twx-p3d-frame {
+  padding: 1.5px;
+  border-radius: 25px;
+  background: linear-gradient(120deg, #7a5a2c 0%, #D4AA5C 22%, #F6E2B3 32%, #D4AA5C 42%, #7a5a2c 60%, #B88C46 80%, #7a5a2c 100%);
+  background-size: 300% 300%;
+  animation: twx-p3d-frame 9s linear infinite;
+  box-shadow: 0 18px 50px rgba(212, 170, 92, 0.16);
+}
+@keyframes twx-p3d-frame {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+.twx-p3d-deco { position: absolute; pointer-events: none; color: #E9C77F; }
+.twx-p3d-float { animation: twx-p3d-float 6s ease-in-out infinite; }
+.twx-p3d-twinkle { animation: twx-p3d-twinkle 3.8s ease-in-out infinite; }
+.twx-p3d-spin { animation: twx-p3d-spin 28s linear infinite; }
+@keyframes twx-p3d-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes twx-p3d-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 0.95; transform: scale(1); }
+}
+@keyframes twx-p3d-spin { to { transform: rotate(360deg); } }
+.twx-p3d-shine { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* ugyanaz az átfutó lágy fény, mint a menüben a „✦ Prémium 3D" feliraton — nagy felületen halkabban, lassabban */
+.twx-p3d-shine::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: 0;
+  width: 35%;
+  height: 140%;
+  background: linear-gradient(100deg, transparent, rgba(255, 236, 200, 0.11), transparent);
+  transform: translateX(-120%) skewX(-12deg);
+  animation: twx-p3d-shine 7s ease-in-out infinite;
+}
+@keyframes twx-p3d-shine {
+  0%, 55% { transform: translateX(-120%) skewX(-12deg); }
+  100% { transform: translateX(330%) skewX(-12deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twx-p3d-frame, .twx-p3d-float, .twx-p3d-twinkle, .twx-p3d-spin, .twx-p3d-shine::after { animation: none; }
+  .twx-p3d-shine::after { display: none; }
+}

@@ -4,34 +4,37 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { visibleCategories, visibleModules } from "@/lib/catalog";
+import { visibleCategories, visibleModules, type Premium3dState } from "@/lib/catalog";
 import ModuleIcon from "@/components/ModuleIcon";
 import LogoutButton from "@/components/LogoutButton";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 
-type Item = { label: string; href?: string; desc?: string; icon?: string; onClick?: () => void };
+type Item = { label: string; href?: string; desc?: string; icon?: string; onClick?: () => void; badge?: string };
 
 export default function MobileNav({
   email,
   role,
   balance,
   isAdmin,
+  premium3d = "hidden",
 }: {
   email: string;
   role: string;
   balance: number;
   isAdmin: boolean;
+  premium3d?: Premium3dState;
 }) {
   const [open, setOpen] = useState(false);
 
   // Ugyanaz a folyamat szerinti csoportosítás, mint a desktop navban
   // (Tartalomgyártás, Elemzés & kutatás…) — egy forrásból, a katalógusból.
-  const sections: { title: string; items: Item[] }[] = [
-    ...visibleCategories().map((c) => ({
+  const sections: { title: string; items: Item[]; premium?: boolean }[] = [
+    ...visibleCategories({ isAdmin, premium3d }).map((c) => ({
       title: c.label,
-      items: visibleModules(c) as Item[],
+      premium: c.premium,
+      items: visibleModules(c, false, { isAdmin, premium3d }) as Item[],
     })),
     // Az Arculat a lenti „Arculatom" sorban van, a korábbi munkák pedig
     // egy közös gyűjtőoldalon.
@@ -110,7 +113,7 @@ export default function MobileNav({
 
               {sections.map((sec) => (
                 <div key={sec.title} className="mb-4">
-                  <p className="mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>
+                  <p className="mb-1 px-1 text-xs font-semibold uppercase tracking-wider" style={{ color: sec.premium ? "#E9C77F" : "var(--twx-coral)" }}>
                     {sec.title}
                   </p>
                   {sec.items.map((it) => (
@@ -130,6 +133,10 @@ export default function MobileNav({
                         <ModuleIcon name={it.icon} size={16} />
                       </span>
                       <span className="text-sm">{it.label}</span>
+                      {it.badge && (
+                        <span className="ml-auto flex-none rounded-full px-1.5 py-0.5 text-[10px] font-extrabold"
+                          style={it.badge === "Hamarosan" ? { background: "linear-gradient(135deg,#F3D9A4,#D4AA5C)", color: "#2a1d0e" } : { background: "var(--twx-coral)", color: "#1c1005" }}>{it.badge}</span>
+                      )}
                     </a>
                   ))}
                 </div>

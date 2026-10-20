@@ -21,6 +21,7 @@ import ModuleViewTracker from "@/components/ModuleViewTracker";
 import ModuleFeedbackHost from "@/components/ModuleFeedbackHost";
 import TermsGate from "@/components/TermsGate";
 import { termsStatus } from "@/lib/terms";
+import { premium3dStatus } from "@/lib/premium3d";
 import { getMembershipIn, getWorkContext, listMyOffices, officeKind } from "@/lib/office-server";
 
 export default async function DashboardLayout({
@@ -43,6 +44,8 @@ export default async function DashboardLayout({
   // A jogosultságokat ez NEM érinti (lásd lib/view-as.ts).
   const view = await resolveViewContext(me?.role as string | undefined);
   const isAdmin = view.role === "admin";
+  // Prémium 3D menüpont: Rejtett → csak admin, Hamarosan → mindenki „Hamarosan" jelvénnyel (Admin → Prémium 3D)
+  const premium3d = (await premium3dStatus()).status;
   // A sales saját, szűkített megkeresés-felületet kap (jelvénnyel).
   const isSales = view.role === "sales";
   const balance = (wallet?.balance as number | undefined) ?? 0;
@@ -96,7 +99,7 @@ export default async function DashboardLayout({
 
         {/* Közép: modulsáv (csak desktop) */}
         <div className="hidden flex-1 justify-center md:flex">
-          <DashboardNav />
+          <DashboardNav isAdmin={isAdmin} premium3d={premium3d} />
         </div>
 
         {/* Jobb: irodai menü + fiók-menü (benne az Arculatom) + kilépés (csak desktop) */}
@@ -117,6 +120,7 @@ export default async function DashboardLayout({
             role={view.role}
             balance={balance}
             isAdmin={isAdmin}
+            premium3d={premium3d}
           />
         </div>
       </header>

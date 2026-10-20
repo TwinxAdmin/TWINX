@@ -15,7 +15,7 @@ async function adminUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 }) };
   const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (me?.role !== "admin") return { error: NextResponse.json({ error: "A modul jelenleg prototípus — csak admin használhatja." }, { status: 403 }) };
+  if (me?.role !== "admin") return { error: NextResponse.json({ error: "A Prémium 3D hamarosan érkezik — a modul még fejlesztés alatt áll." }, { status: 403 }) };
   return { userId: user.id };
 }
 

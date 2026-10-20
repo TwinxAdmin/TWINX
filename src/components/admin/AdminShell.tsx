@@ -45,6 +45,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/rejections", label: "Nem elfogadott képek" },
       { href: "/admin/video-lab", label: "Videólabor", hint: "videómotor-kapcsoló + próbavideók" },
       { href: "/dashboard/real-estate/floorplan-3d", label: "3D-labor", hint: "alaprajzból bejárható 3D lakás — prototípus" },
+      { href: "/admin/premium-3d", label: "Prémium 3D állapot", hint: "Rejtett / Hamarosan kapcsoló + várólista" },
     ],
   },
 ];

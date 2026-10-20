@@ -129,6 +129,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261018223526_valuation-accept.sql` | Értékbecslés szerkesztése és elfogadása: `valuation_overrides`, `valuation_accepted_at` / `_by` a használati naplóban; a régi, PDF-es becslések elfogadottnak számítanak |
 | `20261020093000_video-template-availability.sql` | Videósablonok ki-be kapcsolása (Admin → Videólabor): `video_template_availability` (sablononként elérhető / rejtett; sor nélkül rejtett) + `video_template_availability_log` napló |
 | `20261020120000_works-trash.sql` | Korábbi munkák lomtár + végleges törlés: egyszeri lomtár-óraindítás a már elrejtett munkáknak, `work_purge_log` napló, `work_storage_sizes()` és `work_paths_in_use()` (csak szerver) |
+| `20261020150000_premium3d-coming-soon.sql` | Prémium 3D „Hamarosan" állapot: `app_settings.premium3d_status` (hidden / coming_soon / available, alap: coming_soon) + `premium3d_waitlist` („Értesíts, ha elérhető" várólista, RLS) |
 
 ## Egyszeri szkriptek (`one-off/`)
 

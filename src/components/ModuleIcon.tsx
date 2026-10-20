@@ -2,6 +2,13 @@
 import type { JSX } from "react";
 
 const paths: Record<string, JSX.Element> = {
+  // 3D lakás: kocka (izometrikus)
+  cube: (
+    <>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
   valuation: (
     <>
       <path d="M3 21h18" />
