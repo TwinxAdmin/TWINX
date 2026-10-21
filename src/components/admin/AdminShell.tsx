@@ -56,8 +56,9 @@ function isActive(s: Section, pathname: string): boolean {
   return (s.items ?? []).some((i) => pathname === i.href || pathname.startsWith(i.href + "/"));
 }
 
-/** A sales munkafelület menüje: CSAK a megkeresések. */
+/** A sales munkafelület menüje: az ügyfelek (elérhetőség + tevékenység, pénzügy nélkül) és a megkeresések. */
 const SALES_SECTIONS: Section[] = [
+  { id: "users", label: "Felhasználók", href: "/sales/felhasznalok" },
   { id: "inbox", label: "Megkeresések", href: "/sales/megkeresesek" },
 ];
 

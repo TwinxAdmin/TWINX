@@ -168,8 +168,8 @@ export default function MobileNav({
                   </a>
                 )}
                 {role === "sales" && (
-                  <a href="/sales/megkeresesek" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
-                    Megkeresések
+                  <a href="/sales/felhasznalok" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                    Sales
                     <AdminInboxBadge />
                   </a>
                 )}

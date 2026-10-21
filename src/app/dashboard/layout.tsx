@@ -86,12 +86,13 @@ export default async function DashboardLayout({
             </a>
           )}
           {isSales && (
+            // A Sales munkafelület: Felhasználók (ügyfelek elérhetősége + tevékenysége) és Megkeresések.
             <a
-              href="/sales/megkeresesek"
+              href="/sales/felhasznalok"
               className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
               style={{ color: "var(--twx-on-dark-muted)" }}
             >
-              Megkeresések
+              Sales
               <AdminInboxBadge />
             </a>
           )}

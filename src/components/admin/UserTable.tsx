@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from "react";
 import CreditGrantDialog from "@/components/admin/CreditGrantDialog";
+import UserDetailDialog from "@/components/admin/UserDetailDialog";
 import { showToast } from "@/components/Toast";
 import type { UserMetric } from "@/lib/metrics";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
@@ -43,6 +44,8 @@ export default function UserTable({
 
   // Kredit-adás: melyik partnernek nyílt ki az ablak.
   const [grantFor, setGrantFor] = useState<UserMetric | null>(null);
+  // „Részletek": a felhasználó minden adata (UserDetailDialog).
+  const [detailsFor, setDetailsFor] = useState<string | null>(null);
 
   // Szerepkör módosítása helyben. A friss értéket itt tartjuk, hogy azonnal
   // látszódjon (a szerveroldali lista csak újratöltéskor frissülne).
@@ -95,6 +98,16 @@ export default function UserTable({
       className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-sm font-bold leading-none text-white transition hover:opacity-85"
       style={{ background: "var(--twx-coral)" }}>
       +
+    </button>
+  );
+
+  /** „Részletek" gomb — megnyitja a felhasználó minden adatát. */
+  const DetailsButton = ({ u }: { u: UserMetric }) => (
+    <button type="button" onClick={(e) => { e.stopPropagation(); setDetailsFor(u.userId); }}
+      title={`Minden adat: ${u.email}`}
+      className="h-8 whitespace-nowrap rounded-full bg-white px-3 text-xs font-semibold transition hover:shadow-sm"
+      style={{ border: "1px solid var(--twx-line)", color: "var(--twx-ink)" }}>
+      Részletek
     </button>
   );
 
@@ -168,7 +181,7 @@ export default function UserTable({
 
       {/* Asztali nézet: táblázat */}
       <div className="twx-card hidden overflow-x-auto p-4 sm:block">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--twx-line)" }}>
               <Th k="name" label="Név / cég / e-mail" />
@@ -183,6 +196,7 @@ export default function UserTable({
               <th className="pb-2 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                 Kredit
               </th>
+              <th className="pb-2" aria-label="Részletek" />
             </tr>
           </thead>
           <tbody>
@@ -227,10 +241,11 @@ export default function UserTable({
                     <span className="absolute right-0"><PlusButton u={u} /></span>
                   </div>
                 </td>
+                <td className="py-2 pl-3 text-right"><DetailsButton u={u} /></td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={8} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              <tr><td colSpan={9} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Nincs találat.
               </td></tr>
             )}
@@ -244,6 +259,7 @@ export default function UserTable({
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.revenue)}</td>
                 <td className="pt-3 text-center text-xs font-semibold">{totals.credits}</td>
+                <td />
               </tr>
             </tfoot>
           )}
@@ -258,7 +274,7 @@ export default function UserTable({
             {u.company && <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>}
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
             <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Regisztrált: {regDate(u.createdAt)}</p>
-            <div className="mt-2"><RolePicker u={u} /></div>
+            <div className="mt-2 flex items-center justify-between gap-2"><RolePicker u={u} /><DetailsButton u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
               <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
               <span className="text-right font-bold" style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>{u.balance}</span>
@@ -283,8 +299,10 @@ export default function UserTable({
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Egy sorra kattintva megjelenik a funkciónkénti bontás. Az oszlopfejlécek kattintással rendezik a listát
         (a „Regisztrált” fejlécre újra kattintva a legrégebbi kerül felülre).
-        A Kredit oszlop „+” gombjával kreditet írhatsz jóvá.
+        A Kredit oszlop „+” gombjával kreditet írhatsz jóvá, a „Részletek” gombbal a felhasználó minden adatát látod.
       </p>
+
+      {detailsFor && <UserDetailDialog userId={detailsFor} onClose={() => setDetailsFor(null)} />}
 
       {grantFor && (
         <CreditGrantDialog
