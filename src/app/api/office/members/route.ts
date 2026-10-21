@@ -5,9 +5,10 @@
 //   • action "permissions" { canAllocate?, unlimited? } — jogosultságok (CSAK a létrehozó)
 //   • action "remove"                                   — tag eltávolítása (CSAK a létrehozó; magát nem)
 // A keretkiosztás szabályait az adatbázis (office_allocate_in) kényszeríti ki — egy tranzakcióban, naplózva.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { syncUserToBrevo } from "@/lib/brevo";
 import { ALLOCATE_MAX, ALLOCATE_NOTE_MAX } from "@/lib/office";
 import { allocateIn, getMembership, getMembershipIn, listMembers, officeErrorMessage } from "@/lib/office-server";
 
@@ -81,6 +82,7 @@ export async function PATCH(request: Request) {
     const { error } = await admin.from("office_members").update(patch)
       .eq("office_id", me.office_id).eq("user_id", targetId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    after(() => syncUserToBrevo(targetId)); // Brevo: szerep (vezető / kolléga)
     return NextResponse.json({ ok: true, members: await listMembers(me.office_id) });
   }
 
@@ -107,6 +109,7 @@ export async function PATCH(request: Request) {
     const { error } = await admin.from("office_members").delete()
       .eq("office_id", me.office_id).eq("user_id", targetId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    after(() => syncUserToBrevo(targetId)); // Brevo: ha nincs több irodája → privát
     return NextResponse.json({ ok: true, members: await listMembers(me.office_id) });
   }
 

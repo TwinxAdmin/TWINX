@@ -1,4 +1,4 @@
-// dashboard/settings — Beállítások / profil: adatok megtekintése + jelszó/e-mail módosítás.
+// dashboard/settings — Beállítások / profil: adatok megtekintése + jelszó/e-mail módosítás + hírlevél ki/be.
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AccountSettingsForm from "@/components/AccountSettingsForm";
@@ -7,6 +7,8 @@ import CreditRequestPanel from "@/components/CreditRequestPanel";
 import BillingForm from "@/components/BillingForm";
 import { BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
 import { resolveViewContext } from "@/lib/view-as";
+import NewsletterToggle from "@/components/NewsletterToggle";
+import { getNewsletter } from "@/lib/newsletter";
 
 const ROLE_LABEL: Record<string, string> = {
   user: "Felhasználó",
@@ -42,6 +44,9 @@ export default async function SettingsPage() {
     .from("profiles").select(BILLING_COLUMNS).eq("id", user.id).maybeSingle();
   const billing = (billingRow as BillingInfo | null) ?? null;
 
+  // Hírlevél-állapot (migráció előtt a kapcsoló halványan, „Hamarosan" magyarázattal)
+  const news = await getNewsletter(user.id);
+
   // A sales kolléga belső keretet kap (ingyen), neki nincs számlázás.
   const needsBilling = role === "user";
 
@@ -64,6 +69,8 @@ export default async function SettingsPage() {
       />
 
       {needsBilling && <BillingForm initial={billing} preview={view.previewing} />}
+
+      <NewsletterToggle initial={news.newsletter} since={news.at} migrated={news.migrated} />
 
       {/* Profiladatok */}
       <div className="twx-card space-y-2 p-5 text-sm">

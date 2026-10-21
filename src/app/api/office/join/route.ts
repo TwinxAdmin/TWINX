@@ -3,9 +3,10 @@
 // csatlakozás; az új tag keretje 0. Több irodának is lehet tagja (váltás a kredit-sávon).
 // Visszaélés: a kód ~887 millió változatú, és egy kiszivárgott kóddal sem lehet költeni
 // (0 keret) — a létrehozó később új kódot generálhat.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { syncUserToBrevo } from "@/lib/brevo";
 import { isValidJoinCode, normalizeJoinCode } from "@/lib/office";
 import { loadMyOffice, officeErrorMessage, officeKind, setWorkContext } from "@/lib/office-server";
 
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+
+  // Brevo: fióktípus → irodai, szerep → kolléga
+  const joinedId = user.id;
+  after(() => syncUserToBrevo(joinedId));
 
   // A most csatlakozott iroda lesz a kiválasztott — irodai módban; közös munkatérnél saját kreditből.
   const kind = await officeKind(office.id as string);

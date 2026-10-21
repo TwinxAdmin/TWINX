@@ -11,6 +11,8 @@ import StarterCards from "@/components/dashboard/StarterCards";
 import InspirationBlock from "@/components/dashboard/inspiration/InspirationBlock";
 import { GiftSlide, MachineSlide, MorningSlide } from "@/components/dashboard/inspiration/slides";
 import CreditBlock from "@/components/dashboard/CreditBlock";
+import NewsletterBanner from "@/components/dashboard/NewsletterBanner";
+import { getNewsletter } from "@/lib/newsletter";
 import { loadDockState } from "@/lib/office-dock";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
 
@@ -91,12 +93,18 @@ export default async function DashboardHome() {
   const topFeatureKey = [...featureCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const topFeature = topFeatureKey ? featureLabel(topFeatureKey) : null;
 
+  // Hírlevél-sáv: csak valódi ügyfélnek (nem admin-előnézetben), aki még nem kér hírlevelet és nem zárta be.
+  const news = user && me?.role === "user" ? await getNewsletter(user.id) : null;
+  const showNewsletter = !!news && news.migrated && !news.newsletter && !news.bannerDismissed;
+
   return (
     <main className="space-y-10">
       {/* A lap címe a képernyőolvasóknak; látványban a kreditblokk nyit (design/portal-vegleges.html). */}
       <h1 className="sr-only">Portál Központ</h1>
 
       <div className="space-y-4">
+        {showNewsletter && <NewsletterBanner />}
+
         {/* 1) Kreditblokk — mindenkinek ugyanaz a felépítés, a tartalom a szerepkörhöz igazodik. */}
         {isAdmin ? (
           <CreditBlock mode="admin" weekCount={weekCount} monthCount={monthCount} />

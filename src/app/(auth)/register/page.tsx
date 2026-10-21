@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import TermsCheckbox from "@/components/TermsCheckbox";
+import NewsletterCheckbox from "@/components/NewsletterCheckbox";
 import { TERMS_VERSION } from "@/lib/legal";
 import Wordmark from "@/components/Wordmark";
 import { normalizeInviteCode } from "@/lib/invites";
@@ -35,6 +36,7 @@ function RegisterForm() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [newsletter, setNewsletter] = useState(false); // hírlevél: alapból NEM
   // Ajándékkód: itt SZÁNDÉKOSAN nem kérjük be. A beváltás a belépés utáni
   // kezdőlapon, az egyenleg mellett történik — így a Google-fiókkal belépőknek
   // és az e-mail-megerősítéses regisztrálóknak is ugyanaz az útja.
@@ -95,7 +97,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm, acceptTerms, metaEventId, marketingConsent: hasMarketingConsent() }),
+        body: JSON.stringify({ name, company, phone, email, password, passwordConfirm, acceptTerms, newsletter, metaEventId, marketingConsent: hasMarketingConsent() }),
       });
       const data = await res.json();
 
@@ -287,6 +289,7 @@ function RegisterForm() {
             </div>
 
             <TermsCheckbox checked={acceptTerms} onChange={(v) => { setAcceptTerms(v); setErrors((e) => ({ ...e, acceptTerms: "" })); }} error={errors.acceptTerms} />
+            <NewsletterCheckbox checked={newsletter} onChange={setNewsletter} />
 
             <button type="submit" disabled={loading} className="twx-btn w-full">
               {loading ? "Regisztráció…" : "Regisztráció"}

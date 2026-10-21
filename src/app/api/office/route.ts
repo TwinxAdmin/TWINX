@@ -4,9 +4,10 @@
 //        A megnyitó lesz a létrehozó (owner) és az első tag; a rendszer csatlakozási kódot generál.
 //      — KÖZÖS MUNKATÉR: body: { kind: "team", name, teamSize } — AZONNAL létrejön, jóváhagyás nélkül,
 //        állandó kóddal; a megnyitó is „Társ" (technikailag owner sor), saját kreditből dolgozik.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { syncUserToBrevo } from "@/lib/brevo";
 import { generateJoinCode, TEAMS_PER_USER_MAX, validateOfficeName, validateTeamCreate } from "@/lib/office";
 import { getMembership, listMyOffices, loadMyOffice, officeKind, setWorkContext } from "@/lib/office-server";
 import { officeMemberPreview, officeNonePreview } from "@/lib/view-as";
@@ -86,6 +87,9 @@ export async function POST(request: Request) {
 
   // Az új iroda lesz a kiválasztott, irodai módban (ha a kontextus-tábla még nincs, nem baj).
   await setWorkContext(user.id, { officeId, useOffice: true });
+  // Brevo: fióktípus → irodai, szerep → vezető
+  const ownerId = user.id;
+  after(() => syncUserToBrevo(ownerId));
 
   return NextResponse.json({ ok: true, office: await loadMyOffice(user.id) });
 }
@@ -140,6 +144,7 @@ async function createTeam(userId: string, body: Record<string, unknown>) {
 
   // A közös munkatér lesz a kiválasztott — saját kreditből (ott nincs irodai mód).
   await setWorkContext(userId, { officeId, useOffice: false });
+  after(() => syncUserToBrevo(userId));
 
   return NextResponse.json({ ok: true, office: await loadMyOffice(userId) });
 }

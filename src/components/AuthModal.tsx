@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import TermsCheckbox from "@/components/TermsCheckbox";
+import NewsletterCheckbox from "@/components/NewsletterCheckbox";
 import { TERMS_VERSION } from "@/lib/legal";
 
 import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
@@ -31,6 +32,7 @@ export default function AuthModal() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [newsletter, setNewsletter] = useState(false); // hírlevél: alapból NEM
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export default function AuthModal() {
         body:
           mode === "login"
             ? JSON.stringify({ email, password })
-            : JSON.stringify({ name, phone, email, password, passwordConfirm, source, acceptTerms, metaEventId, marketingConsent: hasMarketingConsent() }),
+            : JSON.stringify({ name, phone, email, password, passwordConfirm, source, acceptTerms, newsletter, metaEventId, marketingConsent: hasMarketingConsent() }),
       });
       const data = await res.json();
 
@@ -263,6 +265,7 @@ export default function AuthModal() {
           {!isLogin && (
             <TermsCheckbox checked={acceptTerms} onChange={(v) => { setAcceptTerms(v); setErrors((e) => ({ ...e, acceptTerms: "" })); }} error={errors.acceptTerms} />
           )}
+          {!isLogin && <NewsletterCheckbox checked={newsletter} onChange={setNewsletter} />}
 
           <button type="submit" disabled={loading} className="twx-btn w-full">
             {loading ? "Egy pillanat…" : isLogin ? "Belépés" : "Regisztráció"}

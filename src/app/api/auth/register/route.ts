@@ -2,13 +2,15 @@
 // Sorrend: bejövő adat -> szigorú szerveroldali validáció -> Supabase signUp.
 // A profiles rekordot a DB trigger (handle_new_user) hozza létre, 0 kredittel.
 // Az ÁSZF elfogadása KÖTELEZŐ (acceptTerms: true) — sikeres regisztráció után a változat + időpont a profilra kerül.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateRegisterInput } from "@/lib/validation";
 import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
 import { recordTermsAcceptance } from "@/lib/terms";
 import { cleanEventId, sendRegistrationEvent } from "@/lib/meta-capi";
 import { registrationContentName } from "@/lib/meta-pixel";
+import { setNewsletter } from "@/lib/newsletter";
+import { syncUserToBrevo } from "@/lib/brevo";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -20,6 +22,8 @@ export async function POST(request: Request) {
 
   const { name, company, phone, email, password, passwordConfirm, source } = (body ?? {}) as Record<string, string>;
   const acceptTerms = (body as { acceptTerms?: unknown } | null)?.acceptTerms === true;
+  // Hírlevél: nem kötelező, alapból NEM (csak a kifejezett true számít hozzájárulásnak).
+  const newsletter = (body as { newsletter?: unknown } | null)?.newsletter === true;
   // Meta: a böngészős esemény azonosítója + a marketing-süti hozzájárulás (csak ekkor küldjük a szerveroldali eseményt).
   const metaEventId = cleanEventId((body as { metaEventId?: unknown } | null)?.metaEventId);
   const marketingConsent = (body as { marketingConsent?: unknown } | null)?.marketingConsent === true;
@@ -57,6 +61,15 @@ export async function POST(request: Request) {
 
   // ÁSZF-elfogadás rögzítése (a profilt a trigger már létrehozta). Hiba esetén a belépés utáni ablak pótolja.
   if (data.user?.id) await recordTermsAcceptance(data.user.id).catch(() => null);
+
+  // Valódi új fiók? (a már létező e-mailre a Supabase üres „identities"-szel válaszol)
+  const isNew = !!data.user?.id && (data.user.identities?.length ?? 1) > 0;
+  if (isNew && data.user) {
+    const uid = data.user.id;
+    // Hírlevél-hozzájárulás mentése (időponttal), majd a Brevo-szinkron a válasz UTÁN — a regisztráció nem vár rá.
+    if (newsletter) await setNewsletter(uid, true, "register").catch(() => null);
+    after(() => syncUserToBrevo(uid));
+  }
 
   // Meta Conversions API: csak valódi új fiók (a már létező e-mailre a Supabase üres „identities"-szel válaszol), hozzájárulással.
   // Token nélkül kihagyja; a hiba nem akadályozza a regisztrációt.

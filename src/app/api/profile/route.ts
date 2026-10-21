@@ -1,6 +1,7 @@
 // POST /api/profile — a bejelentkezett partner saját nevének és cégének mentése.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { syncUserToBrevo } from "@/lib/brevo";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
 
   // Az auth metadata is frissül, hogy a két forrás ne csússzon el.
   await supabase.auth.updateUser({ data: { full_name: name, company } });
+
+  // A név a Brevóban is frissüljön (a válasz után, nem vár rá).
+  const uid = user.id;
+  after(() => syncUserToBrevo(uid));
 
   return NextResponse.json({ ok: true });
 }

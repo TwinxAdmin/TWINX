@@ -1,7 +1,7 @@
 // GET /auth/callback — OAuth (Google) visszairányítás.
 // A Supabase a bejelentkezés után ide küld egy `code`-ot, amit munkamenetre
 // váltunk (PKCE), majd a dashboardra irányítunk.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
 import { applyLandingSignupBonus } from "@/lib/landing-bonus";
@@ -9,6 +9,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { recordTermsAcceptance } from "@/lib/terms";
 import { sendRegistrationEvent } from "@/lib/meta-capi";
 import { newMetaEventId, registrationContentName } from "@/lib/meta-pixel";
+import { syncUserToBrevo } from "@/lib/brevo";
 
 /** Ennyi időn belül létrejött fiók számít ÚJ regisztrációnak (a Google-belépés ugyanezen az úton jön). */
 const NEW_ACCOUNT_WINDOW_MS = 10 * 60 * 1000;
@@ -56,6 +57,9 @@ export async function GET(request: Request) {
         const { data: { user } } = await supabase.auth.getUser();
         const created = user?.created_at ? Date.parse(user.created_at) : NaN;
         if (user && Date.now() - created < NEW_ACCOUNT_WINDOW_MS) {
+          // Új (Google-) fiók → a Brevóba is felkerül (hírlevél nélkül; arra a Portálközpont sávja kérdez rá).
+          const uid = user.id;
+          after(() => syncUserToBrevo(uid));
           const eventId = newMetaEventId();
           const src = isLanding ? LANDING_SIGNUP_SOURCE : null;
           if (marketingConsent) {
