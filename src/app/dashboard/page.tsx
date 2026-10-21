@@ -8,6 +8,8 @@ import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import { premium3dStatus } from "@/lib/premium3d";
 import WelcomeHero from "@/components/dashboard/WelcomeHero";
+import InspirationBlock from "@/components/dashboard/inspiration/InspirationBlock";
+import { GiftSlide, MachineSlide, MorningSlide } from "@/components/dashboard/inspiration/slides";
 import CreditBlock from "@/components/dashboard/CreditBlock";
 import { loadDockState } from "@/lib/office-dock";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
@@ -88,31 +90,37 @@ export default async function DashboardHome() {
   }
   const topFeatureKey = [...featureCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const topFeature = topFeatureKey ? featureLabel(topFeatureKey) : null;
-  const firstName = String(me?.full_name ?? "").trim().split(/\s+/).filter(Boolean).slice(-1)[0] ?? "";
 
   return (
     <main className="space-y-10">
       {/* A lap címe a képernyőolvasóknak; látványban a kreditblokk nyit (design/portal-vegleges.html). */}
       <h1 className="sr-only">Portál Központ</h1>
 
-      {/* 1) Kreditblokk — mindenkinek ugyanaz a felépítés, a tartalom a szerepkörhöz igazodik. */}
-      {isAdmin ? (
-        <CreditBlock mode="admin" weekCount={weekCount} monthCount={monthCount} />
-      ) : isSales ? (
-        <CreditBlock mode="sales" balance={balance} />
-      ) : officeAllowance !== undefined ? (
-        <CreditBlock mode="office" allowance={officeAllowance} />
-      ) : (
-        <CreditBlock mode="user" balance={balance} canRedeem={!me?.invite_code} />
-      )}
+      <div className="space-y-4">
+        {/* 1) Kreditblokk — mindenkinek ugyanaz a felépítés, a tartalom a szerepkörhöz igazodik. */}
+        {isAdmin ? (
+          <CreditBlock mode="admin" weekCount={weekCount} monthCount={monthCount} />
+        ) : isSales ? (
+          <CreditBlock mode="sales" balance={balance} />
+        ) : officeAllowance !== undefined ? (
+          <CreditBlock mode="office" allowance={officeAllowance} />
+        ) : (
+          <CreditBlock mode="user" balance={balance} canRedeem={!me?.invite_code} />
+        )}
 
-      {/* Vizuális nyitány: üdvözlés + első lépések + modul-vitrin.
-          A user kérése szerint a fekete sáv ALATT, a tevékenység-lista FÖLÖTT. */}
-      <WelcomeHero
-        firstName={firstName}
-        balance={balance}
-        hasWelcomeCredits={hasWelcomeCredits}
-      />
+        {/* 2) Inspirációs blokk — váltakozó diák. Az új felhasználónak szóló diák mindenkinél;
+            a visszatérőknek szóló („Ebből még ezt is…", „Próbáltad már?") a 4–5. lépésben jön. */}
+        <InspirationBlock
+          slides={[
+            { key: "machine", label: "Mire képes a TWINX", node: <MachineSlide /> },
+            { key: "morning", label: "Egy új megbízás, egy délelőtt", node: <MorningSlide /> },
+            ...(hasWelcomeCredits ? [{ key: "gift", label: "Ajándék kredit", node: <GiftSlide credits={balance} /> }] : []),
+          ]}
+        />
+      </div>
+
+      {/* Modul-vitrin („Próbáld ki") — a 3. lépésben az „Ezzel kezdd" kártyák váltják. */}
+      <WelcomeHero />
 
       {/* „Folytasd, ahol abbahagytad" — a saját munkák bélyegképes sávja.
           Előrébb került a kategóriáknál: a visszatérő partnert a SAJÁT anyaga

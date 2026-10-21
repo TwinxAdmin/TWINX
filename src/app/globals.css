@@ -305,3 +305,71 @@ body {
   .twx-p3d-frame, .twx-p3d-float, .twx-p3d-twinkle, .twx-p3d-spin, .twx-p3d-shine::after { animation: none; }
   .twx-p3d-shine::after { display: none; }
 }
+
+/* ===================== Portálközpont — inspirációs blokk =====================
+   design/portal-vegleges.html, 2. blokk. Fix méretű sötét doboz, benne váltakozó diák
+   (InspirationBlock.tsx). Az animációk mind „twx-insp-" előtagúak; csökkentett mozgásnál állnak. */
+.twx-insp {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  color: var(--twx-on-dark);
+  background: radial-gradient(120% 140% at 85% 0%, #3a2a20 0%, #1a1512 45%, #110e0c 100%);
+  height: 620px;
+}
+@media (min-width: 640px) { .twx-insp { height: 410px; } }
+.twx-insp-glow {
+  position: absolute; width: 520px; height: 520px; right: -120px; top: -160px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(239, 122, 90, 0.28), transparent 65%);
+  animation: twx-insp-breathe 6s ease-in-out infinite; pointer-events: none;
+}
+@keyframes twx-insp-breathe { 0%, 100% { opacity: .7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
+.twx-insp-slide {
+  position: absolute; inset: 0; opacity: 0; visibility: hidden; transform: translateY(8px);
+  transition: opacity .6s, transform .6s, visibility .6s;
+}
+.twx-insp-slide[data-on="true"] { opacity: 1; visibility: visible; transform: none; }
+.twx-insp-kick { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .22em; color: #f3b49c; }
+.twx-insp-kick i { width: 7px; height: 7px; border-radius: 50%; background: var(--twx-coral); animation: twx-insp-ping 2s infinite; }
+.twx-insp-kick.gold { color: #f3d9a4; }
+.twx-insp-kick.gold i { background: #e9c77f; }
+@keyframes twx-insp-ping { 0% { box-shadow: 0 0 0 0 rgba(239, 122, 90, .6); } 100% { box-shadow: 0 0 0 10px rgba(239, 122, 90, 0); } }
+.twx-insp-grad { background: linear-gradient(90deg, #ffb79f, #ef7a5a 60%, #e9c77f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* pöttyök: az aktívon a 7 mp-es haladás-csík (megáll, ha a doboz szünetel) */
+.twx-insp-dot { position: relative; width: 26px; height: 6px; overflow: hidden; border-radius: 3px; background: rgba(255, 255, 255, .22); }
+.twx-insp-dot[data-on="true"]::after {
+  content: ""; position: absolute; inset: 0; background: var(--twx-coral); transform-origin: left;
+  animation: twx-insp-prog 7s linear forwards;
+}
+.twx-insp[data-paused="true"] .twx-insp-dot[data-on="true"]::after { animation-play-state: paused; }
+@keyframes twx-insp-prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* „gép" animáció: fotó → TWINX → 4 eredmény */
+.twx-insp-flow { stroke-dasharray: 6 8; animation: twx-insp-dash 1.6s linear infinite; }
+@keyframes twx-insp-dash { to { stroke-dashoffset: -28; } }
+.twx-insp-ring { transform-origin: 270px 200px; animation: twx-insp-spin 18s linear infinite; }
+.twx-insp-ring.r2 { animation-duration: 26s; animation-direction: reverse; }
+@keyframes twx-insp-spin { to { transform: rotate(360deg); } }
+.twx-insp-core { transform-origin: 270px 200px; animation: twx-insp-pulse 3s ease-in-out infinite; }
+@keyframes twx-insp-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.twx-insp-photo { animation: twx-insp-slidein 5s ease-in-out infinite; }
+@keyframes twx-insp-slidein {
+  0% { transform: translate(-30px, 0); opacity: 0; } 12% { transform: translate(0, 0); opacity: 1; }
+  55% { transform: translate(0, 0); opacity: 1; } 75% { transform: translate(60px, 0) scale(.6); opacity: 0; } 100% { opacity: 0; }
+}
+.twx-insp-out { opacity: 0; animation: twx-insp-pop 5s ease-in-out infinite; }
+.twx-insp-out.o2 { animation-delay: .25s; } .twx-insp-out.o3 { animation-delay: .5s; } .twx-insp-out.o4 { animation-delay: .75s; }
+@keyframes twx-insp-pop { 0%, 55% { opacity: 0; transform: translateX(-14px); } 68%, 92% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; } }
+.twx-insp-bar { transform-box: fill-box; transform-origin: bottom; animation: twx-insp-grow 5s ease-in-out infinite; }
+@keyframes twx-insp-grow { 0%, 60% { transform: scaleY(.15); } 75%, 92% { transform: scaleY(1); } 100% { transform: scaleY(.15); } }
+.twx-insp-play { transform-box: fill-box; transform-origin: center; animation: twx-insp-pulse 1.6s ease-in-out infinite; }
+.twx-insp-typing { animation: twx-insp-type 5s steps(18) infinite; }
+@keyframes twx-insp-type { 0%, 62% { width: 0; } 85%, 92% { width: 66px; } 100% { width: 0; } }
+/* lebegő kártyák (ajándék-dia) */
+.twx-insp-bob { animation: twx-insp-bob 6s ease-in-out infinite; }
+@keyframes twx-insp-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+@media (prefers-reduced-motion: reduce) {
+  .twx-insp-glow, .twx-insp-kick i, .twx-insp-flow, .twx-insp-ring, .twx-insp-core, .twx-insp-photo,
+  .twx-insp-bar, .twx-insp-play, .twx-insp-typing, .twx-insp-bob, .twx-insp-dot[data-on="true"]::after { animation: none; }
+  .twx-insp-out { animation: none; opacity: 1; }
+  .twx-insp-slide { transition: none; }
+}
