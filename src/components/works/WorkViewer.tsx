@@ -3,6 +3,7 @@
 //   • lapozás: ‹ › gombok és ←/→ billentyű; Esc bezár
 //   • alsó művelet-sáv: Letöltés · (irodai tagnak, saját munkánál) Áthelyezés · Küldés kollégának
 //     · Üzenet ehhez a munkához (csak ha az oldalon van irodai üzenetküldő — kolléga munkájánál is)
+//     · `extraActions`: a hívó saját gombjai (pl. Admin → Munkák: „A felhasználó adatai")
 // A felugró választók (mappa, kolléga) a gomb FÖLÖTT nyílnak, így semmi nem mozdul el.
 "use client";
 
@@ -38,13 +39,14 @@ export function workKind(url: string | null): Kind {
 type Folder = { id: string; name: string };
 type Member = { userId: string; name: string };
 
-export default function WorkViewer({ works, index, onIndex, onClose, canShare = false, initialPop = null }: {
+export default function WorkViewer({ works, index, onIndex, onClose, canShare = false, initialPop = null, extraActions }: {
   works: ViewerWork[];
   index: number;
   onIndex: (i: number) => void;
   onClose: () => void;
   canShare?: boolean;         // irodai tag-e a néző
   initialPop?: "folder" | "send" | null;   // pl. a „megosztás" linkről: rögtön a mappa-választóval nyílik
+  extraActions?: (w: ViewerWork) => React.ReactNode; // a hívó saját gombjai a művelet-sávban
 }) {
   const w = works[Math.min(index, works.length - 1)];
   const [visible, setVisible] = useState(false);
@@ -166,7 +168,8 @@ export default function WorkViewer({ works, index, onIndex, onClose, canShare = 
             Üzenet ehhez a munkához
           </button>
         )}
-        {!w.mine && (
+        {extraActions?.(w)}
+        {!w.mine && !extraActions && (
           <span className="text-xs" style={{ color: "#8F857B" }}>Ez egy kollégád munkája — csak a sajátodat teheted mappába vagy küldheted tovább.</span>
         )}
       </div>
@@ -174,7 +177,7 @@ export default function WorkViewer({ works, index, onIndex, onClose, canShare = 
   );
 }
 
-const ghost = { background: "rgba(255,255,255,0.08)", color: "#F3EDE6", border: "1px solid rgba(255,255,255,0.16)" };
+export const ghost = { background: "rgba(255,255,255,0.08)", color: "#F3EDE6", border: "1px solid rgba(255,255,255,0.16)" };
 const ghostOn = { background: "#F3EDE6", color: "#1C1A17", border: "1px solid #F3EDE6" };
 
 function Svg({ children }: { children: React.ReactNode }) {
