@@ -1,16 +1,15 @@
 // dashboard/page.tsx — Portál Központ.
-// Server Component: közös egyenleg + kategória-áttekintés + a legutóbbi
+// Server Component: kreditblokk + kategória-áttekintés + a legutóbbi
 // 50 tevékenység (usage_history, LIMIT 50). Az RLS csak a saját sorokat adja vissza.
 import { createClient } from "@/lib/supabase/server";
 import { visibleCategories, visibleModules } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
-import PricingTrigger from "@/components/PricingTrigger";
-import AnimatedNumber from "@/components/motion/AnimatedNumber";
 import { activityTitle, featureLabel } from "@/lib/activity";
-import { resolveViewContext } from "@/lib/view-as";
+import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import { premium3dStatus } from "@/lib/premium3d";
 import WelcomeHero from "@/components/dashboard/WelcomeHero";
-import InviteRedeem from "@/components/dashboard/InviteRedeem";
+import CreditBlock from "@/components/dashboard/CreditBlock";
+import { loadDockState } from "@/lib/office-dock";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
 
 type HistoryRow = {
@@ -68,6 +67,12 @@ export default async function DashboardHome() {
   ]);
 
   const balance = (wallet?.balance as number | undefined) ?? 0;
+
+  // Irodai módban dolgozó tag: a kreditblokk az irodai keretét mutatja (mint a lenti kredit-sáv),
+  // különben 0 saját kreditnél tévesen feltöltésre hívnánk. A „Nincs iroda" előnézet ezt is kikapcsolja.
+  const dock = user && !isAdmin && !isSales ? await loadDockState(user.id) : null;
+  const officeNone = dock?.isManager ? await officeNonePreview() : false;
+  const officeAllowance = dock && !officeNone && dock.mode === "office" ? dock.allowance : undefined;
   const weekCount = (weekRes as { count: number | null }).count ?? 0;
   const monthCount = (monthRes as { count: number | null }).count ?? 0;
   const historyList = (history ?? []) as unknown as HistoryRow[];
@@ -87,74 +92,19 @@ export default async function DashboardHome() {
 
   return (
     <main className="space-y-10">
-      <h1 className="font-display text-4xl font-semibold">Portál Központ</h1>
+      {/* A lap címe a képernyőolvasóknak; látványban a kreditblokk nyit (design/portal-vegleges.html). */}
+      <h1 className="sr-only">Portál Központ</h1>
 
-      {/* Fejléc-kártya: usernek egyenleg (csökken), staffnak folyamat-számláló (nő) */}
-      <section
-        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl p-6"
-        style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}
-      >
-        {isAdmin ? (
-          <>
-            <div>
-              <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-                Prezentációs mód — a modulok kreditlevonás nélkül futnak (csak API-költség)
-              </p>
-              <div className="mt-2 flex flex-wrap gap-10">
-                <div>
-                  <p className="font-display text-5xl font-semibold">{weekCount}</p>
-                  <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>folyamat ezen a héten</p>
-                </div>
-                <div>
-                  <p className="font-display text-5xl font-semibold">{monthCount}</p>
-                  <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>folyamat ebben a hónapban</p>
-                </div>
-              </div>
-            </div>
-            <span
-              className="rounded-full px-3 py-1 text-xs font-medium"
-              style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-            >
-              Admin
-            </span>
-          </>
-        ) : (
-          <>
-            <div>
-              <p className="text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-                {isSales
-                  ? "Kereted — az admin által biztosított folyamatok (bármelyik modulban)"
-                  : "Egyenleged — bármelyik modulban felhasználható"}
-              </p>
-              <p className="font-display text-5xl font-semibold">
-                <AnimatedNumber value={balance} animateOnMount />
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Ajándékkód beváltása — az egyenleg feltöltése MELLETT. Csak addig
-                  látszik, amíg a fiók nem váltott be kódot; utána eltűnik. */}
-              {!isSales && !me?.invite_code && <InviteRedeem onDark />}
-              {isSales ? (
-                // Csak a gomb: a magyarázat („az admin által biztosított folyamatok")
-                // már ott van az egyenleg fölött, felesleges kétszer kiírni.
-                <PricingTrigger
-                  className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                >
-                  Keret igénylése
-                </PricingTrigger>
-              ) : (
-                <PricingTrigger
-                  className="rounded-full px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
-                  style={{ background: "var(--twx-coral)", color: "#1c1005" }}
-                >
-                  Egyenleg feltöltése
-                </PricingTrigger>
-              )}
-            </div>
-          </>
-        )}
-      </section>
+      {/* 1) Kreditblokk — mindenkinek ugyanaz a felépítés, a tartalom a szerepkörhöz igazodik. */}
+      {isAdmin ? (
+        <CreditBlock mode="admin" weekCount={weekCount} monthCount={monthCount} />
+      ) : isSales ? (
+        <CreditBlock mode="sales" balance={balance} />
+      ) : officeAllowance !== undefined ? (
+        <CreditBlock mode="office" allowance={officeAllowance} />
+      ) : (
+        <CreditBlock mode="user" balance={balance} canRedeem={!me?.invite_code} />
+      )}
 
       {/* Vizuális nyitány: üdvözlés + első lépések + modul-vitrin.
           A user kérése szerint a fekete sáv ALATT, a tevékenység-lista FÖLÖTT. */}
