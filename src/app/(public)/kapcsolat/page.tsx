@@ -1,6 +1,6 @@
-// twinx.hu/kapcsolat — Kapcsolat: telefon (két kolléga), e-mail, élő chat, üzenetküldő űrlap, gyors linkek és az
-// üzemeltető adatai. Nyilvános oldal; bejelentkezve az űrlapon a név és az e-mail előre kitöltve, és a „Vissza" a Portálba visz.
-// Az elérhetőségek a src/lib/contact.ts-ben, az üzemeltető adatai a src/lib/legal.ts-ben (egy helyen módosíthatók).
+// twinx.hu/kapcsolat — Kapcsolat: telefon (két kolléga), e-mail, élő chat, üzenetküldő űrlap, gyors linkek és egy
+// kis reklám a TWINX gyorsaságáról. Nyilvános oldal; bejelentkezve az űrlapon a név és az e-mail előre kitöltve, és a „Vissza" a Portálba visz.
+// Az elérhetőségek a src/lib/contact.ts-ben (egy helyen módosíthatók); az üzemeltető adatai az ÁSZF-ben.
 import type { Metadata } from "next";
 import Link from "next/link";
 import Wordmark from "@/components/Wordmark";
@@ -8,7 +8,6 @@ import ContactForm from "@/components/contact/ContactForm";
 import OpenChatButton from "@/components/contact/OpenChatButton";
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_EMAIL, CONTACT_PHONES } from "@/lib/contact";
-import { LEGAL_OPERATOR } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Kapcsolat — TWINX",
@@ -30,7 +29,6 @@ export default async function ContactPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: me } = user ? await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle() : { data: null };
-  const op = LEGAL_OPERATOR;
 
   return (
     <main className="twx-page min-h-screen font-sans" style={{ background: "var(--twx-cream)" }}>
@@ -113,16 +111,29 @@ export default async function ContactPage() {
               </ul>
             </div>
 
-            <div className="rounded-[20px] p-6 text-sm" style={{ background: "#F3ECE3", boxShadow: "0 0 0 1px var(--twx-line)" }}>
-              <h2 className="font-display text-lg font-bold">Üzemeltető</h2>
-              <dl className="mt-3 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5">
-                <dt style={{ color: "var(--twx-ink-muted)" }}>Név</dt><dd>{op.name}</dd>
-                <dt style={{ color: "var(--twx-ink-muted)" }}>Székhely</dt><dd>{op.address}</dd>
-                <dt style={{ color: "var(--twx-ink-muted)" }}>Adószám</dt><dd className="tabular-nums">{op.taxNumber}</dd>
-                {op.registrationNumber && <><dt style={{ color: "var(--twx-ink-muted)" }}>Nyilv. szám</dt><dd className="tabular-nums">{op.registrationNumber}</dd></>}
-                <dt style={{ color: "var(--twx-ink-muted)" }}>E-mail</dt><dd><a href={`mailto:${op.email}`} className="underline">{op.email}</a></dd>
-                <dt style={{ color: "var(--twx-ink-muted)" }}>Web</dt><dd>twinx.hu</dd>
-              </dl>
+            {/* Kis reklám: mennyivel gyorsabb a TWINX-szel (ugyanaz az üzenet, mint a Portál inspirációs blokkjában) */}
+            <div className="relative overflow-hidden rounded-[20px] p-6" style={{ background: "radial-gradient(120% 140% at 85% 0%,#3a2a20 0%,#1a1512 45%,#110e0c 100%)", color: "var(--twx-on-dark)" }}>
+              <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full" style={{ background: "radial-gradient(circle, rgba(239,122,90,.28), transparent 65%)" }} />
+              <p className="relative text-[11px] font-bold tracking-[0.22em]" style={{ color: "#f3b49c" }}>EGY ÚJ MEGBÍZÁS, EGY DÉLELŐTT</p>
+              <h2 className="relative mt-2 font-display text-2xl font-bold leading-tight">
+                2–3 nap helyett <span className="twx-insp-grad">~20 perc.</span>
+              </h2>
+              <p className="relative mt-2 text-sm leading-relaxed" style={{ color: "var(--twx-on-dark-muted)" }}>
+                Egy telefonos fotóból hirdetésre kész kép, videó, értékbecslés és látványterv — percek alatt.
+              </p>
+              <ul className="relative mt-4 grid grid-cols-2 gap-2 text-[13px]">
+                {[["~40 mp", "feljavított fotó"], ["~2 perc", "kész hirdetéskép"], ["~1 perc", "értékbecslés"], ["~5 perc", "bemutató videó"]].map(([t, s]) => (
+                  <li key={s} className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,.06)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,.1)" }}>
+                    <b className="block font-display text-base" style={{ color: "#ffb79f" }}>{t}</b>
+                    <span style={{ color: "#e9e1d7" }}>{s}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href={user ? "/dashboard" : "/register"}
+                className="relative mt-5 inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-bold text-white transition-opacity hover:opacity-90"
+                style={{ background: "#c4553a" }}>
+                {user ? "Vissza a munkához →" : "Kipróbálom ingyen →"}
+              </Link>
             </div>
           </div>
         </section>
