@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portálközpont — fogadó rész</title>
+<!-- Látványterv (jóváhagyásra): a Portálközpont TETEJÉN megjelenő fogadó rész.
+     Cél: egy pillantásra látszódjon, mire képes a TWINX — animációkkal és ábrákkal, NEM modulonkénti bemutatóval.
+     Önálló fájl (csak beágyazott SVG + CSS animáció), böngészőben közvetlenül megnyitható. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#f7f3ec;--ink:#1c1815;--muted:#6e655c;--line:#e8e1d6;--coral:#ef7a5a;--coral-d:#c4553a;--gold:#e9c77f;--dark:#141210;--on:#f6f0e8;--on-m:#cfc6bb}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e3da;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+.page{max-width:1700px;margin:0 auto;padding:30px 24px 60px}
+.intro{max-width:1180px;margin:0 auto 22px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.24em;color:var(--coral-d);text-transform:uppercase}
+h1.doc{font-family:'Space Grotesk',sans-serif;font-size:28px;margin:6px 0 8px}
+.intro p{margin:0;color:#4b443d;font-size:14px;line-height:1.6;max-width:900px}
+.stage{display:flex;gap:30px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.flabel{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px 4px}
+
+.app{background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.18)}
+.nav{background:var(--dark);color:var(--on);display:flex;align-items:center;gap:22px;padding:0 22px;height:56px;font-size:13px}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px}
+.logo b{color:var(--coral)}
+.nav .m{color:var(--on-m)}
+.nav .prem{background:linear-gradient(135deg,#5a3d22,#8a6234);color:#ffe7b8;border-radius:999px;padding:6px 12px;font-weight:600}
+.nav .sp{flex:1}
+
+/* ================= 0) KREDIT-BLOKK (legfelül) ================= */
+.bal{display:flex;align-items:center;justify-content:space-between;gap:18px;border-radius:20px;padding:18px 22px;background:#fff;box-shadow:0 0 0 1px var(--line),0 10px 26px rgba(28,24,21,.05);margin-bottom:16px}
+.bal .l{display:flex;align-items:center;gap:16px;min-width:0}
+.bal .coin{flex:none;width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#ffb79f,#ef7a5a 60%,#e9c77f);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(239,122,90,.3)}
+.bal small{display:block;font-size:12px;color:var(--muted)}
+.bal .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:32px;line-height:1.05}
+.bal .n span{font-size:15px;color:var(--muted);font-weight:600;margin-left:6px}
+.bal .hint{display:block;font-size:12.5px;color:#4b443d;margin-top:2px}
+.bal .hint b{color:var(--coral-d)}
+.bal .r{display:flex;gap:10px;flex:none}
+.btn.o{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px #d9cfc4;height:44px;font-size:14px}
+.btn.c{background:var(--coral-d);color:#fff;height:44px;font-size:14px}
+
+/* ================= 1) NYITÓ BLOKK ================= */
+.hero{position:relative;overflow:hidden;border-radius:24px;background:radial-gradient(120% 140% at 85% 0%,#3a2a20 0%,#1a1512 45%,#110e0c 100%);color:var(--on)}
+.hero .glow{position:absolute;width:520px;height:520px;right:-120px;top:-160px;border-radius:50%;background:radial-gradient(circle,rgba(239,122,90,.30),transparent 65%);animation:breathe 6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+.hero .copy{position:relative;z-index:2}
+.kick{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.22em;color:#f3b49c}
+.kick i{width:7px;height:7px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 0 rgba(239,122,90,.7);animation:ping 2s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(239,122,90,.6)}100%{box-shadow:0 0 0 10px rgba(239,122,90,0)}}
+.hero h2{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-.01em;margin:12px 0 12px;line-height:1.05}
+.hero h2 em{font-style:normal;background:linear-gradient(90deg,#ffb79f,#ef7a5a 60%,#e9c77f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{margin:0;color:var(--on-m);line-height:1.6}
+.ctas{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:22px}
+.btn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:999px;font-weight:700;font-size:15px;border:none}
+.btn.p{background:var(--coral-d);color:#fff;box-shadow:0 12px 28px rgba(196,85,58,.35)}
+.credit{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--on-m)}
+.credit b{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0 10px;border-radius:999px;background:rgba(239,122,90,.16);color:#ffc7b4;font-weight:700}
+
+/* --- animált „gép": fotó be → TWINX mag → eredmények ki --- */
+.machine{position:relative;z-index:1}
+.machine svg{display:block;width:100%;height:auto;overflow:visible}
+.flow{stroke-dasharray:6 8;animation:dash 1.6s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-28}}
+.ring{transform-origin:270px 200px;animation:spin 18s linear infinite}
+.ring.r2{animation-duration:26s;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{transform-origin:270px 200px;animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.photo-in{animation:slideIn 5s ease-in-out infinite}
+@keyframes slideIn{0%{transform:translate(-30px,0);opacity:0}12%{transform:translate(0,0);opacity:1}55%{transform:translate(0,0);opacity:1}75%{transform:translate(60px,0) scale(.6);opacity:0}100%{opacity:0}}
+.out{opacity:0;animation:pop 5s ease-in-out infinite}
+.out.o2{animation-delay:.25s}.out.o3{animation-delay:.5s}.out.o4{animation-delay:.75s}
+@keyframes pop{0%,55%{opacity:0;transform:translateX(-14px)}68%,92%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(0)}}
+.bar{transform-box:fill-box;transform-origin:bottom;animation:grow 5s ease-in-out infinite}
+@keyframes grow{0%,60%{transform:scaleY(.15)}75%,92%{transform:scaleY(1)}100%{transform:scaleY(.15)}}
+.play{transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-in-out infinite}
+.typing{animation:type 5s steps(18) infinite}
+@keyframes type{0%,62%{width:0}85%,92%{width:66px}100%{width:0}}
+
+/* ================= 2) EGY ÜGYFÉL, EGY DÉLELŐTT ================= */
+.sec{margin-top:26px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+.sec-h h3{margin:0;font-family:'Space Grotesk',sans-serif;font-size:20px}
+.sec-h span{font-size:13px;color:var(--muted)}
+.timeline{position:relative;background:#fff;border-radius:20px;padding:22px 24px;box-shadow:0 0 0 1px var(--line),0 10px 26px rgba(28,24,21,.05)}
+.track{position:relative;height:4px;border-radius:2px;background:#efe7dd;margin:6px 12px 0}
+.track i{position:absolute;left:0;top:0;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--coral),var(--gold));animation:fill 8s ease-in-out infinite}
+@keyframes fill{0%{width:0}80%,100%{width:100%}}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:-14px}
+.step{position:relative;padding-top:26px}
+.step .dot{position:absolute;top:0;left:12px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--coral);display:flex;align-items:center;justify-content:center}
+.step .dot b{width:10px;height:10px;border-radius:50%;background:var(--coral);animation:lit 8s infinite}
+.step:nth-child(2) .dot b{animation-delay:1.6s}.step:nth-child(3) .dot b{animation-delay:3.2s}.step:nth-child(4) .dot b{animation-delay:4.8s}
+@keyframes lit{0%{transform:scale(0)}6%,100%{transform:scale(1)}}
+.step time{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin:8px 0 2px}
+.step p{margin:0;font-size:13px;line-height:1.45;color:#4b443d}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
+.cmp{border-radius:14px;padding:12px 14px;background:var(--cream)}
+.cmp small{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
+.cmp .v{display:flex;align-items:center;gap:10px;margin-top:6px}
+.cmp .v strong{font-family:'Space Grotesk',sans-serif;font-size:20px;white-space:nowrap}
+.cmp .meter{flex:1;height:10px;border-radius:5px;background:#e6ddd1;overflow:hidden}
+.cmp .meter i{display:block;height:100%;border-radius:5px}
+.cmp.old .meter i{width:100%;background:#b9ada0}
+.cmp.new{background:#fff3ee;box-shadow:inset 0 0 0 1px #f6c9b8}
+.cmp.new .meter i{background:linear-gradient(90deg,var(--coral),var(--gold));animation:short 8s ease-in-out infinite}
+@keyframes short{0%,20%{width:100%}45%,100%{width:9%}}
+
+/* ================= 3) HÁROM ÉRV ================= */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pil{background:#fff;border-radius:18px;padding:18px;box-shadow:0 0 0 1px var(--line)}
+.pil .ic{width:52px;height:52px;border-radius:14px;background:#fff3ee;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.pil h4{margin:0 0 4px;font-size:15.5px}
+.pil p{margin:0;font-size:13px;line-height:1.5;color:#4b443d}
+.hand{transform-origin:12px 12px;animation:spin 4s linear infinite}
+.stack rect{animation:stackUp 3s ease-in-out infinite}
+.stack rect:nth-child(2){animation-delay:.2s}.stack rect:nth-child(3){animation-delay:.4s}
+@keyframes stackUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.spark{transform-box:fill-box;transform-origin:center;animation:twinkle 2.4s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+
+/* ================= 4) ZÁRÁS ================= */
+.closer{margin-top:22px;border-radius:18px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--dark);color:var(--on)}
+.closer p{margin:0;font-size:14px;color:var(--on-m)}
+.closer p b{color:#fff}
+
+/* ---------- ASZTALI ---------- */
+.desk{width:1180px}
+.desk .content{padding:26px 36px 34px}
+.desk .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;align-items:center;padding:40px 40px}
+.desk .hero h2{font-size:52px}
+.desk .hero p.lead{font-size:16px;max-width:470px}
+
+/* ---------- TELEFON ---------- */
+.phone{width:390px;border-radius:36px;padding:10px;background:#111;box-shadow:0 30px 70px rgba(0,0,0,.28)}
+.phone .app{border-radius:28px}
+.phone .nav{padding:0 16px;height:52px}
+.phone .content{padding:14px 14px 20px}
+.phone .hero{padding:24px 20px 10px}
+.phone .hero h2{font-size:33px}
+.phone .hero p.lead{font-size:14.5px}
+.phone .btn{width:100%;justify-content:center}
+.phone .machine{margin:6px -6px 0}
+.phone .steps{grid-template-columns:1fr;gap:12px;margin-top:0}
+.phone .track{display:none}
+.phone .timeline{padding:18px}
+.phone .compare,.phone .pillars{grid-template-columns:1fr}
+.phone .closer{flex-direction:column;align-items:stretch}
+.phone .bal{flex-direction:column;align-items:stretch;padding:16px;gap:14px;margin-bottom:12px}
+.phone .bal .r{display:grid;grid-template-columns:1fr 1fr}
+.phone .bal .r .btn{width:100%;justify-content:center;padding:0 10px;font-size:13px}
+.phone .sec-h{flex-direction:column;gap:2px}
+
+.notes{max-width:1180px;margin:30px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.note{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 0 0 1px var(--line)}
+.note b{display:block;font-size:14px;margin-bottom:6px}
+.note p{margin:0;font-size:13px;line-height:1.55;color:#4b443d}
+@media (max-width:1250px){.notes{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}.out{opacity:1}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <span class="eyebrow">Látványterv · Portálközpont · fogadó rész</span>
+    <h1 class="doc">„A mindennapi munkád jobbkeze" — egy pillantásra, mire képes a TWINX</h1>
+    <p>Legfelül a felhasználó kredit-egyenlege, alatta egy fogadó rész: nem modulokat sorol, hanem animációkkal és ábrákkal megmutatja, mit ad a TWINX — fotóból percek alatt kész hirdetés, videó, értékbecslés. Alatta marad a mostani Portálközpont (modulok, korábbi munkák). A fájlt böngészőben megnyitva az animációk mozognak.</p>
+  </div>
+
+  <div class="stage">
+    <!-- ================================ ASZTALI ================================ -->
+    <div>
+      <p class="flabel">Asztali gép (1180 px)</p>
+      <div class="app desk">
+        <div class="nav"><span class="logo">TWIN<b>X</b></span><span class="m">Tartalomgyártás ▾</span><span class="m">Elemzés &amp; kutatás ▾</span><span class="prem">✦ Prémium 3D ▾</span><span class="m">Egyedi modulok ▾</span><span class="m">Korábbi munkák</span><span class="sp"></span><span class="m">Fiók ▾</span></div>
+        <div class="content">
+
+          <!-- 0) KREDIT-BLOKK -->
+          <section class="bal">
+            <div class="l">
+              <span class="coin"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.6 6.4L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.6z"/></svg></span>
+              <div>
+                <small>Egyenleged — bármelyik modulban felhasználható</small>
+                <div class="n">10<span>kredit</span></div>
+                <span class="hint"><b>Ajándék</b> — ennyiből pl. 10 javított fotó vagy 10 hirdetéskép készül. A kredit nem jár le.</span>
+              </div>
+            </div>
+            <div class="r"><button class="btn o">Ajándékkód beváltása</button><button class="btn c">Egyenleg feltöltése</button></div>
+          </section>
+
+          <!-- 1) NYITÓ BLOKK -->
+          <section class="hero">
+            <span class="glow"></span>
+            <div class="copy">
+              <span class="kick"><i></i>TWINX · PORTÁL KÖZPONT</span>
+              <h2>A mindennapi munkád <em>jobbkeze.</em></h2>
+              <p class="lead">Lefotózod az ingatlant — a TWINX percek alatt kész hirdetést, videót, értékbecslést és szöveget készít belőle. Te az ügyfeleiddel foglalkozol, a többit mi intézzük.</p>
+              <div class="ctas">
+                <button class="btn p">Kezdjük az első anyaggal →</button>
+                <span class="credit">Pár perc, és kész az első anyagod.</span>
+              </div>
+            </div>
+            <div class="machine" aria-hidden="true">
+              <!-- FOTÓ BE → TWINX MAG → EREDMÉNYEK KI -->
+              <svg viewBox="0 0 520 400">
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb79f"/><stop offset=".6" stop-color="#ef7a5a"/><stop offset="1" stop-color="#e9c77f"/></linearGradient>
+                  <radialGradient id="g2"><stop offset="0" stop-color="#ef7a5a" stop-opacity=".55"/><stop offset="1" stop-color="#ef7a5a" stop-opacity="0"/></radialGradient>
+                </defs>
+                <!-- csatornák -->
+                <path class="flow" d="M118 200 C160 200 180 200 222 200" stroke="#ef7a5a" stroke-width="2" fill="none" opacity=".8"/>
+                <path class="flow" d="M318 200 C360 200 370 70 410 70" stroke="#e9c77f" stroke-width="2" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 160 410 160" stroke="#e9c77f" stroke-width="2" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 250 410 250" stroke="#e9c77f" stroke-width="2" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 340 410 340" stroke="#e9c77f" stroke-width="2" fill="none" opacity=".7"/>
+
+                <!-- bemenet: telefonos fotó -->
+                <g class="photo-in">
+                  <rect x="30" y="150" width="86" height="100" rx="12" fill="#2a221c" stroke="#5b4a3d"/>
+                  <rect x="40" y="160" width="66" height="56" rx="6" fill="#4a3f36"/>
+                  <path d="M44 210 l18 -22 l14 14 l10 -10 l16 18 z" fill="#6c5c4f"/>
+                  <circle cx="92" cy="172" r="6" fill="#7d6b5c"/>
+                  <rect x="44" y="226" width="40" height="5" rx="2.5" fill="#5b4a3d"/>
+                  <text x="73" y="270" text-anchor="middle" font-family="Inter" font-size="10" fill="#cfc6bb">a te fotód</text>
+                </g>
+
+                <!-- TWINX mag -->
+                <circle cx="270" cy="200" r="88" fill="url(#g2)"/>
+                <g class="ring"><circle cx="270" cy="200" r="64" fill="none" stroke="#ef7a5a" stroke-opacity=".45" stroke-dasharray="3 9" stroke-width="2"/></g>
+                <g class="ring r2"><circle cx="270" cy="200" r="78" fill="none" stroke="#e9c77f" stroke-opacity=".35" stroke-dasharray="1 7" stroke-width="2"/></g>
+                <g class="core">
+                  <circle cx="270" cy="200" r="46" fill="#1d1714" stroke="url(#g1)" stroke-width="2.5"/>
+                  <text x="270" y="207" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="20" fill="#f6f0e8">TWIN<tspan fill="#ef7a5a">X</tspan></text>
+                </g>
+
+                <!-- kimenetek -->
+                <g class="out o1">
+                  <rect x="410" y="40" width="96" height="60" rx="10" fill="#f6f0e8"/>
+                  <rect x="418" y="48" width="80" height="26" rx="4" fill="#c9b8a6"/>
+                  <rect x="418" y="78" width="50" height="6" rx="3" fill="#1c1815"/>
+                  <rect x="418" y="88" width="34" height="6" rx="3" fill="#c4553a"/>
+                  <text x="458" y="116" text-anchor="middle" font-family="Inter" font-size="10" fill="#cfc6bb">hirdetéskép</text>
+                </g>
+                <g class="out o2">
+                  <rect x="410" y="130" width="96" height="60" rx="10" fill="#2a221c" stroke="#5b4a3d"/>
+                  <g class="play"><circle cx="458" cy="160" r="15" fill="#ef7a5a"/><path d="M453 152 l13 8 l-13 8 z" fill="#fff"/></g>
+                  <text x="458" y="206" text-anchor="middle" font-family="Inter" font-size="10" fill="#cfc6bb">videó</text>
+                </g>
+                <g class="out o3">
+                  <rect x="410" y="220" width="96" height="60" rx="10" fill="#f6f0e8"/>
+                  <rect class="bar" x="422" y="252" width="10" height="20" rx="2" fill="#c9b8a6"/>
+                  <rect class="bar" x="438" y="242" width="10" height="30" rx="2" fill="#c9b8a6"/>
+                  <rect class="bar" x="454" y="236" width="10" height="36" rx="2" fill="#c4553a"/>
+                  <rect class="bar" x="470" y="246" width="10" height="26" rx="2" fill="#c9b8a6"/>
+                  <rect class="bar" x="486" y="240" width="10" height="32" rx="2" fill="#c9b8a6"/>
+                  <text x="458" y="296" text-anchor="middle" font-family="Inter" font-size="10" fill="#cfc6bb">értékbecslés</text>
+                </g>
+                <g class="out o4">
+                  <rect x="410" y="310" width="96" height="60" rx="10" fill="#f6f0e8"/>
+                  <rect x="420" y="322" width="76" height="6" rx="3" fill="#d8cdbf"/>
+                  <rect x="420" y="334" width="60" height="6" rx="3" fill="#d8cdbf"/>
+                  <svg x="420" y="346" width="76" height="8"><rect class="typing" x="0" y="0" width="66" height="6" rx="3" fill="#1c1815"/></svg>
+                  <text x="458" y="386" text-anchor="middle" font-family="Inter" font-size="10" fill="#cfc6bb">hirdetésszöveg</text>
+                </g>
+              </svg>
+            </div>
+          </section>
+
+          <!-- 2) EGY ÜGYFÉL, EGY DÉLELŐTT -->
+          <section class="sec">
+            <div class="sec-h"><h3>Egy új megbízás, egy délelőtt</h3><span>Ami eddig napokig tartott, most egy kávé mellett kész.</span></div>
+            <div class="timeline">
+              <div class="track"><i></i></div>
+              <div class="steps">
+                <div class="step"><span class="dot"><b></b></span><time>09:00</time><p>Lefotózod a lakást a telefonoddal.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:05</time><p>Világos, egyenes, hirdetésre kész fotók.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:12</time><p>Hirdetéskép és portálszöveg a saját arculatoddal.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:20</time><p>Videó és értékbecslés — már küldheted is az ügyfélnek.</p></div>
+              </div>
+              <div class="compare">
+                <div class="cmp old"><small>HAGYOMÁNYOSAN</small><div class="v"><strong>2–3 nap</strong><span class="meter"><i></i></span></div></div>
+                <div class="cmp new"><small>TWINX-SZEL</small><div class="v"><strong>~20 perc</strong><span class="meter"><i></i></span></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 3) HÁROM ÉRV -->
+          <section class="sec">
+            <div class="pillars">
+              <div class="pil">
+                <div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4553a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><g class="hand"><path d="M12 12 L12 6"/></g><path d="M12 12 L15.5 14"/></svg></div>
+                <h4>Órák helyett percek</h4><p>Ami egy délutánt vitt el, most néhány kattintás. Több idő marad az ügyfelekre.</p>
+              </div>
+              <div class="pil">
+                <div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4553a" stroke-width="2" stroke-linejoin="round"><g class="stack"><rect x="4" y="14" width="16" height="5" rx="1.5"/><rect x="5" y="9" width="14" height="4" rx="1.5"/><rect x="6" y="4.5" width="12" height="3.5" rx="1.5"/></g></svg></div>
+                <h4>Minden egy helyen</h4><p>Fotó, hirdetés, videó, értékbecslés és szöveg egy fiókban — mappákba rendezve, bármikor elővehető.</p>
+              </div>
+              <div class="pil">
+                <div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="#c4553a"><path class="spark" d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path class="spark" style="animation-delay:.8s" d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>
+                <h4>Profi eredmény, szakértő nélkül</h4><p>Igényes, egységes anyagok a saját arculatoddal — grafikus, vágó és fotós nélkül.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- 4) ZÁRÁS -->
+          <div class="closer">
+            <p><b>Készen állsz?</b> Válaszd ki az első feladatot — egy hirdetéskép vagy egy fotójavítás 1 kredit.</p>
+            <button class="btn p">Kezdjük →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================ TELEFON ================================ -->
+    <div>
+      <p class="flabel">Telefon (390 px)</p>
+      <div class="phone"><div class="app">
+        <div class="nav"><span class="logo">TWIN<b>X</b></span><span class="sp"></span><span class="m">☰</span></div>
+        <div class="content">
+          <section class="bal">
+            <div class="l">
+              <span class="coin"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.6 6.4L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.6z"/></svg></span>
+              <div>
+                <small>Egyenleged</small>
+                <div class="n">10<span>kredit</span></div>
+                <span class="hint"><b>Ajándék</b> — pl. 10 javított fotó.</span>
+              </div>
+            </div>
+            <div class="r"><button class="btn o">Ajándékkód</button><button class="btn c">Feltöltés</button></div>
+          </section>
+          <section class="hero">
+            <span class="glow"></span>
+            <div class="copy">
+              <span class="kick"><i></i>TWINX · PORTÁL KÖZPONT</span>
+              <h2>A mindennapi munkád <em>jobbkeze.</em></h2>
+              <p class="lead">Lefotózod az ingatlant — a TWINX percek alatt kész hirdetést, videót és értékbecslést készít belőle.</p>
+            </div>
+            <div class="machine" aria-hidden="true">
+              <svg viewBox="0 0 520 400">
+                <defs>
+                  <linearGradient id="h1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb79f"/><stop offset=".6" stop-color="#ef7a5a"/><stop offset="1" stop-color="#e9c77f"/></linearGradient>
+                  <radialGradient id="h2"><stop offset="0" stop-color="#ef7a5a" stop-opacity=".55"/><stop offset="1" stop-color="#ef7a5a" stop-opacity="0"/></radialGradient>
+                </defs>
+                <path class="flow" d="M118 200 C160 200 180 200 222 200" stroke="#ef7a5a" stroke-width="2.5" fill="none" opacity=".8"/>
+                <path class="flow" d="M318 200 C360 200 370 70 410 70" stroke="#e9c77f" stroke-width="2.5" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 160 410 160" stroke="#e9c77f" stroke-width="2.5" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 250 410 250" stroke="#e9c77f" stroke-width="2.5" fill="none" opacity=".7"/>
+                <path class="flow" d="M318 200 C360 200 370 340 410 340" stroke="#e9c77f" stroke-width="2.5" fill="none" opacity=".7"/>
+                <g class="photo-in"><rect x="30" y="150" width="86" height="100" rx="12" fill="#2a221c" stroke="#5b4a3d"/><rect x="40" y="160" width="66" height="56" rx="6" fill="#4a3f36"/><path d="M44 210 l18 -22 l14 14 l10 -10 l16 18 z" fill="#6c5c4f"/><circle cx="92" cy="172" r="6" fill="#7d6b5c"/></g>
+                <circle cx="270" cy="200" r="88" fill="url(#h2)"/>
+                <g class="ring"><circle cx="270" cy="200" r="64" fill="none" stroke="#ef7a5a" stroke-opacity=".45" stroke-dasharray="3 9" stroke-width="2.5"/></g>
+                <g class="core"><circle cx="270" cy="200" r="46" fill="#1d1714" stroke="url(#h1)" stroke-width="3"/><text x="270" y="208" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="22" fill="#f6f0e8">TWIN<tspan fill="#ef7a5a">X</tspan></text></g>
+                <g class="out o1"><rect x="410" y="40" width="96" height="60" rx="10" fill="#f6f0e8"/><rect x="418" y="48" width="80" height="26" rx="4" fill="#c9b8a6"/><rect x="418" y="80" width="50" height="7" rx="3" fill="#1c1815"/></g>
+                <g class="out o2"><rect x="410" y="130" width="96" height="60" rx="10" fill="#2a221c" stroke="#5b4a3d"/><g class="play"><circle cx="458" cy="160" r="15" fill="#ef7a5a"/><path d="M453 152 l13 8 l-13 8 z" fill="#fff"/></g></g>
+                <g class="out o3"><rect x="410" y="220" width="96" height="60" rx="10" fill="#f6f0e8"/><rect class="bar" x="424" y="250" width="12" height="22" rx="2" fill="#c9b8a6"/><rect class="bar" x="442" y="240" width="12" height="32" rx="2" fill="#c4553a"/><rect class="bar" x="460" y="246" width="12" height="26" rx="2" fill="#c9b8a6"/><rect class="bar" x="478" y="238" width="12" height="34" rx="2" fill="#c9b8a6"/></g>
+                <g class="out o4"><rect x="410" y="310" width="96" height="60" rx="10" fill="#f6f0e8"/><rect x="420" y="324" width="76" height="7" rx="3" fill="#d8cdbf"/><rect x="420" y="338" width="60" height="7" rx="3" fill="#d8cdbf"/><svg x="420" y="352" width="76" height="9"><rect class="typing" x="0" y="0" width="66" height="7" rx="3" fill="#1c1815"/></svg></g>
+              </svg>
+            </div>
+            <div class="ctas" style="margin:4px 0 14px"><button class="btn p">Kezdjük az első anyaggal →</button></div>
+          </section>
+
+          <section class="sec">
+            <div class="sec-h"><h3>Egy megbízás, egy délelőtt</h3><span>Napok helyett ~20 perc.</span></div>
+            <div class="timeline">
+              <div class="steps">
+                <div class="step"><span class="dot"><b></b></span><time>09:00</time><p>Lefotózod a lakást.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:05</time><p>Hirdetésre kész fotók.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:12</time><p>Hirdetéskép + szöveg.</p></div>
+                <div class="step"><span class="dot"><b></b></span><time>09:20</time><p>Videó és értékbecslés az ügyfélnek.</p></div>
+              </div>
+              <div class="compare">
+                <div class="cmp old"><small>HAGYOMÁNYOSAN</small><div class="v"><strong>2–3 nap</strong><span class="meter"><i></i></span></div></div>
+                <div class="cmp new"><small>TWINX-SZEL</small><div class="v"><strong>~20 perc</strong><span class="meter"><i></i></span></div></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sec">
+            <div class="pillars">
+              <div class="pil"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4553a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><g class="hand"><path d="M12 12 L12 6"/></g><path d="M12 12 L15.5 14"/></svg></div><h4>Órák helyett percek</h4><p>Több idő marad az ügyfelekre.</p></div>
+            </div>
+          </section>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b>1 · Az üzenet, nem a menü</b><p>A nyitó blokk egy mondatban elmondja, mit ad a TWINX, és egy animált ábrán meg is mutatja: a fotó belefut a TWINX-be, és kijön belőle hirdetéskép, videó, értékbecslés és szöveg.</p></div>
+    <div class="note"><b>2 · Kézzelfogható haszon</b><p>Az „egy megbízás, egy délelőtt" idővonal az időt teszi kézzelfoghatóvá (2–3 nap → ~20 perc). A három érv a regisztrációs e-mailben már bevált üzeneteket ismétli.</p></div>
+    <div class="note"><b>3 · Kinek és meddig?</b><p>Javaslat: amíg valaki nem készített 3 anyagot, a fogadó rész teljes méretben látszik; utána egy összecsukható „Mit tud a TWINX?" sávvá szűkül, hogy a rendszeres használót ne lassítsa.</p></div>
+  </div>
+</div>
+</body>
+</html>

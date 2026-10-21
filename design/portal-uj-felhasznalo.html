@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portálközpont — új felhasználó</title>
+<!-- Látványterv (jóváhagyásra): a Portálközpont első képernyője ÚJ felhasználónak (még nem generált semmit).
+     Cél: az első belépéskor az eredmény és a 10 ingyen kredit legyen a fókuszban, ne a fizetés.
+     A képek a projekt valódi bemutató-képei (public/showcase, public/flyer-samples). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#f7f3ec;--card:#fdfbf6;--ink:#1c1815;--muted:#6e655c;--line:#e8e1d6;--coral:#ef7a5a;--coral-d:#c4553a;--coral-soft:#f9c9b6;--dark:#141210}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e3da;color:var(--ink);font-family:Inter,system-ui,sans-serif}
+.page{max-width:1760px;margin:0 auto;padding:32px 24px 64px}
+.intro{max-width:1180px;margin:0 auto 26px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.24em;color:var(--coral-d);text-transform:uppercase}
+h1.doc{font-family:'Space Grotesk',sans-serif;font-size:30px;margin:6px 0 8px}
+.intro p{margin:0;color:#4b443d;font-size:14px;line-height:1.6;max-width:880px}
+.stage{display:flex;gap:32px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.frame-label{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px 4px}
+
+/* ---------- közös app-elemek ---------- */
+.app{background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.18)}
+.nav{background:var(--dark);color:#f4efe7;display:flex;align-items:center;gap:22px;padding:0 22px;height:58px;font-size:13px}
+.logo{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;letter-spacing:.02em}
+.logo b{color:var(--coral)}
+.nav .m{color:#cfc6bb}
+.nav .prem{background:linear-gradient(135deg,#5a3d22,#8a6234);color:#ffe7b8;border-radius:999px;padding:6px 12px;font-weight:600}
+.nav .sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;font-size:12px;font-weight:600}
+
+/* Új felhasználó hero */
+.hero{position:relative;border-radius:22px;padding:30px 32px;background:linear-gradient(135deg,#221c17 0%,#16120f 70%);color:#f6f0e8;overflow:hidden}
+.hero:after{content:"";position:absolute;inset:0;background:radial-gradient(40% 80% at 88% 20%,rgba(239,122,90,.28),transparent 70%);pointer-events:none}
+.hero .kick{font-size:11px;font-weight:700;letter-spacing:.22em;color:#f3b49c}
+.hero h2{font-family:'Space Grotesk',sans-serif;font-size:34px;line-height:1.12;margin:8px 0 10px;max-width:640px}
+.hero h2 em{font-style:normal;color:var(--coral)}
+.hero p{margin:0;color:#cfc6bb;font-size:15px;line-height:1.55;max-width:560px}
+.credit{position:relative;z-index:1;flex:none;width:auto;min-width:170px;text-align:center;border-radius:18px;padding:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.credit .n{font-family:'Space Grotesk',sans-serif;font-size:46px;font-weight:700;line-height:1}
+.credit .n small{font-size:15px;font-weight:600;color:#cfc6bb;margin-left:6px}
+.credit .what{margin-top:10px;font-size:12.5px;line-height:1.55;color:#d9d0c6}
+.credit .what b{color:#fff}
+.dots{display:flex;gap:4px;margin-top:12px}
+.dots i{width:16px;height:6px;border-radius:3px;background:var(--coral)}
+
+/* kiemelt kártyák */
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.fc{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--line),0 10px 26px rgba(28,24,21,.06);display:flex;flex-direction:column}
+.fc .img{position:relative;height:188px;overflow:hidden;background:#ddd}
+.fc .img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.split .after{clip-path:inset(0 0 0 50%)}
+.split .bar{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;box-shadow:0 0 8px rgba(0,0,0,.35)}
+.split .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink);font-weight:700}
+.tag{position:absolute;top:10px;font-size:10px;font-weight:700;letter-spacing:.12em;padding:4px 8px;border-radius:6px;background:rgba(20,18,16,.72);color:#fff}
+.tag.l{left:10px}.tag.r{right:10px;background:var(--coral-d)}
+.fc .body{padding:16px 16px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+.fc h3{margin:0;font-size:17px}
+.fc .out{margin:0;font-size:13.5px;color:#4b443d;line-height:1.5}
+.meta{display:flex;gap:6px;margin-top:2px}
+.meta span{font-size:11px;font-weight:600;border-radius:999px;padding:3px 8px;background:#f3ece3;color:#6a5f55}
+.meta span.c{background:#fde4d9;color:#9a3a22}
+.cta{margin-top:auto;padding-top:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:999px;font-size:14px;font-weight:700;padding:0 18px;border:none}
+.btn.p{background:var(--coral-d);color:#fff}
+.btn.s{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px #d9cfc4}
+.btn.w{width:100%}
+.flyer-bg{position:absolute;inset:0;background:#efe8de;display:flex;align-items:center;justify-content:center}
+.fc .img .flyer-bg img,.mc .img .flyer-bg img{position:relative;inset:auto;width:auto;height:90%;object-fit:contain;border-radius:6px;box-shadow:0 8px 22px rgba(0,0,0,.25)}
+
+/* minta-riport (értékbecslés) */
+.report{position:absolute;inset:0;background:linear-gradient(160deg,#f6f1ea,#ece4d8);padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.report .rk{font-size:10px;font-weight:700;letter-spacing:.16em;color:#8c8279}
+.report .price{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:var(--ink)}
+.report .price small{font-size:12px;color:#8c8279;font-weight:600;margin-left:4px}
+.report .range{height:8px;border-radius:4px;background:linear-gradient(90deg,#f3c9b8,#ef7a5a,#f3c9b8);position:relative}
+.report .range i{position:absolute;left:52%;top:-4px;width:3px;height:16px;border-radius:2px;background:var(--ink)}
+.report .bars{display:flex;align-items:flex-end;gap:6px;height:52px;margin-top:4px}
+.report .bars b{flex:1;border-radius:4px 4px 0 0;background:#d8cdbf}
+.report .bars b.me{background:var(--coral-d)}
+.report .foot{font-size:10.5px;color:#7a7067}
+.minta{position:absolute;right:10px;bottom:10px;font-size:10px;font-weight:700;letter-spacing:.12em;color:#9a8f85;border:1px solid #cfc5b9;border-radius:6px;padding:2px 6px}
+
+/* többi modul */
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin:30px 2px 12px}
+.sec-h h4{margin:0;font-size:16px}
+.sec-h a{font-size:13px;color:var(--coral-d);font-weight:600;text-decoration:none}
+.more{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.mc{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.mc .img{position:relative;height:112px;overflow:hidden}
+.mc .img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mc .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.mc .play span{width:38px;height:38px;border-radius:50%;background:rgba(239,122,90,.95);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+.mc .b{padding:10px 12px 12px}
+.mc .b strong{display:block;font-size:13.5px}
+.mc .b small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+
+.txt{position:absolute;inset:0;background:#f6f1ea;padding:14px 14px;display:flex;flex-direction:column;gap:6px}
+.txt i{display:block;height:6px;border-radius:3px;background:#d8cdbf;width:100%}
+.txt i.ok{background:#bfe0c9}.txt i.warn{background:#f5c3b3}
+.txt em{font-style:normal;font-size:10.5px;color:#6a5f55;margin-top:auto}
+
+/* kis egyenleg-sor (vásárlásig) */
+.bal{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;padding:12px 16px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px var(--line);font-size:13px;color:var(--muted)}
+.bal b{color:var(--ink)}
+.bal a{color:var(--coral-d);font-weight:600;text-decoration:none}
+
+/* ---------- ASZTALI keret ---------- */
+.desk{width:1180px}
+.desk .content{padding:28px 40px 36px}
+.desk .hero{display:flex;gap:28px;align-items:center;justify-content:space-between}
+.desk .hero > div:first-child{position:relative;z-index:1}
+
+/* ---------- TELEFON keret ---------- */
+.phone{width:390px;border-radius:36px;padding:10px;background:#111;box-shadow:0 30px 70px rgba(0,0,0,.28)}
+.phone .app{border-radius:28px}
+.phone .nav{height:54px;padding:0 16px}
+.phone .content{padding:16px 16px 22px}
+.phone .hero{padding:22px 20px;border-radius:20px}
+.phone .hero h2{font-size:25px}
+.phone .hero p{font-size:14px}
+.phone .credit{width:auto;margin-top:16px;padding:14px;display:flex;align-items:center;gap:14px}
+.phone .credit .n{font-size:36px}
+.phone .credit .what{margin-top:0;font-size:12px}
+.phone .feat{grid-template-columns:1fr;gap:14px;margin-top:16px}
+.phone .fc .img{height:170px}
+.phone .more{grid-template-columns:1fr 1fr;gap:10px}
+.phone .menu{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center}
+.fold{position:relative;margin:14px -16px 0;border-top:2px dashed rgba(196,85,58,.55)}
+.fold span{position:absolute;right:16px;top:-11px;background:var(--cream);font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--coral-d);padding:2px 6px}
+
+/* ---------- magyarázat ---------- */
+.notes{max-width:1180px;margin:34px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.note{background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 0 0 1px var(--line)}
+.note b{display:block;font-size:14px;margin-bottom:6px}
+.note p{margin:0;font-size:13px;line-height:1.55;color:#4b443d}
+.note .n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--coral-d);color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center;margin-right:8px}
+@media (max-width: 1300px){.notes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <span class="eyebrow">Látványterv · Portálközpont · új felhasználó</span>
+    <h1 class="doc">Az első belépés: eredmény és ingyen kredit, nem fizetés</h1>
+    <p>Ezt látja, aki még nem generált semmit (a 10 ingyen kreditje megvan). Felül egy személyes, sötét „ezzel kezdd" blokk, alatta 3 kiemelt modul <strong>valódi eredmény-képekkel</strong> és egy gombbal, aztán a többi modul. Az egyenleg-kártya az első vásárlásig egy diszkrét sorrá szűkül. Az első generálás után a Portálközpont visszaáll a mostani, megszokott formájára.</p>
+  </div>
+
+  <div class="stage">
+    <!-- ================= ASZTALI ================= -->
+    <div>
+      <p class="frame-label">Asztali gép (1180 px)</p>
+      <div class="app desk">
+        <div class="nav">
+          <span class="logo">TWIN<b>X</b></span>
+          <span class="m">Tartalomgyártás ▾</span><span class="m">Elemzés &amp; kutatás ▾</span>
+          <span class="prem">✦ Prémium 3D ▾</span><span class="m">Egyedi modulok ▾</span><span class="m">Korábbi munkák</span>
+          <span class="sp"></span><span class="m">Fiók ▾</span>
+        </div>
+        <div class="content">
+          <section class="hero">
+            <div>
+              <span class="kick">ÚJ FIÓK · AJÁNDÉK KREDIT</span>
+              <h2>Szia Márk! Van <em>10 ingyen kredited</em> — nézd meg, mit hozhatsz ki belőle.</h2>
+            </div>
+            <div class="credit">
+              <div class="n">10<small>kredit</small></div>
+            </div>
+          </section>
+
+          <div class="sec-h" style="margin-top:26px"><h4>Ezzel kezdd — a legtöbben ezt próbálják ki elsőként</h4></div>
+          <div class="feat">
+            <div class="fc">
+              <div class="img split">
+                <img src="../public/showcase/enhance-before.jpg" alt="">
+                <img class="after" src="../public/showcase/enhance-after.jpg" alt="">
+                <span class="bar"></span><span class="knob">⇆</span>
+                <span class="tag l">ELŐTTE</span><span class="tag r">UTÁNA</span>
+              </div>
+              <div class="body">
+                <h3>Képjavító</h3>
+                <p class="out">A sötét, ferde telefonos fotóból világos, egyenes hirdetésfotó.</p>
+                <div class="meta"><span class="c">1 kredit</span><span>~40 mp</span></div>
+                <div class="cta"><button class="btn p w">Kipróbálom a saját fotómmal →</button></div>
+              </div>
+            </div>
+            <div class="fc">
+              <div class="img"><div class="flyer-bg"><img src="../public/flyer-samples/premium-1x1.png" alt=""></div></div>
+              <div class="body">
+                <h3>Hirdetéskép</h3>
+                <p class="out">Posztolásra kész hirdetés a fotóidból, a saját neveddel és telefonszámoddal.</p>
+                <div class="meta"><span class="c">1 kredit</span><span>~2 perc</span></div>
+                <div class="cta"><button class="btn s w">Elkészítem az elsőt →</button></div>
+              </div>
+            </div>
+            <div class="fc">
+              <div class="img">
+                <div class="report">
+                  <span class="rk">BECSÜLT PIACI ÉRTÉK</span>
+                  <span class="price">63,4 M Ft<small>± 4%</small></span>
+                  <div class="range"><i></i></div>
+                  <div class="bars"><b style="height:46%"></b><b style="height:62%"></b><b class="me" style="height:70%"></b><b style="height:58%"></b><b style="height:80%"></b><b style="height:52%"></b></div>
+                  <span class="foot">6 hasonló eladás az elmúlt 1 évből · PDF-riport</span>
+                </div>
+                <span class="minta">MINTA</span>
+              </div>
+              <div class="body">
+                <h3>Értékbecslés</h3>
+                <p class="out">Piaci ár friss eladási adatokból — ügyfélnek átadható PDF-riporttal.</p>
+                <div class="meta"><span class="c">1 kredit</span><span>~1 perc</span></div>
+                <div class="cta"><button class="btn s w">Megbecsülök egy ingatlant →</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec-h"><h4>Még ezeket is kipróbálhatod</h4><a href="#">Minden modul →</a></div>
+          <div class="more">
+            <div class="mc"><div class="img split"><img src="../public/showcase/visual-before.jpg" alt=""><img class="after" src="../public/showcase/visual-after.jpg" alt=""><span class="bar"></span></div><div class="b"><strong>Látványterv</strong><small>Üres vagy régi szobából berendezett · 1 kredit</small></div></div>
+            <div class="mc"><div class="img"><img src="../public/showcase/video-demo-poster.jpg" alt=""><div class="play"><span>▶</span></div></div><div class="b"><strong>Videó</strong><small>Mozgó bemutató a fotókból · 3 kredit</small></div></div>
+            <div class="mc"><div class="img"><div class="txt"><i style="width:70%"></i><i></i><i style="width:88%"></i><i style="width:60%"></i><em>„Napfényes, felújított otthon csendes utcában…"</em></div></div><div class="b"><strong>Hirdetésszöveg</strong><small>Portálra kész leírás · 1 kredit</small></div></div>
+            <div class="mc"><div class="img"><div class="txt"><i></i><i style="width:80%" class="ok"></i><i style="width:90%" class="warn"></i><i style="width:55%"></i><em>✓ 2 javaslat · 1 kockázatos állítás</em></div></div><div class="b"><strong>Szöveg-ellenőrzés</strong><small>Hibák, kockázatos állítások · 1 kredit</small></div></div>
+          </div>
+
+          <div class="bal"><span>Egyenleg: <b>10 kredit</b> — bármelyik modulban felhasználható</span><span><a href="#">Ajándékkód beváltása</a> · <a href="#">Feltöltés</a></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TELEFON ================= -->
+    <div>
+      <p class="frame-label">Telefon (390 px)</p>
+      <div class="phone">
+        <div class="app">
+          <div class="nav"><span class="logo">TWIN<b>X</b></span><span class="sp"></span><span class="menu">☰</span></div>
+          <div class="content">
+            <section class="hero">
+              <span class="kick">ÚJ FIÓK · AJÁNDÉK KREDIT</span>
+              <h2>Szia Márk! Van <em>10 ingyen kredited</em>.</h2>
+              <div class="credit">
+                <div class="n">10<small>kredit</small></div>
+              </div>
+            </section>
+            <div class="feat">
+              <div class="fc">
+                <div class="img split">
+                  <img src="../public/showcase/enhance-before.jpg" alt="">
+                  <img class="after" src="../public/showcase/enhance-after.jpg" alt="">
+                  <span class="bar"></span><span class="knob">⇆</span>
+                  <span class="tag l">ELŐTTE</span><span class="tag r">UTÁNA</span>
+                </div>
+                <div class="body">
+                  <h3>Képjavító</h3>
+                  <p class="out">Sötét telefonos fotóból világos hirdetésfotó.</p>
+                  <div class="meta"><span class="c">1 kredit</span><span>~40 mp</span></div>
+                  <div class="cta"><button class="btn p w">Kipróbálom →</button></div>
+                </div>
+              </div>
+              <div class="fold"><span>AZ ELSŐ KÉPERNYŐ ALJA</span></div>
+              <div class="fc">
+                <div class="img"><div class="flyer-bg"><img src="../public/flyer-samples/premium-1x1.png" alt=""></div></div>
+                <div class="body">
+                  <h3>Hirdetéskép</h3>
+                  <p class="out">Posztolásra kész hirdetés a fotóidból.</p>
+                  <div class="meta"><span class="c">1 kredit</span><span>~2 perc</span></div>
+                  <div class="cta"><button class="btn s w">Elkészítem →</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="sec-h" style="margin-top:18px"><h4>Még ezeket is</h4><a href="#">Mind →</a></div>
+            <div class="more">
+              <div class="mc"><div class="img split"><img src="../public/showcase/visual-before.jpg" alt=""><img class="after" src="../public/showcase/visual-after.jpg" alt=""><span class="bar"></span></div><div class="b"><strong>Látványterv</strong><small>1 kredit</small></div></div>
+              <div class="mc"><div class="img"><img src="../public/showcase/video-demo-poster.jpg" alt=""><div class="play"><span>▶</span></div></div><div class="b"><strong>Videó</strong><small>3 kredit</small></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note"><b><span class="n">1</span>Az első üzenet a lehetőség</b><p>A legnagyobb elem a „Van 10 ingyen kredited" blokk, és hogy ebből mi készülhet (10 fotó / 10 hirdetéskép / 3 videó). A „Feltöltés" csak egy diszkrét sor lent, amíg nem vásárolt.</p></div>
+    <div class="note"><b><span class="n">2</span>Eredményt mutatunk, nem ikont</b><p>A kiemelt kártyákon valódi előtte–utána fotó, kész hirdetéskép és egy minta-riport látszik. Egyetlen, egyértelmű gomb: „Kipróbálom". Az első kártya gombja kiemelt színű.</p></div>
+    <div class="note"><b><span class="n">3</span>Telefonon is azonnal látszik</b><p>Telefonon a hero rövidebb, és az első kiemelt modul (előtte–utána képpel és gombbal) már az első képernyőn belül van — nem kell görgetni hozzá.</p></div>
+  </div>
+</div>
+</body>
+</html>
