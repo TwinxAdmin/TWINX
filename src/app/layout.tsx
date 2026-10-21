@@ -5,6 +5,7 @@ import ToastProvider from "@/components/Toast";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import CookieBanner from "@/components/analytics/CookieBanner";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import SmartsuppChat from "@/components/SmartsuppChat";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
         <GoogleAnalytics />
         <MetaPixel />
         <CookieBanner />
+        <SmartsuppChat />
       </body>
     </html>
   );

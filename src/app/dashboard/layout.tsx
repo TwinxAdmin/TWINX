@@ -14,6 +14,7 @@ import ViewAsBar from "@/components/ViewAsBar";
 import AdminInboxBadge from "@/components/AdminInboxBadge";
 import { officeMemberPreview, officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import CreditDock from "@/components/CreditDock";
+import { SmartsuppIdentity } from "@/components/SmartsuppChat";
 import OfficeFallbackProvider from "@/components/office/OfficeFallbackProvider";
 import OfficeMenu from "@/components/office/OfficeMenu";
 import OfficeModals from "@/components/office/OfficeModals";
@@ -36,7 +37,7 @@ export default async function DashboardLayout({
 
   const [{ data: me }, { data: wallet }] = user
     ? await Promise.all([
-        supabase.from("profiles").select("role").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, full_name").eq("id", user.id).single(),
         supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
       ])
     : [{ data: null }, { data: null }];
@@ -141,6 +142,9 @@ export default async function DashboardLayout({
       {/* csillagos értékelés (3. / 6. futtatás) és „Mi hiányzik?” — kis, bezárható kártyák (ME3c) */}
       <ModuleFeedbackHost />
       {terms && !terms.accepted && <TermsGate updated={terms.updated} />}
+
+      {/* Élő chat: a bejelentkezett felhasználó neve + e-mail-címe (a chat maga a gyökér-layoutban töltődik be). */}
+      {user && <SmartsuppIdentity name={(me?.full_name as string | null) ?? null} email={user.email ?? null} />}
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
       <CreditDock
