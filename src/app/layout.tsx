@@ -6,6 +6,7 @@ import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import CookieBanner from "@/components/analytics/CookieBanner";
 import MetaPixel from "@/components/analytics/MetaPixel";
 import SmartsuppChat from "@/components/SmartsuppChat";
+import ContactFab from "@/components/contact/ContactFab";
 
 const sans = Inter({
   variable: "--font-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
         <MetaPixel />
         <CookieBanner />
         <SmartsuppChat />
+        <ContactFab />
       </body>
     </html>
   );

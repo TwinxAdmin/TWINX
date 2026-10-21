@@ -358,6 +358,7 @@ export default async function LandingPage() {
               <a href="#egyedi" className="hover:text-white">Egyedi fejlesztés</a>
               <AuthTrigger mode="login" className="hover:text-white">Belépés</AuthTrigger>
               <AuthTrigger mode="register" className="hover:text-white">Regisztráció</AuthTrigger>
+              <a href="/kapcsolat" className="hover:text-white">Kapcsolat</a>
               <a href="/aszf" className="hover:text-white">ÁSZF</a>
               <CookieSettingsLink className="hover:text-white" />
             </div>

@@ -116,6 +116,17 @@ export default function AccountMenu({
           >
             Korábbi vásárlások
           </a>
+          <a
+            href="/kapcsolat"
+            onClick={() => setOpen(false)}
+            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--twx-on-dark)" }}
+          >
+            Kapcsolat
+            <span className="block text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>
+              Telefon, e-mail, élő chat
+            </span>
+          </a>
         </div>
       </div>
     </div>

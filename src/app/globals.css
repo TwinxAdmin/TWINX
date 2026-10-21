@@ -383,3 +383,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .twx-starter-after, .twx-starter-bar { animation: none; }
 }
+
+/* „Kapcsolat" lebegő gomb (ContactFab.tsx) — bal alsó sarok, közvetlenül a Smartsupp chat-buborék FÖLÖTT
+   (a buborék: asztalin 24 px-re, telefonon 84 px-re alulról — lásd SmartsuppChat.tsx, offsetY; magassága ~56 px) */
+.twx-contact-fab { left: 12px; bottom: 92px; }
+@media (max-width: 767px) { .twx-contact-fab { bottom: 152px; } }

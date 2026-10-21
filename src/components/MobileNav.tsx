@@ -146,6 +146,9 @@ export default function MobileNav({
                 <a href="/dashboard/branding" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                   Arculatom
                 </a>
+                <a href="/kapcsolat" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
+                  Kapcsolat
+                </a>
                 <p className="px-2 pt-1 text-[11px] uppercase tracking-wider" style={{ color: "var(--twx-on-dark-muted)" }}>Irodai fiók</p>
                 <a href="/dashboard/iroda/bemutato" onClick={() => setOpen(false)} className="block rounded-xl px-2 py-2.5 text-sm hover:bg-white/5">
                   Mi az irodai fiók?
