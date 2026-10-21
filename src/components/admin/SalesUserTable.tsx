@@ -1,10 +1,14 @@
 // Sales → Felhasználók: az ügyfelek listája (elérhetőség + tevékenység, PÉNZÜGY NÉLKÜL).
 // Kereshető, rendezhető; „Csak telefonszámmal" szűrő a hívólistához; a telefonszám kattintható (hívás),
-// a „Részletek" a szűkített (sales) adatlapot nyitja (UserDetailDialog scope="sales").
+// a „Részletek" a szűkített (sales) adatlapot nyitja (UserDetailDialog scope="sales"), benne a hívásnaplóval.
+// „Visszahívandó" szűrő: akiknél a legutolsó bejegyzés „Visszahívni", és a nap már elérkezett (legsürgősebb elöl).
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import UserDetailDialog from "@/components/admin/UserDetailDialog";
+import { CALL_STATUS_STYLE } from "@/components/admin/CallLog";
+import { callStatusLabel } from "@/lib/call-notes-shared";
 import type { SalesUser } from "@/lib/sales-users";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
 
@@ -16,17 +20,24 @@ function dt(iso: string | null): string {
 }
 const t = (iso: string | null) => (iso ? Date.parse(iso) : 0);
 const telHref = (p: string) => `tel:${p.replace(/[^\d+]/g, "")}`;
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const dayLabel = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("hu-HU", { month: "2-digit", day: "2-digit" });
+/** Visszahívandó: a legutolsó bejegyzés „Visszahívni", és a nap ma van vagy már elmúlt. */
+const dueCallback = (u: SalesUser) => u.lastCall?.status === "callback" && !!u.lastCall.callbackOn && u.lastCall.callbackOn <= todayStr();
 
 export default function SalesUserTable({ users }: { users: SalesUser[] }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("created");
   const [onlyPhone, setOnlyPhone] = useState(false);
+  const [onlyDue, setOnlyDue] = useState(false);
+  const router = useRouter();
   const [detailsFor, setDetailsFor] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = users;
     if (onlyPhone) list = list.filter((u) => u.phone);
+    if (onlyDue) list = list.filter(dueCallback);
     if (q) {
       list = list.filter((u) =>
         [u.name, u.company, u.email, u.phone ?? "", u.signupSource ? SIGNUP_SOURCE_LABEL[u.signupSource] : ""]
@@ -37,8 +48,11 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
     else if (sort === "created") out.sort((a, b) => t(b.createdAt) - t(a.createdAt));
     else if (sort === "lastSignIn") out.sort((a, b) => t(b.lastSignInAt) - t(a.lastSignInAt));
     else out.sort((a, b) => b.uses - a.uses);
+    // Visszahívandóknál a legrégebben esedékes elöl.
+    if (onlyDue) out.sort((a, b) => (a.lastCall?.callbackOn ?? "").localeCompare(b.lastCall?.callbackOn ?? ""));
     return out;
-  }, [users, query, sort, onlyPhone]);
+  }, [users, query, sort, onlyPhone, onlyDue]);
+  const dueCount = users.filter(dueCallback).length;
 
   const withPhone = users.filter((u) => u.phone).length;
 
@@ -61,6 +75,23 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
     </button>
   );
 
+  /** Az utolsó hívás állapota (színes címke) + dátum; esedékes visszahívás kiemelve. */
+  const LastCallBadge = ({ u }: { u: SalesUser }) => {
+    if (!u.lastCall) return <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>még nem hívtuk</span>;
+    const c = CALL_STATUS_STYLE[u.lastCall.status] ?? CALL_STATUS_STYLE.no_answer;
+    const due = dueCallback(u);
+    return (
+      <span className="inline-flex flex-col items-start gap-0.5">
+        <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+          style={{ background: c.bg, color: c.fg, boxShadow: due ? `inset 0 0 0 1.5px ${c.fg}` : undefined }}>
+          {callStatusLabel(u.lastCall.status)}{u.lastCall.status === "callback" && u.lastCall.callbackOn ? `: ${dayLabel(u.lastCall.callbackOn)}` : ""}
+          {due ? " — esedékes" : ""}
+        </span>
+        <span className="text-[10px]" style={{ color: "var(--twx-ink-muted)" }}>{dt(u.lastCall.at)}</span>
+      </span>
+    );
+  };
+
   const Source = ({ u }: { u: SalesUser }) =>
     u.signupSource && SIGNUP_SOURCE_LABEL[u.signupSource] ? (
       <span className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -79,6 +110,11 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
           style={onlyPhone ? { background: "var(--twx-coral-soft)", border: "1px solid var(--twx-coral)", color: "#7a2e17" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
           {onlyPhone ? "✓ " : ""}Csak telefonszámmal ({withPhone})
         </button>
+        <button type="button" onClick={() => setOnlyDue((v) => !v)} aria-pressed={onlyDue}
+          className="h-9 rounded-full px-3 text-xs font-semibold"
+          style={onlyDue ? { background: "#FFF1D6", border: "1px solid #8A5A12", color: "#8A5A12" } : { background: "#fff", border: "1px solid var(--twx-line)" }}>
+          {onlyDue ? "✓ " : ""}Visszahívandó ({dueCount})
+        </button>
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           {rows.length} ügyfél{rows.length !== users.length ? ` (${users.length}-ből)` : ""}
         </p>
@@ -86,13 +122,14 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
 
       {/* Asztali nézet */}
       <div className="twx-card hidden overflow-x-auto p-4 sm:block">
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--twx-line)" }}>
               <Th k="name" label="Név / cég / e-mail" />
               <Th label="Telefon" />
               <Th k="created" label="Regisztrált" />
               <Th k="lastSignIn" label="Utolsó belépés" />
+              <Th label="Utolsó hívás" />
               <Th label="Egyenleg" right />
               <Th k="uses" label="Generálás" right />
               <th className="pb-2" aria-label="Részletek" />
@@ -114,13 +151,14 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
                 </td>
                 <td className="whitespace-nowrap py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dt(u.createdAt)}</td>
                 <td className="whitespace-nowrap py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{dt(u.lastSignInAt)}</td>
+                <td className="py-2.5 pr-3"><LastCallBadge u={u} /></td>
                 <td className="py-2.5 text-right font-bold">{u.balance}</td>
                 <td className="py-2.5 text-right font-medium" title={u.features.map((f) => `${f.label} ${f.count}`).join(" · ") || "nincs használat"}>{u.uses}</td>
                 <td className="py-2 pl-3 text-right"><DetailsButton u={u} /></td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={7} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</td></tr>
+              <tr><td colSpan={8} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs találat.</td></tr>
             )}
           </tbody>
         </table>
@@ -139,6 +177,7 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
               <span style={{ color: "var(--twx-ink-muted)" }}>Utolsó belépés</span><span className="text-right">{dt(u.lastSignInAt)}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span><span className="text-right font-bold">{u.balance}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Generálás</span><span className="text-right font-medium">{u.uses}</span>
+              <span style={{ color: "var(--twx-ink-muted)" }}>Utolsó hívás</span><span className="text-right"><LastCallBadge u={u} /></span>
             </div>
             <div className="mt-3 flex items-center gap-2">
               {u.phone ? (
@@ -162,7 +201,8 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
         Csak az ügyfelek látszanak (az admin és a sales fiókok nem). Pénzügyi és számlázási adat itt nem jelenik meg.
       </p>
 
-      {detailsFor && <UserDetailDialog scope="sales" userId={detailsFor} onClose={() => setDetailsFor(null)} />}
+      {/* Bezáráskor a lista frissül (az új hívásnapló-bejegyzés az „Utolsó hívás" oszlopban is látszódjon). */}
+      {detailsFor && <UserDetailDialog scope="sales" userId={detailsFor} onClose={() => { setDetailsFor(null); router.refresh(); }} />}
     </div>
   );
 }

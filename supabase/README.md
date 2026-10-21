@@ -130,6 +130,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261020093000_video-template-availability.sql` | Videósablonok ki-be kapcsolása (Admin → Videólabor): `video_template_availability` (sablononként elérhető / rejtett; sor nélkül rejtett) + `video_template_availability_log` napló |
 | `20261020120000_works-trash.sql` | Korábbi munkák lomtár + végleges törlés: egyszeri lomtár-óraindítás a már elrejtett munkáknak, `work_purge_log` napló, `work_storage_sizes()` és `work_paths_in_use()` (csak szerver) |
 | `20261020150000_premium3d-coming-soon.sql` | Prémium 3D „Hamarosan" állapot: `app_settings.premium3d_status` (hidden / coming_soon / available, alap: coming_soon) + `premium3d_waitlist` („Értesíts, ha elérhető" várólista, RLS) |
+| `20261021120000_customer-call-notes.sql` | Sales hívásnapló: `customer_call_notes` (ügyfelenként eredmény, megjegyzés, visszahívás napja, ki rögzítette; RLS be, csak a szerver éri el) |
 
 ## Egyszeri szkriptek (`one-off/`)
 

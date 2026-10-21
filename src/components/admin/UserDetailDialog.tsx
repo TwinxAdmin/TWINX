@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import type { UserDetails } from "@/lib/admin-user-details";
+import CallLog from "@/components/admin/CallLog";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 const OFFICE_ROLE: Record<string, string> = { owner: "Vezető", member: "Kolléga" };
@@ -86,6 +87,13 @@ export default function UserDetailDialog({ userId, onClose, scope = "admin" }: {
                   ["ÁSZF", a!.termsVersion ? `${a!.termsVersion} — elfogadva: ${dt(a!.termsAcceptedAt)}` : "Még nem fogadta el"],
                 ]} />
               </Block>
+
+              {/* Hívásnapló — csak ügyfélnél (admin / sales fióknál nincs értelme) */}
+              {a!.role === "user" && (
+                <Block title="Hívásnapló">
+                  <CallLog userId={a!.id} />
+                </Block>
+              )}
 
               {data.scope === "admin" && <Block title="Számlázási adatok">
                 {data.billing.length ? <Grid rows={data.billing.map((b) => [b.label, b.value])} /> : <Empty>Még nem adott meg számlázási adatot.</Empty>}

@@ -3,6 +3,8 @@
 // Csak az ügyfelek (profiles.role = 'user'); az admin és a sales fiókok nem kerülnek a hívandók közé.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserMetrics } from "@/lib/metrics";
+import { lastCallsByUser } from "@/lib/call-notes";
+import type { LastCall } from "@/lib/call-notes-shared";
 
 export type SalesUser = {
   userId: string;
@@ -16,14 +18,17 @@ export type SalesUser = {
   balance: number;
   uses: number;
   features: { label: string; count: number }[];
+  /** A hívásnapló utolsó bejegyzése (nincs még hívás / nincs migráció → null). */
+  lastCall: LastCall | null;
 };
 
 export async function getSalesUsers(): Promise<SalesUser[]> {
   const admin = createAdminClient();
-  const [{ users }, { data: phones }, { data: list }] = await Promise.all([
+  const [{ users }, { data: phones }, { data: list }, calls] = await Promise.all([
     getUserMetrics(),
     admin.from("profiles").select("id, phone").eq("role", "user"),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    lastCallsByUser(),
   ]);
   const phoneById = new Map<string, string | null>();
   for (const p of phones ?? []) phoneById.set(String(p.id), (p.phone as string | null) || null);
@@ -44,5 +49,6 @@ export async function getSalesUsers(): Promise<SalesUser[]> {
       balance: u.balance,
       uses: u.uses,
       features: u.features,
+      lastCall: calls.get(u.userId) ?? null,
     }));
 }
