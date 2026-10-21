@@ -362,14 +362,24 @@ body {
 .twx-insp-bar { transform-box: fill-box; transform-origin: bottom; animation: twx-insp-grow 5s ease-in-out infinite; }
 @keyframes twx-insp-grow { 0%, 60% { transform: scaleY(.15); } 75%, 92% { transform: scaleY(1); } 100% { transform: scaleY(.15); } }
 .twx-insp-play { transform-box: fill-box; transform-origin: center; animation: twx-insp-pulse 1.6s ease-in-out infinite; }
-.twx-insp-typing { animation: twx-insp-type 5s steps(18) infinite; }
-@keyframes twx-insp-type { 0%, 62% { width: 0; } 85%, 92% { width: 66px; } 100% { width: 0; } }
 /* lebegő kártyák (ajándék-dia) */
 .twx-insp-bob { animation: twx-insp-bob 6s ease-in-out infinite; }
 @keyframes twx-insp-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
 @media (prefers-reduced-motion: reduce) {
   .twx-insp-glow, .twx-insp-kick i, .twx-insp-flow, .twx-insp-ring, .twx-insp-core, .twx-insp-photo,
-  .twx-insp-bar, .twx-insp-play, .twx-insp-typing, .twx-insp-bob, .twx-insp-dot[data-on="true"]::after { animation: none; }
+  .twx-insp-bar, .twx-insp-play, .twx-insp-bob, .twx-insp-dot[data-on="true"]::after { animation: none; }
   .twx-insp-out { animation: none; opacity: 1; }
   .twx-insp-slide { transition: none; }
+}
+
+/* „Ezzel kezdd" — Képjavító előtte–utána: a csúszka magától jár (StarterCards.tsx) */
+.twx-starter-after { clip-path: inset(0 0 0 50%); animation: twx-starter-wipe 6s ease-in-out infinite; }
+@keyframes twx-starter-wipe { 0%, 100% { clip-path: inset(0 0 0 62%); } 50% { clip-path: inset(0 0 0 38%); } }
+.twx-starter-bar {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, .35); animation: twx-starter-barmove 6s ease-in-out infinite;
+}
+@keyframes twx-starter-barmove { 0%, 100% { left: 62%; } 50% { left: 38%; } }
+@media (prefers-reduced-motion: reduce) {
+  .twx-starter-after, .twx-starter-bar { animation: none; }
 }

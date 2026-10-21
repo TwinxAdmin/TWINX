@@ -58,7 +58,7 @@ export function ReportMock() {
   );
 }
 
-/** A „gép": a fotó belefut a TWINX-be, és kijön belőle hirdetéskép, videó, értékbecslés, szöveg. */
+/** A „gép": a fotó belefut a TWINX-be, és kijön belőle hirdetéskép, videó, értékbecslés, látványterv. */
 function Machine() {
   return (
     <svg viewBox="0 0 520 400" className="block h-auto w-full overflow-visible" aria-hidden>
@@ -109,12 +109,47 @@ function Machine() {
       </g>
       <g className="twx-insp-out o4">
         <rect x="410" y="310" width="96" height="60" rx="10" fill="#f6f0e8" />
-        <rect x="420" y="322" width="76" height="6" rx="3" fill="#d8cdbf" />
-        <rect x="420" y="334" width="60" height="6" rx="3" fill="#d8cdbf" />
-        <svg x="420" y="346" width="76" height="8"><rect className="twx-insp-typing" x="0" y="0" width="66" height="6" rx="3" fill="#1c1815" /></svg>
-        <text x="458" y="386" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="10" fill="#cfc6bb">hirdetésszöveg</text>
+        {/* mini szoba: ablak, kanapé, lámpa */}
+        <rect x="418" y="318" width="80" height="44" rx="4" fill="#e9dfd1" />
+        <rect x="428" y="324" width="20" height="16" rx="2" fill="#c9d6dc" />
+        <rect x="446" y="342" width="40" height="12" rx="4" fill="#c4553a" />
+        <rect x="442" y="348" width="48" height="8" rx="3" fill="#a8432c" />
+        <path d="M480 324 v14" stroke="#1c1815" strokeWidth="1.5" />
+        <circle className="twx-insp-play" cx="480" cy="324" r="4" fill="#e9c77f" />
+        <text x="458" y="386" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="10" fill="#cfc6bb">látványterv</text>
       </g>
     </svg>
+  );
+}
+
+/** A „gépből" kijövő 4 eredmény — mindegyik egy kattintással indítható (2×2, egyforma gombok). */
+const MACHINE_MODULES: { label: string; href: string; icon: React.ReactNode }[] = [
+  { label: "Hirdetéskép", href: "/dashboard/flyer",
+    icon: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 15l5-5 4 4 3-3 6 6" /></> },
+  { label: "Videó", href: "/dashboard/real-estate/video",
+    icon: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9l5 3-5 3z" /></> },
+  { label: "Értékbecslés", href: "/dashboard/real-estate/valuation",
+    icon: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></> },
+  { label: "Látványterv", href: "/dashboard/real-estate/visualization",
+    icon: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M9 20v-5h6v5" /></> },
+];
+
+function ModuleGrid() {
+  return (
+    <div className="mt-5 grid max-w-[460px] grid-cols-2 gap-1.5 sm:gap-2.5">
+      {MACHINE_MODULES.map((m) => (
+        <Link key={m.href} href={m.href}
+          className="group flex h-11 items-center gap-2 rounded-full pl-1.5 pr-2 text-[12.5px] font-semibold tracking-[-0.01em] sm:tracking-normal text-white transition-colors hover:bg-[#c4553a] sm:h-12 sm:gap-2.5 sm:pr-3 sm:text-[14.5px]"
+          style={{ background: "rgba(255,255,255,.08)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,.16)" }}>
+          <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full transition-colors group-hover:bg-white/20 sm:h-9 sm:w-9"
+            style={{ background: "linear-gradient(135deg,#ef7a5a,#c4553a)" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{m.icon}</svg>
+          </span>
+          <span className="min-w-0 flex-1 truncate">{m.label}</span>
+          <span aria-hidden className="hidden text-white/60 transition-transform group-hover:translate-x-0.5 sm:inline">→</span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -125,8 +160,8 @@ export function MachineSlide() {
       copy={<>
         <Kick>MIRE KÉPES A TWINX</Kick>
         <Title>A mindennapi munkád <span className="twx-insp-grad">jobbkeze.</span></Title>
-        <Text>Lefotózod az ingatlant — a TWINX percek alatt kész hirdetést, videót, értékbecslést és szöveget készít belőle.</Text>
-        <Cta href={ENHANCE_HREF}>Kipróbálom a Képjavítót →</Cta>
+        <Text>Lefotózod az ingatlant — a TWINX percek alatt kész hirdetést, videót, értékbecslést és látványtervet készít belőle.</Text>
+        <ModuleGrid />
       </>}
       visual={<div className="-mx-1.5 sm:mx-0"><Machine /></div>}
     />

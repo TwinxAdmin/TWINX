@@ -7,7 +7,7 @@ import RecentActivity from "@/components/RecentActivity";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import { premium3dStatus } from "@/lib/premium3d";
-import WelcomeHero from "@/components/dashboard/WelcomeHero";
+import StarterCards from "@/components/dashboard/StarterCards";
 import InspirationBlock from "@/components/dashboard/inspiration/InspirationBlock";
 import { GiftSlide, MachineSlide, MorningSlide } from "@/components/dashboard/inspiration/slides";
 import CreditBlock from "@/components/dashboard/CreditBlock";
@@ -119,8 +119,28 @@ export default async function DashboardHome() {
         />
       </div>
 
-      {/* Modul-vitrin („Próbáld ki") — a 3. lépésben az „Ezzel kezdd" kártyák váltják. */}
-      <WelcomeHero />
+      {/* 3) „Ezzel kezdd" — amíg még nem készített 3 munkát (utána a saját munkái kerülnek előre). */}
+      {historyList.length < 3 && <StarterCards />}
+
+      {/* Üres állapot: a „Kész munkáid" helye akkor is látszik, ha még nincs munka. */}
+      {historyList.length === 0 && (
+        <section>
+          <h2 className="mb-3 font-display text-[19px] font-semibold">Kész munkáid</h2>
+          <div className="flex flex-col items-start gap-4 rounded-2xl bg-white px-[18px] py-4 sm:flex-row sm:items-center"
+            style={{ boxShadow: "0 0 0 1px var(--twx-line)" }}>
+            <div className="flex flex-none gap-2" aria-hidden>
+              {[0, 1, 2].map((k) => (
+                <i key={k} className="h-10 w-[54px] rounded-lg"
+                  style={{ background: "repeating-linear-gradient(135deg,#f3ece3 0 6px,#ece3d7 6px 12px)", boxShadow: "inset 0 0 0 1px #e3d9cc" }} />
+              ))}
+            </div>
+            <p className="text-[13.5px] leading-normal" style={{ color: "#4b443d" }}>
+              <b style={{ color: "var(--twx-ink)" }}>Itt jelennek meg a kész anyagaid.</b>{" "}
+              Az első elkészült fotó, hirdetéskép vagy riport után innen egy kattintással újra megnyithatod.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* „Folytasd, ahol abbahagytad" — a saját munkák bélyegképes sávja.
           Előrébb került a kategóriáknál: a visszatérő partnert a SAJÁT anyaga
