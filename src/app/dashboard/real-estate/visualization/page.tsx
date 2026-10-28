@@ -9,6 +9,7 @@ import { WorkChips, WorkDot, type WorkKind } from "@/components/WorkBadge";
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toDownloadUrl } from "@/lib/files";
 import { useModuleTracker } from "@/lib/module-events";
+import { failDetail } from "@/lib/module-events-shared";
 import { compressImage } from "@/lib/image-compress";
 import {
   ROOM_TYPES,
@@ -192,7 +193,7 @@ export default function VisualizationPage() {
       const data = await res.json();
       if (!res.ok) {
         setServerError(data.error ?? "Hiba történt a generálás során.");
-        run.failed(`http_${res.status}`);
+        run.failed(failDetail("http", { status: res.status, message: data.error }));
         return;
       }
       if (Array.isArray(data.urls)) {
@@ -201,9 +202,9 @@ export default function VisualizationPage() {
       }
       setMessage(`Kész! ${data.urls?.length ?? 0} látványterv elkészült.`);
       run.succeeded();
-    } catch {
+    } catch (e) {
       setServerError("Hálózati hiba. Próbáld újra.");
-      run.failed("network");
+      run.failed(failDetail("network", { message: (e as Error).message }));
     } finally {
       setLoading(false);
     }

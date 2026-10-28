@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { useModuleTracker, type RunHandle } from "@/lib/module-events";
+import { failDetail } from "@/lib/module-events-shared";
 import { readTwxDragUrl } from "@/components/AssetTray";
 import AssetPicker from "@/components/video/AssetPicker";
 import ComboField from "@/components/ComboField";
@@ -331,8 +332,11 @@ export default function VideoWizard({
         Object.entries(lab?.extraFields ?? {}).forEach(([k, v]) => fd.append(k, v));
         try {
           const res = await fetch(lab?.endpoint ?? "/api/real-estate/video", { method: "POST", body: fd });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error);
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            run?.failed(failDetail("start_failed", { status: res.status, message: data.error }));
+            throw new Error(data.error);
+          }
           okCount++;
           if (lab) {
             // A labor szinkron fut: a válaszban már a kész videó van — nincs állapot-lekérdezés.
@@ -343,7 +347,7 @@ export default function VideoWizard({
             if (run) runHandles.current.set(String(data.jobId), run); // a végét a polling jelzi
           }
         } catch (e) {
-          run?.failed("start_failed");
+          run?.failed(failDetail("start_failed", { message: (e as Error).message || "hálózati hiba" })); // ha már lezárult, nem küld újra
           failures.push(`${ASPECT_LABEL[asp]}: ${(e as Error).message || "nem sikerült elindítani."}`);
         }
       }
@@ -410,7 +414,7 @@ export default function VideoWizard({
             onDone?.(); showToast(`A videó${label} elkészült és mentve!`, "success");
           }
           if (data.status === "failed") {
-            runHandles.current.get(id)?.failed("job_failed"); runHandles.current.delete(id);
+            runHandles.current.get(id)?.failed(failDetail("job_failed", { message: data.error })); runHandles.current.delete(id);
             showToast(`A videó${label} nem készült el — a kredit visszajárt.`, "error");
           }
         } catch { /* következő kör */ }

@@ -18,6 +18,7 @@ import { compressImage } from "@/lib/image-compress";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useModuleTracker, type RunHandle } from "@/lib/module-events";
+import { failDetail } from "@/lib/module-events-shared";
 import {
   parseValuationReport,
   reportTitle,
@@ -249,7 +250,7 @@ export default function ValuationPage() {
         } else if (data.status === "failed") {
           setJobId(null);
           setLoading(false);
-          runRef.current?.failed("job_failed"); runRef.current = null;
+          runRef.current?.failed(failDetail("job_failed", { message: data.error })); runRef.current = null;
           setServerError(data.error ?? "A becslés nem sikerült. Kredit nem került levonásra.");
         }
       } catch { /* következő kör */ }
@@ -432,7 +433,7 @@ export default function ValuationPage() {
       if (!res.ok) {
         if (data.errors) setErrors(data.errors);
         setServerError(data.error ?? "Hiba történt a feldolgozás során.");
-        run.failed(`http_${res.status}`); runRef.current = null;
+        run.failed(failDetail("http", { status: res.status, message: data.error })); runRef.current = null;
         return;
       }
       // Sikeres beküldés: a szabadszöveges mezők értékének megjegyzése.
@@ -467,9 +468,9 @@ export default function ValuationPage() {
       }
       setMessage("Kész! A lap elkészült — nézd át, majd töltsd le.");
       run.succeeded(); runRef.current = null;
-    } catch {
+    } catch (e) {
       setServerError("Hálózati hiba. Próbáld újra.");
-      run.failed("network"); runRef.current = null;
+      run.failed(failDetail("network", { message: (e as Error).message })); runRef.current = null;
     } finally {
       setLoading(false);
     }

@@ -252,6 +252,10 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters, device: 
   const errCount = new Map<string, number>();
   for (const e of stats.errors) errCount.set(e.detail ?? "ismeretlen", (errCount.get(e.detail ?? "ismeretlen") ?? 0) + 1);
   const topErrors = [...errCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, n }));
+  // az utolsó hibák egyenként (admin „Összes hiba" ablak) — név nélkül: csak a szerepkör (partner / belső), az eszköz,
+  // az időpont és az ok, hogy látszódjon, partnert érintett-e
+  const recentErrors = [...stats.errors].sort((a, b) => b.at - a.at).slice(0, 100)
+    .map((e) => ({ at: new Date(e.at).toISOString(), detail: e.detail ?? "ismeretlen", device: e.device, role: ctx.base.people.get(e.user)?.role ?? "user", ms: e.ms }));
 
   // --- elégedettség (csillagok) ---
   const rs = ctx.ratings.filter((r) => r.href === href).sort((a, b) => b.at - a.at);
@@ -289,7 +293,7 @@ export async function moduleAnalysisDeep(href: string, f: UsageFilters, device: 
       firstOfDayPct: mine.length ? Math.round((firstOfDay / mine.length) * 100) : null,
       onlyThisPct: mine.length ? Math.round((onlyThis / mine.length) * 100) : null,
     },
-    quality: { ...quality, topErrors },
+    quality: { ...quality, topErrors, recentErrors },
     rating,
     missing,
     funnel,
