@@ -4,6 +4,7 @@
 //   • TOP 3 modul (futtatás szerint) · Modulok egészsége (közlekedési lámpa) · egy modul mély elemzése
 // ME1: a meglévő adatokból · ME2d: Tölcsér, hibás futtatás, futási idő, eszköz (eseménynapló, egyelőre az 5 fő modul).
 // ME3d: Elégedettség (★ átlag, eloszlás, okok, megjegyzések) és „Mi hiányzik?" válaszok — név nélkül. Minden blokk fix méretű.
+// Hibaokok: a run_error „kód · HTTP · üzenet" szövegéből (failDetail) — Leggyakoribb hibák + „Összes hiba" ablak (név nélkül).
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,7 +23,8 @@ type Deep = {
     curve: { day: number; pct: number | null; n: number }[]; avgCurve: { day: number; pct: number | null }[] };
   heat: { weekdays: string[]; slots: string[]; cells: number[][] };
   links: { before: { label: string; pct: number }[]; after: { label: string; pct: number }[]; firstOfDayPct: number | null; onlyThisPct: number | null };
-  quality: { items: { label: string; value: string; hint?: string }[]; reasons: { reason: string; at: string }[]; topErrors: { code: string; n: number }[] };
+  quality: { items: { label: string; value: string; hint?: string }[]; reasons: { reason: string; at: string }[]; topErrors: { code: string; n: number }[];
+    recentErrors: { at: string; detail: string; device: string | null; role: string; ms: number | null }[] };
   funnel: { step: string; users: number }[] | null;
   devices: { mobile: number; tablet: number; desktop: number };
   tracked: boolean;
@@ -208,6 +210,7 @@ export default function ModuleAnalysisView() {
 // ---------------------------------------------------------------------------
 function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: string; modules: Health[]; onPick: (h: string) => void }) {
   const [d, setD] = useState<Deep | null>(null);
+  const [errorsOpen, setErrorsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -281,12 +284,25 @@ function DeepAnalysis({ href, query, modules, onPick }: { href: string; query: s
           )}
           {d && d.quality.topErrors.length > 0 && (
             <div className="text-[12px]">
-              <p className="mb-1 font-bold">Leggyakoribb hibák</p>
-              {d.quality.topErrors.map((e) => (
-                <div key={e.code} className="flex justify-between gap-2 py-0.5"><code className="truncate text-[11.5px]">{e.code}</code><b className="tabular-nums">{e.n}</b></div>
-              ))}
+              <p className="mb-1 flex items-center justify-between gap-2 font-bold">
+                Leggyakoribb hibák
+                <button type="button" onClick={() => setErrorsOpen(true)} className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                  style={{ background: "#fff", boxShadow: "inset 0 0 0 1px var(--twx-line)" }}>
+                  Összes hiba ({d.quality.recentErrors.length}) →
+                </button>
+              </p>
+              {d.quality.topErrors.map((e) => {
+                const r = splitDetail(e.code);
+                return (
+                  <div key={e.code} className="flex justify-between gap-2 py-0.5" title={e.code}>
+                    <span className="min-w-0 truncate"><b>{r.label}</b>{r.rest && <span style={{ color: MUTED }}> · {r.rest}</span>}</span>
+                    <b className="tabular-nums">{e.n}</b>
+                  </div>
+                );
+              })}
             </div>
           )}
+          {errorsOpen && d && <ErrorsDialog module={d.module.label} rows={d.quality.recentErrors} onClose={() => setErrorsOpen(false)} />}
           <RatingBlock d={d} />
         </Panel>
 
@@ -459,6 +475,61 @@ function DeviceBar({ d }: { d: Deep | null }) {
         <i className="block h-full" style={{ width: `${p(v.mobile)}%`, background: "#C9B8A8" }} />
         <i className="block h-full" style={{ width: `${p(v.tablet)}%`, background: "#2F7F86" }} />
       </span>
+    </div>
+  );
+}
+
+/** A run_error ok olvasható formában: „start_failed · HTTP 422 · 4–5 fotó szükséges." → címke + a többi rész. */
+const ERROR_LABEL: Record<string, string> = {
+  start_failed: "Indítás elutasítva", job_failed: "Elkészítés közben elbukott", http: "A szerver elutasította",
+  network: "Hálózati / válasz-hiba", error: "Hiba", timeout: "Időtúllépés",
+};
+function splitDetail(detail: string): { label: string; rest: string } {
+  const [code, ...rest] = detail.split(" · ");
+  const legacy = code.match(/^http_(\d+)$/); // régi formátum: „http_422"
+  if (legacy) return { label: ERROR_LABEL.http, rest: `HTTP ${legacy[1]}` };
+  return { label: ERROR_LABEL[code] ?? code, rest: rest.join(" · ") || (code in ERROR_LABEL ? "ok nincs rögzítve (régi mérés)" : "") };
+}
+const ROLE_TEXT: Record<string, string> = { admin: "Admin", sales: "Sales", user: "Partner" };
+
+/** Az utolsó (legfeljebb 100) hiba egyenként — fix méretű ablak, belül görgetés; név nélkül. */
+function ErrorsDialog({ module, rows, onClose }: { module: string; rows: Deep["quality"]["recentErrors"]; onClose: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-6" style={{ background: "rgba(20,12,8,0.55)" }} onClick={onClose} role="dialog" aria-modal="true" aria-label="Összes hiba">
+      <div className="flex h-[min(620px,90vh)] w-full max-w-[860px] flex-col rounded-2xl p-5" style={CARD} onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-[16px] font-bold">Hibák — {module} <span className="text-[12px] font-normal" style={{ color: MUTED }}>(az időszakban, legfeljebb 100, név nélkül)</span></h3>
+          <button type="button" onClick={onClose} aria-label="Bezárás" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-white text-lg" style={{ boxShadow: "inset 0 0 0 1px var(--twx-line)" }}>×</button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-white" style={{ border: "1px solid #EFE7DD" }}>
+          {rows.length === 0 && <p className="p-6 text-center text-sm" style={{ color: MUTED }}>Ebben az időszakban nem volt hiba. 🎉</p>}
+          <table className="w-full text-[12.5px]">
+            <tbody>
+              {rows.map((r, i) => {
+                const x = splitDetail(r.detail);
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #F3EDE6" }}>
+                    <td className="whitespace-nowrap px-3 py-2 align-top tabular-nums" style={{ color: MUTED }}>
+                      {new Date(r.at).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 align-top">
+                      <span className="rounded-full px-2 py-[1px] text-[10.5px] font-bold" style={r.role === "user" ? { background: "#FDE4D9", color: "#7a2e17" } : { background: "#F1EAE1", color: "#6B6258" }}>{ROLE_TEXT[r.role] ?? r.role}</span>
+                      <span className="ml-1.5 text-[11px]" style={{ color: MUTED }}>{r.device ? DEVICE_TEXT[r.device] ?? r.device : ""}</span>
+                    </td>
+                    <td className="px-2 py-2 align-top"><b>{x.label}</b>{x.rest && <span className="block break-words" style={{ color: MUTED }}>{x.rest}</span>}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right align-top tabular-nums" style={{ color: MUTED }}>{r.ms !== null ? fmtSec(Math.round(r.ms / 1000)) : ""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

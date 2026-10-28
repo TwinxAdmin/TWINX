@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { useModuleTracker } from "@/lib/module-events";
+import { failDetail } from "@/lib/module-events-shared";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { compressImage } from "@/lib/image-compress";
 import { toDownloadUrl } from "@/lib/files";
@@ -392,7 +393,7 @@ export default function AdWizard({
       fd.append("title", `${text.title ?? ""} (${getFlyerSize(sizeVal).label})`.trim());
       const res = await fetch("/api/flyer/accept", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) { run.failed(`http_${res.status}`); throw new Error(data.error); }
+      if (!res.ok) { run.failed(failDetail("http", { status: res.status, message: data.error })); throw new Error(data.error); }
       run.succeeded();
       // AZONNAL mentve: a kép a tárhelyre és az előzményekbe került — nem veszhet el.
       setFinals((prev) => ({ ...prev, [sizeVal]: data.url as string }));
@@ -412,7 +413,7 @@ export default function AdWizard({
         "success"
       );
     } catch (e) {
-      run.failed("error"); // ha már lezárult (http_…), ez nem küld újra
+      run.failed(failDetail("error", { message: (e as Error).message })); // ha már lezárult (http …), ez nem küld újra
       setError((e as Error).message || "Nem sikerült az elfogadás.");
     } finally { setAccepting(false); }
   }

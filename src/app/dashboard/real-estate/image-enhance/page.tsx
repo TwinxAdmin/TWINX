@@ -12,6 +12,7 @@ import BeforeAfterViewer from "@/components/BeforeAfterViewer";
 import { WorkIcon, WorkChips, WORK_META, type WorkKind } from "@/components/WorkBadge";
 import { showToast } from "@/components/Toast";
 import { useModuleTracker } from "@/lib/module-events";
+import { failDetail } from "@/lib/module-events-shared";
 import { compressImage } from "@/lib/image-compress";
 import { imageMeanDiff, NOOP_DIFF_THRESHOLD, imageBusyness, EXTREME_BUSYNESS_THRESHOLD } from "@/lib/image-diff";
 import {
@@ -172,7 +173,7 @@ export default function ImageEnhancePage() {
       for (const f of files) fd.append("images", await compressImage(f, 1600, 0.85));
       const res = await fetch(API, { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) { run.failed(`http_${res.status}`); showToast(data.error ?? data.errors?.images ?? "A feldolgozás nem sikerült.", "error"); return false; }
+      if (!res.ok) { run.failed(failDetail("http", { status: res.status, message: data.error ?? data.errors?.images })); showToast(data.error ?? data.errors?.images ?? "A feldolgozás nem sikerült.", "error"); return false; }
       setProducedMode(m);
       if (needsReview) {
         setPending(data.items ?? []);
@@ -188,8 +189,8 @@ export default function ImageEnhancePage() {
       run.succeeded();
       showToast(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)", "success");
       return true;
-    } catch {
-      run.failed("network");
+    } catch (e) {
+      run.failed(failDetail("network", { message: (e as Error).message }));
       showToast("Hálózati hiba. Próbáld újra.", "error");
       return false;
     } finally {
