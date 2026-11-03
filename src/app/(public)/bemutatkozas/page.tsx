@@ -1,7 +1,8 @@
 // twinx.hu/bemutatkozas — a LinkedIn-üzenetekben kiküldhető landing (üzenetben küldött oldal, ezért a keresők elől tiltva).
 // Sorrend (Márk kérése): rövid bemutatkozás → közös fejlesztés → Prémium 3D (a modul saját bemutatója, mint a Portálban) →
-// egyedi modulok (az /egyedi-modul felső része) → most elérhető szolgáltatások („Nézd meg működés közben" + alkalmazások, mint a /ingatlan oldalon) →
-// 10 kredites regisztráció + kapcsolatfelvétel.
+// egyedi modulok (az /egyedi-modul felső része) → most elérhető szolgáltatások → „Nézd meg működés közben" (mint a /ingatlan oldalon) →
+// 10 kredites regisztráció + kapcsolatfelvétel. Görgetéskor sötét és világos váltja egymást; az egymás melletti sötét
+// blokkok (3D, egyedi modul) saját keretet kapnak.
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import HeroShowcase from "@/components/landing/HeroShowcase";
 import ShowcaseFrame, { ShowcaseBackdrop } from "@/components/landing/ShowcaseFrame";
 import PremiumTourEmbed from "@/components/landing/PremiumTourEmbed";
 import AiSystemAnim from "@/components/landing/AiSystemAnim";
+import ModuleIdeaButton from "@/components/landing/ModuleIdeaButton";
 import CustomModuleHero from "@/components/custom-module/CustomModuleHero";
 import B2BModal from "@/components/B2BModal";
 import ContactForm from "@/components/contact/ContactForm";
@@ -84,15 +86,21 @@ export default async function BemutatkozasPage() {
               <p className="mt-5 max-w-2xl text-[15.5px] leading-relaxed sm:text-[17px]" style={{ color: "#d9d1c6" }}>
                 Segítek a cégeknek és csapatoknak az AI-alapú működésre való átállásban – a belső folyamatok automatizálásától a skálázható marketing- és tartalomrendszerekig. Legyen szó a saját termékemről vagy egy csapat mindennapi munkájáról, a célom ugyanaz: az ismétlődő kézi munkából gyorsan működő folyamat legyen.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <a href="#egyedi-modul" className="inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold text-white" style={{ background: "#c4553a" }}>
-                  Egyedi modul a cégednek →
+              {/* Kiemelt üzenet: egy ismeretlennek küldött megkeresés fő kérése a közös fejlesztés */}
+              <div className="mt-6 flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                style={{ background: "rgba(239,122,90,.13)", boxShadow: "inset 0 0 0 1.5px rgba(239,122,90,.75)" }}>
+                <p className="font-display text-[16.5px] font-bold leading-snug">Szakmai partnereket keresek közös AI-modulok fejlesztéséhez.</p>
+                <a href="#kozos-fejlesztes" className="inline-flex h-12 flex-none items-center justify-center rounded-full px-6 text-[15px] font-extrabold transition-opacity hover:opacity-90"
+                  style={{ background: "var(--twx-coral)", color: "#1c1005", boxShadow: "0 10px 28px rgba(239,122,90,.4)" }}>
+                  Fejlesszünk együtt →
                 </a>
-                <a href="#premium-3d" className="inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold" style={{ boxShadow: "inset 0 0 0 1.5px rgba(244,239,231,.32)" }}>
+              </div>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a href="#premium-3d" className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-bold" style={{ boxShadow: "inset 0 0 0 1.5px rgba(244,239,231,.32)" }}>
                   Min dolgozom most?
                 </a>
-                <a href="#kozos-fejlesztes" className="inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold" style={{ boxShadow: "inset 0 0 0 1.5px rgba(244,239,231,.32)" }}>
-                  Fejlesszünk együtt
+                <a href="#egyedi-modul" className="inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-bold" style={{ boxShadow: "inset 0 0 0 1.5px rgba(244,239,231,.32)" }}>
+                  Egyedi modul a cégednek
                 </a>
               </div>
             </div>
@@ -102,7 +110,7 @@ export default async function BemutatkozasPage() {
       </section>
 
       {/* ============ KÖZÖS FEJLESZTÉS — szakemberekkel közösen kidolgozott modulok (nem ügyfélszerzés) ============ */}
-      <section id="kozos-fejlesztes" className="scroll-mt-4 px-4 pt-14 sm:px-6 sm:pt-20">
+      <section id="kozos-fejlesztes" className="scroll-mt-4 px-4 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 rounded-3xl p-6 sm:p-9 lg:grid-cols-[1fr_1.1fr] lg:gap-10"
           style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
           <div>
@@ -110,9 +118,14 @@ export default async function BemutatkozasPage() {
             <p className="mt-3 text-[15.5px] leading-relaxed sm:text-[17px]" style={{ color: "var(--twx-ink-muted)" }}>
               Nem ügyfeleket keresek, hanem szakembereket, akik jól ismerik a saját területüket. Te hozod a szakmai hátteret, én a technikai hátteret és a fejlesztést, és közösen dolgozunk ki egy modult.
             </p>
-            <a href="#kapcsolat" className="mt-5 inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold text-white" style={{ background: "var(--twx-dark)" }}>
-              Keress meg, beszéljünk →
-            </a>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <ModuleIdeaButton className="inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold text-white" style={{ background: "#c4553a" }}>
+                Küldd el az ötleted →
+              </ModuleIdeaButton>
+              <a href="#kapcsolat" className="inline-flex h-12 items-center justify-center rounded-full px-6 text-[15px] font-bold" style={{ boxShadow: "inset 0 0 0 1.5px var(--twx-ink)" }}>
+                Keress meg, beszéljünk
+              </a>
+            </div>
           </div>
           <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">
             <div className="rounded-2xl p-4" style={{ background: "#fff", boxShadow: "inset 0 0 0 1px var(--twx-line)" }}>
@@ -134,7 +147,7 @@ export default async function BemutatkozasPage() {
       </section>
 
       {/* ============ 2) PRÉMIUM 3D — a modul saját bemutatója ============ */}
-      <section id="premium-3d" className="scroll-mt-4 px-4 py-14 sm:px-6 sm:py-20">
+      <section id="premium-3d" className="scroll-mt-4 px-4 pb-8 pt-14 sm:px-6 sm:pb-10 sm:pt-20" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
         <div className="mx-auto w-full max-w-6xl">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em]"
@@ -142,7 +155,7 @@ export default async function BemutatkozasPage() {
               ✦ Prémium 3D · Fejlesztés alatt
             </span>
           </Reveal>
-          <div className="mt-4">
+          <div className="mt-4 rounded-[28px]" style={{ boxShadow: "0 0 0 1.5px rgba(212,170,92,.6)" }}>
             <PremiumTourEmbed
               opts={{ interiorWall: cfg.interiorWallThickness, exteriorWall: cfg.exteriorWallThickness }}
               style={"sheet" in style ? style.sheet : null}
@@ -152,12 +165,53 @@ export default async function BemutatkozasPage() {
       </section>
 
       {/* ============ 3) EGYEDI MODULOK — az /egyedi-modul oldal felső része ============ */}
-      <div id="egyedi-modul" className="scroll-mt-4">
-        <CustomModuleHero hideNav heading="h2" processHref="/egyedi-modul#folyamat" />
+      <div id="egyedi-modul" className="scroll-mt-4 px-4 pb-14 sm:px-6 sm:pb-20" style={{ background: "var(--twx-dark)" }}>
+        <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-[28px]" style={{ boxShadow: "0 0 0 1.5px rgba(239,122,90,.6)" }}>
+          <CustomModuleHero hideNav heading="h2" processHref="/egyedi-modul#folyamat" />
+        </div>
       </div>
 
-      {/* ============ 4) MOST ELÉRHETŐ SZOLGÁLTATÁSOK ============ */}
-      <section id="szolgaltatasok" className="relative scroll-mt-4 overflow-hidden" style={{ background: "var(--twx-dark-2)", color: "var(--twx-on-dark)" }}>
+      {/* ============ 4) MOST ELÉRHETŐ SZOLGÁLTATÁSOK (világos) ============ */}
+      <section id="szolgaltatasok" className="scroll-mt-4 px-4 py-14 sm:px-6 sm:py-20" style={{ background: "var(--twx-cream-card)" }}>
+        <div className="mx-auto w-full max-w-6xl">
+          <Reveal>
+            <h2 className="font-display text-2xl font-semibold sm:text-3xl">Most elérhető szolgáltatások</h2>
+            <p className="mt-2 max-w-2xl text-sm sm:text-base" style={{ color: "var(--twx-ink-muted)" }}>
+              Egy platform, több célalkalmazás — mindegyik a mindennapi ingatlanos munkára szabva.
+            </p>
+            <p className="mt-4 inline-flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-[15px] font-semibold" style={{ background: "var(--twx-coral-soft)", color: "#5e2412" }}>
+              <span aria-hidden>🤝</span> Ezeket a GDN Mandala Irodával együtt fejlesztettük.
+            </p>
+          </Reveal>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {APPS.map((a, i) => (
+              <Reveal key={a.title} delay={i * 0.04}>
+                <div className="h-full rounded-xl p-4" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-ink)" }}>
+                      <ModuleIcon name={a.icon} className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-display text-[15px] font-semibold leading-tight">{a.title}</h3>
+                  </div>
+                  <p className="mt-2 text-[13px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{a.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+            {/* A 8. hely: ami még készül (nem üres a rács) */}
+            <Reveal delay={APPS.length * 0.04}>
+              <a href="#premium-3d" className="flex h-full flex-col justify-between gap-2 rounded-xl p-4 transition-opacity hover:opacity-90"
+                style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
+                <h3 className="font-display text-[15px] font-semibold leading-tight">✦ Prémium 3D</h3>
+                <p className="text-[13px] leading-snug" style={{ color: "var(--twx-on-dark-muted)" }}>Alaprajzból bejárható lakás — fejlesztés alatt.</p>
+                <span className="text-[13px] font-semibold" style={{ color: "var(--twx-coral)" }}>Megnézem ↑</span>
+              </a>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ 5) NÉZD MEG MŰKÖDÉS KÖZBEN (sötét) ============ */}
+      <section className="relative overflow-hidden" style={{ background: "var(--twx-dark-2)", color: "var(--twx-on-dark)" }}>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px]" aria-hidden
           style={{ background: "radial-gradient(60% 60% at 50% 0%, rgba(239,122,90,0.16), transparent 70%)" }} />
         <ShowcaseBackdrop />
@@ -179,33 +233,7 @@ export default async function BemutatkozasPage() {
         </div>
       </section>
 
-      <section className="px-4 py-12 sm:px-6 sm:py-14" style={{ background: "var(--twx-cream-card)" }}>
-        <div className="mx-auto w-full max-w-6xl">
-          <Reveal>
-            <h2 className="font-display text-2xl font-semibold sm:text-3xl">Most elérhető szolgáltatások</h2>
-            <p className="mt-2 max-w-2xl text-sm sm:text-base" style={{ color: "var(--twx-ink-muted)" }}>
-              Egy platform, több célalkalmazás — mindegyik a mindennapi ingatlanos munkára szabva.
-            </p>
-          </Reveal>
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {APPS.map((a, i) => (
-              <Reveal key={a.title} delay={i * 0.04}>
-                <div className="h-full rounded-xl p-4" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)" }}>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-ink)" }}>
-                      <ModuleIcon name={a.icon} className="h-4 w-4" />
-                    </div>
-                    <h3 className="font-display text-[15px] font-semibold leading-tight">{a.title}</h3>
-                  </div>
-                  <p className="mt-2 text-[13px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{a.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 5) REGISZTRÁCIÓ + KAPCSOLAT ============ */}
+      {/* ============ 6) REGISZTRÁCIÓ + KAPCSOLAT (világos) ============ */}
       <section id="kapcsolat" className="scroll-mt-4 px-4 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="flex flex-col rounded-3xl p-7 sm:p-9" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
