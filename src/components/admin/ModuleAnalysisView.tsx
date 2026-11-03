@@ -103,7 +103,7 @@ export default function ModuleAnalysisView() {
           ))}
         </div>
         <SelectField size="sm" className="w-[190px]" ariaLabel="Forrás" value={source} onChange={setSource}
-          options={[{ value: "all", label: "Forrás: mind" }, { value: "direct", label: "Forrás: közvetlen" }, { value: "landing", label: "Forrás: ingatlan landing" }]} />
+          options={[{ value: "all", label: "Forrás: mind" }, { value: "direct", label: "Forrás: közvetlen" }, { value: "landing", label: "Forrás: ingatlan landing" }, { value: "linkedin", label: "Forrás: LinkedIn" }]} />
         <SelectField size="sm" className="w-[200px]" ariaLabel="Mód" value={mode} onChange={setMode}
           options={[{ value: "all", label: "Mód: mind" }, { value: "private", label: "Mód: privát" }, { value: "office", label: "Mód: irodai fiók" }, { value: "team", label: "Mód: közös munkatér" }]} />
         <span title="Az eszköz-szűrő a tölcsérre, a hibás futtatásra és a futási időre hat (az eseménynaplóból).">

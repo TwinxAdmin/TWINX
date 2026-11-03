@@ -5,7 +5,7 @@
 import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateRegisterInput } from "@/lib/validation";
-import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
+import { bonusSignupSource } from "@/lib/onboarding";
 import { recordTermsAcceptance } from "@/lib/terms";
 import { cleanEventId, sendRegistrationEvent } from "@/lib/meta-capi";
 import { registrationContentName } from "@/lib/meta-pixel";
@@ -34,9 +34,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  // Forrás-jelölés: CSAK az ismert landing-értéket fogadjuk el, minden mást eldobunk.
+  // Forrás-jelölés: CSAK az ismert landing-értékeket fogadjuk el, minden mást eldobunk.
   // A DB-trigger (handle_new_user) ebből ad 10 kezdőkreditet a keret erejéig.
-  const signupSource = source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null;
+  const signupSource = bonusSignupSource(source);
   const phoneTrimmed = (phone ?? "").trim();
 
   const supabase = await createClient();

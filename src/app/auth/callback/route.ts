@@ -3,7 +3,7 @@
 // váltunk (PKCE), majd a dashboardra irányítunk.
 import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
+import { LINKEDIN_SIGNUP_SOURCE, bonusSignupSource } from "@/lib/onboarding";
 import { applyLandingSignupBonus } from "@/lib/landing-bonus";
 import { TERMS_VERSION } from "@/lib/legal";
 import { recordTermsAcceptance } from "@/lib/terms";
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const raw = searchParams.get("next") ?? "/dashboard";
   const next = /^\/(?!\/)/.test(raw) ? raw : "/dashboard";
   // Landing-forrás: CSAK az ismert értéket fogadjuk el (10 kezdőkredithez).
-  const isLanding = searchParams.get("src") === LANDING_SIGNUP_SOURCE;
+  const landingSource = bonusSignupSource(searchParams.get("src"));
   // Google-regisztráció a kötelező ÁSZF-jelölőnégyzet után: a változat a visszatérési címben jön.
   const acceptedTerms = searchParams.get("terms") === TERMS_VERSION;
   // Marketing-süti hozzájárulás (a Google-gomb küldi): csak ekkor mehet a szerveroldali Meta-esemény.
@@ -34,10 +34,10 @@ export async function GET(request: Request) {
     if (!error) {
       // Landingről indult Google-regisztráció? Írjuk fel a forrást + a 10 kreditet.
       // (Idempotens: ha már jelölt a profil, nem ad duplán.)
-      if (isLanding) {
+      if (landingSource) {
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (user) await applyLandingSignupBonus(user.id, user.email ?? null);
+          if (user) await applyLandingSignupBonus(user.id, user.email ?? null, landingSource);
         } catch {
           // A bónusz elmaradása ne akadályozza a belépést — csendben tovább.
         }
@@ -61,11 +61,11 @@ export async function GET(request: Request) {
           const uid = user.id;
           after(() => syncUserToBrevo(uid));
           const eventId = newMetaEventId();
-          const src = isLanding ? LANDING_SIGNUP_SOURCE : null;
+          const src = landingSource;
           if (marketingConsent) {
             await sendRegistrationEvent(request, {
               eventId, contentName: registrationContentName(src), email: user.email ?? null, userId: user.id,
-              sourceUrl: `${origin}${isLanding ? "/ingatlan" : "/register"}`, // a Google-oldal a hivatkozó, nem a mi oldalunk
+              sourceUrl: `${origin}${landingSource === LINKEDIN_SIGNUP_SOURCE ? "/bemutatkozas" : landingSource ? "/ingatlan" : "/register"}`, // a Google-oldal a hivatkozó, nem a mi oldalunk
             });
           }
           if (next.startsWith("/register?siker=1")) target = `${next}&meid=${eventId}`;

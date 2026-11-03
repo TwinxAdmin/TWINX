@@ -2,7 +2,7 @@
 // A Pixel csak a nyilvános oldalakon töltődik be (MetaPixel.tsx), és csak marketing-süti hozzájárulás után küld adatot
 // (alapból `consent revoke`). A regisztrációs eseményt a szerver is elküldheti (Conversions API) ugyanazzal az eseményazonosítóval,
 // így a Meta nem számolja kétszer (lib/meta-capi.ts).
-import { LANDING_SIGNUP_SOURCE } from "@/lib/onboarding";
+import { LANDING_SIGNUP_SOURCE, LINKEDIN_SIGNUP_SOURCE } from "@/lib/onboarding";
 
 /** A Twinx hirdetési fiók Pixele (nyilvános azonosító). Élesben (production build) magától él; helyi fejlesztésnél csak akkor,
  *  ha a NEXT_PUBLIC_META_PIXEL_ID be van állítva — mint a GA-nál, hogy a tesztforgalom ne keveredjen az éles adatokba. */
@@ -24,6 +24,7 @@ export function pixelPageView() {
 
 /** A regisztráció forrása a Meta számára: a landingről jövő (10 kredites) regisztráció külön címkét kap. */
 export function registrationContentName(source: string | null | undefined): string {
+  if (source === LINKEDIN_SIGNUP_SOURCE) return "linkedin_10kredit";
   return source === LANDING_SIGNUP_SOURCE ? "ingatlan_10kredit" : "direct";
 }
 

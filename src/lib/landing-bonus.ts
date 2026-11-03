@@ -1,4 +1,4 @@
-// Ingatlan landing kezdőkredit — a GOOGLE-regisztrációs úthoz.
+// Landing kezdőkredit (ingatlan landing, LinkedIn bemutatkozó oldal) — a GOOGLE-regisztrációs úthoz.
 //
 // Az e-mail/jelszavas regisztrációnál a `signup_source` a Supabase signUp
 // metaadatában megy át, és a DB-trigger (handle_new_user) adja a 10 kreditet.
@@ -14,10 +14,13 @@ import {
   LANDING_SIGNUP_SOURCE,
   LANDING_WELCOME_CREDITS,
   LANDING_CREDITS_CAP,
+  LINKEDIN_CREDITS_CAP,
   WELCOME_CREDITS,
+  SIGNUP_SOURCE_LABEL,
+  type BonusSignupSource,
 } from "@/lib/onboarding";
 
-export async function applyLandingSignupBonus(userId: string, userEmail: string | null): Promise<void> {
+export async function applyLandingSignupBonus(userId: string, userEmail: string | null, source: BonusSignupSource): Promise<void> {
   const admin = createAdminClient();
 
   // Már jelölt? Akkor a bónuszt is megkapta — ne csináljunk semmit.
@@ -28,15 +31,15 @@ export async function applyLandingSignupBonus(userId: string, userEmail: string 
     .single();
   if (!profile || profile.signup_source) return;
 
-  // Hányan érkeztek eddig a landingről? A keret erejéig jár a 10.
+  // Hányan érkeztek eddig innen? Forrásonként saját keret erejéig jár a 10.
   const { count } = await admin
     .from("profiles")
     .select("id", { count: "exact", head: true })
-    .eq("signup_source", LANDING_SIGNUP_SOURCE);
-  const withinCap = (count ?? 0) < LANDING_CREDITS_CAP;
+    .eq("signup_source", source);
+  const withinCap = (count ?? 0) < (source === LANDING_SIGNUP_SOURCE ? LANDING_CREDITS_CAP : LINKEDIN_CREDITS_CAP);
 
   // Forrás mentése (akkor is, ha a keret betelt — az admin így is lássa).
-  await admin.from("profiles").update({ signup_source: LANDING_SIGNUP_SOURCE }).eq("id", userId);
+  await admin.from("profiles").update({ signup_source: source }).eq("id", userId);
 
   if (!withinCap) return;
 
@@ -58,6 +61,6 @@ export async function applyLandingSignupBonus(userId: string, userEmail: string 
     user_id: userId,
     user_email: userEmail ?? null,
     amount: topUp,
-    note: "Ingatlan landing (Google) — 10 kezdőkredit",
+    note: `${SIGNUP_SOURCE_LABEL[source]} (Google) — 10 kezdőkredit`,
   });
 }

@@ -12,10 +12,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activityTitle } from "@/lib/activity";
 import { FEATURE_TO_HREF, selectableModules } from "@/lib/module-favorites";
-import { LANDING_SIGNUP_SOURCE, SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
+import { LANDING_SIGNUP_SOURCE, LINKEDIN_SIGNUP_SOURCE, SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
 
 export type UsageRange = "7d" | "30d" | "90d" | "all";
-export type UsageSource = "all" | "direct" | "landing";
+export type UsageSource = "all" | "direct" | "landing" | "linkedin";
 export type UsageMode = "all" | "private" | "office" | "team";
 export type RegWindow = "today" | "7d" | "30d" | "90d" | "12m" | "all";
 export type RegGroup = "day" | "week" | "month";
@@ -31,7 +31,7 @@ export function parseFilters(p: URLSearchParams): UsageFilters {
   const r = p.get("range"), s = p.get("source"), m = p.get("mode");
   return {
     range: r === "7d" || r === "30d" || r === "90d" || r === "all" ? r : "30d",
-    source: s === "direct" || s === "landing" ? s : "all",
+    source: s === "direct" || s === "landing" || s === "linkedin" ? s : "all",
     mode: m === "private" || m === "office" || m === "team" ? m : "all",
     staff: p.get("staff") === "1",
   };
@@ -125,6 +125,8 @@ export function windowOf(range: UsageRange, now: number) {
 }
 
 const isLanding = (p: Person) => p.source === LANDING_SIGNUP_SOURCE;
+const isLinkedin = (p: Person) => p.source === LINKEDIN_SIGNUP_SOURCE;
+const isDirect = (p: Person) => !isLanding(p) && !isLinkedin(p);
 const isStaff = (p: Person) => p.role === "admin" || p.role === "sales";
 
 export function userFilter(f: UsageFilters) {
@@ -132,7 +134,8 @@ export function userFilter(f: UsageFilters) {
     if (!p) return false;
     if (!f.staff && isStaff(p)) return false;
     if (f.source === "landing" && !isLanding(p)) return false;
-    if (f.source === "direct" && isLanding(p)) return false;
+    if (f.source === "linkedin" && !isLinkedin(p)) return false;
+    if (f.source === "direct" && !isDirect(p)) return false;
     return true;
   };
 }
@@ -305,13 +308,13 @@ function registrations(people: Person[], ranSomeone: Set<string>, reg: { window:
   const series = Array.from({ length: buckets }, (_, i) => {
     const b0 = now - (buckets - i) * bucketMs, b1 = b0 + bucketMs;
     const inB = sel.filter((p) => p.createdAt >= b0 && p.createdAt < b1);
-    return { from: new Date(b0).toISOString(), direct: inB.filter((p) => !isLanding(p)).length, landing: inB.filter(isLanding).length };
+    return { from: new Date(b0).toISOString(), direct: inB.filter(isDirect).length, landing: inB.filter(isLanding).length, linkedin: inB.filter(isLinkedin).length };
   });
   return {
     tiles,
     selected: {
       window: reg.window, group: reg.group, count: sel.length,
-      direct: sel.filter((p) => !isLanding(p)).length, landing: sel.filter(isLanding).length,
+      direct: sel.filter(isDirect).length, landing: sel.filter(isLanding).length, linkedin: sel.filter(isLinkedin).length,
       activated: sel.filter((p) => ranSomeone.has(p.id)).length,
       series,
     },

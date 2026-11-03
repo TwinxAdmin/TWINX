@@ -15,7 +15,7 @@ import { normalizeInviteCode } from "@/lib/invites";
 import { gaEvent } from "@/lib/analytics";
 import { hasMarketingConsent } from "@/lib/consent";
 import { newMetaEventId, pixelCompleteRegistration } from "@/lib/meta-pixel";
-import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
+import { LANDING_WELCOME_CREDITS, bonusSignupSource } from "@/lib/onboarding";
 
 export default function RegisterPage() {
   // A useSearchParams miatt Suspense-be kell tenni (Next követelmény).
@@ -57,7 +57,7 @@ function RegisterForm() {
     // a visszajelzés — nem esik be szó nélkül a kezdőlapra.
     if (params.get("siker")) {
       setDone("session");
-      const src = params.get("src") === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null;
+      const src = bonusSignupSource(params.get("src"));
       setFromLanding(!!src);
       // GA konverzió: Google-fiókkal befejezett regisztráció (ide tér vissza a callback).
       gaEvent("sign_up", { method: "google", source: src ?? "direct" });

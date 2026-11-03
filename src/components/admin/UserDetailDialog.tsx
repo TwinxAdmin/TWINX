@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import type { UserDetails } from "@/lib/admin-user-details";
 import CallLog from "@/components/admin/CallLog";
+import SignupSourceBadge from "@/components/admin/SignupSourceBadge";
 
 const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
 const OFFICE_ROLE: Record<string, string> = { owner: "Vezető", member: "Kolléga" };
@@ -79,7 +80,7 @@ export default function UserDetailDialog({ userId, onClose, scope = "admin" }: {
                   ["Cég", a!.company],
                   ["Szerepkör", a!.role ? (ROLE_LABEL[a!.role] ?? a!.role) : null],
                   ["Regisztrált", dt(a!.createdAt)],
-                  ["Honnan jött", a!.signupSource ?? "Közvetlen regisztráció"],
+                  ["Honnan jött", a!.signupSourceCode ? <SignupSourceBadge key="s" source={a!.signupSourceCode} fallback={a!.signupSource} /> : "Közvetlen regisztráció"],
                   ["Meghívókód", a!.inviteCode],
                   ["Belépési mód", a!.providers.length ? a!.providers.map((p) => PROVIDER[p] ?? p).join(", ") : null],
                   ["E-mail megerősítve", a!.emailConfirmedAt ? dt(a!.emailConfirmedAt) : "Még nem"],

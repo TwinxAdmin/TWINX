@@ -132,6 +132,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261020150000_premium3d-coming-soon.sql` | Prémium 3D „Hamarosan" állapot: `app_settings.premium3d_status` (hidden / coming_soon / available, alap: coming_soon) + `premium3d_waitlist` („Értesíts, ha elérhető" várólista, RLS) |
 | `20261021120000_customer-call-notes.sql` | Sales hívásnapló: `customer_call_notes` (ügyfelenként eredmény, megjegyzés, visszahívás napja, ki rögzítette; RLS be, csak a szerver éri el) |
 | `20261021200000_brevo-newsletter.sql` | Hírlevél + Brevo: `profiles.newsletter` / `newsletter_at` / `newsletter_source` / `newsletter_banner_dismissed_at`, `brevo_sync_queue` (sikertelen szinkronok a napi újrapróbáláshoz; RLS be, csak a szerver éri el) |
+| `20261103140000_linkedin-signup-credits.sql` | LinkedIn bemutatkozó oldal (`/bemutatkozas`): `handle_new_user` a `linkedin-bemutatkozas` forrásra 10 kezdőkreditet ad, saját 50 fős kerettel; a forrás az adminban LinkedIn-jelölést kap |
 
 ## Egyszeri szkriptek (`one-off/`)
 

@@ -9,12 +9,17 @@ export const CONTACT_PHONES = [
 
 export const CONTACT_EMAIL = LEGAL_OPERATOR.email;
 
+/** A bemutatkozó oldal „Küldd el az ötleted" ablakának témája (a kapcsolati űrlapon is választható). */
+export const MODULE_IDEA_TOPIC = "Ötlet egy új modulra";
+
 export const CONTACT_TOPICS = [
   "Általános kérdés",
   "Kredit, fizetés, számla",
   "Technikai segítség egy modulhoz",
   "Irodai fiók",
   "Egyedi fejlesztés, céges ajánlat",
+  "Közös modulfejlesztés szakmai partnerként",
+  MODULE_IDEA_TOPIC,
   "Egyéb",
 ] as const;
 

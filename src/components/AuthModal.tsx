@@ -11,7 +11,7 @@ import TermsCheckbox from "@/components/TermsCheckbox";
 import NewsletterCheckbox from "@/components/NewsletterCheckbox";
 import { TERMS_VERSION } from "@/lib/legal";
 
-import { LANDING_SIGNUP_SOURCE, LANDING_WELCOME_CREDITS } from "@/lib/onboarding";
+import { LANDING_WELCOME_CREDITS, bonusSignupSource } from "@/lib/onboarding";
 import { gaEvent } from "@/lib/analytics";
 import { hasMarketingConsent } from "@/lib/consent";
 import { newMetaEventId, pixelCompleteRegistration } from "@/lib/meta-pixel";
@@ -55,11 +55,11 @@ export default function AuthModal() {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent).detail as { mode?: Mode; source?: string } | undefined;
       setMode(detail?.mode ?? "login");
-      setSource(detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : null);
+      setSource(bonusSignupSource(detail?.source));
       // GA: melyik gomb/oldal nyitotta a belépés/regisztráció ablakot (CTA-kattintás).
       gaEvent("auth_open", {
         mode: detail?.mode ?? "login",
-        source: detail?.source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : "direct",
+        source: bonusSignupSource(detail?.source) ?? "direct",
         page: window.location.pathname,
       });
       reset();
@@ -183,7 +183,7 @@ export default function AuthModal() {
         </div>
 
         {/* Landing-forrás: kiemelt jelzés, hogy azonnal 10 kredittel indul */}
-        {!isLogin && source === LANDING_SIGNUP_SOURCE && (
+        {!isLogin && source && (
           <div className="mt-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
             style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
             <span aria-hidden>🎁</span>
@@ -285,7 +285,7 @@ export default function AuthModal() {
             10 kreditet a /auth/callback írja jóvá landing-forrás esetén). */}
         <GoogleButton
           label={isLogin ? "Belépés Google-fiókkal" : "Regisztráció Google-fiókkal"}
-          source={!isLogin && source === LANDING_SIGNUP_SOURCE ? LANDING_SIGNUP_SOURCE : undefined}
+          source={!isLogin && source ? source : undefined}
           track={isLogin ? undefined : { name: "sign_up_start", params: { method: "google", source: source ?? "direct" } }}
           disabled={!isLogin && !acceptTerms}
           disabledHint="Előbb fogadd el az ÁSZF-et (fent)."

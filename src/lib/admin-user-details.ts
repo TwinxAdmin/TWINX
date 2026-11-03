@@ -24,6 +24,7 @@ export type UserDetails = {
     role: string | null;
     createdAt: string | null;
     signupSource: string | null;
+    signupSourceCode: string | null;
     inviteCode: string | null;
     providers: string[];
     emailConfirmedAt: string | null;
@@ -122,6 +123,7 @@ export async function getUserDetails(userId: string, scope: DetailScope = "admin
       role: str(p?.role),
       createdAt: au?.created_at ?? str(p?.created_at),
       signupSource: src ? (SIGNUP_SOURCE_LABEL[src] ?? src) : null,
+      signupSourceCode: src,
       inviteCode: str(p?.invite_code),
       providers,
       emailConfirmedAt: au?.email_confirmed_at ?? null,

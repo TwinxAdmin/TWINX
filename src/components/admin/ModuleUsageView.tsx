@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import SelectField from "@/components/SelectField";
+import { LINKEDIN_BLUE } from "@/components/admin/SignupSourceBadge";
 import ModuleRanking, { type RankRow } from "@/components/admin/ModuleRanking";
 import UserModuleTable, { type UsageUser } from "@/components/admin/UserModuleTable";
 import OfficeUsageCard, { type OfficeUsageRow } from "@/components/admin/OfficeUsageCard";
@@ -27,7 +28,7 @@ export type UsageOverview = {
   kpi: { runs: number; runsPrev: number | null; activeUsers: number; activePrev: number | null; conversionPct: number | null; topModule: string | null; sleeping: number };
   registrations: {
     tiles: { window: RegWindow; count: number; prev: number | null }[];
-    selected: { window: RegWindow; group: RegGroup; count: number; direct: number; landing: number; activated: number; series: { from: string; direct: number; landing: number }[] };
+    selected: { window: RegWindow; group: RegGroup; count: number; direct: number; landing: number; linkedin: number; activated: number; series: { from: string; direct: number; landing: number; linkedin: number }[] };
   };
   ranking: RankRow[];
   users: UsageUser[];
@@ -37,7 +38,7 @@ export type UsageOverview = {
 
 const RANGES: { v: Range; t: string }[] = [{ v: "7d", t: "7 nap" }, { v: "30d", t: "30 nap" }, { v: "90d", t: "90 nap" }, { v: "all", t: "Összes" }];
 const REG_TEXT: Record<RegWindow, string> = { today: "Ma", "7d": "7 nap", "30d": "30 nap", "90d": "90 nap", "12m": "12 hónap", all: "Összes" };
-const SOURCE_TEXT: Record<string, string> = { all: "mind", direct: "közvetlen", landing: "ingatlan landing" };
+const SOURCE_TEXT: Record<string, string> = { all: "mind", direct: "közvetlen", landing: "ingatlan landing", linkedin: "LinkedIn" };
 const MODE_TEXT: Record<string, string> = { all: "mind", private: "privát", office: "irodai fiók", team: "közös munkatér" };
 const DARK = "#12100e", CORAL = "#E3683F", TEAL = "#2F7F86", MUTED = "#6E655C";
 
@@ -93,7 +94,7 @@ export default function ModuleUsageView() {
       <div className="flex flex-wrap items-center gap-2.5 rounded-2xl px-3.5 py-3" style={{ background: "var(--twx-cream-card)", border: "1px solid var(--twx-line)" }}>
         <Seg value={range} onChange={(v) => setRange(v as Range)} items={RANGES.map((r) => ({ v: r.v, t: r.t }))} />
         <SelectField size="sm" className="w-[190px]" ariaLabel="Forrás" value={source} onChange={setSource}
-          options={[{ value: "all", label: "Forrás: mind" }, { value: "direct", label: "Forrás: közvetlen" }, { value: "landing", label: "Forrás: ingatlan landing" }]} />
+          options={[{ value: "all", label: "Forrás: mind" }, { value: "direct", label: "Forrás: közvetlen" }, { value: "landing", label: "Forrás: ingatlan landing" }, { value: "linkedin", label: "Forrás: LinkedIn" }]} />
         <SelectField size="sm" className="w-[200px]" ariaLabel="Mód" value={mode} onChange={setMode}
           options={[{ value: "all", label: "Mód: mind" }, { value: "private", label: "Mód: privát" }, { value: "office", label: "Mód: irodai fiók" }, { value: "team", label: "Mód: közös munkatér" }]} />
         <button type="button" onClick={() => setStaff((s) => !s)} aria-pressed={staff}
@@ -192,7 +193,7 @@ function RegistrationsBand({ data, reg, group, onReg, onGroup }: {
   data: UsageOverview | null; reg: RegWindow; group: RegGroup; onReg: (w: RegWindow) => void; onGroup: (g: RegGroup) => void;
 }) {
   const sel = data?.registrations.selected;
-  const max = Math.max(1, ...(sel?.series ?? []).map((b) => b.direct + b.landing));
+  const max = Math.max(1, ...(sel?.series ?? []).map((b) => b.direct + b.landing + b.linkedin));
   const total = Math.max(1, sel?.count ?? 0);
 
   return (
@@ -225,6 +226,7 @@ function RegistrationsBand({ data, reg, group, onReg, onGroup }: {
         <div className="mt-3 flex flex-col gap-1.5 text-xs">
           <SplitRow label="Közvetlen" n={sel?.direct} total={total} color={CORAL} />
           <SplitRow label="Ingatlan landing" n={sel?.landing} total={total} color={TEAL} />
+          <SplitRow label="LinkedIn" n={sel?.linkedin} total={total} color={LINKEDIN_BLUE} />
           <SplitRow label="Futtatott már" n={sel?.activated} total={total} color="#1F7A4D" hint="legalább egy modult" />
         </div>
       </div>
@@ -234,20 +236,22 @@ function RegistrationsBand({ data, reg, group, onReg, onGroup }: {
           <span className="flex items-center gap-3 text-[11px]" style={{ color: MUTED }}>
             <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-4 rounded-full" style={{ background: CORAL }} />közvetlen</span>
             <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-4 rounded-full" style={{ background: TEAL }} />landing</span>
+            <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-4 rounded-full" style={{ background: LINKEDIN_BLUE }} />LinkedIn</span>
           </span>
           <Seg value={group} onChange={onGroup} items={[{ v: "day", t: "Nap" }, { v: "week", t: "Hét" }, { v: "month", t: "Hónap" }]} />
         </div>
         <div className="mt-2 flex min-h-0 flex-1 items-end gap-[3px] border-b px-1 pt-2" style={{ borderColor: "var(--twx-line)" }}>
           {(sel?.series ?? []).map((b) => {
-            const sum = b.direct + b.landing;
+            const sum = b.direct + b.landing + b.linkedin;
             return (
-              <div key={b.from} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${fmtBucket(b.from, group)}: ${sum} új (${b.direct} közvetlen, ${b.landing} landing)`}>
-                <i className="block rounded-t-[3px]" style={{ height: `${(b.landing / max) * 100}%`, background: TEAL }} />
-                <i className="block" style={{ height: `${(b.direct / max) * 100}%`, background: CORAL, borderRadius: b.landing ? 0 : "3px 3px 0 0" }} />
+              <div key={b.from} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${fmtBucket(b.from, group)}: ${sum} új (${b.direct} közvetlen, ${b.landing} landing, ${b.linkedin} LinkedIn)`}>
+                <i className="block rounded-t-[3px]" style={{ height: `${(b.linkedin / max) * 100}%`, background: LINKEDIN_BLUE }} />
+                <i className="block" style={{ height: `${(b.landing / max) * 100}%`, background: TEAL, borderRadius: b.linkedin ? 0 : "3px 3px 0 0" }} />
+                <i className="block" style={{ height: `${(b.direct / max) * 100}%`, background: CORAL, borderRadius: b.landing || b.linkedin ? 0 : "3px 3px 0 0" }} />
               </div>
             );
           })}
-          {sel && sel.series.every((b) => b.direct + b.landing === 0) && (
+          {sel && sel.series.every((b) => b.direct + b.landing + b.linkedin === 0) && (
             <p className="m-auto text-xs" style={{ color: MUTED }}>Ebben az időszakban nem volt új regisztráló.</p>
           )}
         </div>
