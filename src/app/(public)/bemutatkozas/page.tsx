@@ -1,4 +1,4 @@
-// twinx.hu/bemutatkozas — LÁTVÁNYTERV (helyi előnézet): a LinkedIn-üzenetekben kiküldhető landing. Nincs élesítve.
+// twinx.hu/bemutatkozas — a LinkedIn-üzenetekben kiküldhető landing (üzenetben küldött oldal, ezért a keresők elől tiltva).
 // Sorrend (Márk kérése): rövid bemutatkozás → közös fejlesztés → Prémium 3D (a modul saját bemutatója, mint a Portálban) →
 // egyedi modulok (az /egyedi-modul felső része) → most elérhető szolgáltatások („Nézd meg működés közben" + alkalmazások, mint a /ingatlan oldalon) →
 // 10 kredites regisztráció + kapcsolatfelvétel.
@@ -29,6 +29,15 @@ export const metadata: Metadata = {
   title: "Kovács Márk — AI-integrációs fejlesztő | TWINX",
   description: "Egyedi AI-eszközök, automatizálás és generatív tartalom cégeknek. Twinx.hu társalapító és kreatív média tartalomgyártó.",
   robots: { index: false, follow: false },
+  // A LinkedIn-üzenet linkkártyája (a kép: public/og-bemutatkozas.png, 1200×630).
+  openGraph: {
+    type: "profile",
+    url: "https://twinx.hu/bemutatkozas",
+    siteName: "TWINX",
+    title: "Kovács Márk — AI-integrációs fejlesztő",
+    description: "Egyedi AI-eszközök, automatizálás és generatív tartalom cégeknek. Twinx.hu társalapító és kreatív média tartalomgyártó.",
+    images: [{ url: "https://twinx.hu/og-bemutatkozas.png", width: 1200, height: 630, alt: "Kovács Márk — AI-integrációs fejlesztő" }],
+  },
 };
 
 // A /ingatlan oldal listája (változatlan szöveggel).
@@ -48,10 +57,6 @@ export default async function BemutatkozasPage() {
 
   return (
     <main className="font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
-      <p className="px-4 py-2 text-center text-xs font-semibold" style={{ background: "#2a221b", color: "#f3d9a4" }}>
-        LÁTVÁNYTERV · helyi előnézet, nincs élesítve
-      </p>
-
       {/* ============ 1) RÖVID BEMUTATKOZÁS (a LinkedIn-profil címével egyezően) ============ */}
       <section className="relative overflow-hidden" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
         <div className="pointer-events-none absolute -top-40 right-[-10%] h-[760px] w-[760px] rounded-full" aria-hidden
