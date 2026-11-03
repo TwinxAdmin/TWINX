@@ -21,9 +21,21 @@ export const LANDING_WELCOME_CREDITS = 10;
 // nem a partnert szigorítja, csak a teljes kitettséget zárja be).
 export const LANDING_CREDITS_CAP = 50;
 
+// --- LinkedIn bemutatkozó oldal (twinx.hu/bemutatkozas): ugyanannyi kezdőkredit, SAJÁT kerettel és jelöléssel ---
+// A DB-oldali párja: `20261103140000_linkedin-signup-credits.sql` (`handle_new_user`) — ha ott módosítasz, itt is írd át.
+export const LINKEDIN_SIGNUP_SOURCE = "linkedin-bemutatkozas";
+export const LINKEDIN_CREDITS_CAP = 50;
+
+/** Az elfogadott, 10 kredites regisztrációs források (minden más értéket eldobunk). */
+export type BonusSignupSource = typeof LANDING_SIGNUP_SOURCE | typeof LINKEDIN_SIGNUP_SOURCE;
+export function bonusSignupSource(value: unknown): BonusSignupSource | null {
+  return value === LANDING_SIGNUP_SOURCE || value === LINKEDIN_SIGNUP_SOURCE ? value : null;
+}
+
 /** Admin nézethez: forrás-kód → emberi címke. */
 export const SIGNUP_SOURCE_LABEL: Record<string, string> = {
   [LANDING_SIGNUP_SOURCE]: "Ingatlan landing",
+  [LINKEDIN_SIGNUP_SOURCE]: "LinkedIn",
 };
 
 // „Ezzel kezdd" — a Portálközpont 3 kiemelt modulja az új felhasználónak (StarterCards.tsx,

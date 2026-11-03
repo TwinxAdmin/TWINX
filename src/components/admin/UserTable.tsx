@@ -12,6 +12,7 @@ import UserDetailDialog from "@/components/admin/UserDetailDialog";
 import { showToast } from "@/components/Toast";
 import type { UserMetric } from "@/lib/metrics";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
+import SignupSourceBadge from "@/components/admin/SignupSourceBadge";
 
 type SortKey = "name" | "created" | "balance" | "uses" | "cost" | "revenue";
 
@@ -210,12 +211,7 @@ export default function UserTable({
                     <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>
                   )}
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
-                  {u.signupSource && SIGNUP_SOURCE_LABEL[u.signupSource] && (
-                    <span className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-                      <span aria-hidden>🎁</span> {SIGNUP_SOURCE_LABEL[u.signupSource]}
-                    </span>
-                  )}
+                  <SignupSourceBadge source={u.signupSource} className="mt-1" />
                   {openId === u.userId && (
                     <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                       {u.features.length

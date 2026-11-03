@@ -11,6 +11,7 @@ import { CALL_STATUS_STYLE } from "@/components/admin/CallLog";
 import { callStatusLabel } from "@/lib/call-notes-shared";
 import type { SalesUser } from "@/lib/sales-users";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
+import SignupSourceBadge from "@/components/admin/SignupSourceBadge";
 
 type SortKey = "name" | "created" | "lastSignIn" | "uses";
 
@@ -92,13 +93,7 @@ export default function SalesUserTable({ users }: { users: SalesUser[] }) {
     );
   };
 
-  const Source = ({ u }: { u: SalesUser }) =>
-    u.signupSource && SIGNUP_SOURCE_LABEL[u.signupSource] ? (
-      <span className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-        style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-        <span aria-hidden>🎁</span> {SIGNUP_SOURCE_LABEL[u.signupSource]}
-      </span>
-    ) : null;
+  const Source = ({ u }: { u: SalesUser }) => <SignupSourceBadge source={u.signupSource} className="mt-1" />;
 
   return (
     <div className="space-y-3">

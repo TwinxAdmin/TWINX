@@ -15,6 +15,7 @@ export const CONTACT_TOPICS = [
   "Technikai segítség egy modulhoz",
   "Irodai fiók",
   "Egyedi fejlesztés, céges ajánlat",
+  "Közös modulfejlesztés szakmai partnerként",
   "Egyéb",
 ] as const;
 
