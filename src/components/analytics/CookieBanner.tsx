@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { isTrackedPath } from "@/lib/analytics";
+import { isEnglishPath } from "@/lib/lang";
 import { getConsentState, setConsentState, OPEN_CONSENT_EVENT, type ConsentState } from "@/lib/consent";
 
 export default function CookieBanner() {
@@ -46,12 +47,13 @@ export default function CookieBanner() {
   }
 
   const decided = saved.analytics !== null && saved.marketing !== null;
+  const en = isEnglishPath(pathname); // az angol bemutatkozó oldalon angolul
 
   return (
     <div
       role="dialog"
       aria-live="polite"
-      aria-label="Süti-beállítások"
+      aria-label={en ? "Cookie settings" : "Süti-beállítások"}
       className="fixed bottom-3 left-3 right-3 z-[60] sm:bottom-4 sm:left-4 sm:right-auto sm:w-[340px]"
     >
       <div
@@ -65,7 +67,7 @@ export default function CookieBanner() {
       >
         <div className="flex items-center gap-3">
           <p className="min-w-0 flex-1 text-[12.5px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>
-            <span aria-hidden>🍪 </span>Sütikkel mérjük, honnan érkezel (Google, Facebook).
+            <span aria-hidden>🍪 </span>{en ? "We use cookies to measure where you came from (Google, Facebook)." : "Sütikkel mérjük, honnan érkezel (Google, Facebook)."}
           </p>
           <button
             type="button"
@@ -73,18 +75,18 @@ export default function CookieBanner() {
             className="flex-none rounded-full px-4 py-2 text-[13px] font-semibold text-white transition-[filter] hover:brightness-105 focus:outline-none focus-visible:ring-2"
             style={{ background: "linear-gradient(160deg,#F49274,#E9693F)" }}
           >
-            Elfogadom
+            {en ? "Accept" : "Elfogadom"}
           </button>
         </div>
 
         {details && (
           <div className="mt-2.5 flex flex-col gap-1.5">
-            <Toggle label="Statisztika" hint="Google Analytics — mi működik az oldalon." checked={analytics} onChange={setAnalytics} />
-            <Toggle label="Marketing" hint="Meta (Facebook) Pixel — hirdetéseink mérése." checked={marketing} onChange={setMarketing} />
+            <Toggle label={en ? "Statistics" : "Statisztika"} hint={en ? "Google Analytics: what works on the site." : "Google Analytics — mi működik az oldalon."} checked={analytics} onChange={setAnalytics} />
+            <Toggle label="Marketing" hint={en ? "Meta (Facebook) Pixel: measuring our ads." : "Meta (Facebook) Pixel — hirdetéseink mérése."} checked={marketing} onChange={setMarketing} />
             {decided && (
               <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                Jelenleg: statisztika <strong>{saved.analytics === "granted" ? "be" : "ki"}</strong>, marketing{" "}
-                <strong>{saved.marketing === "granted" ? "be" : "ki"}</strong> · később a lábléc „Süti-beállítások” linkjén módosíthatod
+                {en ? "Now: statistics " : "Jelenleg: statisztika "}<strong>{saved.analytics === "granted" ? (en ? "on" : "be") : (en ? "off" : "ki")}</strong>, marketing{" "}
+                <strong>{saved.marketing === "granted" ? (en ? "on" : "be") : (en ? "off" : "ki")}</strong>{en ? " · change it later with the “Cookie settings” link in the footer" : " · később a lábléc „Süti-beállítások” linkjén módosíthatod"}
               </p>
             )}
           </div>
@@ -94,12 +96,12 @@ export default function CookieBanner() {
           {!details && (
             <button type="button" onClick={() => setDetails(true)}
               className="underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
-              Beállítások
+              {en ? "Settings" : "Beállítások"}
             </button>
           )}
           <button type="button" onClick={() => save(false, false)}
             className="underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
-            Elutasítom
+            {en ? "Decline" : "Elutasítom"}
           </button>
         </div>
       </div>

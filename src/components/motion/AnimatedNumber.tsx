@@ -11,7 +11,7 @@ type Props = {
   animateOnMount?: boolean; // betöltéskor 0-ról pörögjön fel
 };
 
-export default function AnimatedNumber({ value, className, duration = 800, animateOnMount = false }: Props) {
+export default function AnimatedNumber({ value, className, duration = 800, animateOnMount = false, locale = "hu-HU" }: Props & { locale?: string }) {
   const [display, setDisplay] = useState(animateOnMount ? 0 : value);
   const [flash, setFlash] = useState<null | "up" | "down">(null);
   const prev = useRef(animateOnMount ? 0 : value);
@@ -51,7 +51,7 @@ export default function AnimatedNumber({ value, className, duration = 800, anima
         transform: flash ? "scale(1.14)" : "scale(1)",
       }}
     >
-      {display.toLocaleString("hu-HU")}
+      {display.toLocaleString(locale)}
     </span>
   );
 }

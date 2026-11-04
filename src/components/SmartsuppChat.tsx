@@ -8,12 +8,13 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { isEnglishPath } from "@/lib/lang";
 
 const KEY = process.env.NEXT_PUBLIC_SMARTSUPP_KEY || "e7960296f4db350f2e5fff27503cfc1706a1403b";
 
 /** Az admin- és sales-felületen nincs chat. */
 function hiddenOn(path: string): boolean {
-  return path.startsWith("/admin") || path.startsWith("/sales");
+  return path.startsWith("/admin") || path.startsWith("/sales") || isEnglishPath(path); // az angol bemutatkozó oldalon sincs (a chat magyar)
 }
 
 type SmartsuppFn = (...args: unknown[]) => void;

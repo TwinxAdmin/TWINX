@@ -79,7 +79,7 @@ const FIRST_OFFSET = 1;
 
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 
-export default function SkylineStory({ className = "" }: { className?: string }) {
+export default function SkylineStory({ className = "", lang = "hu" }: { className?: string; lang?: "hu" | "en" }) {
   const [t, setT] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
@@ -215,11 +215,11 @@ export default function SkylineStory({ className = "" }: { className?: string })
         }}
       >
         <div className="flex items-center justify-between px-2.5 py-1.5" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">Szeptember</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">{lang === "en" ? "September" : "Szeptember"}</span>
           <span className="text-[9px] font-semibold tabular-nums">{ticked}/{DAYS}</span>
         </div>
         <div className="grid grid-cols-7 gap-[3px] px-2 pt-1.5 text-center text-[7px] font-semibold" style={{ color: "var(--twx-on-dark-muted)" }}>
-          {["H", "K", "Sz", "Cs", "P", "Sz", "V"].map((w, i) => <span key={i}>{w}</span>)}
+          {(lang === "en" ? ["M", "T", "W", "T", "F", "S", "S"] : ["H", "K", "Sz", "Cs", "P", "Sz", "V"]).map((w, i) => <span key={i}>{w}</span>)}
         </div>
         <div className="grid grid-cols-7 gap-[3px] px-2 pb-2 pt-1">
           {Array.from({ length: FIRST_OFFSET }).map((_, i) => <span key={`e${i}`} />)}
@@ -242,7 +242,7 @@ export default function SkylineStory({ className = "" }: { className?: string })
         </div>
         <div className="px-2.5 pb-2 text-center text-[8px] font-semibold"
           style={{ color: "var(--twx-coral)", opacity: allDone ? 1 : 0, transition: "opacity .3s" }}>
-          ✓ Minden feladat kész
+          ✓ {lang === "en" ? "All tasks done" : "Minden feladat kész"}
         </div>
       </div>
     </div>
