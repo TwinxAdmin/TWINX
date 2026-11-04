@@ -6,6 +6,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import HeroFlow from "@/components/custom-module/HeroFlow";
+import type { Lang } from "@/lib/lang";
 
 const C = "#ef7a5a";
 const T = "#f4efe7";
@@ -108,6 +109,15 @@ export const HERO_KEYWORDS = {
   clientTime: { title: "Több idő az ügyfélre", sub: "kevesebb adminisztráció" },
 } as const;
 
+const HERO_KEYWORDS_EN: Record<keyof typeof HERO_KEYWORDS, { title: string; sub: string }> = {
+  timeSaved: { title: "−10 hours / week", sub: "instead of manual work" },
+  instant: { title: "In seconds", sub: "ready output, one click" },
+  efficiency: { title: "Efficiency ↑", sub: "more work, same time" },
+  tailored: { title: "Tailored to your business", sub: "built for your needs" },
+  autoReport: { title: "Weekly report", sub: "builds itself" },
+  clientTime: { title: "More time for clients", sub: "less admin" },
+};
+
 /* ---------- Ikon-buborékok + váltakozó kulcsszó ---------- */
 // A buborékok állnak; csak a mini-ikonok animálnak. Egyszerre EGY kulcsszó látszik a nagy ábra alatt;
 // amikor előjön, a hozzá tartozó buborék „megnyomódik” (kis benyomódás + gyűrű), és élesebb lesz,
@@ -124,8 +134,8 @@ const BUBBLES: Bubble[] = [
 ];
 const STEP_MS = 3200;
 
-function IconBubble({ b, active, tick, onPick }: { b: Bubble; active: boolean; tick: number; onPick: () => void }) {
-  const kwd = HERO_KEYWORDS[b.k];
+function IconBubble({ b, active, tick, onPick, lang }: { b: Bubble; active: boolean; tick: number; onPick: () => void; lang: Lang }) {
+  const kwd = (lang === "en" ? HERO_KEYWORDS_EN : HERO_KEYWORDS)[b.k];
   return (
     <motion.button type="button" onClick={onPick} aria-label={`${kwd.title} — ${kwd.sub}`} aria-pressed={active}
       className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#ef7a5a] md:h-12 md:w-12 xl:h-14 xl:w-14 [&>svg]:h-7 [&>svg]:w-7 md:[&>svg]:h-8 md:[&>svg]:w-8 xl:[&>svg]:h-9 xl:[&>svg]:w-9"
@@ -149,7 +159,7 @@ function IconBubble({ b, active, tick, onPick }: { b: Bubble; active: boolean; t
   );
 }
 
-export default function HeroScene() {
+export default function HeroScene({ lang = "hu" }: { lang?: Lang }) {
   const [active, setActive] = useState(0);
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -157,12 +167,12 @@ export default function HeroScene() {
     return () => clearTimeout(t);
   }, [tick]);
   const pick = (i: number) => { setActive(i); setTick((n) => n + 1); };
-  const cur = HERO_KEYWORDS[BUBBLES[active].k];
+  const cur = (lang === "en" ? HERO_KEYWORDS_EN : HERO_KEYWORDS)[BUBBLES[active].k];
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="rounded-3xl p-2 sm:p-3 md:col-start-1 md:row-start-1" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(244,239,231,0.10)" }}>
-        <HeroFlow />
+        <HeroFlow lang={lang} />
       </div>
 
       {/* Váltakozó kulcsszó a nagy ábra alatt — mindig csak egy látszik */}
@@ -179,7 +189,7 @@ export default function HeroScene() {
 
       {/* Asztali: jobb oldalt egymás alatt; mobilon a kulcsszó alatt egy sorban */}
       <div className="flex flex-wrap justify-center gap-2.5 md:col-start-2 md:row-start-1 md:flex-col md:flex-nowrap">
-        {BUBBLES.map((b, i) => <IconBubble key={b.k} b={b} active={i === active} tick={tick} onPick={() => pick(i)} />)}
+        {BUBBLES.map((b, i) => <IconBubble key={b.k} b={b} active={i === active} tick={tick} onPick={() => pick(i)} lang={lang} />)}
       </div>
     </div>
   );

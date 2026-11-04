@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import type { Lang } from "@/lib/lang";
 
 const CORAL = "#ef7a5a";
 const CREAM = "#f4efe7";
@@ -13,24 +14,43 @@ const MUTED = "#a79f94";
 const GREEN = "#7ed29f";
 const STEP_MS = 7000;
 
-const STEPS = [
-  { short: "Felmérés", title: "Felmérjük, mi viszi el az időt", sub: "Végignézzük a napi munkát, és kijelöljük, mit érdemes automatizálni." },
-  { short: "Fejlesztés", title: "Megépítjük a rendszert", sub: "A meglévő adataidhoz kötve, gépi ellenőrzéssel és emberi jóváhagyással." },
-  { short: "Kész modul", title: "A csapatod kész eszközt kap", sub: "A saját arculatoddal, egy kattintással használható." },
-  { short: "Napi használat", title: "Mindennap neked dolgozik", sub: "Ami eddig kézi munka volt, abból gyorsan működő folyamat lesz." },
-];
+const STEPS_BY = {
+  hu: [
+    { short: "Felmérés", title: "Felmérjük, mi viszi el az időt", sub: "Végignézzük a napi munkát, és kijelöljük, mit érdemes automatizálni." },
+    { short: "Fejlesztés", title: "Megépítjük a rendszert", sub: "A meglévő adataidhoz kötve, gépi ellenőrzéssel és emberi jóváhagyással." },
+    { short: "Kész modul", title: "A csapatod kész eszközt kap", sub: "A saját arculatoddal, egy kattintással használható." },
+    { short: "Napi használat", title: "Mindennap neked dolgozik", sub: "Ami eddig kézi munka volt, abból gyorsan működő folyamat lesz." },
+  ],
+  en: [
+    { short: "Discovery", title: "We find out what eats up your time", sub: "We walk through the daily work and mark what's worth automating." },
+    { short: "Build", title: "We build the system", sub: "Connected to your existing data, with automated checks and human approval." },
+    { short: "Ready tool", title: "Your team gets a ready tool", sub: "In your own brand, usable with a single click." },
+    { short: "Daily use", title: "It works for you every day", sub: "What used to be manual work becomes a fast, working process." },
+  ],
+};
 
 /* ---------- 1) Igényfelmérés: a feladatok közül kijelöljük az automatizálhatókat ---------- */
-const TASKS = [
-  { t: "Árajánlat kézzel", tag: "minden nap", hit: true },
-  { t: "Adatbevitel a CRM-be", tag: "ismétlődő", hit: true },
-  { t: "Ügyféllevelek megválaszolása", tag: "", hit: false },
-  { t: "Heti riport táblázatból", tag: "órákat visz el", hit: true },
-  { t: "Stratégiai döntések", tag: "", hit: false },
-  { t: "Dokumentumok ellenőrzése", tag: "ismétlődő", hit: true },
-];
+const TASKS_BY = {
+  hu: [
+    { t: "Árajánlat kézzel", tag: "minden nap", hit: true },
+    { t: "Adatbevitel a CRM-be", tag: "ismétlődő", hit: true },
+    { t: "Ügyféllevelek megválaszolása", tag: "", hit: false },
+    { t: "Heti riport táblázatból", tag: "órákat visz el", hit: true },
+    { t: "Stratégiai döntések", tag: "", hit: false },
+    { t: "Dokumentumok ellenőrzése", tag: "ismétlődő", hit: true },
+  ],
+  en: [
+    { t: "Writing quotes by hand", tag: "every day", hit: true },
+    { t: "Entering data into the CRM", tag: "repetitive", hit: true },
+    { t: "Answering client emails", tag: "", hit: false },
+    { t: "Weekly report from spreadsheets", tag: "takes hours", hit: true },
+    { t: "Strategic decisions", tag: "", hit: false },
+    { t: "Checking documents", tag: "repetitive", hit: true },
+  ],
+};
 
-function Discovery({ reduce }: { reduce: boolean }) {
+function Discovery({ reduce, lang }: { reduce: boolean; lang: Lang }) {
+  const TASKS = TASKS_BY[lang];
   return (
     <div className="grid h-full grid-cols-2 content-center gap-2 sm:gap-2.5">
       {TASKS.map((x, i) => (
@@ -61,12 +81,16 @@ function Discovery({ reduce }: { reduce: boolean }) {
 }
 
 /* ---------- 2) A rendszer: adatforrások → feldolgozó lánc (visszacsatolással) → kimenetek ---------- */
-const INS = [{ t: "CRM", y: 26 }, { t: "Excel", y: 92 }, { t: "E-mail", y: 158 }, { t: "PDF", y: 224 }];
-const PIPE = [{ t: "Adatkinyerés", y: 18 }, { t: "AI-feldolgozás", y: 82 }, { t: "Gépi ellenőrzés", y: 146 }, { t: "Emberi jóváhagyás", y: 210 }];
-const OUTS = [{ t: "Ajánlat", y: 62 }, { t: "Riport", y: 125 }, { t: "Tartalom", y: 188 }];
+const INS_Y = [26, 92, 158, 224], PIPE_Y = [18, 82, 146, 210], OUTS_Y = [62, 125, 188];
+const SYSTEM = {
+  hu: { ins: ["CRM", "Excel", "E-mail", "PDF"], pipe: ["Adatkinyerés", "AI-feldolgozás", "Gépi ellenőrzés", "Emberi jóváhagyás"], outs: ["Ajánlat", "Riport", "Tartalom"], aria: "Adatforrások, feldolgozó lánc ellenőrzéssel és jóváhagyással, majd kész anyagok" },
+  en: { ins: ["CRM", "Excel", "Email", "PDF"], pipe: ["Data extraction", "AI processing", "Automated checks", "Human approval"], outs: ["Quote", "Report", "Content"], aria: "Data sources, a processing chain with checks and approval, then finished materials" },
+};
 const IN_W = 66, P_X = 104, P_W = 158, O_X = 306, O_W = 84, H_IN = 34, H_P = 44;
 
-function System({ reduce }: { reduce: boolean }) {
+function System({ reduce, lang }: { reduce: boolean; lang: Lang }) {
+  const sy = SYSTEM[lang];
+  const INS = sy.ins.map((t, i) => ({ t, y: INS_Y[i] })), PIPE = sy.pipe.map((t, i) => ({ t, y: PIPE_Y[i] })), OUTS = sy.outs.map((t, i) => ({ t, y: OUTS_Y[i] }));
   const inPaths = INS.map((n) => `M${IN_W} ${n.y + H_IN / 2} C ${IN_W + 22} ${n.y + H_IN / 2}, ${P_X - 22} ${PIPE[0].y + H_P / 2}, ${P_X} ${PIPE[0].y + H_P / 2}`);
   const last = PIPE[PIPE.length - 1];
   const outPaths = OUTS.map((n) => `M${P_X + P_W} ${last.y + H_P / 2} C ${P_X + P_W + 22} ${last.y + H_P / 2}, ${O_X - 22} ${n.y + H_IN / 2}, ${O_X} ${n.y + H_IN / 2}`);
@@ -76,7 +100,7 @@ function System({ reduce }: { reduce: boolean }) {
   const pop = (delay: number) => ({ initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: reduce ? 0 : delay, duration: 0.3 } });
 
   return (
-    <svg viewBox="0 0 390 276" className="h-full w-full" role="img" aria-label="Adatforrások, feldolgozó lánc ellenőrzéssel és jóváhagyással, majd kész anyagok">
+    <svg viewBox="0 0 390 276" className="h-full w-full" role="img" aria-label={sy.aria}>
       {inPaths.map((d, i) => <motion.path key={d} d={d} fill="none" stroke={CORAL} strokeOpacity=".45" strokeWidth="1.4" {...draw(0.5 + i * 0.08)} />)}
       {pipePaths.map((d, i) => <motion.path key={d} d={d} fill="none" stroke={CORAL} strokeOpacity=".75" strokeWidth="1.6" {...draw(1.2 + i * 0.35, 0.25)} />)}
       <motion.path d={loop} fill="none" stroke={CREAM} strokeOpacity=".5" strokeWidth="1.3" strokeDasharray="3 4" {...pop(2.3)} />
@@ -118,7 +142,13 @@ function System({ reduce }: { reduce: boolean }) {
 }
 
 /* ---------- 3) Kész modul: a cég saját felülete, egy kattintás, kész anyag ---------- */
-function Product({ reduce }: { reduce: boolean }) {
+const PRODUCT = {
+  hu: { head: "A te céged · Ajánlat-modul", rows: [["Ügyfél", "Minta Kft."], ["Szolgáltatás", "Éves karbantartás"]], btn: "Ajánlat készítése", done: "✓ Márkázott árajánlat kész, mehet az ügyfélnek", mark: "C" },
+  en: { head: "Your company · Quote module", rows: [["Client", "Sample Ltd."], ["Service", "Annual maintenance"]], btn: "Create quote", done: "✓ Branded quote ready to send to the client", mark: "C" },
+};
+
+function Product({ reduce, lang }: { reduce: boolean; lang: Lang }) {
+  const tx = PRODUCT[lang];
   const d = (s: number) => (reduce ? 0 : s);
   return (
     <div className="flex h-full items-center justify-center">
@@ -126,10 +156,10 @@ function Product({ reduce }: { reduce: boolean }) {
         initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45 }}>
         <div className="flex h-10 items-center gap-2 px-3.5" style={{ background: "#1c1815", color: CREAM }}>
           <span className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-extrabold" style={{ background: CORAL, color: "#1c1005" }}>C</span>
-          <span className="text-[12.5px] font-bold">A te céged · Ajánlat-modul</span>
+          <span className="text-[12.5px] font-bold">{tx.head}</span>
         </div>
         <div className="space-y-2 p-3.5">
-          {[["Ügyfél", "Minta Kft."], ["Szolgáltatás", "Éves karbantartás"]].map(([k, v], i) => (
+          {tx.rows.map(([k, v], i) => (
             <div key={k} className="flex h-9 items-center justify-between rounded-lg px-3 text-[12.5px]" style={{ boxShadow: "inset 0 0 0 1px #e8e1d6" }}>
               <span style={{ color: "#6e655c" }}>{k}</span>
               <motion.b initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: d(0.6 + i * 0.5), duration: 0.3 }}>{v}</motion.b>
@@ -137,7 +167,7 @@ function Product({ reduce }: { reduce: boolean }) {
           ))}
           <motion.div className="flex h-10 items-center justify-center rounded-lg text-[13px] font-bold text-white" style={{ background: "#c4553a" }}
             animate={reduce ? undefined : { scale: [1, 1, 0.96, 1] }} transition={{ delay: 1.8, duration: 0.45, times: [0, 0.3, 0.6, 1] }}>
-            Ajánlat készítése
+            {tx.btn}
           </motion.div>
           <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#efe8dc" }}>
             <motion.div className="h-full rounded-full" style={{ background: CORAL, transformOrigin: "left" }}
@@ -145,7 +175,7 @@ function Product({ reduce }: { reduce: boolean }) {
           </div>
           <motion.div className="flex h-10 items-center gap-2 rounded-lg px-3 text-[12.5px] font-bold" style={{ background: "#e5f1e9", color: "#2f7a4f" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: d(3.5), duration: 0.35 }}>
-            ✓ Márkázott árajánlat kész, mehet az ügyfélnek
+            {tx.done}
           </motion.div>
         </div>
       </motion.div>
@@ -154,9 +184,13 @@ function Product({ reduce }: { reduce: boolean }) {
 }
 
 /* ---------- 4) Napi használat: a hét minden napján fut, a kézi munka csökken ---------- */
-const DAYS = ["H", "K", "Sze", "Cs", "P"];
+const DAILY = {
+  hu: { days: ["H", "K", "Sze", "Cs", "P"], manual: "Kézi munka", freed: "Felszabadult idő", note: "Szemléltető ábra, a megtakarítás folyamatonként más." },
+  en: { days: ["Mon", "Tue", "Wed", "Thu", "Fri"], manual: "Manual work", freed: "Time freed up", note: "Illustrative chart; savings differ by process." },
+};
 
-function Daily({ reduce }: { reduce: boolean }) {
+function Daily({ reduce, lang }: { reduce: boolean; lang: Lang }) {
+  const tx = DAILY[lang], DAYS = tx.days;
   const d = (s: number) => (reduce ? 0 : s);
   return (
     <div className="flex h-full flex-col justify-center gap-5">
@@ -171,10 +205,10 @@ function Daily({ reduce }: { reduce: boolean }) {
         ))}
       </div>
       <div className="space-y-3">
-        <Bar label="Kézi munka" color="rgba(244,239,231,.45)" from={1} to={0.2} delay={d(1.6)} reduce={reduce} />
-        <Bar label="Felszabadult idő" color={CORAL} from={0.02} to={0.8} delay={d(1.6)} reduce={reduce} />
+        <Bar label={tx.manual} color="rgba(244,239,231,.45)" from={1} to={0.2} delay={d(1.6)} reduce={reduce} />
+        <Bar label={tx.freed} color={CORAL} from={0.02} to={0.8} delay={d(1.6)} reduce={reduce} />
       </div>
-      <p className="text-[11px]" style={{ color: MUTED }}>Szemléltető ábra, a megtakarítás folyamatonként más.</p>
+      <p className="text-[11px]" style={{ color: MUTED }}>{tx.note}</p>
     </div>
   );
 }
@@ -192,12 +226,13 @@ function Bar({ label, color, from, to, delay, reduce }: { label: string; color: 
 }
 
 /* ---------- A kártya ---------- */
-export default function AiSystemAnim() {
+export default function AiSystemAnim({ lang = "hu" }: { lang?: Lang }) {
+  const STEPS = STEPS_BY[lang];
   const [step, setStep] = useState(0);
   const [tick, setTick] = useState(0);
   const reduce = useReducedMotion() ?? false;
   useEffect(() => {
-    const t = setTimeout(() => { setStep((s) => (s + 1) % STEPS.length); setTick((n) => n + 1); }, STEP_MS);
+    const t = setTimeout(() => { setStep((s) => (s + 1) % STEPS_BY.hu.length); setTick((n) => n + 1); }, STEP_MS);
     return () => clearTimeout(t);
   }, [tick]);
   const cur = STEPS[step];
@@ -205,7 +240,7 @@ export default function AiSystemAnim() {
   return (
     <div className="w-full rounded-3xl p-4 sm:p-5" style={{ background: "rgba(28,24,21,.86)", boxShadow: "inset 0 0 0 1px rgba(239,122,90,.32), 0 24px 60px rgba(0,0,0,.4)" }}>
       {/* Szakaszok */}
-      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label="A fejlesztés szakaszai">
+      <div className="grid grid-cols-4 gap-1.5" role="tablist" aria-label={lang === "en" ? "Stages of development" : "A fejlesztés szakaszai"}>
         {STEPS.map((s, i) => (
           <button key={s.short} type="button" role="tab" aria-selected={i === step} onClick={() => { setStep(i); setTick((n) => n + 1); }}
             className="min-w-0 rounded-lg px-1 pb-1 pt-1.5 text-center">
@@ -233,10 +268,10 @@ export default function AiSystemAnim() {
       <div className="mt-3 h-[300px] sm:h-[310px]">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={tick} className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-            {step === 0 && <Discovery reduce={reduce} />}
-            {step === 1 && <System reduce={reduce} />}
-            {step === 2 && <Product reduce={reduce} />}
-            {step === 3 && <Daily reduce={reduce} />}
+            {step === 0 && <Discovery reduce={reduce} lang={lang} />}
+            {step === 1 && <System reduce={reduce} lang={lang} />}
+            {step === 2 && <Product reduce={reduce} lang={lang} />}
+            {step === 3 && <Daily reduce={reduce} lang={lang} />}
           </motion.div>
         </AnimatePresence>
       </div>

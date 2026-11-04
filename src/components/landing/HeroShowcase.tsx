@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ShowcaseSlide } from "@/lib/landing";
 import ValuationDemo, { VALUATION_DEMO_MS } from "@/components/landing/ValuationDemo";
 import VideoDemo, { VIDEO_DEMO_MS } from "@/components/landing/VideoDemo";
+import type { Lang } from "@/lib/lang";
 
 const INTERVAL_MS = 4800;
 /** Előtte/utána csúszka: a 7 s-os CSS-ciklus (globals.css twx-ba-clip) 80%-a —
@@ -26,7 +27,8 @@ const slideMs = (s: ShowcaseSlide) => {
   return INTERVAL_MS;
 };
 
-export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
+export default function HeroShowcase({ slides, lang = "hu" }: { slides: ShowcaseSlide[]; lang?: Lang }) {
+  const en = lang === "en";
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const timer = useRef<number | null>(null);
@@ -70,7 +72,7 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
               style={{ opacity: i === idx ? 1 : 0, pointerEvents: i === idx ? "auto" : "none" }}
               aria-hidden={i !== idx}
             >
-              <Slide slide={s} active={i === idx} />
+              <Slide slide={s} active={i === idx} lang={lang} />
             </div>
           ))}
         </div>
@@ -90,10 +92,10 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
               felirat a gombok ALATT, középen. */}
           <div className="flex shrink-0 flex-col items-center gap-1.5">
             <div className="flex items-center gap-2 sm:gap-3">
-              <button type="button" onClick={() => go(idx - 1)} aria-label="Előző"
+              <button type="button" onClick={() => go(idx - 1)} aria-label={en ? "Previous" : "Előző"}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold transition hover:brightness-110"
                 style={{ color: "#1c1005", background: "var(--twx-coral)", boxShadow: "0 4px 14px rgba(239,122,90,0.4)" }}>‹</button>
-              <div className="flex items-center gap-1.5 px-0.5" role="tablist" aria-label="Példák">
+              <div className="flex items-center gap-1.5 px-0.5" role="tablist" aria-label={en ? "Examples" : "Példák"}>
                 {slides.map((s, i) => (
                   <button
                     key={s.title}
@@ -107,12 +109,12 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
                   />
                 ))}
               </div>
-              <button type="button" onClick={() => go(idx + 1)} aria-label="Következő"
+              <button type="button" onClick={() => go(idx + 1)} aria-label={en ? "Next" : "Következő"}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-semibold transition hover:brightness-110"
                 style={{ color: "#1c1005", background: "var(--twx-coral)", boxShadow: "0 4px 14px rgba(239,122,90,0.4)" }}>›</button>
             </div>
             <span className="text-[11px] font-medium uppercase tracking-[0.16em]" style={{ color: "var(--twx-coral)" }}>
-              Lapozz
+              {en ? "Browse" : "Lapozz"}
             </span>
           </div>
         </div>
@@ -125,24 +127,25 @@ export default function HeroShowcase({ slides }: { slides: ShowcaseSlide[] }) {
 // Egy-egy dia. Mindegyik a saját kimenet-típusát mutatja be; a hiányzó fájl
 // helyőrzőre esik vissza (lásd MediaImage).
 // ---------------------------------------------------------------------------
-function Slide({ slide, active }: { slide: ShowcaseSlide; active: boolean }) {
+function Slide({ slide, active, lang }: { slide: ShowcaseSlide; active: boolean; lang: Lang }) {
+  const en = lang === "en";
   if (slide.kind === "demo-valuation") {
-    return <ValuationDemo active={active} />;
+    return <ValuationDemo active={active} lang={lang} />;
   }
   if (slide.kind === "demo-video") {
-    return <VideoDemo active={active} credits={slide.credits} />;
+    return <VideoDemo active={active} credits={slide.credits} lang={lang} />;
   }
 
   if (slide.kind === "before-after") {
     return (
       <div className="relative h-full w-full">
-        <MediaImage src={slide.after} alt="Feljavított fotó" slot="előtte/utána — feljavított kép" />
+        <MediaImage src={slide.after} alt={en ? "Enhanced photo" : "Feljavított fotó"} slot="előtte/utána — feljavított kép" />
         {/* Az eredeti balról a csúszkáig — induláskor teljesen az eredeti látszik,
             a csúszka a jobb szélről indul és balra húzva tárja fel az eredményt.
             Az animációs osztály csak aktív dián van rajta, így minden körben
             elölről indul. */}
         <div className={`absolute inset-0 overflow-hidden ${active ? "twx-ba-clip" : ""}`} style={{ clipPath: "inset(0 0% 0 0)" }}>
-          <MediaImage src={slide.before} alt="Eredeti fotó" slot="előtte/utána — eredeti kép" />
+          <MediaImage src={slide.before} alt={en ? "Original photo" : "Eredeti fotó"} slot="előtte/utána — eredeti kép" />
         </div>
         <div className={`pointer-events-none absolute inset-y-0 ${active ? "twx-ba-line" : ""}`} style={{ left: "100%" }}>
           <div className="absolute inset-y-0 -ml-px w-0.5" style={{ background: "rgba(255,255,255,0.95)", boxShadow: "0 0 8px rgba(0,0,0,0.5)" }} />
@@ -150,8 +153,8 @@ function Slide({ slide, active }: { slide: ShowcaseSlide; active: boolean }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1815" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 7-5 5 5 5M15 7l5 5-5 5" /></svg>
           </div>
         </div>
-        <Tag left>Eredeti</Tag>
-        <Tag>{slide.afterLabel ?? "Feljavítva"}</Tag>
+        <Tag left>{en ? "Original" : "Eredeti"}</Tag>
+        <Tag>{slide.afterLabel ?? (en ? "Enhanced" : "Feljavítva")}</Tag>
       </div>
     );
   }
@@ -184,7 +187,7 @@ function Slide({ slide, active }: { slide: ShowcaseSlide; active: boolean }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center p-6" style={{ background: "radial-gradient(70% 70% at 50% 50%, rgba(239,122,90,0.14), transparent 70%)" }}>
       <div className="h-full max-h-full overflow-hidden rounded-xl" style={{ boxShadow: "0 18px 50px rgba(0,0,0,0.45)" }}>
-        <MediaImage src={slide.src} alt="Kész hirdetéskép" slot="hirdetéskép" contain />
+        <MediaImage src={slide.src} alt={en ? "Finished ad image" : "Kész hirdetéskép"} slot="hirdetéskép" contain />
       </div>
     </div>
   );

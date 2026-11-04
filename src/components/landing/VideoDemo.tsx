@@ -24,6 +24,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Lang } from "@/lib/lang";
 
 /** A telefon TERVEZÉSI mérete (px, 9:16) — a színpad magasságához skálázzuk. */
 const PHONE_W = 180;
@@ -35,11 +36,11 @@ const VIDEO_POSTER = "/showcase/video-demo-poster.jpg";
 const VIDEO_MS = 12000;
 
 // ---- Forgatókönyv -----------------------------------------------------------
-const PHOTOS: Array<{ src: string; label: string }> = [
-  { src: "/showcase/video-demo-1.jpg", label: "Nappali" },
-  { src: "/showcase/video-demo-2.jpg", label: "3 hálószoba" },
-  { src: "/showcase/video-demo-3.jpg", label: "Fürdőszoba + mosdó" },
-  { src: "/showcase/video-demo-4.jpg", label: "Tágas konyha" },
+const PHOTOS: Array<{ src: string }> = [
+  { src: "/showcase/video-demo-1.jpg" },
+  { src: "/showcase/video-demo-2.jpg" },
+  { src: "/showcase/video-demo-3.jpg" },
+  { src: "/showcase/video-demo-4.jpg" },
 ];
 const PHOTO_AT = 300;
 const PHOTO_STEP = 300;
@@ -53,7 +54,7 @@ const RAW: Array<[string, string]> = [
   ["Ár", "79,9 M Ft"],
   ["Méret / szobák", "70 m² · 3 szoba"],
 ];
-const FIELDS: Field[] = (() => {
+const FIELDS_HU: Field[] = (() => {
   let t = PHOTOS_END;
   return RAW.map(([label, value]) => {
     const f = { label, value, startMs: t };
@@ -61,15 +62,18 @@ const FIELDS: Field[] = (() => {
     return f;
   });
 })();
-const TYPED_END = FIELDS[FIELDS.length - 1].startMs + FIELDS[FIELDS.length - 1].value.length * CHAR_MS;
+// Az angol szövegek ugyanazon az idővonalon futnak (a hosszuk a magyaréhoz igazodik).
+const RAW_EN: Array<[string, string]> = [["Address", "Budapest XIII., Visegrádi St."], ["Price", "HUF 79.9M"], ["Size / rooms", "70 m² · 3 rooms"]];
+const FIELDS_EN: Field[] = FIELDS_HU.map((f, i) => ({ label: RAW_EN[i][0], value: RAW_EN[i][1], startMs: f.startMs }));
+const TYPED_END = FIELDS_HU[FIELDS_HU.length - 1].startMs + FIELDS_HU[FIELDS_HU.length - 1].value.length * CHAR_MS;
 const ASPECT_AT = TYPED_END + 250;
 const MUSIC_AT = ASPECT_AT + 550;
 const PRESS_AT = MUSIC_AT + 800;
-const STEPS: Array<{ label: string; at: number }> = [
-  { label: "Nyitókártya a címmel és az árral…", at: PRESS_AT + 300 },
-  { label: "Feliratok a fotókra…", at: PRESS_AT + 900 },
-  { label: "Átmenetek, zene, zárókártya…", at: PRESS_AT + 1500 },
-];
+const STEP_LABELS = {
+  hu: ["Nyitókártya a címmel és az árral…", "Feliratok a fotókra…", "Átmenetek, zene, zárókártya…"],
+  en: ["Opening card with address and price…", "Captions on the photos…", "Transitions, music, closing card…"],
+};
+const STEP_AT = [PRESS_AT + 300, PRESS_AT + 900, PRESS_AT + 1500];
 const PHONE_AT = PRESS_AT + 2100;
 /** A telefonon ekkor indul a valódi videó. */
 const PLAY_AT = PHONE_AT + 500;
@@ -78,7 +82,11 @@ const DONE_AT = PLAY_AT + PLAY_MS;
 /** A dia teljes hossza — a forgó ennyit vár a váltással. */
 export const VIDEO_DEMO_MS = DONE_AT + 1800;
 
-const MUSIC = ["Nyugodt", "Modern", "Energikus"];
+const MUSIC_BY = { hu: ["Nyugodt", "Modern", "Energikus"], en: ["Calm", "Modern", "Energetic"] };
+const TEXT = {
+  hu: { head: "Videó · fotók és adatok", photos: "fotó", make: (c: number) => `Videó készítése · ${c} kredit`, done: "✓ MP4 kész" },
+  en: { head: "Video · photos and details", photos: "photos", make: (c: number) => `Create video · ${c} credit${c === 1 ? "" : "s"}`, done: "✓ MP4 ready" },
+};
 const MUSIC_PICK = 1;
 
 function typed(value: string, startMs: number, t: number): string {
@@ -86,7 +94,8 @@ function typed(value: string, startMs: number, t: number): string {
   return value.slice(0, Math.min(value.length, Math.floor((t - startMs) / CHAR_MS)));
 }
 
-export default function VideoDemo({ active, credits }: { active: boolean; credits: number }) {
+export default function VideoDemo({ active, credits, lang = "hu" }: { active: boolean; credits: number; lang?: Lang }) {
+  const tx = TEXT[lang], FIELDS = lang === "en" ? FIELDS_EN : FIELDS_HU, MUSIC = MUSIC_BY[lang];
   const [t, setT] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -117,7 +126,8 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
   const musicOn = t >= MUSIC_AT;
   const ready = musicOn;
   const pressed = t >= PRESS_AT && t < PRESS_AT + 280;
-  const step = [...STEPS].reverse().find((s) => t >= s.at && t < PHONE_AT);
+  const stepIdx = t < PHONE_AT ? STEP_AT.reduce((a, at, i) => (t >= at ? i : a), -1) : -1;
+  const step = stepIdx >= 0 ? { label: STEP_LABELS[lang][stepIdx] } : undefined;
   const phoneIn = t >= PHONE_AT;
   const playing = active && t >= PLAY_AT;
   const play = Math.min(Math.max(t - PLAY_AT, 0), PLAY_MS);
@@ -173,10 +183,10 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
       >
         <div className="mb-2.5 flex items-center justify-between">
           <div className="text-[9px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--twx-coral)" }}>
-            Videó · fotók és adatok
+            {tx.head}
           </div>
           <div className="text-[9px] tabular-nums" style={{ color: "var(--twx-on-dark-muted)" }}>
-            {photosIn}/{PHOTOS.length} fotó
+            {photosIn}/{PHOTOS.length} {tx.photos}
           </div>
         </div>
 
@@ -274,7 +284,7 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
             transition: "transform .12s, background .3s, box-shadow .3s, color .3s",
           }}
         >
-          Videó készítése · {credits} kredit
+          {tx.make(credits)}
         </button>
         <div className="mt-1.5 h-4 text-center text-[9px]" style={{ color: "var(--twx-on-dark-muted)" }}>
           {step && (
@@ -347,7 +357,7 @@ export default function VideoDemo({ active, credits }: { active: boolean; credit
         {/* „MP4 kész" */}
         <div className="absolute -right-2 top-6 flex items-center gap-1 rounded-full px-2 py-0.5 text-[7px] font-semibold"
           style={{ background: "rgba(22,163,74,0.9)", color: "#fff", opacity: done ? 1 : 0, transform: done ? "scale(1)" : "scale(0.8)", transition: "opacity .3s, transform .3s" }}>
-          ✓ MP4 kész
+          {tx.done}
         </div>
       </div>
     </div>

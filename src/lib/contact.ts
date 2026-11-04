@@ -23,6 +23,25 @@ export const CONTACT_TOPICS = [
   "Egyéb",
 ] as const;
 
+/** A témák és a mezőhibák angol szövege (az angol bemutatkozó oldal űrlapjai; a beküldött téma-érték magyar marad). */
+export const CONTACT_TOPIC_EN: Record<string, string> = {
+  "Általános kérdés": "General question",
+  "Kredit, fizetés, számla": "Credits, payment, invoice",
+  "Technikai segítség egy modulhoz": "Technical help with a module",
+  "Irodai fiók": "Office account",
+  "Egyedi fejlesztés, céges ajánlat": "Custom development, business quote",
+  "Közös modulfejlesztés szakmai partnerként": "Building a module together as a professional partner",
+  [MODULE_IDEA_TOPIC]: "An idea for a new module",
+  "Egyéb": "Other",
+};
+export const CONTACT_ERROR_EN: Record<string, string> = {
+  name: "Please enter your name.",
+  email: "Please enter a valid email address.",
+  phone: "Please enter a valid phone number (e.g. +36 30 123 4567) or leave it empty.",
+  topic: "Please choose a topic.",
+  message: "Please write a short message (10–3000 characters).",
+};
+
 export type ContactInput = { name: string; email: string; phone: string; topic: string; message: string };
 
 export function validateContact(input: Partial<Record<keyof ContactInput, unknown>>): { valid: boolean; errors: Partial<Record<keyof ContactInput, string>>; value: ContactInput } {

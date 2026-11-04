@@ -10,6 +10,22 @@ import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
 import IntroDollhouse from "@/components/floorplan3d/intro/IntroDollhouse";
 
+// Az angol bemutató szövegei (a magyarok a jelenetekben maradnak alapértelmezettként).
+const EN = {
+  steps: [
+    { t: "Upload the floor plan", d: "JPG, PNG or PDF, even from a property listing." },
+    { t: "We digitise it", d: "We recognise rooms, walls, doors and windows, and check the m²." },
+    { t: "You check and correct", d: "Wall in the wrong place? Grab and drag it. Door or window: one click on the opening card." },
+    { t: "True-to-scale 3D model, approval, link", d: "It builds up room by room, you rotate it and see the m² in every room. Approve it, and the buyer gets the walkable 3D flat link by email." },
+  ],
+  eyebrow: "New · 3D flat", h1: "Floor plan to walkable,", h2: "true-to-scale 3D flat",
+  lead: "Upload the floor plan and TWINX does the rest: a true-to-scale 3D model with m² checked room by room. Soon you can send it to buyers with a link.",
+  again: "↻ Replay", trust: "Illustrative demo: the module is in development.", upload: "Upload floor plan", uploadHint: "JPG, PNG or PDF, even from a listing",
+  rooms: "7/7 rooms OK", wall: "+35 cm · Bedroom 14.4 m²", balcony: "Balcony door", balconySub: "150 cm · Living room ↔ Balcony", door: "Door", glass: "Glass door", win: "Window", pass: "Passage",
+  width: "Width", leaf: "Leaves", doneTag: "✓ Glass door, closed: the 3D follows at once",
+};
+const ROOMS_EN: Record<string, string> = { Nappali: "Living room", "Hálószoba": "Bedroom", Szoba: "Room", "Fürdő": "Bathroom", "Előszoba": "Hallway", Konyha: "Kitchen", "Erkély": "Balcony" };
+
 const STEPS = [
   { t: "Töltsd fel az alaprajzot", d: "JPG, PNG vagy PDF — akár egy hirdetési lapról." },
   { t: "Digitalizáljuk", d: "Felismerjük a helyiségeket, falakat, ajtókat, ablakokat, és ellenőrizzük a m²-eket." },
@@ -24,11 +40,16 @@ const CUR3: Key[] = [{ t: 250, p: [231, 116] }, { t: 700, p: [231, 116], click: 
   { t: 3150, p: [131, 49], click: true }, { t: 3900, p: "glass" }, { t: 4300, p: "glass", click: true }, { t: 5200, p: [330, 250] }];
 const smooth = (t: number) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 
-export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, creditsExtend = 0, onStart, preview = false }: {
+export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, creditsExtend = 0, onStart, preview = false, lang = "hu" }: {
   opts: SceneOptions; style: StyleSheet | null; credits?: number; linkDays?: number; creditsExtend?: number; onStart?: () => void;
   /** „Hamarosan" előnézet (Prémium 3D, nem admin): nincs „Kezdjük", ár, kredit és link-napok — csak a bemutató + „Szemléltető" jelölés. */
   preview?: boolean;
+  lang?: "hu" | "en";
 }) {
+  const en = lang === "en";
+  const steps = en ? EN.steps : STEPS;
+  const room = (name: string) => (en ? ROOMS_EN[name] ?? name : name);
+  const area = (v: string) => (en ? v.replace(",", ".") : v);
   const [cur, setCur] = useState(0);
   const [run, setRun] = useState(0); // minden váltásnál új → a CSS-animációk elölről indulnak
   const rootRef = useRef<HTMLDivElement>(null);
@@ -136,30 +157,30 @@ export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, cre
         <rect x="270" y="244" width="24" height="34"/>
       </g>
       <g stroke="#9C8F80" strokeWidth="1" fill="#6E655C" fontSize="9" fontWeight="700">
-        <path d="M20 296H380M20 292V300M380 292V300"/><text x="200" y="303" textAnchor="middle" stroke="none">10,60</text>
-        <path d="M8 46V284M4 46H12M4 284H12"/><text x="6" y="168" textAnchor="middle" stroke="none" transform="rotate(-90 6 168)">7,00</text>
+        <path d="M20 296H380M20 292V300M380 292V300"/><text x="200" y="303" textAnchor="middle" stroke="none">{area("10,60")}</text>
+        <path d="M8 46V284M4 46H12M4 284H12"/><text x="6" y="168" textAnchor="middle" stroke="none" transform="rotate(-90 6 168)">{area("7,00")}</text>
       </g>
     </symbol>
     <symbol id="twt-planLabels" viewBox="0 0 400 304">
       <g fontWeight="800" fill="#8d2b1e" textAnchor="middle" fontSize="10">
-        <text x="126" y="64">NAPPALI</text><text x="126" y="74" fontSize="8" fontWeight="600">laminált · 22,4 m²</text>
-        <text x="320" y="142">HÁLÓSZOBA</text><text x="320" y="152" fontSize="8" fontWeight="600">laminált · 15,6 m²</text>
-        <text x="96" y="214" textAnchor="end">SZOBA</text><text x="96" y="224" fontSize="8" fontWeight="600" textAnchor="end">10,8 m²</text>
-        <text x="162" y="224">FÜRDŐ</text><text x="162" y="234" fontSize="8" fontWeight="600">6,8 m²</text>
-        <text x="247" y="214">ELŐSZOBA</text><text x="247" y="224" fontSize="8" fontWeight="600">10,2 m²</text>
-        <text x="330" y="230">KONYHA</text><text x="330" y="240" fontSize="8" fontWeight="600">8,2 m²</text>
-        <text x="185" y="32">ERKÉLY</text><text x="185" y="41" fontSize="8" fontWeight="600">4,8 m²</text>
+        <text x="126" y="64">{room("Nappali").toUpperCase()}</text><text x="126" y="74" fontSize="8" fontWeight="600">{en ? "laminate · 22.4 m²" : "laminált · 22,4 m²"}</text>
+        <text x="320" y="142">{room("Hálószoba").toUpperCase()}</text><text x="320" y="152" fontSize="8" fontWeight="600">{en ? "laminate · 15.6 m²" : "laminált · 15,6 m²"}</text>
+        <text x="96" y="214" textAnchor="end">{room("Szoba").toUpperCase()}</text><text x="96" y="224" fontSize="8" fontWeight="600" textAnchor="end">{area("10,8")} m²</text>
+        <text x="162" y="224">{room("Fürdő").toUpperCase()}</text><text x="162" y="234" fontSize="8" fontWeight="600">{area("6,8")} m²</text>
+        <text x="247" y="214">{room("Előszoba").toUpperCase()}</text><text x="247" y="224" fontSize="8" fontWeight="600">{area("10,2")} m²</text>
+        <text x="330" y="230">{room("Konyha").toUpperCase()}</text><text x="330" y="240" fontSize="8" fontWeight="600">{area("8,2")} m²</text>
+        <text x="185" y="32">{room("Erkély").toUpperCase()}</text><text x="185" y="41" fontSize="8" fontWeight="600">{area("4,8")} m²</text>
       </g>
     </symbol>
       </defs></svg>
       <div className="twt-intro">
         <div className="twt-glow" />
         <div className="twt-txt">
-          <span className="twt-eyebrow">Új · 3D lakás</span>
-          <h1 className="twt-h font-display">Alaprajzból bejárható,<br />méretpontos 3D lakás</h1>
-          <p className="twt-lead">Feltöltöd az alaprajzot — a többit a TWINX végzi: méretpontos 3D modell, szobánként ellenőrzött m²-rel. Hamarosan a vevőnek is elküldheted egy linkkel.</p>
+          <span className="twt-eyebrow">{en ? EN.eyebrow : "Új · 3D lakás"}</span>
+          <h1 className="twt-h font-display">{en ? EN.h1 : "Alaprajzból bejárható,"}<br />{en ? EN.h2 : "méretpontos 3D lakás"}</h1>
+          <p className="twt-lead">{en ? EN.lead : "Feltöltöd az alaprajzot — a többit a TWINX végzi: méretpontos 3D modell, szobánként ellenőrzött m²-rel. Hamarosan a vevőnek is elküldheted egy linkkel."}</p>
           <div className="twt-steps">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <button type="button" key={s.t} data-step={i} onClick={() => go(i)} className={`twt-st${i === cur ? " on" : ""}${i < cur ? " done" : ""}`}>
                 <span className="twt-n">{i + 1}</span>
                 <span style={{ flex: 1 }}><b>{s.t}</b><small>{s.d}</small><span className="twt-bar"><i data-bar /></span></span>
@@ -168,8 +189,8 @@ export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, cre
           </div>
           {preview ? (
             <div className="twt-cta">
-              <button type="button" className="twt-ghost" onClick={() => go(0)}>↻ Újra</button>
-              <span className="twt-trust">Szemléltető bemutató – a modul fejlesztés alatt áll.</span>
+              <button type="button" className="twt-ghost" onClick={() => go(0)}>{en ? EN.again : "↻ Újra"}</button>
+              <span className="twt-trust">{en ? EN.trust : "Szemléltető bemutató – a modul fejlesztés alatt áll."}</span>
             </div>
           ) : (
           <div className="twt-cta">
@@ -184,12 +205,12 @@ export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, cre
           {cur === 0 && (
             <div className="twt-scene twt-s1 on">
               <div className="twt-card twt-up">
-                <p className="twt-display" style={{fontWeight:"800",fontSize:"15px",marginBottom:"10px"}}>Alaprajz feltöltése</p>
+                <p className="twt-display" style={{fontWeight:"800",fontSize:"15px",marginBottom:"10px"}}>{en ? EN.upload : "Alaprajz feltöltése"}</p>
                 <div className="twt-drop">
                   <div className="twt-paper"><svg viewBox="0 0 400 304" width="240" height="182"><use href="#twt-plan"/><use href="#twt-planLabels"/></svg></div>
                 </div>
                 <div className="twt-prog"><i></i></div>
-                <p style={{fontSize:"12px",color:"var(--muted)",marginTop:"8px"}}>JPG, PNG vagy PDF — akár hirdetési lapról is</p>
+                <p style={{fontSize:"12px",color:"var(--muted)",marginTop:"8px"}}>{en ? EN.uploadHint : "JPG, PNG vagy PDF — akár hirdetési lapról is"}</p>
               </div>
             </div>
           )}
@@ -199,15 +220,15 @@ export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, cre
                 <svg viewBox="0 0 400 304" width="368" height="280">
                   <use href="#twt-plan"/>
                   <path className="twt-trace" d="M20 46H232V168H20Z M232 46H380V168H232Z M20 168H128V284H20Z M128 168H196V284H128Z M196 168H298V284H196Z M298 168H380V284H298Z M60 12H215V46H60Z"/>
-                  <g className="twt-rl" style={{animationDelay:"1.2s"}}><rect x="84" y="56" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="126" y="66" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Nappali</text><text x="126" y="75" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">22,4 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"1.6s"}}><rect x="278" y="134" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="320" y="144" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Hálószoba</text><text x="320" y="153" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">15,6 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"2.0s"}}><rect x="40" y="206" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="75" y="216" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Szoba</text><text x="75" y="225" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">10,8 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"2.3s"}}><rect x="130" y="216" width="64" height="22" rx="6" fill="#fff" opacity=".92"/><text x="162" y="226" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Fürdő</text><text x="162" y="235" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">6,8 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"2.6s"}}><rect x="211" y="206" width="72" height="22" rx="6" fill="#fff" opacity=".92"/><text x="247" y="216" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Előszoba</text><text x="247" y="225" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">10,2 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"2.9s"}}><rect x="303" y="222" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="338" y="232" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Konyha</text><text x="338" y="241" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">8,2 m² ✓</text></g>
-                  <g className="twt-rl" style={{animationDelay:"3.2s"}}><rect x="150" y="18" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="185" y="28" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">Erkély</text><text x="185" y="37" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">4,8 m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"1.2s"}}><rect x="84" y="56" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="126" y="66" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Nappali")}</text><text x="126" y="75" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("22,4")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"1.6s"}}><rect x="278" y="134" width="84" height="22" rx="6" fill="#fff" opacity=".92"/><text x="320" y="144" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Hálószoba")}</text><text x="320" y="153" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("15,6")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"2.0s"}}><rect x="40" y="206" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="75" y="216" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Szoba")}</text><text x="75" y="225" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("10,8")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"2.3s"}}><rect x="130" y="216" width="64" height="22" rx="6" fill="#fff" opacity=".92"/><text x="162" y="226" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Fürdő")}</text><text x="162" y="235" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("6,8")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"2.6s"}}><rect x="211" y="206" width="72" height="22" rx="6" fill="#fff" opacity=".92"/><text x="247" y="216" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Előszoba")}</text><text x="247" y="225" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("10,2")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"2.9s"}}><rect x="303" y="222" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="338" y="232" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Konyha")}</text><text x="338" y="241" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("8,2")} m² ✓</text></g>
+                  <g className="twt-rl" style={{animationDelay:"3.2s"}}><rect x="150" y="18" width="70" height="22" rx="6" fill="#fff" opacity=".92"/><text x="185" y="28" fontSize="9.5" fontWeight="800" textAnchor="middle" fill="#2B2520">{room("Erkély")}</text><text x="185" y="37" fontSize="8" fontWeight="700" textAnchor="middle" fill="#2f7a4f">{area("4,8")} m² ✓</text></g>
                 </svg>
-                <div className="twt-okpill" style={{position:"absolute",right:"26px",top:"24px",background:"rgba(47,158,95,.16)",color:"#2f7a4f",fontSize:"12px",fontWeight:"800",padding:"6px 12px",borderRadius:"99px"}}>7/7 helyiség rendben</div>
+                <div className="twt-okpill" style={{position:"absolute",right:"26px",top:"24px",background:"rgba(47,158,95,.16)",color:"#2f7a4f",fontSize:"12px",fontWeight:"800",padding:"6px 12px",borderRadius:"99px"}}>{en ? EN.rooms : "7/7 helyiség rendben"}</div>
               </div>
             </div>
           )}
@@ -221,30 +242,30 @@ export default function ModuleTour({ opts, style, credits = 0, linkDays = 0, cre
                   <g className="twt-sel" data-at="2900" data-off="4300"><rect x="96" y="14" width="58" height="38" rx="6" fill="none" stroke="#EF7A5A" strokeWidth="2" strokeDasharray="4 3"/></g>
                   <g data-at="4300"><path d="M100 46H150" stroke="#2F7F86" strokeWidth="2.4"/><path d="M100 46V20M150 46V20" stroke="#2F7F86" strokeWidth="2"/><rect x="104" y="44" width="42" height="4" fill="#BFD9E8"/></g>
                 </svg>
-                <span className="twt-tag" data-at="900" data-off="2500" style={{left:"238px",top:"96px"}}>+35 cm · Háló 14,4 m²</span>
+                <span className="twt-tag" data-at="900" data-off="2500" style={{left:"238px",top:"96px"}}>{en ? EN.wall : "+35 cm · Háló 14,4 m²"}</span>
                 <div className="twt-ocard" data-at="3250" style={{left:"148px",top:"50px"}}>
-                  <div className="twt-oh"><b>Erkélyajtó</b><span>150 cm · Nappali ↔ Erkély</span></div>
+                  <div className="twt-oh"><b>{en ? EN.balcony : "Erkélyajtó"}</b><span>{en ? EN.balconySub : "150 cm · Nappali ↔ Erkély"}</span></div>
                   <div className="twt-tls">
-                    <span className="twt-tl on" data-unsel="4300"><svg><use href="#twt-icDoor"/></svg>Ajtó</span>
-                    <span className="twt-tl" data-k="glass" data-sel="4300"><svg><use href="#twt-icGlass"/></svg>Üvegajtó</span>
-                    <span className="twt-tl"><svg><use href="#twt-icWin"/></svg>Ablak</span>
-                    <span className="twt-tl"><svg><use href="#twt-icPass"/></svg>Átjáró</span>
+                    <span className="twt-tl on" data-unsel="4300"><svg><use href="#twt-icDoor"/></svg>{en ? EN.door : "Ajtó"}</span>
+                    <span className="twt-tl" data-k="glass" data-sel="4300"><svg><use href="#twt-icGlass"/></svg>{en ? EN.glass : "Üvegajtó"}</span>
+                    <span className="twt-tl"><svg><use href="#twt-icWin"/></svg>{en ? EN.win : "Ablak"}</span>
+                    <span className="twt-tl"><svg><use href="#twt-icPass"/></svg>{en ? EN.pass : "Átjáró"}</span>
                   </div>
-                  <div className="twt-row"><span>Szélesség</span><b>150 cm</b></div>
+                  <div className="twt-row"><span>{en ? EN.width : "Szélesség"}</span><b>150 cm</b></div>
                   <div className="twt-sl"><i style={{width:"62%"}}></i></div>
-                  <div className="twt-row"><span>Szárny</span><span className="twt-caps"><b>1</b><b className="on">2</b></span></div>
+                  <div className="twt-row"><span>{en ? EN.leaf : "Szárny"}</span><span className="twt-caps"><b>1</b><b className="on">2</b></span></div>
                 </div>
-                <span className="twt-tag" data-at="4700" style={{left:"150px",top:"230px",background:"rgba(47,158,95,.92)"}}>✓ Üvegajtó, becsukva — a 3D azonnal követi</span>
+                <span className="twt-tag" data-at="4700" style={{left:"150px",top:"230px",background:"rgba(47,158,95,.92)"}}>{en ? EN.doneTag : "✓ Üvegajtó, becsukva — a 3D azonnal követi"}</span>
                 <span className="twt-cur" data-cur><svg width="18" height="22" viewBox="0 0 18 22"><path d="M2 1l14 10-6 1 4 7-3 1.5-4-7-5 4z" fill="#fff" stroke="#12100e" strokeWidth="1.4" strokeLinejoin="round"/></svg><i data-ring></i></span>
               </div>
             </div>
           )}
           {/* a 3D-jelenetek végig a helyükön (előre betöltve), csak az aktív látszik és fut */}
           <div className="twt-3dbox" style={{ opacity: cur === 3 ? 1 : 0, pointerEvents: "none" }}>
-            <IntroDollhouse opts={opts} style={style} playing={cur === 3} restart={run} onProgress={cur === 3 ? progress : undefined} onEnd={next4} />
+            <IntroDollhouse lang={lang} opts={opts} style={style} playing={cur === 3} restart={run} onProgress={cur === 3 ? progress : undefined} onEnd={next4} />
           </div>
           <div className="twt-dots">
-            {STEPS.map((s, i) => <button type="button" key={s.t} aria-label={s.t} className={i === cur ? "on" : ""} onClick={() => go(i)} />)}
+            {steps.map((s, i) => <button type="button" key={s.t} aria-label={s.t} className={i === cur ? "on" : ""} onClick={() => go(i)} />)}
           </div>
         </div>
       </div>

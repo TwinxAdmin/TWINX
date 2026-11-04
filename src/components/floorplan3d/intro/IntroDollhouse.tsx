@@ -40,20 +40,34 @@ const T = {
   done: BUILD_END + 7000,        // „Elküldve — már bejárhatja"
 };
 
-const fmtArea = (a: number) => `${a.toLocaleString("hu-HU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m²`;
+const fmtArea = (a: number, lang: "hu" | "en") => `${a.toLocaleString(lang === "en" ? "en-GB" : "hu-HU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m²`;
+const ROOM_EN: Record<string, string> = { nappali: "Living room", halo: "Bedroom", szoba: "Room", furdo: "Bathroom", eloszoba: "Hallway", konyha: "Kitchen", erkely: "Balcony" };
+const TEXT = {
+  hu: {
+    aria: "Bemutató: méretpontos 3D modell, elfogadás után e-mailben megy a link az érdeklődőnek", tag: "✓ Méretpontos 3D modell", tagX: " — szobánként ellenőrzött m²", soon: "HAMAROSAN",
+    q: "Minden rendben a modellen?", qs: "Helyiségek, méretek, nyílászárók — ellenőrizve", accept: "Elfogadom", accepted: "✓ Elfogadva", link: "Link elkészült", url: "twinx.hu/3d/mintalakas",
+    mail: "TWINX · e-mail", open: "Bejárható 3D lakás · Megnyitás →", who: "Érdeklődő", cap: "Egy kattintás a jóváhagyáshoz — a link azonnal elkészül.", done: "✓ E-mailben elküldve — az érdeklődő már bejárhatja a lakást",
+  },
+  en: {
+    aria: "Demo: true-to-scale 3D model; once approved, the link goes to the prospective buyer by email", tag: "✓ True-to-scale 3D model", tagX: " with checked m² per room", soon: "COMING SOON",
+    q: "Is everything right on the model?", qs: "Rooms, sizes, doors and windows checked", accept: "Approve", accepted: "✓ Approved", link: "Link ready", url: "twinx.hu/3d/sample",
+    mail: "TWINX · email", open: "Walkable 3D flat · Open →", who: "Buyer", cap: "One click to approve, and the link is ready at once.", done: "✓ Sent by email: the buyer can walk through the flat now",
+  },
+};
 const centroid = (poly: [number, number][]) => poly.reduce((a, p) => [a[0] + p[0] / poly.length, a[1] + p[1] / poly.length], [0, 0]);
 
-export default function IntroDollhouse({ opts, style, playing, restart = 0, onProgress, onEnd }: {
+export default function IntroDollhouse({ opts, style, playing, restart = 0, onProgress, onEnd, lang = "hu" }: {
   opts: SceneOptions; style: StyleSheet | null; playing: boolean;
   /** Minden új értéknél elölről indul (pl. a 4. lépésre kattintva, miközben már ez fut). */
   restart?: number;
-  onProgress?: (f: number) => void; onEnd?: () => void;
+  onProgress?: (f: number) => void; onEnd?: () => void; lang?: "hu" | "en";
 }) {
+  const tx = TEXT[lang];
   const boxRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const playRef = useRef(playing), progRef = useRef(onProgress), endRef = useRef(onEnd), restartRef = useRef(restart);
   useEffect(() => { playRef.current = playing; progRef.current = onProgress; endRef.current = onEnd; restartRef.current = restart; }, [playing, onProgress, onEnd, restart]);
-  const labels = useMemo(() => DEMO_PLAN.rooms.map((r) => ({ id: r.id, name: r.name, area: r.declaredArea ?? 0, c: centroid(r.polygon) })), []);
+  const labels = useMemo(() => DEMO_PLAN.rooms.map((r) => ({ id: r.id, name: lang === "en" ? ROOM_EN[r.id] ?? r.name : r.name, area: r.declaredArea ?? 0, c: centroid(r.polygon) })), [lang]);
 
   useEffect(() => {
     const host = hostRef.current, box = boxRef.current;
@@ -232,36 +246,36 @@ export default function IntroDollhouse({ opts, style, playing, restart = 0, onPr
   }, [opts, style, labels]);
 
   return (
-    <div ref={boxRef} className="twt-3d relative h-full w-full select-none" aria-label="Bemutató: méretpontos 3D modell, elfogadás után e-mailben megy a link az érdeklődőnek">
+    <div ref={boxRef} className="twt-3d relative h-full w-full select-none" aria-label={tx.aria}>
       <style>{CSS}</style>
       <div ref={hostRef} className="absolute inset-0" />
       {labels.map((l) => (
         <span key={l.id} data-room={l.id} className="twt-room" style={{ opacity: 0 }}>
-          <b>{l.name}</b><span>{fmtArea(l.area)}</span>
+          <b>{l.name}</b><span>{fmtArea(l.area, lang)}</span>
         </span>
       ))}
       <span data-at={T.tag} className="twt-tag" style={{ background: "rgba(47,158,95,.9)", left: "50%", transform: "translateX(-50%)", top: 6 }}>
-        ✓ Méretpontos 3D modell<span className="twt-tag-x"> — szobánként ellenőrzött m²</span>
+        {tx.tag}<span className="twt-tag-x">{tx.tagX}</span>
       </span>
 
       {/* ===== ZÁRÓ KÁRTYA: elfogadás → link → e-mail az érdeklődőnek (fix méret, a rétegek egymásba úsznak) ===== */}
       <div className="twt-fin" data-at={T.accept}>
-        <span className="twt-soon2">HAMAROSAN</span>
+        <span className="twt-soon2">{tx.soon}</span>
         {/* 1. réteg: elfogadás */}
         <div className="twt-fl" data-at={T.accept} data-off={T.link}>
           <div className="twt-fl-txt">
-            <b>Minden rendben a modellen?</b>
-            <small>Helyiségek, méretek, nyílászárók — ellenőrizve</small>
+            <b>{tx.q}</b>
+            <small>{tx.qs}</small>
           </div>
           <span className="twt-acc" data-accept data-on={T.click + 120}>
-            <em className="a">Elfogadom</em><em className="b">✓ Elfogadva</em>
+            <em className="a">{tx.accept}</em><em className="b">{tx.accepted}</em>
           </span>
         </div>
         {/* 2. réteg: link → boríték → telefon */}
         <div className="twt-fl twt-fl2" data-at={T.link}>
           <div className="twt-chip">
             <i aria-hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg></i>
-            <span><b>Link elkészült</b><small>twinx.hu/3d/mintalakas</small></span>
+            <span><b>{tx.link}</b><small>{tx.url}</small></span>
           </div>
           <div className="twt-path" data-path>
             <span className="twt-env" data-env aria-hidden>
@@ -271,15 +285,15 @@ export default function IntroDollhouse({ opts, style, playing, restart = 0, onPr
           <div className="twt-phone" data-on={T.deliver}>
             <div className="twt-scr">
               <span className="twt-notif">
-                <b>TWINX · e-mail</b>
-                <small>Bejárható 3D lakás · Megnyitás →</small>
+                <b>{tx.mail}</b>
+                <small>{tx.open}</small>
               </span>
             </div>
-            <span className="twt-who">Érdeklődő</span>
+            <span className="twt-who">{tx.who}</span>
           </div>
         </div>
-        <p className="twt-fcap" data-at={T.accept} data-off={T.done}>Egy kattintás a jóváhagyáshoz — a link azonnal elkészül.</p>
-        <p className="twt-fcap ok" data-at={T.done}>✓ E-mailben elküldve — az érdeklődő már bejárhatja a lakást</p>
+        <p className="twt-fcap" data-at={T.accept} data-off={T.done}>{tx.cap}</p>
+        <p className="twt-fcap ok" data-at={T.done}>{tx.done}</p>
       </div>
 
       <span data-cur className="twt-cur" style={{ left: 0, top: 0 }}>

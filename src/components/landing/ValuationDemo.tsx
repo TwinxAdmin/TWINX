@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AnimatedNumber from "@/components/motion/AnimatedNumber";
+import { numberLocale, type Lang } from "@/lib/lang";
 
 /** Az A4-es lap TERVEZÉSI mérete (px). A színpad magasságához skálázzuk, így a
  *  tipográfia minden képernyőn ugyanaz marad, csak kisebb/nagyobb a lap. */
@@ -39,7 +40,7 @@ const RAW: Array<[string, string]> = [
   ["Fűtés", "Gázcirkó"],
   ["Erkély / tájolás", "4 m² / DK"],
 ];
-const FIELDS: Field[] = (() => {
+const FIELDS_HU: Field[] = (() => {
   let t = 350;
   return RAW.map(([label, value]) => {
     const f = { label, value, startMs: t };
@@ -47,14 +48,19 @@ const FIELDS: Field[] = (() => {
     return f;
   });
 })();
-const TYPED_END = FIELDS[FIELDS.length - 1].startMs + FIELDS[FIELDS.length - 1].value.length * CHAR_MS;
-const PRESS_AT = TYPED_END + 450;
-const STEPS: Array<{ label: string; at: number }> = [
-  { label: "Piaci adatok gyűjtése a környékről…", at: PRESS_AT + 300 },
-  { label: "14 hasonló ingatlan összevetése…", at: PRESS_AT + 900 },
-  { label: "Korrekciók: állapot, emelet, év, fűtés…", at: PRESS_AT + 1500 },
-  { label: "Arculatos riport készül…", at: PRESS_AT + 2100 },
+// Az angol szövegek ugyanazon az idővonalon futnak (a hosszuk a magyaréhoz igazodik).
+const RAW_EN: Array<[string, string]> = [
+  ["City", "Budapest XIII."], ["Street", "Visegrádi St."], ["Property type", "Brick flat"], ["Floor area", "62 m²"], ["Rooms", "2.5 rooms"],
+  ["Floor / lift", "3rd / yes"], ["Year built", "2015"], ["Condition", "Like new"], ["Heating", "Gas boiler"], ["Balcony / facing", "4 m² / SE"],
 ];
+const FIELDS_EN: Field[] = FIELDS_HU.map((f, i) => ({ label: RAW_EN[i][0], value: RAW_EN[i][1], startMs: f.startMs }));
+const TYPED_END = FIELDS_HU[FIELDS_HU.length - 1].startMs + FIELDS_HU[FIELDS_HU.length - 1].value.length * CHAR_MS;
+const PRESS_AT = TYPED_END + 450;
+const STEP_LABELS = {
+  hu: ["Piaci adatok gyűjtése a környékről…", "14 hasonló ingatlan összevetése…", "Korrekciók: állapot, emelet, év, fűtés…", "Arculatos riport készül…"],
+  en: ["Collecting local market data…", "Comparing 14 similar properties…", "Adjusting: condition, floor, year, heating…", "Building your branded report…"],
+};
+const STEP_AT = [PRESS_AT + 300, PRESS_AT + 900, PRESS_AT + 1500, PRESS_AT + 2100];
 const REPORT_AT = PRESS_AT + 2700;
 const PRICE_AT = REPORT_AT + 400;
 const REASON_AT = REPORT_AT + 1200;
@@ -66,20 +72,42 @@ export const VALUATION_DEMO_MS = DONE_AT + 1800;
 const PRICE = 79_900_000;
 const RANGE: [number, number] = [75_900_000, 83_900_000];
 const PPM2 = Math.round(PRICE / 62);
-const REASONS = [
-  "Újszerű, 2015-ös építés: +8% a kerületi átlaghoz képest",
-  "62 m²: a legkeresettebb méretsáv a XIII. kerületben",
-  "3. emelet lifttel, DK-i tájolás, erkély: +3%",
-  "Korszerű gázcirkó, alacsony rezsi: +1%",
-  "14 hasonló, 90 napon belüli hirdetés az alap",
-];
+const REASONS_BY = {
+  hu: [
+    "Újszerű, 2015-ös építés: +8% a kerületi átlaghoz képest",
+    "62 m²: a legkeresettebb méretsáv a XIII. kerületben",
+    "3. emelet lifttel, DK-i tájolás, erkély: +3%",
+    "Korszerű gázcirkó, alacsony rezsi: +1%",
+    "14 hasonló, 90 napon belüli hirdetés az alap",
+  ],
+  en: [
+    "Like new, built in 2015: +8% vs the district average",
+    "62 m²: the most sought-after size in District XIII",
+    "3rd floor with lift, SE facing, balcony: +3%",
+    "Modern gas boiler, low running costs: +1%",
+    "Based on 14 similar listings from the last 90 days",
+  ],
+};
+const TEXT = {
+  hu: {
+    head: "Értékbecslés · az ingatlan adatai", fields: "mező", start: "Értékbecslés indítása · 1 kredit", date: "2026. szeptember", kicker: "Piaci értékbecslés",
+    address: "Budapest XIII., Visegrádi utca", spec: "Tégla lakás · 62 m² · 2 + 1 fél · 3. emelet", est: "Becsült piaci érték", cur: "Ft", band: "Ft/m² · ±5% sáv", mCur: "M Ft",
+    data: "Az ingatlan adatai", why: "Miért ennyi az ár?", photo: "fotó", pdf: "✓ PDF letöltve",
+  },
+  en: {
+    head: "Valuation · property details", fields: "fields", start: "Start valuation · 1 credit", date: "September 2026", kicker: "Market valuation",
+    address: "Budapest XIII, Visegrádi Street", spec: "Brick flat · 62 m² · 2.5 rooms · 3rd floor", est: "Estimated market value", cur: "HUF", band: "HUF/m² · ±5% range", mCur: "M HUF",
+    data: "Property details", why: "Why this price?", photo: "photo", pdf: "✓ PDF downloaded",
+  },
+};
 
 function typed(value: string, startMs: number, t: number): string {
   if (t < startMs) return "";
   return value.slice(0, Math.min(value.length, Math.floor((t - startMs) / CHAR_MS)));
 }
 
-export default function ValuationDemo({ active }: { active: boolean }) {
+export default function ValuationDemo({ active, lang = "hu" }: { active: boolean; lang?: Lang }) {
+  const tx = TEXT[lang], FIELDS = lang === "en" ? FIELDS_EN : FIELDS_HU, REASONS = REASONS_BY[lang], loc = numberLocale(lang);
   const [t, setT] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -107,7 +135,8 @@ export default function ValuationDemo({ active }: { active: boolean }) {
   const filled = FIELDS.filter((f) => typed(f.value, f.startMs, t).length === f.value.length).length;
   const allTyped = filled === FIELDS.length;
   const pressed = t >= PRESS_AT && t < PRESS_AT + 280;
-  const step = [...STEPS].reverse().find((s) => t >= s.at && t < REPORT_AT);
+  const stepIdx = t < REPORT_AT ? STEP_AT.reduce((a, at, i) => (t >= at ? i : a), -1) : -1;
+  const step = stepIdx >= 0 ? { label: STEP_LABELS[lang][stepIdx] } : undefined;
   const reportIn = t >= REPORT_AT;
   const priceOn = t >= PRICE_AT;
   const done = t >= DONE_AT;
@@ -135,10 +164,10 @@ export default function ValuationDemo({ active }: { active: boolean }) {
       >
         <div className="mb-2.5 flex items-center justify-between">
           <div className="text-[9px] font-semibold uppercase tracking-[0.2em]" style={{ color: "var(--twx-coral)" }}>
-            Értékbecslés · az ingatlan adatai
+            {tx.head}
           </div>
           <div className="text-[9px] tabular-nums" style={{ color: "var(--twx-on-dark-muted)" }}>
-            {filled}/{FIELDS.length} mező
+            {filled}/{FIELDS.length} {tx.fields}
           </div>
         </div>
 
@@ -182,7 +211,7 @@ export default function ValuationDemo({ active }: { active: boolean }) {
             transition: "transform .12s, background .3s, box-shadow .3s, color .3s",
           }}
         >
-          Értékbecslés indítása · 1 kredit
+          {tx.start}
         </button>
         <div className="mt-1.5 h-4 text-center text-[9px]" style={{ color: "var(--twx-on-dark-muted)" }}>
           {step && (
@@ -215,36 +244,36 @@ export default function ValuationDemo({ active }: { active: boolean }) {
             <span className="flex h-4 w-4 items-center justify-center rounded text-[8px] font-bold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>T</span>
             <span className="text-[9px] font-semibold">TWINX partner</span>
           </div>
-          <span className="text-[7px]" style={{ color: "var(--twx-on-dark-muted)" }}>2026. szeptember</span>
+          <span className="text-[7px]" style={{ color: "var(--twx-on-dark-muted)" }}>{tx.date}</span>
         </div>
 
         <div className="flex flex-1 flex-col px-3 py-2">
           {/* Cím + cím */}
-          <div className="text-[7px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--twx-coral)" }}>Piaci értékbecslés</div>
-          <div className="font-display mt-0.5 text-[11px] font-semibold leading-tight">Budapest XIII., Visegrádi utca</div>
-          <div className="text-[7px]" style={{ color: "var(--twx-ink-muted)" }}>Tégla lakás · 62 m² · 2 + 1 fél · 3. emelet</div>
+          <div className="text-[7px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--twx-coral)" }}>{tx.kicker}</div>
+          <div className="font-display mt-0.5 text-[11px] font-semibold leading-tight">{tx.address}</div>
+          <div className="text-[7px]" style={{ color: "var(--twx-ink-muted)" }}>{tx.spec}</div>
 
           {/* Ár-doboz */}
           <div className="mt-2 rounded-md p-2" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
-            <div className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>Becsült piaci érték</div>
+            <div className="text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-coral)" }}>{tx.est}</div>
             <div className="font-display mt-0.5 whitespace-nowrap text-[15px] font-semibold leading-none">
-              <AnimatedNumber value={priceOn ? PRICE : 0} duration={1500} className="tabular-nums" /> Ft
+              <AnimatedNumber value={priceOn ? PRICE : 0} duration={1500} className="tabular-nums" locale={loc} /> {tx.cur}
             </div>
             <div className="mt-0.5 text-[7px]" style={{ color: "var(--twx-on-dark-muted)" }}>
-              {PPM2.toLocaleString("hu-HU")} Ft/m² · ±5% sáv
+              {PPM2.toLocaleString(loc)} {tx.band}
             </div>
             <div className="relative mt-1.5 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.14)" }}>
               <div className="absolute inset-y-0 rounded-full" style={{ left: "16%", right: "16%", background: "rgba(239,122,90,0.45)" }} />
               <div className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: "50%", background: "var(--twx-coral)", boxShadow: "0 0 0 2px var(--twx-dark)" }} />
             </div>
             <div className="mt-0.5 flex justify-between text-[6.5px] tabular-nums" style={{ color: "var(--twx-on-dark-muted)" }}>
-              <span>{(RANGE[0] / 1e6).toLocaleString("hu-HU", { maximumFractionDigits: 1 })} M Ft</span>
-              <span>{(RANGE[1] / 1e6).toLocaleString("hu-HU", { maximumFractionDigits: 1 })} M Ft</span>
+              <span>{(RANGE[0] / 1e6).toLocaleString(loc, { maximumFractionDigits: 1 })} {tx.mCur}</span>
+              <span>{(RANGE[1] / 1e6).toLocaleString(loc, { maximumFractionDigits: 1 })} {tx.mCur}</span>
             </div>
           </div>
 
           {/* Adattábla — két oszlop */}
-          <div className="mt-2 text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>Az ingatlan adatai</div>
+          <div className="mt-2 text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>{tx.data}</div>
           <div className="mt-0.5 grid grid-cols-2 gap-x-2">
             {FIELDS.map((f) => (
               <div key={f.label} className="flex justify-between gap-1 border-b py-[2px] text-[7px]" style={{ borderColor: "var(--twx-line)" }}>
@@ -255,7 +284,7 @@ export default function ValuationDemo({ active }: { active: boolean }) {
           </div>
 
           {/* Indoklások */}
-          <div className="mt-2 text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>Miért ennyi az ár?</div>
+          <div className="mt-2 text-[7px] font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>{tx.why}</div>
           <ul className="mt-0.5 space-y-[2px]">
             {REASONS.map((r, i) => {
               const on = t >= REASON_AT + i * REASON_STEP;
@@ -278,7 +307,7 @@ export default function ValuationDemo({ active }: { active: boolean }) {
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m21 16-5-5-8 8" />
                 </svg>
-                <span className="text-[6.5px] font-semibold">{n}. fotó</span>
+                <span className="text-[6.5px] font-semibold">{lang === "en" ? `${tx.photo} ${n}` : `${n}. ${tx.photo}`}</span>
               </div>
             ))}
           </div>
@@ -293,7 +322,7 @@ export default function ValuationDemo({ active }: { active: boolean }) {
         {/* „PDF letöltve" */}
         <div className="absolute right-2 top-9 flex items-center gap-1 rounded-full px-2 py-0.5 text-[7px] font-semibold"
           style={{ background: "rgba(22,163,74,0.14)", color: "#15803d", opacity: done ? 1 : 0, transform: done ? "scale(1)" : "scale(0.8)", transition: "opacity .3s, transform .3s" }}>
-          ✓ PDF letöltve
+          {tx.pdf}
         </div>
       </div>
     </div>

@@ -1,6 +1,11 @@
 // HERO-ÁBRA: a te adataid → a TWINX egyedi modulod → kész anyagok.
 // Tiszta SVG, beépített (SMIL) animációval: az adatcsomagok végigfutnak a vonalakon,
 // a középső „motor” lassan forog és dereng. Nincs külső kép, nincs JS.
+const TEXT_EN = {
+  aria: "From your data, the TWINX custom module creates ready-to-use materials", module: "custom module",
+  in: [["Price list", "Excel"], ["Client data", "CRM / sheets"], ["Brand", "logo, colours"]],
+  out: [["Quote", "branded PDF"], ["Ad", "ready to post"], ["Report", "weekly summary"]],
+};
 const IN = [
   { y: 70, label: "Árlista", sub: "Excel" },
   { y: 170, label: "Ügyféladatok", sub: "CRM / táblázat" },
@@ -12,12 +17,13 @@ const OUT = [
   { y: 270, label: "Riport", sub: "heti összesítő" },
 ];
 
-export default function HeroFlow() {
+export default function HeroFlow({ lang = "hu" }: { lang?: "hu" | "en" }) {
+  const en = lang === "en";
   const cx = 260, cy = 170;
   const pathIn = (y: number) => `M118 ${y} C 180 ${y}, 190 ${cy}, ${cx - 62} ${cy}`;
   const pathOut = (y: number) => `M${cx + 62} ${cy} C 330 ${cy}, 340 ${y}, 402 ${y}`;
   return (
-    <svg viewBox="0 0 520 340" className="h-auto w-full" role="img" aria-label="A te adataidból a TWINX egyedi modul kész anyagokat készít">
+    <svg viewBox="0 0 520 340" className="h-auto w-full" role="img" aria-label={en ? TEXT_EN.aria : "A te adataidból a TWINX egyedi modul kész anyagokat készít"}>
       <defs>
         <radialGradient id="cm-glow" cx="50%" cy="50%" r="50%">
           <stop offset="0" stopColor="#ef7a5a" stopOpacity="0.55" />
@@ -51,8 +57,8 @@ export default function HeroFlow() {
       {IN.map((n, i) => (
         <g key={`ni${i}`} transform={`translate(8 ${n.y - 26})`}>
           <rect width="110" height="52" rx="12" fill="rgba(255,255,255,0.05)" stroke="rgba(244,239,231,0.18)" />
-          <text x="14" y="23" fill="#f4efe7" fontSize="13" fontWeight="600">{n.label}</text>
-          <text x="14" y="40" fill="#a79f94" fontSize="10.5">{n.sub}</text>
+          <text x="14" y="23" fill="#f4efe7" fontSize="13" fontWeight="600">{en ? TEXT_EN.in[i][0] : n.label}</text>
+          <text x="14" y="40" fill="#a79f94" fontSize="10.5">{en ? TEXT_EN.in[i][1] : n.sub}</text>
         </g>
       ))}
 
@@ -70,15 +76,15 @@ export default function HeroFlow() {
         </g>
         <circle r="46" fill="#1c1815" stroke="rgba(244,239,231,0.25)" />
         <text y="-6" textAnchor="middle" fill="#f4efe7" fontSize="14" fontWeight="700" letterSpacing="1.5">TWINX</text>
-        <text y="12" textAnchor="middle" fill="#ef7a5a" fontSize="10.5" fontWeight="600">egyedi modul</text>
+        <text y="12" textAnchor="middle" fill="#ef7a5a" fontSize="10.5" fontWeight="600">{en ? TEXT_EN.module : "egyedi modul"}</text>
       </g>
 
       {/* Kimenetek */}
       {OUT.map((n, i) => (
         <g key={`no${i}`} transform={`translate(402 ${n.y - 26})`}>
           <rect width="110" height="52" rx="12" fill="rgba(239,122,90,0.12)" stroke="rgba(239,122,90,0.55)" />
-          <text x="14" y="23" fill="#f4efe7" fontSize="13" fontWeight="600">{n.label}</text>
-          <text x="14" y="40" fill="#f2b8a5" fontSize="10.5">{n.sub}</text>
+          <text x="14" y="23" fill="#f4efe7" fontSize="13" fontWeight="600">{en ? TEXT_EN.out[i][0] : n.label}</text>
+          <text x="14" y="40" fill="#f2b8a5" fontSize="10.5">{en ? TEXT_EN.out[i][1] : n.sub}</text>
           <circle cx="96" cy="14" r="6" fill="#ef7a5a">
             <animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin={`${1.6 + i * 0.7}s`} repeatCount="indefinite" />
           </circle>

@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   const { valid, errors, value } = validateContact(body);
   if (!valid) return NextResponse.json({ errors }, { status: 422 });
 
-  const message = `[Kapcsolat oldal] Téma: ${value.topic}\n\n${value.message}`;
+  const origin = body.lang === "en" ? "Angol bemutatkozó oldal" : "Kapcsolat oldal";
+  const message = `[${origin}] Téma: ${value.topic}\n\n${value.message}`;
   const admin = createAdminClient();
   let { error } = await admin.from("leads").insert({
     name: value.name, email: value.email, company: null, phone: value.phone || null, message,

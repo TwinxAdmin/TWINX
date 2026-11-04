@@ -5,16 +5,17 @@
 import dynamic from "next/dynamic";
 import type { SceneOptions } from "@/lib/floorplan3d/scene";
 import type { StyleSheet } from "@/lib/floorplan3d/stylesheet";
+import type { Lang } from "@/lib/lang";
 
 const ModuleTour = dynamic(() => import("@/components/floorplan3d/intro/ModuleTour"), {
   ssr: false,
   loading: () => (
     <div className="flex min-h-[560px] items-center justify-center rounded-[28px] text-sm" style={{ background: "#14110f", color: "#BDB3A7" }}>
-      A bemutató betöltése…
+      …
     </div>
   ),
 });
 
-export default function PremiumTourEmbed({ opts, style }: { opts: SceneOptions; style: StyleSheet | null }) {
-  return <ModuleTour opts={opts} style={style} preview />;
+export default function PremiumTourEmbed({ opts, style, lang = "hu" }: { opts: SceneOptions; style: StyleSheet | null; lang?: Lang }) {
+  return <ModuleTour opts={opts} style={style} preview lang={lang} />;
 }

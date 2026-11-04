@@ -4,10 +4,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isEnglishPath } from "@/lib/lang";
 
 export default function ContactFab() {
   const path = usePathname() ?? "/";
-  if (path.startsWith("/admin") || path.startsWith("/sales") || path.startsWith("/kapcsolat")) return null;
+  if (path.startsWith("/admin") || path.startsWith("/sales") || path.startsWith("/kapcsolat") || isEnglishPath(path)) return null;
   return (
     <Link href="/kapcsolat" aria-label="Kapcsolat" title="Kapcsolat — telefon, e-mail, üzenet"
       className="twx-contact-fab fixed z-30 flex h-11 items-center gap-2 rounded-full pl-3 pr-3 text-sm font-semibold shadow-lg transition-transform hover:-translate-y-0.5 sm:pr-4"

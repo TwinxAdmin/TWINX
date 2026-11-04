@@ -3,10 +3,10 @@
 
 import { openConsentSettings } from "@/lib/consent";
 
-export default function CookieSettingsLink({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export default function CookieSettingsLink({ className, style, label = "Süti-beállítások" }: { className?: string; style?: React.CSSProperties; label?: string }) {
   return (
     <button type="button" onClick={openConsentSettings} className={className} style={style}>
-      Süti-beállítások
+      {label}
     </button>
   );
 }

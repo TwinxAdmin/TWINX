@@ -25,7 +25,7 @@ const LINES: Array<[number, number, number, number]> = [
   [86, 28, 11, 2.4],
 ];
 
-export function ShowcaseBackdrop() {
+export function ShowcaseBackdrop({ lang = "hu" }: { lang?: "hu" | "en" }) {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden>
       {/* Pontrács — a széleken elhalványul, hogy ne legyen „táblázat"-érzet */}
@@ -41,7 +41,7 @@ export function ShowcaseBackdrop() {
       />
       {/* Ház → jóváhagyás → fénycsík a cím mögött → naptár (bal és jobb szél) —
           csak széles képernyőn, ahol a kártya mellett van hely (xl+). */}
-      <SkylineStory className="hidden xl:block" />
+      <SkylineStory className="hidden xl:block" lang={lang} />
       {/* Sebességcsíkok */}
       {LINES.map(([top, w, dur, delay], i) => (
         <div

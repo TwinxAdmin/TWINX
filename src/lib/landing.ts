@@ -100,6 +100,18 @@ export const SHOWCASE: ShowcaseSlide[] = [
   },
 ];
 
+/** Ugyanazok a diák angolul (/bemutatkozas/en). A valódi kimenetek (videó, hirdetéskép) magyar nyelvűek, ezt a felirat jelzi. */
+export const SHOWCASE_EN: ShowcaseSlide[] = SHOWCASE.map((s, i) => ({
+  ...s,
+  ...[
+    { title: "Messy room → listing photo", note: "Image enhancer · tidying and professional light, the room stays the same" },
+    { title: "Same room, new style", note: "Interior visualiser · from an empty or furnished room; walls and windows stay", afterLabel: "Visualisation" },
+    { title: "Valuation in minutes", note: "Valuation · from a detailed form to a professional, branded report" },
+    { title: "Photos into a video with music", note: "Video · a few photos, three details, one track. Sample output is in Hungarian" },
+    { title: "A finished ad image from a few details", note: "Ad image · ready to post, in three sizes. Sample is in Hungarian" },
+  ][i],
+})) as ShowcaseSlide[];
+
 /** A forgó kerete köré lebegő „idő-chipek": bemenet → kimenet · mennyi idő.
  *  Három darab, asztalon látszik (ShowcaseFrame). Kerek, óvatos időértékek. */
 export const SHOWCASE_CHIPS: Array<{ from: string; to: string; time: string }> = [
