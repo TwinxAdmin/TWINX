@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BREVO_MIGRATION } from "@/lib/brevo";
 
-export type NewsletterSource = "register" | "settings" | "portal" | "brevo";
+export type NewsletterSource = "register" | "settings" | "portal" | "brevo" | "activation";
 
 export type NewsletterState = { newsletter: boolean; at: string | null; bannerDismissed: boolean; migrated: boolean };
 
@@ -28,6 +28,8 @@ export async function setNewsletter(userId: string, value: boolean, source: News
     newsletter_source: source,
   }).eq("id", userId);
   if (error) return { error: `A hírlevél-beállítás nem menthető — futtasd le a ${BREVO_MIGRATION} migrációt.` };
+  // Aki kifejezetten újra kér levelet, az egy korábbi leiratkozását visszavonja (a hiba itt nem akadályozza a mentést).
+  if (value) await createAdminClient().from("email_optout").delete().eq("user_id", userId);
   return {};
 }
 

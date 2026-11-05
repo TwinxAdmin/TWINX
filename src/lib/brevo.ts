@@ -122,6 +122,17 @@ async function push(c: Contact): Promise<void> {
   }
 }
 
+/** Leiratkozás a Brevóban: a cím tiltólistára kerül, onnan nem megy rá több levél. A hiba csak naplózódik, a leiratkozás nem bukhat el rajta. */
+export async function blacklistInBrevo(email: string): Promise<void> {
+  if (!brevoConfigured()) return;
+  try {
+    const res = await call(`/contacts/${encodeURIComponent(email)}`, { method: "PUT", body: { emailBlacklisted: true } });
+    if (!res.ok && res.status !== 404) console.error(`[brevo] tiltás sikertelen: ${res.status}`);
+  } catch (e) {
+    console.error("[brevo] tiltás sikertelen:", (e as Error).message);
+  }
+}
+
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**

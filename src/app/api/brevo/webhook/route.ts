@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setNewsletter } from "@/lib/newsletter";
 import { syncUserToBrevo } from "@/lib/brevo";
+import { optOutEmail } from "@/lib/activation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ export async function POST(req: Request) {
     if (!uid) continue;
     const r = await setNewsletter(uid, false, "brevo");
     if (!r.error) { await syncUserToBrevo(uid); handled++; }
+    // Aki a Brevóban leiratkozik, az aktiváló leveleket sem kapja (20261105120000_activation-agent.sql).
+    await optOutEmail(ev.email, uid, "brevo");
   }
   // A Brevo csak a 2xx választ tekinti sikeresnek — ismeretlen eseményre is 200.
   return NextResponse.json({ ok: true, handled });
