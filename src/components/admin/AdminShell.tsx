@@ -1,7 +1,7 @@
 // Admin keret: fejléc + KEVÉS főmenü, alattuk lenyíló almenükkel.
 //
 // Miért így: a korábbi vízszintes sáv minden oldalt egyenrangúan sorolt fel, és
-// ahogy nőtt a rendszer, a végük kilógott a képernyőről. Most 5 főmenü van; ami
+// ahogy nőtt a rendszer, a végük kilógott a képernyőről. Most 6 főmenü van; ami
 // több oldalt fog össze, az kattintásra nyílik le. Új admin oldal hozzáadása =
 // egy sor a megfelelő csoport `items` tömbjében, a sáv nem nő tovább.
 "use client";
@@ -24,11 +24,11 @@ const SECTIONS: Section[] = [
       { href: "/admin/megkeresesek", label: "Kérések és üzenetek", hint: "tájékoztatás-kérés, B2B, ajándékkód-jelentkezők", countKey: "inboxPage" },
       { href: "/admin/credit-requests", label: "Kredit-kérések", hint: "csomagigénylés és számlázás", countKey: "pendingCredits" },
       { href: "/admin/ideas", label: "Ötletláda", hint: "felhasználói javaslatok", countKey: "newIdeas" },
-      { href: "/admin/visszajelzesek", label: "Visszajelzések", hint: "válaszok a levelekre + heti jelentés" },
       { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása", countKey: "pendingOffices" },
     ],
   },
   { id: "users", label: "Felhasználók és modulok", href: "/admin/users" },
+  { id: "agents", label: "AI-ügynökök", href: "/admin/ugynokok" },
   {
     id: "money",
     label: "Pénzügy",
@@ -128,7 +128,7 @@ export default function AdminShell({
           </div>
         </header>
 
-        {/* Főmenü — 5 elem, a többszintűek kattintásra nyílnak */}
+        {/* Főmenü — 6 elem, a többszintűek kattintásra nyílnak */}
         <nav ref={navRef} className="relative z-30 rounded-2xl px-3 py-2.5"
           style={{ background: "#171412", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="flex flex-wrap items-center gap-1.5">
