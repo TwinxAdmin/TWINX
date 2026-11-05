@@ -9,6 +9,7 @@ import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import TermsCheckbox from "@/components/TermsCheckbox";
 import NewsletterCheckbox from "@/components/NewsletterCheckbox";
+import ConfirmEmailModal from "@/components/auth/ConfirmEmailModal";
 import { TERMS_VERSION } from "@/lib/legal";
 import Wordmark from "@/components/Wordmark";
 import { normalizeInviteCode } from "@/lib/invites";
@@ -48,6 +49,7 @@ function RegisterForm() {
   // Sikerképernyő: „session” = azonnal beléptetve (jelszavas vagy Google),
   // „confirm” = előbb meg kell erősíteni az e-mail címet.
   const [done, setDone] = useState<null | "session" | "confirm">(null);
+  const [confirmOpen, setConfirmOpen] = useState(false); // „Már csak egy lépés!” ablak a sikerképernyő fölött
   const [fromLanding, setFromLanding] = useState(false); // a landingről (10 kredit) indult Google-regisztráció
 
   useEffect(() => {
@@ -112,6 +114,7 @@ function RegisterForm() {
       // Mindkét ág a sikerképernyőre visz — a felhasználó maga dönti el,
       // belép-e most, vagy bezárja az ablakot.
       setDone(data.needsConfirmation ? "confirm" : "session");
+      setConfirmOpen(!!data.needsConfirmation);
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
     } finally {
@@ -144,7 +147,7 @@ function RegisterForm() {
             {done === "confirm" ? (
               <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Küldtünk egy megerősítő levelet a <strong>{email}</strong> címre.
-                Kattints benne a linkre, utána be tudsz lépni a TWINX-be.
+                Kattints benne a linkre, utána be tudsz lépni a TWINX-be. Nézd meg a Promóciók vagy a Spam mappát is.
               </p>
             ) : (
               <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
@@ -168,6 +171,11 @@ function RegisterForm() {
                 <button type="button" className="twx-btn w-full"
                   onClick={() => { router.push("/dashboard"); router.refresh(); }}>
                   Belépek a TWINX-be
+                </button>
+              )}
+              {done === "confirm" && (
+                <button type="button" className="twx-btn w-full" onClick={() => setConfirmOpen(true)}>
+                  Nem érkezett meg a levél?
                 </button>
               )}
               <button type="button" onClick={closeWindow}
@@ -321,6 +329,14 @@ function RegisterForm() {
         </div>
         )}
       </div>
+      {confirmOpen && (
+        <ConfirmEmailModal
+          mode="signup"
+          email={email.trim()}
+          onClose={() => setConfirmOpen(false)}
+          onWrongEmail={() => { setConfirmOpen(false); setDone(null); }}
+        />
+      )}
     </main>
   );
 }

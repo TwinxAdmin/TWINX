@@ -8,6 +8,7 @@
 // — így a végpont nem használható arra, hogy valaki e-mail címeket derítsen ki.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendConfirmationEmail } from "@/lib/auth-confirmation";
 
 export const runtime = "nodejs";
 
@@ -22,16 +23,9 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resend({ type: "signup", email });
-  if (error) {
-    // A gyakori eset a percenkénti küldési korlát — ezt érdemes kiírni.
-    if (/rate|limit|seconds/i.test(error.message)) {
-      return NextResponse.json(
-        { error: "Túl sok kérés. Várj egy percet, és próbáld újra." },
-        { status: 429 }
-      );
-    }
-    console.error("[resend-confirmation]", error.message);
+  const result = await sendConfirmationEmail(supabase, email);
+  if (result === "rate_limited") {
+    return NextResponse.json({ error: "Kérlek, várj egy kicsit, és próbáld újra." }, { status: 429 });
   }
 
   return NextResponse.json({ ok: true });

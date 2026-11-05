@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "@/components/GoogleButton";
 import Wordmark from "@/components/Wordmark";
+import ConfirmEmailModal from "@/components/auth/ConfirmEmailModal";
 
 export default function LoginPage() {
   // A useSearchParams miatt Suspense kell (Next követelmény).
@@ -24,8 +25,10 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Ha a fiók e-mail címe még nincs megerősítve, felajánljuk az újraküldést.
+  // Lejárt megerősítő linkről érkezett: felajánljuk az újraküldést a beírt címre.
   const [needsConfirm, setNeedsConfirm] = useState(false);
+  // Belépési kísérlet meg nem erősített fiókkal: a közös megerősítő ablak nyílik.
+  const [confirm, setConfirm] = useState<{ email: string; sent: boolean } | null>(null);
   const [resending, setResending] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +55,7 @@ function LoginForm() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "A küldés nem sikerült.");
-      setNotice(`Elküldtük a megerősítő levelet ide: ${email}. Nézd meg a Spam mappát is.`);
+      setNotice(`Elküldtük a megerősítő levelet ide: ${email}. Nézd meg a Promóciók és a Spam mappát is.`);
     } catch (e) {
       setServerError((e as Error).message);
     } finally {
@@ -81,8 +84,11 @@ function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.needsConfirmation) {
+          setConfirm({ email: email.trim(), sent: data.confirmationSent === true });
+          return;
+        }
         setServerError(data.error ?? "Hiba történt a belépés során.");
-        if (data.needsConfirmation) setNeedsConfirm(true);
         return;
       }
 
@@ -151,7 +157,7 @@ function LoginForm() {
           {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
           {notice && <p className="mt-3 text-sm" style={{ color: "#2f9e5f" }}>{notice}</p>}
 
-          {/* Meg nem erősített cím: enélkül a partner „bennragadna” a fiókjában. */}
+          {/* Lejárt link: enélkül a partner „bennragadna” a fiókjában. */}
           {needsConfirm && (
             <button type="button" onClick={() => void resendConfirmation()} disabled={resending}
               className="mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-40"
@@ -165,6 +171,7 @@ function LoginForm() {
           </Link>
         </div>
       </div>
+      {confirm && <ConfirmEmailModal mode="login" email={confirm.email} sent={confirm.sent} onClose={() => setConfirm(null)} />}
     </main>
   );
 }

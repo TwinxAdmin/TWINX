@@ -9,6 +9,7 @@ import { validateRegisterInput } from "@/lib/validation";
 import GoogleButton from "@/components/GoogleButton";
 import TermsCheckbox from "@/components/TermsCheckbox";
 import NewsletterCheckbox from "@/components/NewsletterCheckbox";
+import ConfirmEmailModal from "@/components/auth/ConfirmEmailModal";
 import { TERMS_VERSION } from "@/lib/legal";
 
 import { LANDING_WELCOME_CREDITS, bonusSignupSource } from "@/lib/onboarding";
@@ -35,13 +36,14 @@ export default function AuthModal() {
   const [newsletter, setNewsletter] = useState(false); // hírlevél: alapból NEM
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  // Megerősítő ablak: ilyenkor ez jelenik meg az űrlap helyett (az űrlap állapota megmarad).
+  const [confirm, setConfirm] = useState<{ mode: "signup" | "login"; email: string; sent: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const reset = useCallback(() => {
     setErrors({});
     setServerError(null);
-    setMessage(null);
+    setConfirm(null);
     setLoading(false);
   }, []);
 
@@ -92,7 +94,6 @@ export default function AuthModal() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setServerError(null);
-    setMessage(null);
 
     if (mode === "register") {
       const result = validateRegisterInput({ name, email, password, passwordConfirm, phone });
@@ -119,6 +120,10 @@ export default function AuthModal() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.needsConfirmation) {
+          setConfirm({ mode: "login", email: email.trim(), sent: data.confirmationSent === true });
+          return;
+        }
         if (data.errors) setErrors(data.errors);
         setServerError(data.error ?? "Hiba történt.");
         return;
@@ -133,7 +138,7 @@ export default function AuthModal() {
       }
 
       if (mode === "register" && data.needsConfirmation) {
-        setMessage("Sikeres regisztráció! Erősítsd meg az e-mail címed a kiküldött linkkel.");
+        setConfirm({ mode: "signup", email: email.trim(), sent: true });
         return;
       }
       router.push("/dashboard");
@@ -146,6 +151,19 @@ export default function AuthModal() {
   }
 
   if (!open) return null;
+
+  if (confirm) {
+    return (
+      <ConfirmEmailModal
+        mode={confirm.mode}
+        email={confirm.email}
+        sent={confirm.sent}
+        bonusCredits={source ? LANDING_WELCOME_CREDITS : undefined}
+        onClose={close}
+        onWrongEmail={() => setConfirm(null)}
+      />
+    );
+  }
 
   const isLogin = mode === "login";
 
@@ -273,7 +291,6 @@ export default function AuthModal() {
         </form>
 
         {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
-        {message && <p className="mt-3 text-sm text-green-700">{message}</p>}
 
         <div className="my-5 flex items-center gap-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
           <span className="h-px flex-1" style={{ background: "var(--twx-line)" }} />
