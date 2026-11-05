@@ -133,6 +133,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261021120000_customer-call-notes.sql` | Sales hívásnapló: `customer_call_notes` (ügyfelenként eredmény, megjegyzés, visszahívás napja, ki rögzítette; RLS be, csak a szerver éri el) |
 | `20261021200000_brevo-newsletter.sql` | Hírlevél + Brevo: `profiles.newsletter` / `newsletter_at` / `newsletter_source` / `newsletter_banner_dismissed_at`, `brevo_sync_queue` (sikertelen szinkronok a napi újrapróbáláshoz; RLS be, csak a szerver éri el) |
 | `20261103140000_linkedin-signup-credits.sql` | LinkedIn bemutatkozó oldal (`/bemutatkozas`): `handle_new_user` a `linkedin-bemutatkozas` forrásra 10 kezdőkreditet ad, saját 50 fős kerettel; a forrás az adminban LinkedIn-jelölést kap |
+| `20261105120000_activation-agent.sql` | Aktiváló ügynök: `activation_feedback` (levélből érkező visszajelzés, levelenként egy), `email_optout` (leiratkozás az aktiváló levelekről), `activation_reports` (heti jelentés az adminnak); RLS be, policy nélkül, csak a szerver éri el |
 
 ## Egyszeri szkriptek (`one-off/`)
 
