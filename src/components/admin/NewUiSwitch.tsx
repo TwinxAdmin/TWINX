@@ -5,8 +5,8 @@
 import { useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 
-// Amíg a 3d lépés felületi része (a „kredit” eltüntetése, „nem elérhető” üzenet) nincs kész, bekapcsolni nem lehet.
-const READY = false;
+// A 3d lépés kész (3d-1…3d-4): a kapcsoló bekapcsolható. Bekapcsolás előtt: Ingatlan-hozzáférések átnézése.
+const READY = true;
 
 export default function NewUiSwitch() {
   const [s, setS] = useState<{ enabled: boolean; accessCount: number } | null>(null);
@@ -50,7 +50,7 @@ export default function NewUiSwitch() {
             <h3 className="font-display text-lg font-semibold">{confirm ? "Új felület bekapcsolása mindenkinek" : "Új felület kikapcsolása"}</h3>
             <p className="mt-3 text-sm">
               {confirm
-                ? `Minden felhasználónál eltűnik a „kredit”. Akinek van Ingatlan-hozzáférése (${s?.accessCount ?? 0} fő), annál nincs levonás; akinek nincs, az a modulok helyén „nem elérhető” üzenetet lát. Bekapcsolás előtt nézd át a hozzáféréseket a Felhasználók lapon.`
+                ? `Minden felhasználónál eltűnik a „kredit” (egyenleg, vásárlás, irodai keret). Akinek van Ingatlan-hozzáférése (${s?.accessCount ?? 0} fő), annál nincs levonás; akinek nincs, az az ingatlanos modulok helyén „nem elérhető” üzenetet lát. Az adminban a Kredit oszlop és a „+” gomb is eltűnik. Bekapcsolás előtt nézd át a hozzáféréseket a Felhasználók lapon. Bármikor visszakapcsolható.`
                 : "Mindenki (az adminon kívül) visszakapja a mostani, kredites felületet és levonást."}
             </p>
             <div className="mt-5 flex justify-end gap-2">

@@ -32,8 +32,14 @@ function huf(n: number): string {
 }
 
 export default function UserTable({
-  users, hufPerUsd, estateIds = [],
-}: { users: UserMetric[]; hufPerUsd: number; /** Ingatlan csomag hozzáféréssel rendelkezők (3d) */ estateIds?: string[] }) {
+  users, hufPerUsd, estateIds = [], creditsHidden = false,
+}: {
+  users: UserMetric[]; hufPerUsd: number;
+  /** Ingatlan csomag hozzáféréssel rendelkezők (3d) */ estateIds?: string[];
+  /** Bekapcsolt „Új felület": az Egyenleg és a Kredit oszlop, valamint a „+" gomb nem látszik (3d-4, terv 12 / 3.) */
+  creditsHidden?: boolean;
+}) {
+  const showCredits = !creditsHidden;
   // Ingatlan-hozzáférés (company_access): helyben kapcsolható, a friss érték itt él.
   const [estate, setEstate] = useState<Set<string>>(() => new Set(estateIds));
   const [estateBusy, setEstateBusy] = useState<string | null>(null);
@@ -213,13 +219,15 @@ export default function UserTable({
                 Hozzáférés
               </th>
               <Th k="created" label="Regisztrált" />
-              <Th k="balance" label="Egyenleg" right />
+              {showCredits && <Th k="balance" label="Egyenleg" right />}
               <Th k="uses" label="Generálás" right />
               <Th k="cost" label="Költség" right />
               <Th k="revenue" label="Bevétel" right />
-              <th className="pb-2 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
-                Kredit
-              </th>
+              {showCredits && (
+                <th className="pb-2 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                  Kredit
+                </th>
+              )}
               <th className="pb-2" aria-label="Részletek" />
             </tr>
           </thead>
@@ -247,25 +255,29 @@ export default function UserTable({
                 <td className="py-2.5 pr-3"><EstateToggle u={u} /></td>
                 <td className="whitespace-nowrap py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{regDate(u.createdAt)}</td>
                 {/* AKTUÁLIS kredit-egyenleg — a 0 kiemelve, mert az blokkolja a partnert. */}
-                <td className="py-2.5 text-right font-bold"
-                  style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>
-                  {u.balance}
-                </td>
+                {showCredits && (
+                  <td className="py-2.5 text-right font-bold"
+                    style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>
+                    {u.balance}
+                  </td>
+                )}
                 <td className="py-2.5 text-right font-medium">{u.uses}</td>
                 <td className="py-2.5 text-right">{huf(u.costUsd * hufPerUsd)}</td>
                 <td className="py-2.5 text-right">{huf(u.revenueHuf)}</td>
-                <td className="py-2.5">
-                  {/* A szám középen, a „+" gomb kitolva az oszlop jobb szélére. */}
-                  <div className="relative flex items-center justify-center">
-                    <span>{u.creditsBought}</span>
-                    <span className="absolute right-0"><PlusButton u={u} /></span>
-                  </div>
-                </td>
+                {showCredits && (
+                  <td className="py-2.5">
+                    {/* A szám középen, a „+" gomb kitolva az oszlop jobb szélére. */}
+                    <div className="relative flex items-center justify-center">
+                      <span>{u.creditsBought}</span>
+                      <span className="absolute right-0"><PlusButton u={u} /></span>
+                    </div>
+                  </td>
+                )}
                 <td className="py-2 pl-3 text-right"><DetailsButton u={u} /></td>
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={10} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              <tr><td colSpan={showCredits ? 10 : 8} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Nincs találat.
               </td></tr>
             )}
@@ -274,11 +286,11 @@ export default function UserTable({
             <tfoot>
               <tr>
                 <td className="pt-3 text-xs font-semibold" colSpan={4}>Összesen</td>
-                <td className="pt-3 text-right text-xs font-semibold">{totals.balance}</td>
+                {showCredits && <td className="pt-3 text-right text-xs font-semibold">{totals.balance}</td>}
                 <td className="pt-3 text-right text-xs font-semibold">{totals.uses}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.revenue)}</td>
-                <td className="pt-3 text-center text-xs font-semibold">{totals.credits}</td>
+                {showCredits && <td className="pt-3 text-center text-xs font-semibold">{totals.credits}</td>}
                 <td />
               </tr>
             </tfoot>
@@ -296,16 +308,20 @@ export default function UserTable({
             <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Regisztrált: {regDate(u.createdAt)}</p>
             <div className="mt-2 flex items-center justify-between gap-2"><RolePicker u={u} /><EstateToggle u={u} /><DetailsButton u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-              <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
-              <span className="text-right font-bold" style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>{u.balance}</span>
+              {showCredits && <>
+                <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
+                <span className="text-right font-bold" style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>{u.balance}</span>
+              </>}
               <span style={{ color: "var(--twx-ink-muted)" }}>Generálás</span><span className="text-right font-medium">{u.uses}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Költség</span><span className="text-right">{huf(u.costUsd * hufPerUsd)}</span>
               <span style={{ color: "var(--twx-ink-muted)" }}>Bevétel</span><span className="text-right">{huf(u.revenueHuf)}</span>
-              <span style={{ color: "var(--twx-ink-muted)" }}>Kredit</span>
-              <span className="flex items-center justify-end gap-1.5">
-                {u.creditsBought}
-                <PlusButton u={u} />
-              </span>
+              {showCredits && <>
+                <span style={{ color: "var(--twx-ink-muted)" }}>Kredit</span>
+                <span className="flex items-center justify-end gap-1.5">
+                  {u.creditsBought}
+                  <PlusButton u={u} />
+                </span>
+              </>}
             </div>
             {openId === u.userId && (
               <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
@@ -319,7 +335,7 @@ export default function UserTable({
       <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
         Egy sorra kattintva megjelenik a funkciónkénti bontás. Az oszlopfejlécek kattintással rendezik a listát
         (a „Regisztrált” fejlécre újra kattintva a legrégebbi kerül felülre).
-        A Kredit oszlop „+” gombjával kreditet írhatsz jóvá, a „Részletek” gombbal a felhasználó minden adatát látod.
+        {showCredits ? "A Kredit oszlop „+” gombjával kreditet írhatsz jóvá, a" : "A"} „Részletek” gombbal a felhasználó minden adatát látod.
       </p>
 
       {detailsFor && <UserDetailDialog userId={detailsFor} onClose={() => setDetailsFor(null)} />}

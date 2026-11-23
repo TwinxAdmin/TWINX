@@ -99,16 +99,16 @@ function friendlyHttpError(status: number, text: string): Error {
   if (/insufficient_quota|exceeded your current quota/i.test(body)) {
     return new Error(
       "Az adatszolgáltatói keret elfogyott, ezért most nem tudunk friss piaci adatot lekérni. " +
-      "Kreditet NEM vontunk le. Szólj a TWINX-nek — a keret feltöltése után azonnal újra használható."
+      "Nem számoltuk el. Szólj a TWINX-nek — a hiba javítása után azonnal újra használható."
     );
   }
   if (status === 401 || status === 403) {
     return new Error(
-      "Az adatszolgáltató elutasította a kérést (hozzáférési hiba). Kreditet nem vontunk le — jelezd a TWINX-nek."
+      "Az adatszolgáltató elutasította a kérést (hozzáférési hiba). Nem számoltuk el — jelezd a TWINX-nek."
     );
   }
   if (status === 402) {
-    return new Error("Az adatszolgáltatói előfizetés nem aktív. Kreditet nem vontunk le — jelezd a TWINX-nek.");
+    return new Error("Az adatszolgáltatói előfizetés nem aktív. Nem számoltuk el — jelezd a TWINX-nek.");
   }
   if (status === 429) {
     return new Error("A kereső pillanatnyilag túlterhelt (túl sok kérés rövid időn belül). Próbáld újra 1 perc múlva.");

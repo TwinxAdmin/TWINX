@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   if (job.status === "failed") {
     return NextResponse.json({
       status: "failed",
-      error: job.error ?? "A becslés nem sikerült. Kredit nem került levonásra.",
+      error: job.error ?? "A becslés nem sikerült, nem számoltuk el.",
     });
   }
 
@@ -50,11 +50,11 @@ export async function GET(request: Request) {
   const ageMin = (Date.now() - new Date(job.created_at as string).getTime()) / 60000;
   if (ageMin > STUCK_MINUTES) {
     await admin.from("valuation_jobs")
-      .update({ status: "failed", error: "A becslés nem fejeződött be időben. Kredit nem került levonásra — próbáld újra." })
+      .update({ status: "failed", error: "A becslés nem fejeződött be időben. Nem számoltuk el — próbáld újra." })
       .eq("id", job.id);
     return NextResponse.json({
       status: "failed",
-      error: "A becslés nem fejeződött be időben. Kredit nem került levonásra — próbáld újra.",
+      error: "A becslés nem fejeződött be időben. Nem számoltuk el — próbáld újra.",
     });
   }
 

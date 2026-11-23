@@ -166,7 +166,7 @@ export async function POST(request: Request) {
     avail = await checkCreditAvailable({ userId: user.id, amount: 1, payFrom });
   } catch {
     return NextResponse.json(
-      { error: "A kredit ellenőrzése most nem sikerült. Próbáld újra." },
+      { error: "Az indítás ellenőrzése most nem sikerült. Próbáld újra." },
       { status: 503 }
     );
   }

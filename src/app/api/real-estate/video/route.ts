@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   const colorVariant = getColorVariant(String(form.get("colorVariant") ?? ""));
   if (!colorVariantReady(colorVariant.id)) {
     return NextResponse.json({
-      error: "Ez a színváltozat még nincs élesítve. Válaszd a sárgát — kredit nem került levonásra.",
+      error: "Ez a színváltozat még nincs élesítve. Válaszd a sárgát. Ezt a futtatást nem számoltuk el.",
     }, { status: 422 });
   }
 
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   if (missingConfig.length) {
     console.error("[video] Hiányzó beállítás:", missingConfig.join(", "));
     return NextResponse.json({
-      error: "A videó szolgáltatás jelenleg nem elérhető (hiányzó beállítás). Szólj az adminnak — kredit nem került levonásra.",
+      error: "A videó szolgáltatás jelenleg nem elérhető (hiányzó beállítás). Szólj az adminnak. Ezt a futtatást nem számoltuk el.",
     }, { status: 503 });
   }
 

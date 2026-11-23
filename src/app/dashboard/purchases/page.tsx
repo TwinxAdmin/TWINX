@@ -1,6 +1,8 @@
 // dashboard/purchases — a felhasználó korábbi kredit-vásárlásai (RLS: saját sorok).
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveViewContext } from "@/lib/view-as";
+import { newUiFor } from "@/lib/new-ui";
 
 const huf = (n: number) => `${Math.round(n).toLocaleString("hu-HU")} Ft`;
 
@@ -10,6 +12,9 @@ export default async function PurchasesPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  // Új, kredit nélküli felület (3d-4): nincs kreditvásárlás, ezért az oldal a kezdőlapra visz.
+  const { data: me } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (await newUiFor((await resolveViewContext(me?.role as string | undefined)).role)) redirect("/dashboard");
 
   // „*": a számla- és iroda-oszlopok csak a 20261017115051_card-invoicing.sql / 20261017160355_office-card-topup.sql
   // után léteznek — így a lekérdezés előttük is működik (a hiányzó mezők üresek).

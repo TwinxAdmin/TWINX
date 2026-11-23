@@ -176,7 +176,7 @@ export async function POST(request: Request) {
     if (!result.professionals.length) {
       await refund();
       return NextResponse.json(
-        { error: "Ezekkel a feltételekkel nem találtunk igazolható szakembert. Próbáld tágabb körzettel vagy kevesebb szűrővel — a kredit nem lett levonva." },
+        { error: "Ezekkel a feltételekkel nem találtunk igazolható szakembert. Próbáld tágabb körzettel vagy kevesebb szűrővel — ezt a keresést nem számoltuk el." },
         { status: 422 }
       );
     }

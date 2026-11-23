@@ -9,7 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUserMetrics } from "@/lib/metrics";
-import { estateAccessUserIds } from "@/lib/new-ui";
+import { estateAccessUserIds, newUiEnabled } from "@/lib/new-ui";
 import UserTable from "@/components/admin/UserTable";
 import AdminShell from "@/components/admin/AdminShell";
 import ModuleUsageView from "@/components/admin/ModuleUsageView";
@@ -19,7 +19,7 @@ import AdminWorksView from "@/components/admin/AdminWorksView";
 export const runtime = "nodejs";
 
 const TABS = [
-  { key: "egyenlegek", label: "Egyenlegek és költés", href: "/admin/users" },
+  { key: "egyenlegek", label: "Felhasználók és költés", href: "/admin/users" },
   { key: "hasznalat", label: "Modul-használat", href: "/admin/users?tab=hasznalat" },
   { key: "elemzes", label: "Modul elemzés", href: "/admin/users?tab=elemzes" },
   { key: "munkak", label: "Munkák", href: "/admin/users?tab=munkak" },
@@ -39,6 +39,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const tab = t === "hasznalat" || t === "elemzes" || t === "munkak" ? t : "egyenlegek";
   const metrics = tab === "egyenlegek" ? await getUserMetrics() : null;
   const estateIds = tab === "egyenlegek" ? [...(await estateAccessUserIds())] : [];
+  // Bekapcsolt „Új felület": a kredit-oszlopok és a „+" gomb eltűnnek (amíg ki van kapcsolva, a kollégáknak még kell a kredit).
+  const creditsHidden = await newUiEnabled();
 
   return (
     <AdminShell
@@ -62,7 +64,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         ))}
       </nav>
 
-      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} estateIds={estateIds} />
+      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} estateIds={estateIds} creditsHidden={creditsHidden} />
         : tab === "elemzes" ? <ModuleAnalysisView />
         : tab === "munkak" ? <AdminWorksView />
         : <ModuleUsageView />}

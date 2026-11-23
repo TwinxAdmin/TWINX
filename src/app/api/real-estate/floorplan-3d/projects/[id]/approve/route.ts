@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const locked = await markApproved(user.id, id, p.revisionsReady ? { plan: p.plan, rebuildRooms: rebuild, revision: p.revision + 1 } : null);
   if (!locked) {
     if (charge?.ok && !charge.bypassed) await refundCredit(user.id, price, charge.source);
-    return NextResponse.json({ error: "A jóváhagyás nem sikerült — a kreditet visszaírtuk." }, { status: 409 });
+    return NextResponse.json({ error: "A jóváhagyás nem sikerült — nem számoltuk el." }, { status: 409 });
   }
   return NextResponse.json({ ok: true, rebuildRooms: rebuild, revision: p.revision + 1, charged: charge && !charge.bypassed ? price : 0 });
 }

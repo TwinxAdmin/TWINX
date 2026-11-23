@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const r = await extendShare(g.userId, id, cfg.linkDays);
     if ("error" in r) {
       if (charge?.ok && !charge.bypassed) await refundCredit(g.userId, price, charge.source);
-      return NextResponse.json({ error: `${r.error} A kreditet visszaírtuk.` }, { status: r.status });
+      return NextResponse.json({ error: `${r.error} Nem számoltuk el.` }, { status: r.status });
     }
     return NextResponse.json({ share: r.share, charged: charge?.ok && !charge.bypassed ? price : 0 });
   }
