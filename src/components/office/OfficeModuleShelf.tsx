@@ -7,6 +7,7 @@
 // A sáv mérete FIX: fülváltáskor nem változik (a tartalom belül görget).
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useMemo, useState } from "react";
 import ModuleIcon from "@/components/ModuleIcon";
 import { showToast } from "@/components/Toast";
@@ -130,6 +131,7 @@ export default function OfficeModuleShelf() {
 
 /** „Saját moduljaim" fül: a neked fejlesztett egyedi modulok — vagy ha még nincs, rövid magyarázat. */
 function OwnModules({ modules }: { modules: OwnModule[] | null }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   if (!modules) return <p className="text-sm" style={{ color: "#8F857B" }}>Betöltés…</p>;
 
   if (modules.length === 0) {
@@ -142,7 +144,7 @@ function OwnModules({ modules }: { modules: OwnModule[] | null }) {
         <p className="font-display text-base font-semibold" style={{ color: "#F6F1EA" }}>Még nincs saját modulod</p>
         <p className="max-w-[460px] text-[13px] leading-relaxed" style={{ color: "#A89E94" }}>
           A saját (egyedi) modul egy csak nektek fejlesztett eszköz: a te munkafolyamatodra, árlistáidra és sablonjaidra épül,
-          és azt a feladatot végzi el egy kattintással, ami ma órákat visz el. Ugyanúgy itt, a TWINX-ben használod, kreditből.
+          {cr("és azt a feladatot végzi el egy kattintással, ami ma órákat visz el. Ugyanúgy itt, a TWINX-ben használod, kreditből.") || "és azt a feladatot végzi el egy kattintással, ami ma órákat visz el. Ugyanúgy itt, a TWINX-ben használod."}
         </p>
         <a href="/dashboard/egyedi-modul" className="mt-1 inline-flex h-10 items-center rounded-full px-5 text-[13px] font-semibold transition-opacity hover:opacity-90"
           style={{ background: "#F08A68", color: "#1C1A17" }}>

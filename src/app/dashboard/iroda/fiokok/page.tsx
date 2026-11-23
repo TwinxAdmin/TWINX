@@ -19,7 +19,7 @@ export default async function OfficeListPage() {
       <ModuleIntro
         eyebrow="Irodai TWINX fiók"
         title="Irodai fiókjaim"
-        subtitle="Válaszd ki, melyik irodai fiókba lépsz be. Az irodai munka és a kreditkeret mindig a kiválasztott irodához tartozik."
+        subtitle="Válaszd ki, melyik irodai fiókba lépsz be. Az irodai munka mindig a kiválasztott irodához tartozik."
         icon="office"
       />
       <OfficeChooser offices={offices} selectedId={selectedId} />

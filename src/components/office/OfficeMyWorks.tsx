@@ -5,6 +5,7 @@
 // Soronként „⋯" menü (jobb klikkre is): Megnyitás · Megosztás közös mappába · Üzenet ehhez a munkához.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useState } from "react";
 import { composeAboutWork, composerAvailable } from "@/lib/office-messages-shared";
 import { ActionMenu, MI, MenuDots, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
@@ -22,6 +23,7 @@ const VISIBLE_ROWS = 5;
 // Munkáim — fix 5 sor, görgethető; modul, munka, mappa, dátum, kredit
 // ---------------------------------------------------------------------------
 export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange; onRange: (r: OverviewRange) => void }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [works, setWorks] = useState<WorkRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<{ index: number; pop: "folder" | "send" | null } | null>(null);
@@ -85,7 +87,7 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
       </div>
 
       <div className={`hidden px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] ${COLS}`} style={{ background: "#1B1815", color: "#BFB4A8" }}>
-        <span>Modul</span><span>Munka</span><span>Mappa</span><span>Dátum</span><span className="text-right">Kredit</span><span />
+        <span>Modul</span><span>Munka</span><span>Mappa</span><span>Dátum</span><span className="text-right">{cr("Kredit")}</span><span />
       </div>
 
       {/* fix magasság: 5 sor — a többi a dobozon belül görget */}
@@ -128,7 +130,7 @@ export default function OfficeMyWorks({ range, onRange }: { range: OverviewRange
               )}
             </span>
             <span className="text-xs" style={{ color: "#6B6258" }}>{fmtWhen(w.createdAt, false)}</span>
-            <strong className="tabular-nums md:text-right">{w.credits > 0 ? `−${w.credits}` : "0"}</strong>
+            <strong className="tabular-nums md:text-right">{cr("kredit") ? (w.credits > 0 ? `−${w.credits}` : "0") : ""}</strong>
             <span className="flex justify-end" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
               <MenuDots onClick={(e) => openMenu(e, i, "button")} label={`Műveletek: ${w.title}`} />
             </span>

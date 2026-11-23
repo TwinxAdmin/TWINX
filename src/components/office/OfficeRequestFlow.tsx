@@ -5,6 +5,7 @@
 //   • Közös munkatér: név + létszám (2–5) → AZONNAL létrejön (POST /api/office, kind: "team"), jóváhagyás nélkül.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   validateOfficeRequest,
@@ -25,6 +26,7 @@ const TEAL = "#2F7F86";
 const EMPTY: OfficeRequestInput = { officeName: "", teamSize: "", phone: "", note: "" };
 
 export default function OfficeRequestFlow() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [req, setReq] = useState<OfficeRequestRow | null>(null);
   const [requestUsed, setRequestUsed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -128,7 +130,7 @@ export default function OfficeRequestFlow() {
               <p className="rounded-2xl p-4 text-sm" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
                 <strong style={{ color: "var(--twx-ink)" }}>A munkák mindig a készítőjüknél maradnak.</strong>{" "}
                 Másik kolléga — az irodai fiók létrehozója is — csak azt látja, amit a készítője közös irodai mappába tesz.
-                A létrehozó a kreditfelhasználást látja: ki, melyik modulban, mennyi kreditet használt.
+                {cr("A létrehozó a kreditfelhasználást látja: ki, melyik modulban, mennyi kreditet használt.")}
               </p>
 
               <Field label="Megjegyzés (nem kötelező)" error={errors.note}>
@@ -165,6 +167,7 @@ const KINDS: { kind: OfficeKind; title: string; when: string; text: string; poin
 ];
 
 function KindChooser({ kind, onPick }: { kind: OfficeKind | null; onPick: (k: OfficeKind) => void }) {
+  const cr = useCr();
   return (
     <section className="twx-card p-6">
       <h2 className="font-display text-xl font-semibold">Hogyan dolgoztok együtt?</h2>
@@ -194,9 +197,9 @@ function KindChooser({ kind, onPick }: { kind: OfficeKind | null; onPick: (k: Of
                 )}
               </span>
               <span className="font-display text-[17px] font-bold">{k.title}</span>
-              <span className="text-[13px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{k.text}</span>
+              <span className="text-[13px] leading-snug" style={{ color: "var(--twx-ink-muted)" }}>{cr(k.text) || (k.kind === "office" ? "Közös tér vezetővel: a vezető hívja meg és kezeli a kollégákat." : "Egyenrangú társak, akik együtt dolgoznak, közös mappákkal.")}</span>
               <ul className="mt-auto flex flex-col gap-1.5">
-                {k.points.map((p) => (
+                {k.points.map(cr).filter(Boolean).map((p) => (
                   <li key={p} className="flex gap-2 text-xs leading-snug">
                     <span aria-hidden className="font-extrabold" style={{ color: "#1F7A4D" }}>✓</span>{p}
                   </li>
@@ -214,6 +217,7 @@ function KindChooser({ kind, onPick }: { kind: OfficeKind | null; onPick: (k: Of
 // Közös munkatér létrehozása — név + létszám; azonnal létrejön
 // ---------------------------------------------------------------------------
 function TeamForm() {
+  const cr = useCr();
   const [form, setForm] = useState<TeamCreateInput>({ name: "", teamSize: "2" });
   const [errors, setErrors] = useState<Partial<Record<keyof TeamCreateInput, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -267,8 +271,9 @@ function TeamForm() {
 
       <p className="rounded-2xl p-4 text-sm" style={{ background: "var(--twx-cream)", border: "1px solid var(--twx-line)", color: "var(--twx-ink-muted)" }}>
         <strong style={{ color: "var(--twx-ink)" }}>A munkák mindig a készítőjüknél maradnak.</strong>{" "}
-        A társak csak azt látják, amit valaki közös mappába tesz. Mindenki a saját kreditjéből dolgozik, és bárki{" "}
-        <strong style={{ color: "var(--twx-ink)" }}>adhat</strong> kreditet egy társának — visszavenni nem lehet.
+        A társak csak azt látják, amit valaki közös mappába tesz.{" "}
+        {cr("kredit") && <>Mindenki a saját kreditjéből dolgozik, és bárki{" "}
+        <strong style={{ color: "var(--twx-ink)" }}>adhat</strong> kreditet egy társának — visszavenni nem lehet.</>}
         A munkatér egyetlen, állandó csatlakozási kódot kap.
       </p>
 

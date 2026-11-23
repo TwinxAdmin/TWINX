@@ -4,6 +4,7 @@
 //   • közös munkatér (kind = team): társ nézet (OfficeTeamView) — mindenki egyenrangú
 //   • ha még nem tag: rövid üres állapot — igénylés (külön oldal) vagy csatlakozás kóddal (felugró ablak)
 // Ha több irodának tagja, felül irodaváltó.
+// ÚJ FELÜLET (3d-3): kredit nélküli közös tér (OfficeSpaceView) minden irodaformára.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,10 +13,13 @@ import ModuleIntro from "@/components/ModuleIntro";
 import OfficeMemberView from "@/components/office/OfficeMemberView";
 import OfficeManagerView from "@/components/office/OfficeManagerView";
 import OfficeTeamView from "@/components/office/OfficeTeamView";
+import OfficeSpaceView from "@/components/office/OfficeSpaceView";
+import { useUiMode } from "@/components/UiModeProvider";
 
 type State = { office: MyOffice | null; offices: { id: string; name: string; role: "owner" | "member" }[]; memberPreview: boolean };
 
 export default function OfficeHub() {
+  const { newUi } = useUiMode();
   const [state, setState] = useState<State | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -42,7 +46,7 @@ export default function OfficeHub() {
   if (!state.office) {
     return (
       <>
-        <Intro />
+        <Intro newUi={newUi} />
         <section className="twx-card space-y-4 p-6">
           <h2 className="font-display text-xl font-semibold">Még nem vagy tagja irodai fióknak</h2>
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
@@ -53,9 +57,11 @@ export default function OfficeHub() {
               Csatlakozás kóddal
             </button>
             <a href="/dashboard/iroda/igenyles" className="twx-btn-outline">Iroda / közös munkatér létrehozása</a>
-            <a href="/dashboard/iroda/bemutato" className="self-center text-sm underline" style={{ color: "var(--twx-ink-muted)" }}>
-              Mi az irodai fiók?
-            </a>
+            {!newUi && (
+              <a href="/dashboard/iroda/bemutato" className="self-center text-sm underline" style={{ color: "var(--twx-ink-muted)" }}>
+                Mi az irodai fiók?
+              </a>
+            )}
           </div>
         </section>
       </>
@@ -81,7 +87,9 @@ export default function OfficeHub() {
           })}
         </div>
       )}
-      {state.office.kind === "team" ? (
+      {newUi ? (
+        <OfficeSpaceView key={state.office.id} office={state.office} />
+      ) : state.office.kind === "team" ? (
         <OfficeTeamView key={state.office.id} />
       ) : isManager ? (
         <OfficeManagerView key={state.office.id} />
@@ -92,7 +100,19 @@ export default function OfficeHub() {
   );
 }
 
-function Intro() {
+function Intro({ newUi }: { newUi: boolean }) {
+  // Új felület (D35): az irodai fiók opcionális közös tér, nem közös kreditkeret.
+  if (newUi) {
+    return (
+      <ModuleIntro
+        eyebrow="Irodai fiók"
+        title="Közös tér, ha együtt dolgoztok"
+        subtitle="Hozz létre irodai fiókot, és hívd meg a kollégáidat egy közös térbe: közös mappák, üzenetek, megosztott munkák. A modulokhoz a hozzáférés a saját fiókodhoz tartozik."
+        icon="office"
+        chips={["Közös mappák", "Üzenetek", "Megosztott munkák", "Csatlakozás kóddal"]}
+      />
+    );
+  }
   return (
     <ModuleIntro
       eyebrow="Irodai TWINX fiók"
