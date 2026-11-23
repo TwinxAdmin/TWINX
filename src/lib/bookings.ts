@@ -117,3 +117,35 @@ export function validateBooking(i: BookingInput): BookingFieldErrors {
   if (!i.consent) e.consent = "A foglaláshoz szükséges a hozzájárulás.";
   return e;
 }
+
+// ---------------------------------------------------------------------------
+// Admin → Foglalások → Beérkezett
+// ---------------------------------------------------------------------------
+export type BookingStatus = "uj" | "egyeztetve" | "megtartva" | "cegge_alakitva" | "elvetve" | "lemondva";
+
+export const BOOKING_STATUS_META: Record<BookingStatus, { label: string; bg: string; fg: string }> = {
+  uj:             { label: "Új",              bg: "#fde3d8", fg: "#9a3b1f" },
+  egyeztetve:     { label: "Egyeztetve",      bg: "#e3ecfb", fg: "#24467a" },
+  megtartva:      { label: "Megtartva",       bg: "#e6f2ea", fg: "#1f6b43" },
+  cegge_alakitva: { label: "Céggé alakítva",  bg: "#efe6f7", fg: "#5a2f7a" },
+  elvetve:        { label: "Elvetve",         bg: "#ece8e2", fg: "#6e655c" },
+  lemondva:       { label: "Lemondva",        bg: "#ece8e2", fg: "#6e655c" },
+};
+
+/** Az állapotgép (ugyanaz, mint az admin_set_booking_status DB-függvényben). */
+export const BOOKING_NEXT: Record<BookingStatus, BookingStatus[]> = {
+  uj: ["egyeztetve", "megtartva", "elvetve"],
+  egyeztetve: ["megtartva", "elvetve"],
+  megtartva: ["elvetve"],
+  cegge_alakitva: [],
+  elvetve: [],
+  lemondva: [],
+};
+
+export type AdminBooking = {
+  id: string; kind: "idopont" | "visszahivas"; status: BookingStatus; startsAt: string | null;
+  hostId: string | null; hostName: string | null; name: string; company: string; email: string; phone: string;
+  message: string | null; source: string; createdAt: string; visitorMailSentAt: string | null; adminNotifiedAt: string | null;
+  note: string | null; handledBy: string | null; canceledBy: "latogato" | "admin" | null; registered: boolean;
+};
+export type BookingEvent = { id: number; actor: string; kind: string; data: Record<string, unknown> | null; at: string };

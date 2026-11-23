@@ -11,9 +11,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 /** `countKey`: melyik számláló tartozik a menüponthoz (lásd /api/admin/inbox-counts). */
-type CountKey = "inboxPage" | "pendingCredits" | "newIdeas" | "pendingOffices";
+type CountKey = "inboxPage" | "pendingCredits" | "newIdeas" | "pendingOffices" | "newBookings";
 type Item = { href: string; label: string; hint?: string; countKey?: CountKey };
-type Section = { id: string; label: string; href?: string; items?: Item[] };
+type Section = { id: string; label: string; href?: string; items?: Item[]; countKey?: CountKey };
 
 const SECTIONS: Section[] = [
   { id: "home", label: "Kezdőlap", href: "/admin" },
@@ -27,7 +27,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása", countKey: "pendingOffices" },
     ],
   },
-  { id: "bookings", label: "Foglalások", href: "/admin/foglalasok" },
+  { id: "bookings", label: "Foglalások", href: "/admin/foglalasok", countKey: "newBookings" },
   { id: "users", label: "Felhasználók és modulok", href: "/admin/users" },
   { id: "agents", label: "AI-ügynökök", href: "/admin/ugynokok" },
   {
@@ -141,8 +141,17 @@ export default function AdminShell({
 
               if (s.href) {
                 return (
-                  <Link key={s.id} href={s.href} className="rounded-lg px-3.5 py-2 text-sm transition-colors" style={style}>
+                  <Link key={s.id} href={s.href} className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm transition-colors" style={style}>
                     {s.label}
+                    {/* Fix helyű jelzés (pl. új foglalások) — üresen is foglalja a helyét, a menü nem ugrik. */}
+                    {s.countKey && (
+                      <span className="inline-flex min-w-[1.4rem] justify-center rounded-full px-1.5 text-[11px] font-bold"
+                        style={(counts[s.countKey] ?? 0) > 0
+                          ? (active ? { background: "rgba(0,0,0,0.16)", color: "#1c1005" } : { background: "var(--twx-coral)", color: "#1c1005" })
+                          : { visibility: "hidden" }}>
+                        {counts[s.countKey] ?? 0}
+                      </span>
+                    )}
                   </Link>
                 );
               }

@@ -3,6 +3,31 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-23 – 2. lépés: ingyenes felmérés foglalása (2a–2e)
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/15-foglalas-terv.md, 16-email-szovegek.md, 17 (hozzájárulási szöveg), D33, D37, D48, D49, D51
+Elkészült:
+- 2a: migráció `20261123190000_bookings.sql` (+ `supabase/down/…down.sql`): booking_hosts, availability_templates, availability_slots (átfedés-tiltás), bookings (egy aktív foglalás e-mail/telefon szerint), booking_events, booking_attempts; DB-függvények (create_booking, lemondás tokennel, admin-műveletek, sablon alkalmazása helyi időben); RLS: csak admin olvas, írás csak service_role. Lefuttatva, gazdák felvéve.
+- 2b: Admin → Foglalások → Időpontok: gazda-váltó, heti sablon, „Sablon alkalmazása (4 hét)”, kézi időpont, törlés „⋯” menüből.
+- 2c: kétlépéses foglaló űrlap a kapcsolatblokkban (időpont → adatok → visszaigazolás, fix doboz), visszahívási kérés időpont nélkül; /api/bookings: szerveroldali validáció, honeypot, sebességkorlát (IP 8/óra, e-mail 4/nap), tranzakciós foglalás; `book_assessment` GA4-esemény.
+- 2d: e-mailek a 16-os szövegekkel (visszaigazolás „Lemondás” gombbal, visszahívás, lemondás), értesítés Márknak és Tibinek (e-mail + Telegram, ha beállítva; egyszerű szöveg); lemondás oldal (`/foglalas/lemondas`): megnyitás nem mond le, csak a gomb (POST), egyszer használatos token.
+- 2e: Admin → Foglalások → Beérkezett: szűrő (aktív / állapot) és „csak az enyém”, Új felül, kibontható sor (teljes leírás szövegként, belső jegyzet, történet), „⋯” menü: Állapot módosítása, Jegyzet, Értesítés újraküldése, Céggé alakítás („Hamarosan”), Lemondás; fix helyű jelzés a Foglalások menüponton az új foglalások számával.
+Eltérés a tervtől:
+- Új `booking_hosts` tábla a gazdák megjelenített nevéhez („Márk”, „Tibor”).
+- `bookings.company_id` külső kulcs nélkül: a Cég-tábla (terv 14) még nincs; azt a migrációt kell kiegészíteni a kulccsal. A „Céggé alakítás” ezért „Hamarosan”.
+- Foglalt időpontnál az admin „⋯” menüje csak „Foglalás törlése” (az időpont azonnal újra szabad); időpont csak szabad állapotban törölhető (Márk kérése).
+- A nyilvános időpont-lista egy átlátszó időpont-kulcsot (uuid) is kiad, mert a foglaláshoz kell; felhasználói azonosító, e-mail nem megy ki.
+- Az újraküldésnél a látogató új lemondási linket kap (a régi nyers token nincs tárolva), a régi link érvénytelen lesz.
+- Élesítésig a foglalás API-ja is csak adminnak érhető el; nyitás: `BOOKINGS_PUBLIC=1` (Vercel).
+Új buktató / tanulság: a Resend csak hitelesített domainről küld (403 „twinx.hu domain is not verified”); az office@twinx.hu postafiók ehhez nem elég, a DNS-rekordok kellenek.
+Nem lett kész / Hamarosan: Céggé alakítás (4. lépés); emlékeztető e-mail az időpont előtt; Telegram-értesítés (bot és csoport még nincs); a levelek a twinx.hu Resend-hitelesítéséig nem mennek ki.
+Ellenőrzési lépések eredménye: `tsc` és `eslint` rendben; Márk localhoston kipróbálta: foglalás, „már van aktív foglalás”, admin Foglalás törlése → az időpont újra szabad; levélküldés: Resend 403 (domain nincs hitelesítve). A versenyhelyzet, az óraátállítás (budapesti idő-átszámolás kódszinten ellenőrizve) és az RLS valódi tokenes tesztje még hátra van.
+Döntés kell tőled, Márk:
+- Resend domain-hitelesítés: a twinx.hu DNS-rekordjai a Rackforestnél (hozzáférés kell). Utána Vercel: `BOOKING_MAIL_FROM`, `BOOKING_NOTIFY_EMAILS`.
+- Telegram: kell-e, és melyik csoportba (bot létrehozása, `TELEGRAM_BOT_TOKEN`, `BOOKING_TELEGRAM_CHAT_ID`).
+- Az adatkezelési tájékoztató a foglalás élesítése előtt kötelező (kapu).
+Éles állapot: a foglalás csak adminnak látszik (/uj, /referenciak és az API is); az admin Foglalások menüpont él.
+
 ## 2026-11-23 – 1. lépés: új főoldal, felső sáv, referencia-landing (admin-előnézet)
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/11-fooldal-es-landing-terv.md (2026-11-23-i export), D34–D38, D51

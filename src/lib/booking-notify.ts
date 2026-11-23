@@ -106,16 +106,22 @@ async function logEvent(bookingId: string, data: Record<string, unknown>) {
 }
 
 /** Új foglalás után: visszaigazolás a látogatónak + értesítés Márknak és Tibinek. Soha nem dob hibát. */
-export async function notifyNewBooking(bookingId: string, cancelToken: string, origin?: string): Promise<void> {
+export async function notifyNewBooking(
+  bookingId: string, cancelToken: string, origin?: string,
+  opts: { visitor?: boolean; admins?: boolean } = {},
+): Promise<{ visitor: boolean | null; admins: boolean | null }> {
+  const doVisitor = opts.visitor !== false, doAdmins = opts.admins !== false;
   try {
     const b = await loadBooking(bookingId);
-    if (!b) return;
+    if (!b) return { visitor: null, admins: null };
     const admin = createAdminClient();
     const when = b.starts_at ? fmtFullBudapest(b.starts_at) : null;
 
     // --- A látogatónak (terv 16: 2. és 3. pont) ---
-    let visitorOk: boolean;
-    if (b.kind === "idopont" && when) {
+    let visitorOk: boolean | null = null;
+    if (!doVisitor) {
+      // kihagyva (újraküldésnél csak a hiányzót küldjük)
+    } else if (b.kind === "idopont" && when) {
       const cancelUrl = `${siteUrl(origin)}/foglalas/lemondas?t=${encodeURIComponent(cancelToken)}`;
       const host = b.hostName ?? "Kollégánk";
       const text = `Szia!\n\nRögzítettük az ingyenes felmérési időpontodat: ${when}. ${host} telefonon hív erre a számra: ${b.phone}.\n\nHa nem jó, itt lemondhatod: ${cancelUrl}\n\nKérdésed van? ${CONTACT}\n\n${SIGN}`;
@@ -138,15 +144,20 @@ export async function notifyNewBooking(bookingId: string, cancelToken: string, o
     const msg = plainShort(b.message);
     if (msg) lines.push(msg);
     const recipients = adminRecipients();
-    const adminMail = recipients.length
-      ? await sendMail(recipients, head, layout(lines.map(esc)), lines.join("\n"), b.email)
-      : false;
-    const tg = await sendTelegram(lines.join("\n"));
-    if (adminMail || tg) await admin.from("bookings").update({ admin_notified_at: new Date().toISOString() }).eq("id", b.id);
+    let adminMail: boolean | null = null, tg: boolean | null = null;
+    if (doAdmins) {
+      adminMail = recipients.length
+        ? await sendMail(recipients, head, layout(lines.map(esc)), lines.join("\n"), b.email)
+        : false;
+      tg = await sendTelegram(lines.join("\n"));
+      if (adminMail || tg) await admin.from("bookings").update({ admin_notified_at: new Date().toISOString() }).eq("id", b.id);
+    }
 
     await logEvent(b.id, { visitor_mail: visitorOk, admin_mail: adminMail, telegram: tg, recipients: recipients.length });
+    return { visitor: visitorOk, admins: doAdmins ? !!(adminMail || tg) : null };
   } catch (e) {
     console.error("[booking-notify] notifyNewBooking", e);
+    return { visitor: false, admins: false };
   }
 }
 
