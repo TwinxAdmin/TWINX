@@ -13,11 +13,17 @@ export const VIEW_AS_COOKIE = "twx_view_as";
 
 export type ViewRole = "user" | "sales";
 
+/** Felhasználó szerinti előnézet (3f; terv 12 / 1.): „így látja Y felhasználó" — a cookie a felhasználó azonosítója. */
+export const VIEW_AS_USER_COOKIE = "twx_view_as_user";
+
 export type ViewContext = {
   realRole: string;    // ami az adatbázisban van
   role: string;        // amit a felület használjon (előnézetben a választott)
   previewing: boolean; // épp előnézetben vagyunk-e
   canPreview: boolean; // van-e joga előnézethez (csak admin)
+  /** Felhasználó szerinti előnézetben a megjelenített felhasználó (csak megjelenítés; a jogot a szerver a valódi
+   *  felhasználóra ellenőrzi, és az előnézetben a beküldés tiltott — middleware). */
+  asUserId: string | null;
 };
 
 function parseView(v: string | undefined): ViewRole | null {
@@ -33,17 +39,21 @@ export async function resolveViewContext(realRole: string | null | undefined): P
   const canPreview = actual === "admin";
 
   if (!canPreview) {
-    return { realRole: actual, role: actual, previewing: false, canPreview: false };
+    return { realRole: actual, role: actual, previewing: false, canPreview: false, asUserId: null };
   }
 
   const jar = await cookies();
-  const view = parseView(jar.get(VIEW_AS_COOKIE)?.value);
+  const asUser = jar.get(VIEW_AS_USER_COOKIE)?.value || null;
+  const asUserId = asUser && /^[0-9a-f-]{36}$/i.test(asUser) ? asUser : null;
+  // A felhasználó szerinti előnézet a felhasználói szerepkört mutatja (a megjelenített személy valódi hozzáféréseivel).
+  const view = asUserId ? "user" : parseView(jar.get(VIEW_AS_COOKIE)?.value);
 
   return {
     realRole: actual,
     role: view ?? actual,
     previewing: view !== null,
     canPreview: true,
+    asUserId,
   };
 }
 

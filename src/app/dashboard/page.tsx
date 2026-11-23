@@ -7,7 +7,7 @@ import RecentActivity from "@/components/RecentActivity";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
 import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
-import { modulesFor } from "@/lib/site-preview";
+import { modulesFor, previewSubject } from "@/lib/site-preview";
 import NewHome from "@/components/dashboard/NewHome";
 import { premium3dStatus } from "@/lib/premium3d";
 import StarterCards from "@/components/dashboard/StarterCards";
@@ -56,7 +56,9 @@ export default async function DashboardHome() {
 
   // FONTOS: az admin RLS-ben minden sort lát, ezért mindenhol EXPLICIT a saját user-re szűrünk,
   // hogy a személyes dashboard (előzmény + folyamat-számláló) tényleg a sajátot mutassa.
-  const uid = user?.id ?? "__none__";
+  // Felhasználó szerinti admin-előnézetben (3f) a megjelenített személy munkái (csak megjelenítés).
+  const subject = view.asUserId ? await previewSubject(view.asUserId) : null;
+  const uid = subject?.id ?? user?.id ?? "__none__";
 
   const [{ data: wallet }, { data: history }, weekRes, monthRes] = await Promise.all([
     user
@@ -105,15 +107,15 @@ export default async function DashboardHome() {
 
   // Új felület (3e): személyre szabott kezdőlap (terv 11 / 4.).
   if (newUi && user) {
-    const estate = !isAdmin && (await hasEstateAccess(user.id));
+    const estate = !isAdmin && (await hasEstateAccess(uid));
     const modules = await modulesFor({ isAdmin, estate });
     // Besorolatlan (D31): nincs cég-tagsága és nincs hozzáférése (a company_members a 3c migrációval jött; hiányában nem tag).
     const { count: memberships } = await supabase.from("company_members")
-      .select("company_id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "aktiv");
+      .select("company_id", { count: "exact", head: true }).eq("user_id", uid).eq("status", "aktiv");
     return (
       <NewHome
-        name={(me?.full_name as string | null) ?? ""}
-        email={user.email ?? ""}
+        name={subject?.name ?? (me?.full_name as string | null) ?? ""}
+        email={subject?.email ?? user.email ?? ""}
         modules={modules}
         unassigned={!isAdmin && !estate && !(memberships ?? 0)}
         works={historyList.slice(0, 12).map((h) => ({

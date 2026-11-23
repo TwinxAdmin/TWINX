@@ -1,5 +1,6 @@
 // Az új nyilvános oldal szerveroldali segédei (felső sáv adatai, Moduljaim). Közös adatok: lib/site.ts.
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { visibleCategories, visibleModules } from "@/lib/catalog";
 import { premium3dStatus } from "@/lib/premium3d";
 import { hasEstateAccess } from "@/lib/new-ui";
@@ -40,4 +41,15 @@ export async function modulesFor(p: { isAdmin: boolean; estate: boolean }): Prom
   return visibleCategories(view).flatMap((c) => visibleModules(c, false, view))
     .filter((m) => p.isAdmin || ESTATE_PATHS.some((x) => m.href === x || m.href.startsWith(x + "/")))
     .map((m) => ({ label: m.label, href: m.href, icon: m.icon }));
+}
+
+/** Felhasználó szerinti admin-előnézet (3f): a megjelenített személy alapadatai (service role — a hívó admin). */
+export async function previewSubject(userId: string): Promise<{ id: string; name: string; email: string } | null> {
+  const admin = createAdminClient();
+  const [{ data: u }, { data: p }] = await Promise.all([
+    admin.auth.admin.getUserById(userId),
+    admin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+  ]);
+  if (!u?.user) return null;
+  return { id: userId, name: (p?.full_name as string | null) ?? "", email: u.user.email ?? "" };
 }

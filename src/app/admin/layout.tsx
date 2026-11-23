@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       {children}
-      {view.previewing && <ViewAsBar current={view.role as "user" | "sales"} />}
+      {view.previewing && <ViewAsBar current="user" asUser={view.asUserId ? { name: "kiválasztott felhasználó" } : null} />}
     </>
   );
 }

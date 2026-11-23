@@ -28,7 +28,7 @@ import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
 import { UiModeProvider } from "@/components/UiModeProvider";
 import ModuleGate from "@/components/ModuleGate";
 import SiteHeader from "@/components/site/SiteHeader";
-import { modulesFor } from "@/lib/site-preview";
+import { modulesFor, previewSubject } from "@/lib/site-preview";
 
 export default async function DashboardLayout({
   children,
@@ -58,12 +58,15 @@ export default async function DashboardLayout({
   // Új, kredit nélküli felület (3d): admin mindig; más csak az admin „Új felület" kapcsolójával. Az előnézetben
   // (nézet-váltó) a megjelenített szerepkör számít, hogy az admin pontosan azt lássa, amit a felhasználó.
   const newUi = await newUiFor(view.role);
-  const estate = user && newUi && view.role !== "admin" ? await hasEstateAccess(user.id) : false;
+  // Felhasználó szerinti előnézet (3f): a megjelenített személy hozzáférései, neve és e-mailje (csak megjelenítés).
+  const subject = view.asUserId ? await previewSubject(view.asUserId) : null;
+  const subjectId = subject?.id ?? user?.id ?? null;
+  const estate = subjectId && newUi && view.role !== "admin" ? await hasEstateAccess(subjectId) : false;
   const uiMode = { newUi, estate, admin: view.role === "admin" };
   // Új felső sáv (3e; terv 11 / 2.): Moduljaim (csak amihez hozzáférése van), Irodai fiók, Referenciák, Kapcsolat,
   // Ingyenes felmérés, profil. A „Kapcsolat" a kezdőlap kapcsolatblokkjához visz.
   const siteViewer = newUi && user
-    ? { email: user.email ?? "", name: (me?.full_name as string | null) ?? "", isAdmin: view.role === "admin",
+    ? { email: subject?.email ?? user.email ?? "", name: subject?.name ?? (me?.full_name as string | null) ?? "", isAdmin: view.role === "admin",
         modules: await modulesFor({ isAdmin: view.role === "admin", estate }) }
     : null;
 
@@ -181,7 +184,8 @@ export default async function DashboardLayout({
       {/* Nézet-váltó — jobb alsó sarok: admin (Admin/Sales/Felhasználó) + irodai vezető (Vezető/Kolléga) */}
       {(view.canPreview || realDock?.isManager) && (
         <ViewAsBar
-          current={view.canPreview ? (view.role as "admin" | "user" | "sales") : null}
+          current={view.canPreview ? (view.role === "admin" ? "admin" : "user") : null}
+          asUser={subject ? { name: subject.name || subject.email } : null}
           office={realDock?.isManager ? { preview: officePreview, none: officeNone } : null}
         />
       )}

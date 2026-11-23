@@ -40,6 +40,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Admin „így látja Y felhasználó" előnézet (3f): előnézetben NINCS beküldés — minden nem-GET API-hívás tiltott,
+  // kivéve az admin API-kat (pl. a nézet visszaváltása) és a belépés/kilépés útvonalait. A cookie-t csak admin
+  // állíthatja be (/api/admin/view-as); ha valaki kézzel hamisítja, csak a saját beküldéseit tiltja le.
+  const p = request.nextUrl.pathname;
+  if (request.cookies.get("twx_view_as_user")?.value && request.method !== "GET" && p.startsWith("/api/")
+      && !p.startsWith("/api/admin/") && !p.startsWith("/api/auth/")) {
+    return NextResponse.json({ error: "Előnézetben a beküldés le van tiltva. Válts vissza admin nézetre." }, { status: 403 });
+  }
+
   // Védett útvonalak: /dashboard csak bejelentkezve érhető el.
   if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
     const url = request.nextUrl.clone();
