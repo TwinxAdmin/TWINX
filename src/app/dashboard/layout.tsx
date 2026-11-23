@@ -27,6 +27,8 @@ import { loadDockState } from "@/lib/office-dock";
 import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
 import { UiModeProvider } from "@/components/UiModeProvider";
 import ModuleGate from "@/components/ModuleGate";
+import SiteHeader from "@/components/site/SiteHeader";
+import { modulesFor } from "@/lib/site-preview";
 
 export default async function DashboardLayout({
   children,
@@ -58,6 +60,12 @@ export default async function DashboardLayout({
   const newUi = await newUiFor(view.role);
   const estate = user && newUi && view.role !== "admin" ? await hasEstateAccess(user.id) : false;
   const uiMode = { newUi, estate, admin: view.role === "admin" };
+  // Új felső sáv (3e; terv 11 / 2.): Moduljaim (csak amihez hozzáférése van), Irodai fiók, Referenciák, Kapcsolat,
+  // Ingyenes felmérés, profil. A „Kapcsolat" a kezdőlap kapcsolatblokkjához visz.
+  const siteViewer = newUi && user
+    ? { email: user.email ?? "", name: (me?.full_name as string | null) ?? "", isAdmin: view.role === "admin",
+        modules: await modulesFor({ isAdmin: view.role === "admin", estate }) }
+    : null;
 
   // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).
   const realDock = user ? await loadDockState(user.id) : null;
@@ -70,70 +78,74 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
-      <header
-        className="relative flex items-center gap-4 px-6 py-3"
-        style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)", zIndex: 50 }}
-      >
-        {/* Bal: logó + fiók/admin linkek */}
-        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-          <a
-            href="/dashboard"
-            className="font-display text-2xl font-semibold tracking-wide"
-            style={{ color: "var(--twx-on-dark)" }}
-          >
-            <Wordmark />
-          </a>
-          {isAdmin && (
+      {siteViewer ? (
+        <SiteHeader viewer={siteViewer} contactHref="/dashboard#kapcsolat" />
+      ) : (
+        <header
+          className="relative flex items-center gap-4 px-6 py-3"
+          style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)", zIndex: 50 }}
+        >
+          {/* Bal: logó + fiók/admin linkek */}
+          <div className="flex items-center gap-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
             <a
-              href="/admin"
-              className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
-              style={{ color: "var(--twx-on-dark-muted)" }}
+              href="/dashboard"
+              className="font-display text-2xl font-semibold tracking-wide"
+              style={{ color: "var(--twx-on-dark)" }}
             >
-              Admin
-              {/* Korall karika: csak akkor látszik, ha van elintézetlen megkeresés. */}
-              <AdminInboxBadge />
+              <Wordmark />
             </a>
-          )}
-          {isSales && (
-            // A Sales munkafelület: Felhasználók (ügyfelek elérhetősége + tevékenysége) és Megkeresések.
-            <a
-              href="/sales/felhasznalok"
-              className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
-              style={{ color: "var(--twx-on-dark-muted)" }}
-            >
-              Sales
-              <AdminInboxBadge />
-            </a>
-          )}
-        </div>
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
+                style={{ color: "var(--twx-on-dark-muted)" }}
+              >
+                Admin
+                {/* Korall karika: csak akkor látszik, ha van elintézetlen megkeresés. */}
+                <AdminInboxBadge />
+              </a>
+            )}
+            {isSales && (
+              // A Sales munkafelület: Felhasználók (ügyfelek elérhetősége + tevékenysége) és Megkeresések.
+              <a
+                href="/sales/felhasznalok"
+                className="hidden items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors hover:bg-white/5 md:inline-flex"
+                style={{ color: "var(--twx-on-dark-muted)" }}
+              >
+                Sales
+                <AdminInboxBadge />
+              </a>
+            )}
+          </div>
 
-        {/* Közép: modulsáv (csak desktop) */}
-        <div className="hidden flex-1 justify-center md:flex">
-          <DashboardNav isAdmin={isAdmin} premium3d={premium3d} />
-        </div>
+          {/* Közép: modulsáv (csak desktop) */}
+          <div className="hidden flex-1 justify-center md:flex">
+            <DashboardNav isAdmin={isAdmin} premium3d={premium3d} />
+          </div>
 
-        {/* Jobb: irodai menü + fiók-menü (benne az Arculatom) + kilépés (csak desktop) */}
-        <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
-          {/* Irodai TWINX fiók — legördülő menü (magyarázó, igénylés, csatlakozás, irodáim). */}
-          <OfficeMenu
-            currentOffice={dock?.offices.find((o) => o.id === dock.officeId)?.name ?? null}
-            officeCount={dock?.offices.length ?? 0}
-          />
-          <AccountMenu email={user?.email ?? ""} role={view.role} balance={newUi ? null : balance} />
-          <LogoutButton />
-        </div>
+          {/* Jobb: irodai menü + fiók-menü (benne az Arculatom) + kilépés (csak desktop) */}
+          <div className="ml-auto hidden items-center gap-3 text-sm md:flex" style={{ color: "var(--twx-on-dark-muted)" }}>
+            {/* Irodai TWINX fiók — legördülő menü (magyarázó, igénylés, csatlakozás, irodáim). */}
+            <OfficeMenu
+              currentOffice={dock?.offices.find((o) => o.id === dock.officeId)?.name ?? null}
+              officeCount={dock?.offices.length ?? 0}
+            />
+            <AccountMenu email={user?.email ?? ""} role={view.role} balance={newUi ? null : balance} />
+            <LogoutButton />
+          </div>
 
-        {/* Mobil: hamburger */}
-        <div className="ml-auto md:hidden">
-          <MobileNav
-            email={user?.email ?? ""}
-            role={view.role}
-            balance={newUi ? null : balance}
-            isAdmin={isAdmin}
-            premium3d={premium3d}
-          />
-        </div>
-      </header>
+          {/* Mobil: hamburger */}
+          <div className="ml-auto md:hidden">
+            <MobileNav
+              email={user?.email ?? ""}
+              role={view.role}
+              balance={newUi ? null : balance}
+              isAdmin={isAdmin}
+              premium3d={premium3d}
+            />
+          </div>
+        </header>
+      )}
       {/* pb-28: a lebegő kredit-sáv ne takarja ki az oldal alját */}
       <UiModeProvider value={uiMode}>
         <div className="mx-auto max-w-5xl px-6 py-10 pb-28"><ModuleGate>{children}</ModuleGate></div>

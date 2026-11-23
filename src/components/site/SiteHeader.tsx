@@ -139,9 +139,9 @@ function OfficeLink({ className = "" }: { className?: string }) {
   );
 }
 
-function AssessmentButton({ className = "", onClick }: { className?: string; onClick?: () => void }) {
+function AssessmentButton({ className = "", onClick, href = SITE_LINKS.contact }: { className?: string; onClick?: () => void; href?: string }) {
   return (
-    <a href={SITE_LINKS.contact} onClick={onClick}
+    <a href={href} onClick={onClick}
       className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${className}`}
       style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
       Ingyenes felmérés
@@ -149,7 +149,11 @@ function AssessmentButton({ className = "", onClick }: { className?: string; onC
   );
 }
 
-export default function SiteHeader({ viewer }: { viewer: SiteViewer }) {
+export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }: {
+  viewer: SiteViewer;
+  /** Hova vigyen a „Kapcsolat" és az „Ingyenes felmérés" (a dashboardon a kezdőlap kapcsolatblokkja). */
+  contactHref?: string;
+}) {
   const [mobile, setMobile] = useState(false);
   const mobileRef = useDismiss(mobile, () => setMobile(false));
   const close = () => setMobile(false);
@@ -173,8 +177,8 @@ export default function SiteHeader({ viewer }: { viewer: SiteViewer }) {
             <a href={SITE_LINKS.how} className={link}>Hogyan működik</a>
           )}
           <a href={SITE_LINKS.references} className={link}>Referenciák</a>
-          <a href={SITE_LINKS.contact} className={link}>Kapcsolat</a>
-          <AssessmentButton className="mx-2" />
+          <a href={contactHref} className={link}>Kapcsolat</a>
+          <AssessmentButton className="mx-2" href={contactHref} />
           {viewer ? (
             <ProfileMenu email={viewer.email} isAdmin={viewer.isAdmin} />
           ) : (
@@ -216,7 +220,7 @@ export default function SiteHeader({ viewer }: { viewer: SiteViewer }) {
                   <a href={SITE_LINKS.how} onClick={close} className="rounded-lg px-1 py-2">Hogyan működik</a>
                 )}
                 <a href={SITE_LINKS.references} className="rounded-lg px-1 py-2">Referenciák</a>
-                <a href={SITE_LINKS.contact} onClick={close} className="rounded-lg px-1 py-2">Kapcsolat</a>
+                <a href={contactHref} onClick={close} className="rounded-lg px-1 py-2">Kapcsolat</a>
                 {viewer ? (
                   <>
                     <a href="/dashboard" className="rounded-lg px-1 py-2">Kezdőlapom</a>
@@ -229,7 +233,7 @@ export default function SiteHeader({ viewer }: { viewer: SiteViewer }) {
                     <AuthTrigger mode="register" className="rounded-lg px-1 py-2 text-left">Regisztráció</AuthTrigger>
                   </>
                 )}
-                <AssessmentButton className="mt-3 w-full py-3" onClick={close} />
+                <AssessmentButton className="mt-3 w-full py-3" onClick={close} href={contactHref} />
               </div>
             </div>
           )}

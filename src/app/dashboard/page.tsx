@@ -6,7 +6,9 @@ import { visibleCategories, visibleModules } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
-import { newUiFor } from "@/lib/new-ui";
+import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
+import { modulesFor } from "@/lib/site-preview";
+import NewHome from "@/components/dashboard/NewHome";
 import { premium3dStatus } from "@/lib/premium3d";
 import StarterCards from "@/components/dashboard/StarterCards";
 import InspirationBlock from "@/components/dashboard/inspiration/InspirationBlock";
@@ -100,6 +102,30 @@ export default async function DashboardHome() {
   // Hírlevél-sáv: csak valódi ügyfélnek (nem admin-előnézetben), aki még nem kér hírlevelet és nem zárta be.
   const news = user && me?.role === "user" ? await getNewsletter(user.id) : null;
   const showNewsletter = !!news && news.migrated && !news.newsletter && !news.bannerDismissed;
+
+  // Új felület (3e): személyre szabott kezdőlap (terv 11 / 4.).
+  if (newUi && user) {
+    const estate = !isAdmin && (await hasEstateAccess(user.id));
+    const modules = await modulesFor({ isAdmin, estate });
+    // Besorolatlan (D31): nincs cég-tagsága és nincs hozzáférése (a company_members a 3c migrációval jött; hiányában nem tag).
+    const { count: memberships } = await supabase.from("company_members")
+      .select("company_id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "aktiv");
+    return (
+      <NewHome
+        name={(me?.full_name as string | null) ?? ""}
+        email={user.email ?? ""}
+        modules={modules}
+        unassigned={!isAdmin && !estate && !(memberships ?? 0)}
+        works={historyList.slice(0, 12).map((h) => ({
+          id: h.id,
+          title: activityTitle(h.feature_used, h.input_data, h.created_at),
+          typeLabel: featureLabel(h.feature_used),
+          output_file_url: h.output_file_url,
+          created_at: h.created_at,
+        }))}
+      />
+    );
+  }
 
   return (
     <main className="space-y-10">
