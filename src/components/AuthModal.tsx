@@ -30,6 +30,8 @@ export default function AuthModal() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [lockedEmail, setLockedEmail] = useState(false);
+  const [nextPath, setNextPath] = useState("/dashboard");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -55,7 +57,8 @@ export default function AuthModal() {
   // Nyitás esemény + billentyűk
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { mode?: Mode; source?: string } | undefined;
+      // email + lockEmail + next: a meghívó oldalról (4d) — a cím előre kitöltve és zárolva, siker után oda vissza.
+      const detail = (e as CustomEvent).detail as { mode?: Mode; source?: string; email?: string; lockEmail?: boolean; next?: string } | undefined;
       setMode(detail?.mode ?? "login");
       setSource(bonusSignupSource(detail?.source));
       // GA: melyik gomb/oldal nyitotta a belépés/regisztráció ablakot (CTA-kattintás).
@@ -67,7 +70,9 @@ export default function AuthModal() {
       reset();
       setName("");
       setPhone("");
-      setEmail("");
+      setEmail(detail?.email ?? "");
+      setLockedEmail(!!(detail?.lockEmail && detail?.email));
+      setNextPath(detail?.next && /^\/(?!\/)/.test(detail.next) ? detail.next : "/dashboard");
       setPassword("");
       setPasswordConfirm("");
       setAcceptTerms(false);
@@ -141,7 +146,7 @@ export default function AuthModal() {
         setConfirm({ mode: "signup", email: email.trim(), sent: true });
         return;
       }
-      router.push("/dashboard");
+      router.push(nextPath);
       router.refresh();
     } catch {
       setServerError("Hálózati hiba. Próbáld újra.");
@@ -247,6 +252,7 @@ export default function AuthModal() {
             <input
               type="email"
               value={email}
+              readOnly={lockedEmail}
               onChange={(e) => setEmail(e.target.value)}
               className="twx-input mt-1"
               autoComplete="email"

@@ -23,6 +23,8 @@ export type SiteViewer = {
   /** A profilban megadott név (a foglalási űrlap előtöltéséhez). */
   name: string;
   isAdmin: boolean;
+  /** Cégvezető-e (a profilmenüben a „Hozzáférések" pont). */
+  isHead?: boolean;
   /** A „Moduljaim" legördülő tartalma — csak amihez a felhasználónak hozzáférése van. */
   modules: SiteModule[];
 } | null;

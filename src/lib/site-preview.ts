@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { visibleCategories, visibleModules } from "@/lib/catalog";
 import { premium3dStatus } from "@/lib/premium3d";
 import { hasEstateAccess } from "@/lib/new-ui";
+import { MODULE_REGISTRY } from "@/lib/module-registry";
+import { accessibleModuleKeys, isAnyCompanyHead } from "@/lib/custom-modules";
 import type { SiteModule, SiteViewer } from "@/lib/site";
 
 /** Az Ingatlan csomag moduljainak útvonalai (ugyanaz, mint a ModuleGate-ben). */
@@ -20,7 +22,8 @@ export async function getSiteViewer(): Promise<SiteViewer> {
   const { data: me } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single();
   const isAdmin = me?.role === "admin";
   const estate = !isAdmin && (await hasEstateAccess(user.id));
-  return { email: user.email ?? "", name: (me?.full_name as string | null) ?? "", isAdmin, modules: await modulesFor({ isAdmin, estate }) };
+  return { email: user.email ?? "", name: (me?.full_name as string | null) ?? "", isAdmin, isHead: await isAnyCompanyHead(user.id),
+    modules: await modulesFor({ isAdmin, estate, userId: user.id }) };
 }
 
 /** A foglalás nyitva van-e ennek a látogatónak (élesítésig csak admin; BOOKINGS_PUBLIC=1 → mindenki). */
@@ -34,13 +37,18 @@ export function bookingsOpenFor(viewer: SiteViewer): boolean {
  *  - Ingatlan-hozzáféréssel: az Ingatlan csomag moduljai;
  *  - különben üres (az egyedi modulok hozzáférése a 4. lépésben jön: module_access).
  */
-export async function modulesFor(p: { isAdmin: boolean; estate: boolean }): Promise<SiteModule[]> {
-  if (!p.isAdmin && !p.estate) return [];
+export async function modulesFor(p: { isAdmin: boolean; estate: boolean; userId?: string | null }): Promise<SiteModule[]> {
+  // Egyedi modulok (4d): az admin mindet látja, más azt, amihez aktív, érvényes hozzáférése van (module_access).
+  const customKeys = p.isAdmin ? MODULE_REGISTRY.map((m) => m.key) : p.userId ? await accessibleModuleKeys(p.userId) : [];
+  const custom: SiteModule[] = MODULE_REGISTRY.filter((m) => customKeys.includes(m.key))
+    .map((m) => ({ label: m.name, href: m.route, icon: m.icon }));
+  if (!p.isAdmin && !p.estate) return custom;
   const premium3d = (await premium3dStatus()).status;
   const view = { isAdmin: p.isAdmin, premium3d };
-  return visibleCategories(view).flatMap((c) => visibleModules(c, false, view))
+  const estate = visibleCategories(view).flatMap((c) => visibleModules(c, false, view))
     .filter((m) => p.isAdmin || ESTATE_PATHS.some((x) => m.href === x || m.href.startsWith(x + "/")))
     .map((m) => ({ label: m.label, href: m.href, icon: m.icon }));
+  return [...custom, ...estate];
 }
 
 /** Felhasználó szerinti admin-előnézet (3f): a megjelenített személy alapadatai (service role — a hívó admin). */

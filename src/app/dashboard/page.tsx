@@ -108,7 +108,7 @@ export default async function DashboardHome() {
   // Új felület (3e): személyre szabott kezdőlap (terv 11 / 4.).
   if (newUi && user) {
     const estate = !isAdmin && (await hasEstateAccess(uid));
-    const modules = await modulesFor({ isAdmin, estate });
+    const modules = await modulesFor({ isAdmin, estate, userId: uid });
     // Besorolatlan (D31): nincs cég-tagsága és nincs hozzáférése (a company_members a 3c migrációval jött; hiányában nem tag).
     const { count: memberships } = await supabase.from("company_members")
       .select("company_id", { count: "exact", head: true }).eq("user_id", uid).eq("status", "aktiv");

@@ -29,6 +29,7 @@ import { UiModeProvider } from "@/components/UiModeProvider";
 import ModuleGate from "@/components/ModuleGate";
 import SiteHeader from "@/components/site/SiteHeader";
 import { modulesFor, previewSubject } from "@/lib/site-preview";
+import { isAnyCompanyHead } from "@/lib/custom-modules";
 
 export default async function DashboardLayout({
   children,
@@ -67,7 +68,8 @@ export default async function DashboardLayout({
   // Ingyenes felmérés, profil. A „Kapcsolat" a kezdőlap kapcsolatblokkjához visz.
   const siteViewer = newUi && user
     ? { email: subject?.email ?? user.email ?? "", name: subject?.name ?? (me?.full_name as string | null) ?? "", isAdmin: view.role === "admin",
-        modules: await modulesFor({ isAdmin: view.role === "admin", estate }) }
+        isHead: subjectId ? await isAnyCompanyHead(subjectId) : false,
+        modules: await modulesFor({ isAdmin: view.role === "admin", estate, userId: subjectId }) }
     : null;
 
   // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).

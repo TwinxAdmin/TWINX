@@ -28,7 +28,18 @@ export type ModuleRegistryEntry = {
 };
 
 export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
-  // Még nincs élő egyedi modul. Az első a kódjával együtt kerül ide.
+  // Belső próba modul (Márk kérése, 2026-11-23): a meghívás, a hozzáférés és az Aktiválás teljes útjának
+  // kipróbálására. Ügyféladatot nem tárol; valódi ügyfélnek nem aktiváljuk.
+  {
+    key: "proba-modul",
+    name: "Próba modul",
+    icon: "custom",
+    route: "/dashboard/m/proba-modul",
+    origin: "egyedi",
+    reuse: false,
+    catalogStatus: "rejtett",
+    dataPolicy: "Nem tárol ügyféladatot: belső próba modul, csak a hozzáférés működését mutatja.",
+  },
 ];
 
 export function registryEntry(key: string): ModuleRegistryEntry | undefined {

@@ -92,7 +92,7 @@ function ModulesMenu({ modules }: { modules: { label: string; href: string; icon
   );
 }
 
-function ProfileMenu({ email, isAdmin }: { email: string; isAdmin: boolean }) {
+function ProfileMenu({ email, isAdmin, isHead }: { email: string; isAdmin: boolean; isHead?: boolean }) {
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
@@ -117,6 +117,7 @@ function ProfileMenu({ email, isAdmin }: { email: string; isAdmin: boolean }) {
           <p className="truncate px-3 pb-2 pt-1 text-xs" style={{ color: MUTED }}>{email}</p>
           <a href="/dashboard" className={row} style={{ color: ON_DARK }}>Kezdőlapom</a>
           <a href="/dashboard/munkaim" className={row} style={{ color: ON_DARK }}>Korábbi munkák</a>
+          {isHead && <a href="/dashboard/hozzaferesek" className={row} style={{ color: ON_DARK }}>Hozzáférések</a>}
           <a href="/dashboard/settings" className={row} style={{ color: ON_DARK }}>Fiókbeállítások</a>
           {isAdmin && <a href="/admin" className={row} style={{ color: ON_DARK }}>Admin felület</a>}
           <div className="my-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -180,7 +181,7 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
           <a href={contactHref} className={link}>Kapcsolat</a>
           <AssessmentButton className="mx-2" href={contactHref} />
           {viewer ? (
-            <ProfileMenu email={viewer.email} isAdmin={viewer.isAdmin} />
+            <ProfileMenu email={viewer.email} isAdmin={viewer.isAdmin} isHead={viewer.isHead} />
           ) : (
             <>
               <AuthTrigger mode="login" className={link}>Belépés</AuthTrigger>
@@ -224,6 +225,7 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
                 {viewer ? (
                   <>
                     <a href="/dashboard" className="rounded-lg px-1 py-2">Kezdőlapom</a>
+                    {viewer.isHead && <a href="/dashboard/hozzaferesek" className="rounded-lg px-1 py-2">Hozzáférések</a>}
                     <a href="/dashboard/settings" className="rounded-lg px-1 py-2">Fiókbeállítások</a>
                     {viewer.isAdmin && <a href="/admin" className="rounded-lg px-1 py-2">Admin felület</a>}
                   </>

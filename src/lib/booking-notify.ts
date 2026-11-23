@@ -12,16 +12,16 @@ import { fmtFullBudapest } from "@/lib/bookings";
 const SIGN = "A TWINX csapata";
 const CONTACT = "office@twinx.hu";
 
-function siteUrl(fallback?: string): string {
+export function siteUrl(fallback?: string): string {
   // Helyi fejlesztésnél a link a localhostra mutasson, hogy a lemondás kipróbálható legyen.
   if (fallback && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(fallback)) return fallback;
   return (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || fallback || "https://twinx.hu").replace(/\/$/, "");
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Egységes, egyszerű levélkeret (TWINX színek, gomb opcionális). */
-function layout(paragraphs: string[], button?: { label: string; href: string }, after: string[] = []): string {
+export function layout(paragraphs: string[], button?: { label: string; href: string }, after: string[] = []): string {
   const para = (list: string[]) => list.map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1c1815">${p}</p>`).join("");
   const body = para(paragraphs);
   const btn = button
@@ -36,7 +36,7 @@ ${body}${btn}${para(after)}
 </div></body></html>`;
 }
 
-async function sendMail(to: string | string[], subject: string, html: string, text: string, replyTo?: string): Promise<boolean> {
+export async function sendMail(to: string | string[], subject: string, html: string, text: string, replyTo?: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) { console.error("[booking-notify] Hiányzó RESEND_API_KEY"); return false; }
   const from = process.env.BOOKING_MAIL_FROM || process.env.RESEND_FROM || `${SIGN} <${CONTACT}>`;
