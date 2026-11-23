@@ -271,7 +271,7 @@ export default function BookingAvailabilityAdmin() {
             <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
               {fmtDayKey(budapestDayKey(confirmSlot.startsAt))} {fmtTime(confirmSlot.startsAt)} · {confirmSlot.bookedBy ?? ""}
             </p>
-            <p className="mt-3 text-sm">A foglalás lemondódik, az időpont azonnal újra szabad lesz. (Az értesítő e-mail a következő lépésben kerül be.)</p>
+            <p className="mt-3 text-sm">A foglalás lemondódik, az időpont azonnal újra szabad lesz. A látogató e-mailben értesítést kap.</p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" className="twx-btn-outline" onClick={() => setConfirmSlot(null)}>Mégse</button>
               <button type="button" className="twx-btn" disabled={busy} style={{ background: "#b5372f", color: "#fff" }}

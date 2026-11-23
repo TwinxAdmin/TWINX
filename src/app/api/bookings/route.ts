@@ -6,11 +6,13 @@
 // ELŐNÉZET (D51): amíg a BOOKINGS_PUBLIC=1 környezeti változó nincs beállítva, csak admin érheti el.
 // Biztonság: szerveroldali validáció; honeypot; sebességkorlát IP-hash és e-mail szerint; a user_id a
 // munkamenetből jön; a foglalás és az időpont lefoglalása egy DB-tranzakcióban (create_booking).
-// A lemondási tokennek csak a hash-e kerül az adatbázisba; a nyers token a visszaigazoló levélbe megy (2d lépés).
-import { NextResponse } from "next/server";
+// A lemondási tokennek csak a hash-e kerül az adatbázisba; a nyers token csak a visszaigazoló levél linkjében szerepel.
+// Az értesítések a válasz UTÁN mennek ki (after) — a hibájuk nem érinti a foglalást.
+import { after, NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyNewBooking } from "@/lib/booking-notify";
 import {
   BOOKING_CONSENT_VERSION, BOOKING_MIGRATION, BOOKING_SOURCES,
   normalizePhone, validateBooking, type BookingSource, type PublicSlot,
@@ -104,7 +106,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: busyMsg }, { status: 500 });
   }
 
-  // 2d lépés: itt megy ki a visszaigazoló e-mail (a nyers tokennel a lemondás linkjében) és a Telegram-értesítés.
+  const bookingId = r.booking_id as string;
+  const origin = new URL(request.url).origin;
+  after(() => notifyNewBooking(bookingId, token, origin));
   return NextResponse.json({
     ok: true, kind: input.slotId ? "idopont" : "visszahivas",
     startsAt: r.starts_at ?? null, hostName: r.host_name ?? null,

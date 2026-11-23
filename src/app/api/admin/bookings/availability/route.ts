@@ -9,10 +9,11 @@
 //     delete_slot      { id, cancelBooking? }  — lefoglaltnál csak cancelBooking=true-val (a foglalás lemondódik)
 //     cancel_slot_booking { id }               — a foglalás lemondása; az időpont megmarad és újra szabad lesz
 // Az időpontokat érintő írás a DB-függvényeken át megy (átfedés-tiltás, tranzakció); a sablon sima táblaírás.
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffRole } from "@/lib/staff";
+import { notifyCanceledBooking } from "@/lib/booking-notify";
 import {
   BOOKING_MIGRATION, budapestToUtcIso,
   type AdminSlot, type AvailabilityTemplate, type BookingHost,
@@ -121,13 +122,16 @@ export async function POST(request: Request) {
       p_slot_id: String(b.id ?? ""), p_admin_id: staff.userId, p_cancel_booking: b.cancelBooking === true,
     });
     if (error) return fail(error.message);
-    const r = data as { ok: boolean; error?: string; canceled?: { ok: boolean } | null };
+    const r = data as { ok: boolean; error?: string; canceled?: { ok: boolean; booking_id?: string } | null };
     if (!r.ok) {
       if (r.error === "foglalt") return NextResponse.json({ error: "foglalt", needsConfirm: true }, { status: 409 });
       return NextResponse.json({ error: "Az időpont már nem létezik." }, { status: 404 });
     }
-    // A látogató értesítése a lemondásról: a 2d lépésben (e-mailek) kerül ide.
-    if (r.canceled?.ok) notice = "Az időpont törölve, a foglalás lemondva.";
+    if (r.canceled?.ok && r.canceled.booking_id) {
+      const id = r.canceled.booking_id, origin = new URL(request.url).origin;
+      after(() => notifyCanceledBooking(id, "admin", origin));
+      notice = "Az időpont törölve, a foglalás lemondva.";
+    }
   } else if (action === "cancel_slot_booking") {
     const { data: bk } = await admin.from("bookings").select("id")
       .eq("slot_id", String(b.id ?? "")).in("status", ["uj", "egyeztetve"]).maybeSingle();
@@ -135,8 +139,9 @@ export async function POST(request: Request) {
     const { data, error } = await admin.rpc("admin_cancel_booking", { p_booking_id: bk.id, p_admin_id: staff.userId });
     if (error) return fail(error.message);
     if (!(data as { ok: boolean }).ok) return NextResponse.json({ error: "A foglalás már nem aktív." }, { status: 409 });
-    // A látogató értesítése a lemondásról: a 2d lépésben (e-mailek) kerül ide.
-    notice = "A foglalás lemondva, az időpont újra szabad.";
+    const id = bk.id as string, origin = new URL(request.url).origin;
+    after(() => notifyCanceledBooking(id, "admin", origin));
+    notice = "A foglalás lemondva, az időpont újra szabad. A látogató értesítést kap.";
   } else {
     return NextResponse.json({ error: "Ismeretlen művelet." }, { status: 400 });
   }
