@@ -3,6 +3,26 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-23 – 3f és 4. lépés: nézet-váltó, egyedi modulok, előfizetés, meghívás
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/12 (1., 6.), 13, 14 (2.3–2.5, 3.), 16 (1.), 22 (3.A, 4.B, 6.D), 23; D43, D44, D46, D54, D56
+Elkészült:
+- 3f: nézet-váltó cég/felhasználó szerint („Kit nézzek?" kereső; cégnél a cégvezető szemével), a megjelenített személy valódi hozzáféréseivel; előnézetben minden beküldés tiltott (middleware, nem-GET API → 403); a Sales nézet megszűnt.
+- 4a: migráció `20261124090000_company-modules.sql` (lefuttatva): `company_modules`, `module_handovers`, `module_invitations` (hash-elt token, 7 nap), `module_access`; függvények: állapot, előfizetés, átadás rögzítése/visszavonása, Aktiválás (6 DB-feltétel + regiszter és dataPolicy az API-ban), Kikapcsolás, meghívás/újraküldés/visszavonás (helyszámítás zárolással, 20 meghívó/óra/cég), „Használom én is", eltávolítás, elfogadás (megerősített, egyező e-mail).
+- 4b: kód-regiszter (`src/lib/module-registry.ts`); Admin → Egyedi modulok (állapotok, felelős, átadási adatlap, történet, Aktiválás/Kikapcsolás) és Előfizetések (foglalt/összes hely, érvényesség, plafon, 3 napon belüli lejárat pirossal).
+- 4c: cégvezető „Hozzáférések" ablaka (`/dashboard/hozzaferesek`, profilmenüből): modulonként egy sor, kollégák állapottal, meghívás, újraküldés, visszavonás, eltávolítás, „Használom én is", Cégvezetők doboz (kinevezés, lemondás).
+- 4d: meghívó oldal (`/meghivo`): belépés/regisztráció zárolt e-maillel, „Elfogadom" (POST); egyedi modulok a Moduljaim menüben; belső „Próba modul" a regiszterben (Márk kérése) a teljes út kipróbálásához.
+Eltérés a tervtől:
+- Resend nélkül (Márk döntése) a meghívó link egyszer megjelenik a cégvezetőnek másolásra; Resend után automatikusan e-mail megy.
+- Regisztráció + e-mail-megerősítés után a meghívót újra meg kell nyitni (nincs automatikus elfogadás) — az oldal ezt jelzi.
+- Az átadási bejegyzés egyszerű adatlapként már most kész (terv 23), a pénzügyi emlékeztető (terv 19) nélkül.
+- A Kikapcsolás Szünetel állapotba visz; az újraaktiválás Szünetelből érvényes átadással engedett.
+Új buktató / tanulság: a nézet-váltó előnézetben az irodai fiók oldal még a saját (admin) irodát mutatja (az irodai API a valódi felhasználót nézi).
+Nem lett kész / Hamarosan: plafon-mérés és leállás (terv 20); ajánlat és fizetés (terv 19); lemondás/lezárás (terv 21); Felhasználók táblában cég-oszlop és „Besorolatlan" jelölés; cégvezetői „Átvettem" gomb.
+Ellenőrzési lépések eredménye: `tsc` és `eslint` (érintett fájlok) rendben; a teljes meghívási út (aktiválás → Használom én is → meghívás link-tartalékkal → elfogadás → Moduljaim) Márk tesztjére vár; a párhuzamossági és RLS-tesztek valódi felhasználói tokennel még hátravannak.
+Döntés kell tőled, Márk: a meghívó-korlát (20/óra/cég) és a 7 napos érvényesség jóváhagyása; mi a következő lépés (Felhasználók cég-oszlop, terv 19, 20 vagy 21).
+Éles állapot: Egyedi modulok, Előfizetések, Hozzáférések ablak és meghívó oldal élesben; valódi ügyfélmodul még nincs aktiválva (csak a próba modul).
+
 ## 2026-11-23 – 3. lépés (3a–3e) és élesítés
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/12-admin-terv.md, 14-adatmodell-terv.md (2.1, 2.2, 2.6), 11 (4. szakasz), 22 (3.A, 5.C), D30, D31, D40, D42, D45, D46, D51

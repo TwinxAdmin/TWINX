@@ -32,14 +32,56 @@ function huf(n: number): string {
 }
 
 export default function UserTable({
-  users, hufPerUsd, estateIds = [], creditsHidden = false,
+  users, hufPerUsd, estateIds = [], creditsHidden = false, memberships = {}, companies = [],
 }: {
+  /** Cég-tagságok felhasználónként (terv 12 / 1.2): a TWINX-cégek, ★ = cégvezető. Hiány = Besorolatlan (D31). */
+  memberships?: Record<string, { companyId: string; name: string; isHead: boolean }[]>;
+  /** A céghez rendelés választéka. */
+  companies?: { id: string; name: string }[];
   users: UserMetric[]; hufPerUsd: number;
   /** Ingatlan csomag hozzáféréssel rendelkezők (3d) */ estateIds?: string[];
   /** Bekapcsolt „Új felület": az Egyenleg és a Kredit oszlop, valamint a „+" gomb nem látszik (3d-4, terv 12 / 3.) */
   creditsHidden?: boolean;
 }) {
   const showCredits = !creditsHidden;
+  // Cég-szűrő és céghez rendelés (a tagság az /api/admin/companies add_member műveletével jön létre, naplózva).
+  const [mem, setMem] = useState(memberships);
+  const [companyFilter, setCompanyFilter] = useState<"all" | "none" | "in">("all");
+  const [assignFor, setAssignFor] = useState<UserMetric | null>(null);
+  const [assignCompany, setAssignCompany] = useState("");
+  const [assignBusy, setAssignBusy] = useState(false);
+  const unassigned = (u: UserMetric) => u.role !== "admin" && !(mem[u.userId]?.length);
+  async function assign() {
+    if (!assignFor || !assignCompany) return;
+    setAssignBusy(true);
+    try {
+      const r = await fetch("/api/admin/companies", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "add_member", id: assignCompany, email: assignFor.email }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return; }
+      const name = companies.find((c) => c.id === assignCompany)?.name ?? "";
+      setMem((m) => ({ ...m, [assignFor.userId]: [...(m[assignFor.userId] ?? []).filter((x) => x.companyId !== assignCompany), { companyId: assignCompany, name, isHead: false }] }));
+      showToast(`${assignFor.name || assignFor.email} → ${name}`, "success");
+      setAssignFor(null);
+    } finally { setAssignBusy(false); }
+  }
+  /** A cég-sor a név alatt: a cégek (★ cégvezető) vagy a „Besorolatlan" jelölés + Céghez rendelés. */
+  const CompanyLine = ({ u }: { u: UserMetric }) => {
+    const list = mem[u.userId] ?? [];
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        {list.map((c) => (
+          <a key={c.companyId} href={`/admin/cegek?ceg=${c.companyId}`} className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            style={{ background: "#e3ecfb", color: "#24467a" }} title={c.isHead ? "Cégvezető" : "Tag"}>{c.isHead ? "★ " : ""}{c.name}</a>
+        ))}
+        {unassigned(u) && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "#ece8e2", color: "#6e655c" }}>Besorolatlan</span>}
+        {u.role !== "admin" && companies.length > 0 && (
+          <button type="button" className="text-[11px] underline underline-offset-2" style={{ color: "var(--twx-ink-muted)" }}
+            onClick={() => { setAssignCompany(companies[0]?.id ?? ""); setAssignFor(u); }}>Céghez rendelés</button>
+        )}
+      </div>
+    );
+  };
   // Ingatlan-hozzáférés (company_access): helyben kapcsolható, a friss érték itt él.
   const [estate, setEstate] = useState<Set<string>>(() => new Set(estateIds));
   const [estateBusy, setEstateBusy] = useState<string | null>(null);
@@ -140,12 +182,10 @@ export default function UserTable({
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? users.filter((u) =>
-          [u.name, u.company, u.email, u.signupSource ? SIGNUP_SOURCE_LABEL[u.signupSource] : ""]
-            .some((v) => (v ?? "").toLowerCase().includes(q))
-        )
-      : users;
+    const filtered = users.filter((u) =>
+      (!q || [u.name, u.company, u.email, u.signupSource ? SIGNUP_SOURCE_LABEL[u.signupSource] : "", ...(mem[u.userId] ?? []).map((c) => c.name)]
+        .some((v) => (v ?? "").toLowerCase().includes(q)))
+      && (companyFilter === "all" || (companyFilter === "none" ? unassigned(u) : (mem[u.userId]?.length ?? 0) > 0)));
     const sorted = [...filtered];
     if (sort === "name") {
       sorted.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, "hu", { sensitivity: "base" }));
@@ -161,7 +201,7 @@ export default function UserTable({
       sorted.sort((a, b) => b.revenueHuf - a.revenueHuf);
     }
     return sorted;
-  }, [users, query, sort, newestFirst]);
+  }, [users, query, sort, newestFirst, mem, companyFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(
     () => ({
@@ -201,8 +241,16 @@ export default function UserTable({
           style={sort === "created" ? { background: "var(--twx-coral-soft)", color: "#7a2e17" } : { border: "1px solid var(--twx-line)" }}>
           Regisztráció {sort === "created" ? (newestFirst ? "↓ legfrissebb" : "↑ legrégebbi") : "szerint"}
         </button>
+        {/* Cég szerinti szűrő — fix méretű, három egyforma gomb */}
+        <div className="inline-flex rounded-full p-1" style={{ background: "#EFE7DD" }}>
+          {([["all", "Mind"], ["none", "Besorolatlan"], ["in", "Cégben"]] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setCompanyFilter(k)}
+              className="h-7 w-[104px] rounded-full text-xs font-semibold"
+              style={companyFilter === k ? { background: "#fff", color: "var(--twx-ink)" } : { color: "#6B6258" }}>{l}</button>
+          ))}
+        </div>
         <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          {rows.length} felhasználó{query ? ` (${users.length}-ből)` : ""}
+          {rows.length} felhasználó{rows.length !== users.length ? ` (${users.length}-ből)` : ""}
         </p>
       </div>
 
@@ -243,6 +291,7 @@ export default function UserTable({
                   )}
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
                   <SignupSourceBadge source={u.signupSource} className="mt-1" />
+                  <CompanyLine u={u} />
                   {openId === u.userId && (
                     <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                       {u.features.length
@@ -306,6 +355,7 @@ export default function UserTable({
             {u.company && <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>}
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
             <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Regisztrált: {regDate(u.createdAt)}</p>
+            <CompanyLine u={u} />
             <div className="mt-2 flex items-center justify-between gap-2"><RolePicker u={u} /><EstateToggle u={u} /><DetailsButton u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
               {showCredits && <>
@@ -339,6 +389,22 @@ export default function UserTable({
       </p>
 
       {detailsFor && <UserDetailDialog userId={detailsFor} onClose={() => setDetailsFor(null)} />}
+
+      {assignFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.55)" }}
+          onMouseDown={() => setAssignFor(null)}>
+          <div className="twx-card w-full max-w-md p-6" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal>
+            <h3 className="font-display text-lg font-semibold">Céghez rendelés</h3>
+            <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{assignFor.name || assignFor.email}</p>
+            <div className="mt-3"><SelectField size="sm" value={assignCompany} onChange={setAssignCompany} options={companies.map((c) => ({ value: c.id, label: c.name }))} /></div>
+            <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Tag lesz (nem cégvezető). Cégvezetővé a Cégek lapon nevezheted ki. Modul-hozzáférést ez nem ad.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="twx-btn-outline" onClick={() => setAssignFor(null)}>Mégse</button>
+              <button type="button" className="twx-btn" disabled={assignBusy || !assignCompany} onClick={() => void assign()}>Hozzárendelés</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {roleConfirm && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.55)" }}

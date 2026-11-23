@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUserMetrics } from "@/lib/metrics";
 import { estateAccessUserIds, newUiEnabled } from "@/lib/new-ui";
+import { createAdminClient } from "@/lib/supabase/admin";
 import UserTable from "@/components/admin/UserTable";
 import AdminShell from "@/components/admin/AdminShell";
 import ModuleUsageView from "@/components/admin/ModuleUsageView";
@@ -41,6 +42,21 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const estateIds = tab === "egyenlegek" ? [...(await estateAccessUserIds())] : [];
   // Bekapcsolt „Új felület": a kredit-oszlopok és a „+" gomb eltűnnek (amíg ki van kapcsolva, a kollégáknak még kell a kredit).
   const creditsHidden = await newUiEnabled();
+  // Cég-tagságok és cégek (terv 12 / 1.2 — Besorolatlan = nincs aktív cég-tagsága; a companies migráció előtt üres).
+  const memberships: Record<string, { companyId: string; name: string; isHead: boolean }[]> = {};
+  let companies: { id: string; name: string }[] = [];
+  if (tab === "egyenlegek") {
+    const admin = createAdminClient();
+    const [{ data: cs }, { data: ms }] = await Promise.all([
+      admin.from("companies").select("id, name, status").order("name"),
+      admin.from("company_members").select("company_id, user_id, is_company_head").eq("status", "aktiv"),
+    ]);
+    const nm = new Map((cs ?? []).map((c) => [c.id as string, c.name as string]));
+    companies = (cs ?? []).filter((c) => c.status !== "lezart").map((c) => ({ id: c.id as string, name: c.name as string }));
+    for (const m of ms ?? []) {
+      (memberships[m.user_id as string] ??= []).push({ companyId: m.company_id as string, name: nm.get(m.company_id as string) ?? "", isHead: !!m.is_company_head });
+    }
+  }
 
   return (
     <AdminShell
@@ -64,7 +80,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         ))}
       </nav>
 
-      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} estateIds={estateIds} creditsHidden={creditsHidden} />
+      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} estateIds={estateIds} creditsHidden={creditsHidden}
+          memberships={memberships} companies={companies} />
         : tab === "elemzes" ? <ModuleAnalysisView />
         : tab === "munkak" ? <AdminWorksView />
         : <ModuleUsageView />}
