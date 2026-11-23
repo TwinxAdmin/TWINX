@@ -10,13 +10,15 @@ import { useMemo, useState } from "react";
 import CreditGrantDialog from "@/components/admin/CreditGrantDialog";
 import UserDetailDialog from "@/components/admin/UserDetailDialog";
 import { showToast } from "@/components/Toast";
+import SelectField from "@/components/SelectField";
 import type { UserMetric } from "@/lib/metrics";
 import { SIGNUP_SOURCE_LABEL } from "@/lib/onboarding";
 import SignupSourceBadge from "@/components/admin/SignupSourceBadge";
 
 type SortKey = "name" | "created" | "balance" | "uses" | "cost" | "revenue";
 
-const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", sales: "Sales", admin: "Admin" };
+// Csak két rendszerszerep van (D45): a `sales` megszűnt — ha valahol még az áll, „Felhasználó"-ként jelenik meg.
+const ROLE_LABEL: Record<string, string> = { user: "Felhasználó", admin: "Admin" };
 
 /** Regisztráció dátuma röviden (pl. 2026. 10. 18. 14:05). */
 function regDate(iso: string | null): string {
@@ -52,7 +54,9 @@ export default function UserTable({
   // látszódjon (a szerveroldali lista csak újratöltéskor frissülne).
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [roleBusy, setRoleBusy] = useState<string | null>(null);
-  const roleOf = (u: UserMetric) => roles[u.userId] ?? u.role;
+  const roleOf = (u: UserMetric) => { const r = roles[u.userId] ?? u.role; return r === "admin" ? "admin" : "user"; };
+  // Admin jog adása/elvétele előtt megerősítés (naplózott, érzékeny művelet).
+  const [roleConfirm, setRoleConfirm] = useState<{ u: UserMetric; role: string } | null>(null);
 
   async function changeRole(u: UserMetric, role: string) {
     if (role === roleOf(u)) return;
@@ -74,23 +78,16 @@ export default function UserTable({
     }
   }
 
-  /** Szerepkör-választó — a táblázatban és a mobil kártyán is ez fut. */
+  /** Szerepkör-választó — a táblázatban és a mobil kártyán is ez fut. A váltás előtt megerősítést kér. */
   const RolePicker = ({ u }: { u: UserMetric }) => (
-    <select value={roleOf(u)} disabled={roleBusy === u.userId}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => { e.stopPropagation(); void changeRole(u, e.target.value); }}
-      aria-label={`Szerepkör: ${u.email}`}
-      className="rounded-lg px-2 py-1 text-xs font-medium disabled:opacity-50"
-      style={{
-        border: "1px solid var(--twx-line)",
-        background: roleOf(u) === "user" ? "#fff" : "var(--twx-coral-soft)",
-        color: roleOf(u) === "user" ? "var(--twx-ink)" : "#7a2e17",
-      }}>
-      {Object.entries(ROLE_LABEL).map(([value, label]) => (
-        <option key={value} value={value}>{label}</option>
-      ))}
-    </select>
+    <div className="w-[132px]" onClick={(e) => e.stopPropagation()}>
+      <SelectField size="sm" value={roleOf(u)} disabled={roleBusy === u.userId} searchable={false}
+        ariaLabel={`Szerepkör: ${u.email}`}
+        options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))}
+        onChange={(v) => { if (v !== roleOf(u)) setRoleConfirm({ u, role: v }); }} />
+    </div>
   );
+
 
   /** Egy sorvégi „+" gomb, ami megnyitja a kredit-ablakot. */
   const PlusButton = ({ u }: { u: UserMetric }) => (
@@ -300,6 +297,29 @@ export default function UserTable({
 
       {detailsFor && <UserDetailDialog userId={detailsFor} onClose={() => setDetailsFor(null)} />}
 
+      {roleConfirm && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.55)" }}
+          onMouseDown={() => setRoleConfirm(null)}>
+          <div className="twx-card w-full max-w-md p-6" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal>
+            <h3 className="font-display text-lg font-semibold">
+              {roleConfirm.role === "admin" ? "Admin jog adása" : "Admin jog elvétele"}
+            </h3>
+            <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>{roleConfirm.u.name || roleConfirm.u.email}</p>
+            <p className="mt-3 text-sm">
+              {roleConfirm.role === "admin"
+                ? "Az admin a teljes admin felületet látja és kezeli (cégek, foglalások, felhasználók). A művelet naplózva lesz."
+                : "Elveszíti a hozzáférést az admin felülethez. A művelet naplózva lesz."}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="twx-btn-outline" onClick={() => setRoleConfirm(null)}>Mégse</button>
+              <button type="button" className="twx-btn" disabled={roleBusy !== null}
+                onClick={async () => { const c = roleConfirm; setRoleConfirm(null); await changeRole(c.u, c.role); }}>
+                {roleConfirm.role === "admin" ? "Admin jog adása" : "Admin jog elvétele"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {grantFor && (
         <CreditGrantDialog
           name={grantFor.name}

@@ -40,7 +40,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
 
   return (
     <AdminShell
-      title="Admin — Felhasználók és modulok"
+      title="Admin — Felhasználók"
       subtitle={tab === "hasznalat"
         ? "Ki mit használ, és melyik modul iránt van a legnagyobb érdeklődés."
         : tab === "elemzes"

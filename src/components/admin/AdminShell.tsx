@@ -13,41 +13,39 @@ import Link from "next/link";
 /** `countKey`: melyik számláló tartozik a menüponthoz (lásd /api/admin/inbox-counts). */
 type CountKey = "inboxPage" | "pendingCredits" | "newIdeas" | "pendingOffices" | "newBookings";
 type Item = { href: string; label: string; hint?: string; countKey?: CountKey };
-type Section = { id: string; label: string; href?: string; items?: Item[]; countKey?: CountKey };
+type Section = { id: string; label: string; href?: string; items?: Item[]; countKey?: CountKey; soon?: boolean };
 
+// Új menü (terv 12 / 1. szakasz, D40). A kredit-oldalak (Kredit-napló, Kredit-kérések, Meghívók) kikerültek a menüből;
+// a kódjuk és a címük megmaradt. A még el nem készült menüpontok „Hamarosan" jelzéssel, nem kattinthatóan állnak.
 const SECTIONS: Section[] = [
   { id: "home", label: "Kezdőlap", href: "/admin" },
+  { id: "bookings", label: "Foglalások", href: "/admin/foglalasok", countKey: "newBookings" },
   {
     id: "inbox",
     label: "Megkeresések",
     items: [
-      { href: "/admin/megkeresesek", label: "Kérések és üzenetek", hint: "tájékoztatás-kérés, B2B, ajándékkód-jelentkezők", countKey: "inboxPage" },
-      { href: "/admin/credit-requests", label: "Kredit-kérések", hint: "csomagigénylés és számlázás", countKey: "pendingCredits" },
+      { href: "/admin/megkeresesek", label: "Kérések és üzenetek", hint: "tájékoztatás-kérés, B2B, korábbi jelentkezők", countKey: "inboxPage" },
       { href: "/admin/ideas", label: "Ötletláda", hint: "felhasználói javaslatok", countKey: "newIdeas" },
       { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása", countKey: "pendingOffices" },
     ],
   },
-  { id: "bookings", label: "Foglalások", href: "/admin/foglalasok", countKey: "newBookings" },
-  { id: "users", label: "Felhasználók és modulok", href: "/admin/users" },
-  { id: "agents", label: "AI-ügynökök", href: "/admin/ugynokok" },
+  { id: "users", label: "Felhasználók", href: "/admin/users" },
+  { id: "companies", label: "Cégek", soon: true },
+  { id: "subscriptions", label: "Előfizetések", soon: true },
+  { id: "finance", label: "Pénzügy", soon: true },
+  { id: "custom", label: "Egyedi modulok", soon: true },
+  { id: "costs", label: "Költségfigyelő", href: "/admin/analytics" },
   {
-    id: "money",
-    label: "Pénzügy",
-    items: [
-      { href: "/admin/credit-log", label: "Kredit-napló", hint: "ki, kinek, mikor, mennyit" },
-      { href: "/admin/analytics", label: "Költségfigyelő", hint: "API-önköltség és bevétel" },
-    ],
-  },
-  {
-    id: "content",
-    label: "Tartalom",
+    id: "tools",
+    label: "Eszközök",
     items: [
       { href: "/admin/prompts", label: "AI promptok" },
+      { href: "/admin/video-lab", label: "Videólabor", hint: "videómotor-kapcsoló + próbavideók" },
       { href: "/admin/valuation-engine", label: "Értékbecslő motor" },
       { href: "/admin/rejections", label: "Nem elfogadott képek" },
-      { href: "/admin/video-lab", label: "Videólabor", hint: "videómotor-kapcsoló + próbavideók" },
       { href: "/dashboard/real-estate/floorplan-3d", label: "3D-labor", hint: "alaprajzból bejárható 3D lakás — prototípus" },
       { href: "/admin/premium-3d", label: "Prémium 3D állapot", hint: "Rejtett / Hamarosan kapcsoló + várólista" },
+      { href: "/admin/ugynokok", label: "AI-ügynökök", hint: "állapot, napló, heti jelentések" },
       { href: "/admin/brevo", label: "Brevo-szinkron", hint: "kontaktok és hírlevél-lista" },
     ],
   },
@@ -138,6 +136,17 @@ export default function AdminShell({
               const style = active
                 ? { background: "var(--twx-coral)", color: "#1c1005", fontWeight: 600 }
                 : { color: "rgba(255,255,255,0.86)" };
+
+              // „Hamarosan": nem kattintható, halvány menüpont (nincs ál-gomb).
+              if (s.soon) {
+                return (
+                  <span key={s.id} aria-disabled title="Hamarosan" className="flex cursor-default items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm"
+                    style={{ color: "rgba(255,255,255,0.38)" }}>
+                    {s.label}
+                    <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ background: "rgba(255,255,255,0.08)" }}>Hamarosan</span>
+                  </span>
+                );
+              }
 
               if (s.href) {
                 return (

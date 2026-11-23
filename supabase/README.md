@@ -136,6 +136,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261105120000_activation-agent.sql` | Aktiváló ügynök: `activation_feedback` (levélből érkező visszajelzés, levelenként egy), `email_optout` (leiratkozás az aktiváló levelekről), `activation_reports` (heti jelentés az adminnak); RLS be, policy nélkül, csak a szerver éri el |
 | `20261105180000_agent-monitor.sql` | Admin → AI-ügynökök: `agent_status` (ügynökönként az utolsó jelzés és a napi összefoglaló), `agent_events` (eseménynapló, 90 napig); RLS be, policy nélkül, csak a szerver éri el |
 | `20261123190000_bookings.sql` | Ingyenes felmérés foglalása (terv 15): `booking_hosts` (gazdák: admin + megjelenített név), `availability_templates` (heti sablon), `availability_slots` (időpontok, átfedés-tiltás), `bookings` (foglalás / visszahívás, egy aktív címenként), `booking_events` (napló), `booking_attempts` (sebességkorlát); szerveroldali függvények (create_booking, lemondás tokennel, admin-műveletek, sablon alkalmazása); RLS: csak admin olvas. Visszacsinálás: `supabase/down/20261123190000_bookings.down.sql` |
+| `20261123210000_admin-roles.sql` | Szerepkörök (D45): `role_audit_log` (admin jog adása/elvétele, csak admin olvassa), `admin_set_role()` (csak szerver; naplózva), `profiles_guard_last_admin` trigger (az utolsó admin nem vehető le / nem törölhető); a `sales` fiókok `user`-ek lettek (naplózva). Visszacsinálás: `supabase/down/20261123210000_admin-roles.down.sql` |
 
 ## Egyszeri szkriptek (`one-off/`)
 

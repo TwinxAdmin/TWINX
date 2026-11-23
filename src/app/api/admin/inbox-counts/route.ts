@@ -57,6 +57,7 @@ export async function GET() {
     newInvites, unsentCodes, openLeads, pendingCredits, newIdeas, pendingOffices, newBookings,
     // A „Kérések és üzenetek" oldalon két dolog van egy helyen.
     inboxPage: openLeads + inviteTodo,
-    total: inviteTodo + openLeads + pendingCredits + newIdeas + pendingOffices,
+    // A kredit-kérések kikerültek a menüből (D40) — nem számolnak bele a Megkeresések jelzésébe.
+    total: inviteTodo + openLeads + newIdeas + pendingOffices,
   });
 }
