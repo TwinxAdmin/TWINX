@@ -66,13 +66,19 @@ function TemplateRow({ t, hostName, busy, onToggle, onDelete }: {
   );
 }
 
-function SlotRow({ s, hostName, busy, onDelete }: { s: AdminSlot; hostName: string; busy: boolean; onDelete: () => void }) {
+function SlotRow({ s, hostName, busy, onDelete, onCancelBooking }: {
+  s: AdminSlot; hostName: string; busy: boolean; onDelete: () => void; onCancelBooking: () => void;
+}) {
   const menu = useActionMenu();
   const end = new Date(new Date(s.startsAt).getTime() + s.durationMin * 60_000).toISOString();
   const booked = s.status === "foglalt";
-  const items: MenuItem[] = [
-    { label: booked ? "Törlés (a foglalás lemondásával)" : "Törlés", icon: MI.trash, danger: true, onClick: onDelete, disabled: busy },
-  ];
+  // Foglalt időpontnál a törlés a FOGLALÁST törli (lemondja), az időpont azonnal újra szabad lesz.
+  // Magát az időpontot csak szabad állapotban lehet törölni.
+  const items: MenuItem[] = booked
+    ? [{ label: "Foglalás törlése", icon: MI.trash, danger: true, onClick: onCancelBooking, disabled: busy,
+        hint: "Az időpont megmarad, és azonnal újra szabad lesz." }]
+    : [{ label: "Időpont törlése", icon: MI.trash, danger: true, onClick: onDelete, disabled: busy,
+        hint: "Az időpont eltűnik a foglalható listából." }];
   return (
     <li className="flex h-11 items-center gap-3 border-b last:border-b-0" style={{ borderColor: "var(--twx-line)" }} onContextMenu={menu.openAtEvent}>
       <span className="w-28 flex-none text-sm tabular-nums">{fmtTime(s.startsAt)}–{fmtTime(end)}</span>
@@ -139,10 +145,10 @@ export default function BookingAvailabilityAdmin() {
     } finally { setBusy(false); }
   }
 
-  async function deleteSlot(s: AdminSlot, cancelBooking = false) {
-    const r = await run({ action: "delete_slot", id: s.id, cancelBooking }, cancelBooking ? undefined : "Időpont törölve.");
-    if (r?.status === 409) setConfirmSlot(s);
-    else setConfirmSlot(null);
+  async function deleteSlot(s: AdminSlot) {
+    const r = await run({ action: "delete_slot", id: s.id }, "Időpont törölve.");
+    // Ha közben lefoglalták: ne törölje, hanem kérdezzen rá a foglalás törlésére.
+    if (r?.status === 409) { showToast("Közben lefoglalták ezt az időpontot.", "info"); void load(); }
   }
 
   const templates = (data?.templates ?? []).filter((t) => host === "all" || t.hostId === host);
@@ -245,7 +251,8 @@ export default function BookingAvailabilityAdmin() {
                     style={{ background: "var(--twx-cream-card)", color: "var(--twx-ink-muted)" }}>{fmtDayKey(key)}</p>
                   <ul>
                     {list.map((s) => (
-                      <SlotRow key={s.id} s={s} hostName={hostName(s.hostId)} busy={busy} onDelete={() => deleteSlot(s)} />
+                      <SlotRow key={s.id} s={s} hostName={hostName(s.hostId)} busy={busy} onDelete={() => deleteSlot(s)}
+                        onCancelBooking={() => setConfirmSlot(s)} />
                     ))}
                   </ul>
                 </div>
@@ -260,15 +267,15 @@ export default function BookingAvailabilityAdmin() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.55)" }}
           onMouseDown={() => setConfirmSlot(null)}>
           <div className="twx-card w-full max-w-md p-6" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal>
-            <h3 className="font-display text-lg font-semibold">Ez az időpont foglalt</h3>
+            <h3 className="font-display text-lg font-semibold">Foglalás törlése</h3>
             <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
               {fmtDayKey(budapestDayKey(confirmSlot.startsAt))} {fmtTime(confirmSlot.startsAt)} · {confirmSlot.bookedBy ?? ""}
             </p>
-            <p className="mt-3 text-sm">Ha törlöd, a foglalás lemondódik. (Az értesítő e-mail a következő lépésben kerül be.)</p>
+            <p className="mt-3 text-sm">A foglalás lemondódik, az időpont azonnal újra szabad lesz. (Az értesítő e-mail a következő lépésben kerül be.)</p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" className="twx-btn-outline" onClick={() => setConfirmSlot(null)}>Mégse</button>
               <button type="button" className="twx-btn" disabled={busy} style={{ background: "#b5372f", color: "#fff" }}
-                onClick={() => deleteSlot(confirmSlot, true)}>Törlés és lemondás</button>
+                onClick={async () => { await run({ action: "cancel_slot_booking", id: confirmSlot.id }); setConfirmSlot(null); }}>Foglalás törlése</button>
             </div>
           </div>
         </div>

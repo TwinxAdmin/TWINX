@@ -21,6 +21,8 @@ export type SiteModule = { label: string; href: string; icon?: string };
 /** A felső sávnak szükséges adatok a belépett felhasználóról (null = nincs belépve). */
 export type SiteViewer = {
   email: string;
+  /** A profilban megadott név (a foglalási űrlap előtöltéséhez). */
+  name: string;
   isAdmin: boolean;
   /** A „Moduljaim" legördülő tartalma — csak amihez a felhasználónak hozzáférése van. */
   modules: SiteModule[];

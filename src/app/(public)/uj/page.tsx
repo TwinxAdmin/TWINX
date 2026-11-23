@@ -209,7 +209,7 @@ export default async function NewHomePage({ searchParams }: { searchParams: Prom
       </section>
 
       {/* ===== 6) KAPCSOLATBLOKK ===== */}
-      <ContactBlock />
+      <ContactBlock source="fooldal" prefill={loggedOut ? undefined : { name: viewer.name, email: viewer.email }} />
 
       {/* ===== 7) LÁBLÉC ===== */}
       <SiteFooter />

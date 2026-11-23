@@ -146,7 +146,7 @@ export default async function ReferencesPage({ searchParams }: { searchParams: P
       </section>
 
       {/* ===== 5) KAPCSOLATBLOKK (azonos a főoldalival) ===== */}
-      <ContactBlock />
+      <ContactBlock source="referencia" prefill={loggedOut ? undefined : { name: viewer.name, email: viewer.email }} />
       <SiteFooter />
       <AuthModal />
     </main>

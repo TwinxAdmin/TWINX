@@ -72,3 +72,48 @@ export const TIME_OPTIONS = Array.from({ length: 56 }, (_, i) => {
 });
 
 export const DURATION_OPTIONS = [30, 45, 60, 90].map((n) => ({ value: String(n), label: `${n} perc` }));
+
+// ---------------------------------------------------------------------------
+// Nyilvános foglalás (a kapcsolatblokk űrlapja) — közös validáció a böngészőnek és a szervernek.
+// ---------------------------------------------------------------------------
+
+/** A hozzájárulás szövege (terv 17 / 10. szakasz) és verziója — a verzió a foglalással együtt tárolódik. */
+export const BOOKING_CONSENT_VERSION = "foglalas-2026-11-23";
+export const BOOKING_CONSENT_TEXT =
+  "Elolvastam az Adatkezelési tájékoztatót, és hozzájárulok, hogy a megadott adataimat a TWINX az ingyenes felmérés egyeztetése céljából kezelje.";
+export const BOOKING_MESSAGE_MAX = 1000;
+export const BOOKING_SOURCES = ["fooldal", "referencia", "kezdolap"] as const;
+export type BookingSource = (typeof BOOKING_SOURCES)[number];
+
+export type PublicSlot = { id: string; startsAt: string; durationMin: number; hostName: string };
+
+export type BookingInput = {
+  slotId: string | null; name: string; company: string; email: string; phone: string; message: string; consent: boolean;
+};
+export type BookingFieldErrors = Partial<Record<"name" | "company" | "email" | "phone" | "message" | "consent", string>>;
+
+/** Telefonszám normalizálása — ugyanaz a szabály, mint az adatbázisban (booking_normalize_phone). */
+export function normalizePhone(p: string): string {
+  let d = (p ?? "").replace(/[^0-9+]/g, "");
+  if (d.startsWith("+")) return "+" + d.slice(1).replace(/\D/g, "");
+  d = d.replace(/\D/g, "");
+  if (d.startsWith("00")) return "+" + d.slice(2);
+  if (d.startsWith("06")) return "+36" + d.slice(2);
+  if (d.startsWith("36") && d.length >= 10) return "+" + d;
+  return d;
+}
+
+export function validateBooking(i: BookingInput): BookingFieldErrors {
+  const e: BookingFieldErrors = {};
+  const name = i.name.trim(), company = i.company.trim(), email = i.email.trim();
+  if (!name) e.name = "Add meg a neved."; else if (name.length > 120) e.name = "Legfeljebb 120 karakter.";
+  if (!company) e.company = "Add meg a céged nevét."; else if (company.length > 160) e.company = "Legfeljebb 160 karakter.";
+  if (!email) e.email = "Add meg az e-mail címed.";
+  else if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) e.email = "Ez nem tűnik érvényes e-mail címnek.";
+  const phone = normalizePhone(i.phone);
+  if (!i.phone.trim()) e.phone = "Add meg a telefonszámod, ezen hívunk.";
+  else if (phone.replace(/\D/g, "").length < 8 || phone.length > 16) e.phone = "Ez nem tűnik érvényes telefonszámnak.";
+  if (i.message.length > BOOKING_MESSAGE_MAX) e.message = `Legfeljebb ${BOOKING_MESSAGE_MAX} karakter.`;
+  if (!i.consent) e.consent = "A foglaláshoz szükséges a hozzájárulás.";
+  return e;
+}

@@ -7,6 +7,7 @@
 //     apply_templates  {}                      — a következő 4 hétre időpontokat hoz létre (ismételhető)
 //     add_slot         { hostId, date "YYYY-MM-DD", time "HH:MM", duration }
 //     delete_slot      { id, cancelBooking? }  — lefoglaltnál csak cancelBooking=true-val (a foglalás lemondódik)
+//     cancel_slot_booking { id }               — a foglalás lemondása; az időpont megmarad és újra szabad lesz
 // Az időpontokat érintő írás a DB-függvényeken át megy (átfedés-tiltás, tranzakció); a sablon sima táblaírás.
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -127,6 +128,15 @@ export async function POST(request: Request) {
     }
     // A látogató értesítése a lemondásról: a 2d lépésben (e-mailek) kerül ide.
     if (r.canceled?.ok) notice = "Az időpont törölve, a foglalás lemondva.";
+  } else if (action === "cancel_slot_booking") {
+    const { data: bk } = await admin.from("bookings").select("id")
+      .eq("slot_id", String(b.id ?? "")).in("status", ["uj", "egyeztetve"]).maybeSingle();
+    if (!bk) return NextResponse.json({ error: "Ehhez az időponthoz nincs aktív foglalás." }, { status: 404 });
+    const { data, error } = await admin.rpc("admin_cancel_booking", { p_booking_id: bk.id, p_admin_id: staff.userId });
+    if (error) return fail(error.message);
+    if (!(data as { ok: boolean }).ok) return NextResponse.json({ error: "A foglalás már nem aktív." }, { status: 409 });
+    // A látogató értesítése a lemondásról: a 2d lépésben (e-mailek) kerül ide.
+    notice = "A foglalás lemondva, az időpont újra szabad.";
   } else {
     return NextResponse.json({ error: "Ismeretlen művelet." }, { status: 400 });
   }
