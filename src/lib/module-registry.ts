@@ -25,6 +25,8 @@ export type ModuleRegistryEntry = {
   catalogStatus?: "rejtett" | "katalogus";
   /** Adatkezelés: mit tárol, hogyan törölhető / exportálható. Hiányában a modul nem aktiválható. */
   dataPolicy: string | null;
+  /** Tárol-e ügyféladatot (terv 21 / 2.). Ha igen, a törléshez szerveroldali kezelő kell: lib/module-data-handlers.ts. */
+  storesCustomerData: boolean;
 };
 
 export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
@@ -39,6 +41,7 @@ export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
     reuse: false,
     catalogStatus: "rejtett",
     dataPolicy: "Nem tárol ügyféladatot: belső próba modul, csak a hozzáférés működését mutatja.",
+    storesCustomerData: false,
   },
 ];
 

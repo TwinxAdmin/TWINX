@@ -34,10 +34,11 @@ async function loadPayments(companyId?: string): Promise<Payment[]> {
   let q = admin.from("company_payments").select("*").order("created_at", { ascending: false }).limit(1000);
   if (companyId) q = q.eq("company_id", companyId);
   const [{ data, error }, { data: comps }, { data: mods }] = await Promise.all([
-    q, admin.from("companies").select("id, name"), admin.from("company_modules").select("id, module_key"),
+    q, admin.from("companies").select("id, name, status"), admin.from("company_modules").select("id, module_key"),
   ]);
   if (error) throw new Error(error.message);
   const cn = new Map((comps ?? []).map((c) => [c.id as string, c.name as string]));
+  const closedCo = new Set((comps ?? []).filter((c) => c.status === "lezart").map((c) => c.id as string));
   const mn = new Map((mods ?? []).map((m) => [m.id as string, moduleName(m.module_key as string)]));
   const today = todayKey();
   return (data ?? []).map((r) => ({
@@ -47,6 +48,7 @@ async function loadPayments(companyId?: string): Promise<Payment[]> {
     status: r.status as PaymentStatus, dueDate: r.due_date, invoiceNumber: r.invoice_number, invoiceIssuedAt: r.invoice_issued_at,
     paidAt: r.paid_at, method: r.payment_method, periodFrom: r.period_from, periodTo: r.period_to, reason: r.status_reason,
     createdAt: r.created_at, overdue: ["esedekes", "kiszamlazva"].includes(r.status) && !!r.due_date && r.due_date < today,
+    closedCompany: closedCo.has(r.company_id) && ["esedekes", "kiszamlazva"].includes(r.status),
   }));
 }
 

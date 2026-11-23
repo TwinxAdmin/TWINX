@@ -22,4 +22,5 @@ export const ACCESS_ERR: Record<string, string> = {
   nincs_ilyen: "Nem található.",
   nem_tag: "Csak a cég aktív tagja nevezhető ki.",
   utolso_cegvezeto: "Előbb nevezz ki másik cégvezetőt.",
+  modul_lemondva: "Ezt a modult lemondtátok: új meghívó és új hely már nem adható.",
 };

@@ -6,13 +6,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionMenu, MenuDots, MI, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import { showToast } from "@/components/Toast";
+import SelectField from "@/components/SelectField";
 import { CompanyFinance } from "@/components/admin/Finance";
 import {
   COMPANY_LOG_LABEL, COMPANY_STATUS_LABEL,
-  type AdminCompany, type CompanyLogEntry, type CompanyMember,
+  type AdminCompany, type CompanyLogEntry, type CompanyMember, type DeletionRequest,
 } from "@/lib/companies";
 
-type Payload = { migrated: boolean; error?: string; companies: AdminCompany[]; notice?: string; createdId?: string | null };
+type Payload = { migrated: boolean; error?: string; companies: AdminCompany[]; notice?: string; createdId?: string | null;
+  requests?: DeletionRequest[]; approvers?: { id: string; name: string; active: boolean }[] };
 const API = "/api/admin/companies";
 const fmt = (iso: string) => new Intl.DateTimeFormat("hu-HU", { timeZone: "Europe/Budapest", year: "numeric", month: "short", day: "numeric" }).format(new Date(iso));
 const fmtTs = (iso: string) => new Intl.DateTimeFormat("hu-HU", { timeZone: "Europe/Budapest", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
@@ -61,6 +63,10 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
   const [log, setLog] = useState<CompanyLogEntry[] | null>(null);
   const [edit, setEdit] = useState(false);
   const [finance, setFinance] = useState(false);
+  // Terv 21: lezárás, újranyitás, visszaadás, törlés kérése, végleges törlés
+  const [dlg, setDlg] = useState<null | "close" | "export" | "delreq" | "purge">(null);
+  const [f, setF] = useState({ reason: "", force: false, confirm: "", check: false, before: false, moduleKey: "", note: "" });
+  const closed = c.status === "lezart";
   const [name, setName] = useState(c.name);
   const [note, setNote] = useState(c.note ?? "");
   const heads = c.members.filter((m) => m.isHead);
@@ -76,13 +82,26 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
     { label: "Adatok szerkesztése", icon: MI.rename, onClick: () => { setName(c.name); setNote(c.note ?? ""); setEdit(true); } },
     { label: "Pénzügy (ajánlatok, fizetések)", icon: MI.folder, onClick: () => setFinance(true) },
     { kind: "link", label: "Modulok és előfizetés", icon: MI.open, href: "/admin/egyedi-modulok" },
-    { label: "Cég lezárása", icon: MI.trash, disabled: true, hint: "Hamarosan (terv 21).", onClick: () => {} },
+    { kind: "divider" },
+    closed
+      ? { label: "Újranyitás", icon: MI.restore, disabled: busy, hint: "A tagokat és a modulokat újra be kell állítani.", onClick: () => act({ action: "reopen", id: c.id }) }
+      : { label: "Cég lezárása", icon: MI.out, disabled: busy, hint: "Archiválás: a tagok Besorolatlanok lesznek, a munkáik megmaradnak.",
+          onClick: () => { setF({ reason: "", force: false, confirm: "", check: false, before: false, moduleKey: "", note: "" }); setDlg("close"); } },
+    { label: "Ügyféladatok visszaadása", icon: MI.download, disabled: busy, hint: "A visszaadás (export) naplózása.",
+      onClick: () => { setF({ reason: "", force: false, confirm: "", check: false, before: false, moduleKey: c.modules[0]?.key ?? "", note: "" }); setDlg("export"); } },
+    { label: "Ügyféladatok törlésének kérése", icon: MI.trash, disabled: busy || !closed, hint: closed ? "Egy másik, kijelölt admin hagyja jóvá." : "Csak lezárt cégnél.",
+      onClick: () => { setF({ reason: "", force: false, confirm: "", check: false, before: false, moduleKey: "", note: "" }); setDlg("delreq"); } },
+    { label: "Végleges törlés", icon: MI.trash, danger: true, disabled: busy || c.hasPayments,
+      hint: c.hasPayments ? "Fizetési tétellel rendelkező cég csak lezárható." : "Csak tesztadathoz (nincs fizetési tétele).",
+      onClick: () => { setF({ reason: "", force: false, confirm: "", check: false, before: false, moduleKey: "", note: "" }); setDlg("purge"); } },
   ];
 
   return (
     <li className="border-b last:border-b-0" style={{ borderColor: "var(--twx-line)" }}>
       <div className="flex h-14 cursor-pointer items-center gap-3 px-4 text-sm" onClick={onToggle} onContextMenu={menu.openAtEvent}>
-        <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+        <span className="min-w-0 flex-1 truncate font-medium" style={{ opacity: closed ? 0.6 : 1 }}>{c.name}
+          {closed && <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "#ece8e2", color: "#6e655c" }}>Lezárt cég</span>}
+        </span>
         <span className="hidden w-48 flex-none truncate text-xs sm:block" style={{ color: heads.length ? "var(--twx-ink-muted)" : "#b5372f" }}>
           {heads.length ? `Cégvezető: ${heads.map((h) => h.name || h.email).join(", ")}` : "Nincs cégvezető"}
         </span>
@@ -131,6 +150,81 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
       )}
 
       {finance && <CompanyFinance companyId={c.id} companyName={c.name} onClose={() => setFinance(false)} />}
+      {dlg === "close" && (
+        <Dialog title="Cég lezárása (archiválás)" onClose={() => setDlg(null)}>
+          <p className="mt-2 text-sm">A tagok eltávolítódnak (Besorolatlanok lesznek; a fiókjuk és a munkáik megmaradnak), minden hozzáférés és nyitott meghívó megszűnik. A cég, a modulok története és a pénzügyi adatok archívumként megmaradnak; a modulok kódja nem törlődik.</p>
+          {c.liveModules > 0 && (
+            <label className="mt-3 flex items-start gap-2 rounded-lg p-2 text-xs" style={{ background: "#fdecea", color: "#8a2a22" }}>
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#b5372f]" checked={f.force} onChange={(e) => setF({ ...f, force: e.target.checked })} />
+              A cégnek {c.liveModules} még nem lemondott modulja van. Azonnali lezárás: a megmaradt kifizetett időszak elvész.
+            </label>
+          )}
+          <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Indok *
+            <input className="twx-input mt-1 w-full text-sm" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || !f.reason.trim() || (c.liveModules > 0 && !f.force)}
+              onClick={async () => { if (await act({ action: "close", id: c.id, reason: f.reason, force: f.force })) setDlg(null); }}>Lezárás</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "export" && (
+        <Dialog title="Ügyféladatok visszaadása" onClose={() => setDlg(null)}>
+          <p className="mt-2 text-sm">Az exportot a modul adatkezelési leírása szerint végzed; itt a visszaadást naplózod (ki, mikor, melyik modul).</p>
+          {c.modules.length > 0 ? (
+            <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Modul
+              <div className="mt-1"><SelectField size="sm" value={f.moduleKey} onChange={(v) => setF({ ...f, moduleKey: v })} searchable={false}
+                options={c.modules.map((m) => ({ value: m.key, label: `${m.name}${m.storesData ? "" : " (nem tárol ügyféladatot)"}` }))} /></div>
+            </label>
+          ) : <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>A cégnek nincs modulja.</p>}
+          <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Megjegyzés (hogyan, kinek adtuk át)
+            <input className="twx-input mt-1 w-full text-sm" maxLength={300} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy} onClick={async () => { if (await act({ action: "export_data", id: c.id, moduleKey: f.moduleKey, note: f.note })) setDlg(null); }}>Naplózás</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "delreq" && (
+        <Dialog title="Ügyféladatok törlésének kérése" onClose={() => setDlg(null)}>
+          <p className="mt-2 text-sm">A kérés önmagában nem töröl semmit. Egy másik, kijelölt admin hagyja jóvá (négy szem elv), utána hajtható végre. Csak az ügyfél adatát és kimeneteit érinti — a kódot, a regisztert és a számviteli adatot nem.</p>
+          <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Megőrzési határidő: {c.retentionUntil ? fmt(c.retentionUntil) : "nincs megadva (az NDA-val együtt döntjük el)"}</p>
+          <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Írd be a cég nevét: <b>{c.name}</b>
+            <input className="twx-input mt-1 w-full text-sm" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />
+          </label>
+          <label className="mt-3 flex items-start gap-2 text-xs">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#ef7a5a]" checked={f.check} onChange={(e) => setF({ ...f, check: e.target.checked })} />
+            A megőrzési határidő lejárt, vagy az ügyfél írásban jóváhagyta; a visszaadás megtörtént vagy nem kell.
+          </label>
+          <label className="mt-2 flex items-start gap-2 text-xs">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#ef7a5a]" checked={f.before} onChange={(e) => setF({ ...f, before: e.target.checked })} />
+            A határidő előtt kérem, az ügyfél írásbeli kérésére.
+          </label>
+          <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Indoklás *
+            <input className="twx-input mt-1 w-full text-sm" maxLength={1000} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || !f.check || !f.reason.trim() || f.confirm.trim().toLowerCase() !== c.name.trim().toLowerCase()}
+              onClick={async () => { if (await act({ action: "request_deletion", id: c.id, reason: f.reason, confirmName: f.confirm, beforeDeadline: f.before })) setDlg(null); }}>Kérés rögzítése</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "purge" && (
+        <Dialog title="Végleges törlés" onClose={() => setDlg(null)}>
+          <p className="mt-2 text-sm">Csak tesztadathoz: a cég, a tagságai, a moduljai és az ajánlatai véglegesen törlődnek. Nem visszavonható.</p>
+          <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Írd be a cég nevét: <b>{c.name}</b>
+            <input className="twx-input mt-1 w-full text-sm" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" style={{ background: "#b5372f", color: "#fff" }} disabled={busy || f.confirm.trim().toLowerCase() !== c.name.trim().toLowerCase()}
+              onClick={async () => { if (await act({ action: "delete_company", id: c.id, confirmName: f.confirm })) setDlg(null); }}>Végleges törlés</button>
+          </div>
+        </Dialog>
+      )}
       {edit && (
         <Dialog title="Cég adatai" onClose={() => setEdit(false)}>
           <label className="mt-4 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Név
@@ -157,6 +251,9 @@ export default function CompaniesAdmin() {
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [showClosed, setShowClosed] = useState(false);
+  const [decide, setDecide] = useState<null | { id: string; approve: boolean }>(null);
+  const [decideReason, setDecideReason] = useState("");
 
   const load = useCallback(async () => {
     const r = await fetch(API);
@@ -182,9 +279,10 @@ export default function CompaniesAdmin() {
 
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (data?.companies ?? []).filter((c) => c.status !== "lezart"
+    return (data?.companies ?? []).filter((c) => (showClosed || c.status !== "lezart")
       && (!s || c.name.toLowerCase().includes(s) || c.members.some((m) => (m.email + " " + m.name).toLowerCase().includes(s))));
-  }, [data, q]);
+  }, [data, q, showClosed]);
+  const pending = (data?.requests ?? []).filter((r) => ["kerve", "jovahagyva", "reszben_vegrehajtva"].includes(r.status));
 
   if (!data) return <div className="twx-card h-[640px] animate-pulse" />;
   if (!data.migrated) return <div className="twx-card p-6 text-sm">Futtasd le a <code>20261123220000_companies.sql</code> migrációt.</div>;
@@ -193,6 +291,10 @@ export default function CompaniesAdmin() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <input className="twx-input w-72 text-sm" placeholder="Keresés: cég, tag neve vagy e-mail" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" className="h-4 w-4 accent-[#ef7a5a]" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
+          Lezártak is
+        </label>
         <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{list.length} cég</span>
         <button type="button" className="twx-btn ml-auto text-sm" onClick={() => { setNewName(""); setCreating(true); }}>Új cég</button>
       </div>
@@ -212,6 +314,68 @@ export default function CompaniesAdmin() {
           </ul>
         )}
       </section>
+
+      {/* Jóváhagyások (terv 21 / 5.) — függő ügyféladat-törlési kérések; fix magasságú doboz */}
+      <section className="twx-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-display text-base font-semibold">Jóváhagyások — ügyféladat törlése</h3>
+          <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>A kérést egy másik, kijelölt admin hagyja jóvá (négy szem elv).</span>
+        </div>
+        <ul className="mt-3 h-40 overflow-y-auto">
+          {pending.length === 0 ? <li className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>Nincs függő kérés.</li> : pending.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-3 border-b py-2 text-sm last:border-b-0" style={{ borderColor: "var(--twx-line)" }}>
+              <span className="min-w-0 flex-1 truncate"><b>{r.companyName}</b> · {r.reason}{r.beforeDeadline ? " · határidő előtt" : ""} <span className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>(kérte: {r.requestedBy})</span></span>
+              <span className="text-xs">{r.status === "kerve" ? "Jóváhagyásra vár" : r.status === "jovahagyva" ? "Jóváhagyva" : "Részben végrehajtva"}</span>
+              {r.status === "kerve" ? (
+                <>
+                  <button type="button" className="twx-btn text-xs" disabled={busy} onClick={() => { setDecideReason(""); setDecide({ id: r.id, approve: true }); }}>Jóváhagyás</button>
+                  <button type="button" className="twx-btn-outline text-xs" disabled={busy} onClick={() => { setDecideReason(""); setDecide({ id: r.id, approve: false }); }}>Elutasítás</button>
+                  <button type="button" className="text-xs underline" style={{ color: "var(--twx-ink-muted)" }} disabled={busy} onClick={() => act({ action: "withdraw", requestId: r.id })}>Visszavonás</button>
+                </>
+              ) : (
+                <button type="button" className="twx-btn text-xs" style={{ background: "#b5372f", color: "#fff" }} disabled={busy} onClick={() => act({ action: "execute_deletion", requestId: r.id })}>
+                  {r.status === "jovahagyva" ? "Végrehajtás" : "Újraindítás"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t pt-3 text-xs" style={{ borderColor: "var(--twx-line)" }}>
+          <span style={{ color: "var(--twx-ink-muted)" }}>Kijelölt jóváhagyók:</span>
+          {(data.approvers ?? []).map((a) => (
+            <label key={a.id} className="flex cursor-pointer items-center gap-1.5">
+              <input type="checkbox" className="h-4 w-4 accent-[#ef7a5a]" checked={a.active} disabled={busy}
+                onChange={(e) => act({ action: "approver", userId: a.id, active: e.target.checked })} />{a.name}
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {decide && (
+        <Dialog title={decide.approve ? "Törlés jóváhagyása" : "Törlés elutasítása"} onClose={() => setDecide(null)}>
+          {(() => { const r = pending.find((x) => x.id === decide.id); const co = data.companies.find((c) => c.id === r?.companyId); return (
+            <div className="mt-2 text-sm">
+              <p><b>{r?.companyName}</b> — {r?.reason}</p>
+              <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Törlendő ügyféladat modulonként:</p>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                {(co?.modules ?? []).length === 0 ? <li>nincs modul</li> : co!.modules.map((m) => <li key={m.key}>{m.name}: {m.storesData ? "ügyféladat és kimenetek törlése a modul leírása szerint" : "nem tárol ügyféladatot"}</li>)}
+              </ul>
+            </div>
+          ); })()}
+          {!decide.approve && (
+            <label className="mt-3 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Indoklás *
+              <input className="twx-input mt-1 w-full text-sm" value={decideReason} onChange={(e) => setDecideReason(e.target.value)} />
+            </label>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDecide(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || (!decide.approve && !decideReason.trim())}
+              onClick={async () => { if (await act({ action: "decide", requestId: decide.id, approve: decide.approve, reason: decideReason })) setDecide(null); }}>
+              {decide.approve ? "Jóváhagyom" : "Elutasítom"}
+            </button>
+          </div>
+        </Dialog>
+      )}
 
       {creating && (
         <Dialog title="Új cég" onClose={() => setCreating(false)}>

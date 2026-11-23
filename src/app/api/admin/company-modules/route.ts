@@ -10,6 +10,8 @@
 //     revoke_handover { id, reason }
 //     activate      { id }   — + regiszter és dataPolicy ellenőrzés (a DB nem látja a kódot)
 //     deactivate    { id }
+//     cancel        { id, effectiveOn?, reason }   — lemondás rögzítése (terv 21 / 3.)
+//     reopen        { id }                         — lemondás visszavonása / lemondott modul újranyitása
 //     add_pack      { id, extraCostFt, extraUnits?, priceNet?, reason }   — pluszcsomag erre a hónapra (terv 20)
 //     set_cap       { id, capFt|null, reason }                            — keret módosítása indoklással
 //   GET ?usage=<companyModuleId> → { events } (a használati napló)
@@ -38,7 +40,7 @@ async function payload() {
   const admin = createAdminClient();
   const today = new Date().toISOString();
   const [cm, comps, heads, access, invites, hand, admins] = await Promise.all([
-    admin.from("company_modules").select("id, company_id, module_key, state, owner_admin_id, seats, valid_until, is_api_costly, monthly_cap, note, updated_at, usage_unit_label, included_units, extra_pack_units, extra_pack_cost_cap_ft, extra_pack_price_net")
+    admin.from("company_modules").select("id, company_id, module_key, state, owner_admin_id, seats, valid_until, is_api_costly, monthly_cap, note, updated_at, cancel_effective_on, cancel_reason, usage_unit_label, included_units, extra_pack_units, extra_pack_cost_cap_ft, extra_pack_price_net")
       .order("updated_at", { ascending: false }),
     admin.from("companies").select("id, name, status").order("name"),
     admin.from("company_members").select("company_id").eq("is_company_head", true).eq("status", "aktiv"),
@@ -75,6 +77,7 @@ async function payload() {
       seats: r.seats as number, seatsUsed: used.get(r.id as string) ?? 0, validUntil: r.valid_until as string | null,
       isApiCostly: !!r.is_api_costly, monthlyCap: r.monthly_cap as number | null, note: r.note as string | null,
       updatedAt: r.updated_at as string, hasHead: headSet.has(r.company_id as string), handovers,
+      cancelEffectiveOn: (r.cancel_effective_on as string | null) ?? null, cancelReason: (r.cancel_reason as string | null) ?? null,
       usage: capMap.has(r.id as string) ? {
         usedFt: capMap.get(r.id as string)!.used_ft, capFt: capMap.get(r.id as string)!.cap_ft,
         pct: capMap.get(r.id as string)!.pct, units: capMap.get(r.id as string)!.units,
@@ -200,6 +203,14 @@ export async function POST(request: Request) {
       notice = "Keret módosítva.";
       break;
     }
+    case "cancel":
+      call = admin.rpc("cancel_company_module", { p_actor: actor, p_cm: id, p_effective: str(b.effectiveOn) || null, p_reason: str(b.reason) });
+      notice = "Lemondás rögzítve: a modul a hatályos napig működik, a nyitott meghívók visszavonva.";
+      break;
+    case "reopen":
+      call = admin.rpc("reopen_company_module", { p_actor: actor, p_cm: id });
+      notice = "Újranyitva. Lemondott modulnál Szünetel állapotból az Aktiválással kapcsolható vissza; a kollégákat újra meg kell hívni.";
+      break;
     case "deactivate":
       call = admin.rpc("deactivate_company_module", { p_actor: actor, p_cm: id }); notice = "Kikapcsolva (Szünetel)."; break;
     default:

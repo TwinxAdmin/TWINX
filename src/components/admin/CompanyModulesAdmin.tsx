@@ -122,7 +122,9 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
   admins: { id: string; name: string }[];
 }) {
   const menu = useActionMenu();
-  const [dlg, setDlg] = useState<null | "sub" | "handover" | "revoke" | "edit" | "pack" | "cap">(null);
+  const [dlg, setDlg] = useState<null | "sub" | "handover" | "revoke" | "edit" | "pack" | "cap" | "cancel">(null);
+  const [cancel, setCancel] = useState({ effectiveOn: "", reason: "" });
+  const cancelled = !!m.cancelEffectiveOn || m.state === "lemondva";
   const [pack, setPack] = useState({ extraCostFt: "", extraUnits: "", priceNet: "", reason: "" });
   const [capEdit, setCapEdit] = useState({ capFt: "", reason: "" });
   const [events, setEvents] = useState<{ id: string; operation_key: string; units: number; estimated_cost_ft: number; actual_cost_ft: number | null; status: string; created_at: string }[] | null>(null);
@@ -159,6 +161,12 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
           hint: ["atadva", "aktiv"].includes(m.state) ? "Érdemi változás után; hibajavításnál nem kell." : "Előbb Teszt állapot kell.", onClick: () => setDlg("handover") },
     { label: "Átadás visszavonása", icon: MI.out, disabled: m.state !== "atadva", hint: m.state === "atadva" ? undefined : "Csak Átadva állapotban.", onClick: () => { setReason(""); setDlg("revoke"); } },
     { kind: "divider" },
+    cancelled
+      ? { label: m.state === "lemondva" ? "Újranyitás" : "Lemondás visszavonása", icon: MI.restore, disabled: busy,
+          hint: m.state === "lemondva" ? "Szünetel állapotba kerül; az Aktiválással kapcsolható vissza." : "A modul a lemondás nélkül fut tovább.",
+          onClick: () => act({ action: "reopen", id: m.id }) }
+      : { label: "Lemondás rögzítése", icon: MI.out, disabled: busy, hint: "A kifizetett időszak végéig működik (terv 21).",
+          onClick: () => { setCancel({ effectiveOn: m.validUntil ?? "", reason: "" }); setDlg("cancel"); } },
     m.state === "aktiv"
       ? { label: "Kikapcsolás", icon: MI.out, danger: true, onClick: () => act({ action: "deactivate", id: m.id }) }
       : { label: "Aktiválás", icon: MI.restore, disabled: !["atadva", "szunetel"].includes(m.state),
@@ -170,7 +178,10 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
     <li className="border-b last:border-b-0" style={{ borderColor: "var(--twx-line)" }}>
       <div className="flex h-14 cursor-pointer items-center gap-3 px-4 text-sm" onClick={onToggle} onContextMenu={menu.openAtEvent}>
         <StatePill s={m.state} />
-        <span className="min-w-0 flex-1 truncate font-medium">{m.moduleName}{!m.registered && <span className="ml-2 text-[11px] font-normal" style={{ color: "var(--twx-ink-muted)" }}>(kód: még nincs a regiszterben)</span>}</span>
+        <span className="min-w-0 flex-1 truncate font-medium" style={{ opacity: m.state === "lemondva" ? 0.6 : 1 }}>{m.moduleName}
+          {!m.registered && <span className="ml-2 text-[11px] font-normal" style={{ color: "var(--twx-ink-muted)" }}>(kód: még nincs a regiszterben)</span>}
+          {m.cancelEffectiveOn && m.state !== "lemondva" && <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "#fdecea", color: "#8a2a22" }}>Lemondva {fmtDate(m.cancelEffectiveOn)}-től</span>}
+        </span>
         <span className="hidden w-40 flex-none truncate text-xs sm:block" style={{ color: "var(--twx-ink-muted)" }}>{m.companyName}</span>
         {view === "modules" ? (
           <>
@@ -255,6 +266,18 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
             <button type="button" className="twx-btn" disabled={busy || !reason.trim()} onClick={async () => { if (await act({ action: "revoke_handover", id: m.id, reason })) setDlg(null); }}>Visszavonás</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "cancel" && (
+        <Dialog title="Lemondás rögzítése" onClose={() => setDlg(null)}>
+          <p className="mt-2 text-sm">A modul a hatályos napig működik, utána minden kollégától megszűnik. A nyitott meghívók most visszavonódnak; új meghívó, „Használom én is”, hosszabbítás és lejárati figyelmeztetés nem lesz. A modul kódja és regisztere megmarad.</p>
+          <Label t="Hatályos nap (alapból a kifizetett időszak vége)"><DateField size="sm" value={cancel.effectiveOn} onChange={(v) => setCancel((c) => ({ ...c, effectiveOn: v }))} /></Label>
+          <Label t="Indok * (belső, a cégvezető nem látja)"><input className="twx-input w-full text-sm" maxLength={500} value={cancel.reason} onChange={(e) => setCancel((c) => ({ ...c, reason: e.target.value }))} /></Label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || !cancel.reason.trim()}
+              onClick={async () => { if (await act({ action: "cancel", id: m.id, ...cancel })) setDlg(null); }}>Lemondás rögzítése</button>
           </div>
         </Dialog>
       )}

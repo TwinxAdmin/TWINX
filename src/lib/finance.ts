@@ -33,6 +33,8 @@ export type Payment = {
   kind: PaymentKind; milestone: string | null; description: string; amountNet: number; vatRate: number; amountGross: number;
   status: PaymentStatus; dueDate: string | null; invoiceNumber: string | null; invoiceIssuedAt: string | null; paidAt: string | null;
   method: string | null; periodFrom: string | null; periodTo: string | null; reason: string | null; createdAt: string; overdue: boolean;
+  /** Lezárt cég nyitott tétele (terv 21 / 4.) */
+  closedCompany: boolean;
 };
 export type ExpiringModule = { id: string; companyName: string; moduleName: string; validUntil: string; daysLeft: number; lastPayment: string | null };
 

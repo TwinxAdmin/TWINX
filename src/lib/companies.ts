@@ -9,6 +9,14 @@ export type CompanyMember = { userId: string; name: string; email: string; isHea
 export type AdminCompany = {
   id: string; name: string; status: CompanyStatus; note: string | null; createdAt: string;
   fromBooking: boolean; bookingAt: string | null; members: CompanyMember[];
+  /** Lezárás (terv 21) */
+  closedAt: string | null; closedReason: string | null; retentionUntil: string | null; hasPayments: boolean; liveModules: number;
+  modules: { key: string; name: string; storesData: boolean }[];
+};
+export type DeletionRequest = {
+  id: string; companyId: string; companyName: string; status: string; reason: string; beforeDeadline: boolean;
+  requestedBy: string; requestedById: string | null; requestedAt: string; approvedBy: string | null; rejectedReason: string | null;
+  summary: unknown;
 };
 export type CompanyLogEntry = { id: number; at: string; action: string; actor: string; target: string | null };
 
@@ -21,6 +29,17 @@ export const COMPANY_ERR: Record<string, string> = {
   nem_tag: "A felhasználó nem aktív tagja a cégnek.",
   utolso_cegvezeto: "Az utolsó cégvezetőt nem lehet levenni. Előbb nevezz ki egy másikat.",
   ures_nev: "Add meg a cég nevét.",
+  hianyzo_mezo: "Töltsd ki a kötelező mezőket.",
+  tiltott_allapot: "Ebből az állapotból ez nem lehetséges.",
+  van_elo_modul: "A cégnek van még nem lemondott modulja. Mondd le előbb, vagy válaszd az azonnali lezárást indoklással.",
+  van_fizetesi_tetel: "Fizetési tétellel rendelkező cég nem törölhető véglegesen — csak lezárható (archiválás).",
+  nem_lezart: "Ez csak lezárt cégnél lehetséges.",
+  nev_nem_egyezik: "A beírt név nem egyezik a cég nevével.",
+  hatarido_elott: "A megőrzési határidő még nem járt le (vagy nincs megadva). Csak az ügyfél írásbeli kérésére, a jelöléssel kérhető.",
+  nem_jovahagyo: "Nem szerepelsz a kijelölt jóváhagyók között.",
+  sajat_keres: "A saját kérésedet nem hagyhatod jóvá (négy szem elv).",
+  mar_van_keres: "Ehhez a céghez már van folyamatban lévő törlési kérés.",
+  adat_torolve: "A cég ügyféladatait már törölték — új cégként indítsd.",
 };
 
 export const COMPANY_LOG_LABEL: Record<string, string> = {
@@ -47,6 +66,16 @@ export const COMPANY_LOG_LABEL: Record<string, string> = {
   hozzaferes_eltavolitva: "Hozzáférés eltávolítva",
   ingatlan_hozzaferes_megadva: "Ingatlan-hozzáférés megadva",
   ingatlan_hozzaferes_elveve: "Ingatlan-hozzáférés elvéve",
+  modul_lemondva: "Modul lemondva",
+  modul_lemondas_hatalyba_lepett: "Lemondás hatályba lépett",
+  modul_ujraaktivalva: "Modul újranyitva",
+  ceg_lezarva: "Cég lezárva",
+  ceg_ujranyitva: "Cég újranyitva",
+  ugyfeladat_visszaadva: "Ügyféladat visszaadva",
+  ugyfeladat_torles_kerve: "Ügyféladat törlése kérve",
+  ugyfeladat_torles_jovahagyva: "Törlés jóváhagyva",
+  ugyfeladat_torles_elutasitva: "Törlés elutasítva",
+  ugyfeladat_torolve: "Ügyféladat törölve",
   pluszcsomag_hozzaadva: "Pluszcsomag hozzáadva",
   keret_modositva: "Keret módosítva",
   keret_80: "Keret 80%",
@@ -81,6 +110,8 @@ export type AdminCompanyModule = {
   hasDataPolicy: boolean; state: ModuleState; ownerId: string | null; ownerName: string | null; seats: number; seatsUsed: number;
   validUntil: string | null; isApiCostly: boolean; monthlyCap: number | null; note: string | null; updatedAt: string;
   hasHead: boolean; handovers: Handover[];
+  /** Lemondás (terv 21): a hatályos nap és az indok; null = nincs lemondva. */
+  cancelEffectiveOn: string | null; cancelReason: string | null;
   /** Havi keret-állapot (terv 20): Ft, nettó önköltség; null = a migráció előtt. */
   usage: { usedFt: number; capFt: number | null; pct: number | null; units: number } | null;
   unitLabel: string | null; includedUnits: number | null; packUnits: number | null; packCostFt: number | null; packPriceNet: number | null;
@@ -109,4 +140,6 @@ export const MODULE_ERR: Record<string, string> = {
   nincs_regiszter: "A modul nincs a kód regiszterében (src/lib/module-registry.ts) — előbb a kódnak élesben kell lennie.",
   nincs_data_policy: "A modul regiszter-bejegyzéséből hiányzik az adatkezelési leírás (dataPolicy).",
   nincs_keret: "Előbb állíts be havi keretet (Előfizetés szerkesztése).",
+  mar_lemondva: "Ezt a modult már lemondták.",
+  nincs_lemondas: "Ennél a modulnál nincs lemondás.",
 };

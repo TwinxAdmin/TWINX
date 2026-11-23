@@ -17,7 +17,9 @@ export async function GET(request: Request) {
   }
   const { data: released, error } = await createAdminClient().rpc("usage_release_stale", { p_minutes: 60 });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Terv 21: a hatályos nap után a lemondott modulok „Lemondva” állapotba kerülnek (a closure migráció előtt kimarad).
+  const { data: finalized } = await createAdminClient().rpc("finalize_cancelled_modules");
   const notified = await checkCapThresholds();
   const expiry = await notifyExpiries();   // terv 19 / 5.: 3 és 1 nappal a lejárat előtt (az adminnak)
-  return NextResponse.json({ released, notified, expiry });
+  return NextResponse.json({ released, finalized: finalized ?? null, notified, expiry });
 }

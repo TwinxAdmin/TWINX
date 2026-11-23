@@ -68,6 +68,7 @@ function PaymentRow({ p, act, busy, showCompany }: { p: Payment; act: Act; busy:
         <Pill meta={PAYMENT_STATUS[p.status]} />
         <span className="min-w-0 flex-1 truncate">
           {showCompany && <b>{p.companyName} · </b>}{p.description}
+          {p.closedCompany && <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "#ece8e2", color: "#6e655c" }}>Lezárt cég nyitott tétele</span>}
           <span className="ml-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
             {PAYMENT_KIND[p.kind]}{p.milestone ? ` · ${MILESTONE[p.milestone]}` : ""}{p.moduleName ? ` · ${p.moduleName}` : ""}{p.periodFrom ? ` · ${fmtDate(p.periodFrom)}–${fmtDate(p.periodTo)}` : ""}
           </span>
