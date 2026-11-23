@@ -1,7 +1,6 @@
 // twinx.hu/referenciak — referencia-landing: az ingatlanos modulok (D38; terv 11 / 6. szakasz).
 //
-// ELŐNÉZET (D51): csak adminnak (lib/site-preview.ts). Élesítés előtt Tibi hitelesíti a csoportokat
-// és a modulleírásokat (terv 11 / 8. nyitott pont).
+// Élesítve 2026-11-23 (Márk döntése). Tibi hitelesíti a csoportokat és a modulleírásokat (terv 11 / 8. nyitott pont).
 //
 // Szabályok: az értékbecslés mindig „tájékoztató ársáv"; a látványterv illusztráció („Koncepcióterv" jelölés
 // és vízjel marad); a Hirdetésből videó nem szerepel; a 3D bejárás csak „Hamarosan". Nincs ár, „kredit",
@@ -13,9 +12,8 @@ import Reveal from "@/components/motion/Reveal";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import ContactBlock from "@/components/site/ContactBlock";
-import PreviewBar from "@/components/site/PreviewBar";
-import { requireSitePreview } from "@/lib/site-preview";
-import { SITE_LINKS, SITE_REFERENCES } from "@/lib/site";
+import { bookingsOpenFor, getSiteViewer } from "@/lib/site-preview";
+import { SITE_LINKS } from "@/lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +21,6 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Referenciák — TWINX ingatlanos modulok",
   description: "A GDN Mandala Ingatlaniroda számára fejlesztett modulok, amelyeket a kollégák naponta használnak.",
-  robots: { index: false, follow: false }, // előnézet
 };
 
 type RefModule = { icon: string; title: string; text: string; soon?: boolean };
@@ -77,14 +74,12 @@ function ModuleCard({ m }: { m: RefModule }) {
   );
 }
 
-export default async function ReferencesPage({ searchParams }: { searchParams: Promise<{ nezet?: string }> }) {
-  const viewer = await requireSitePreview();
-  const loggedOut = (await searchParams).nezet === "kint";
+export default async function ReferencesPage() {
+  const viewer = await getSiteViewer();
 
   return (
     <main className="font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
-      <PreviewBar path={SITE_REFERENCES} loggedOut={loggedOut} />
-      <SiteHeader viewer={loggedOut ? null : viewer} />
+      <SiteHeader viewer={viewer} />
 
       {/* ===== 1) HERO — szám és idézet nélkül, amíg nincs GDN által jóváhagyott adat ===== */}
       <section style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
@@ -146,7 +141,8 @@ export default async function ReferencesPage({ searchParams }: { searchParams: P
       </section>
 
       {/* ===== 5) KAPCSOLATBLOKK (azonos a főoldalival) ===== */}
-      <ContactBlock source="referencia" prefill={loggedOut ? undefined : { name: viewer.name, email: viewer.email }} />
+      <ContactBlock source="referencia" bookingOpen={bookingsOpenFor(viewer)}
+        prefill={viewer ? { name: viewer.name, email: viewer.email } : undefined} />
       <SiteFooter />
       <AuthModal />
     </main>

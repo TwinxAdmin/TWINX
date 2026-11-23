@@ -1,11 +1,10 @@
 // Az új nyilvános oldal (D34–D38, terv: docs/terv/11-fooldal-es-landing-terv.md) közös adatai.
 //
-// ELŐNÉZET (D51): amíg nincs jóváhagyva, az új főoldal a /uj, a referencia-landing a /referenciak
-// címen fut, és CSAK adminnak látszik (másnak 404). Átkapcsoláskor elég a SITE_HOME-ot "/"-re állítani
-// és a régi főoldalt lecserélni — a linkek mind innen jönnek.
+// ÉLES (2026-11-23, Márk döntése): az új főoldal a / címen, a referencia-landing a /referenciak címen fut,
+// mindenkinek. A régi /uj előnézeti cím a főoldalra irányít.
 // Ez a fájl a böngészőben is fut (SiteHeader) — szerveroldali dolog: lib/site-preview.ts.
 
-export const SITE_HOME = "/uj";
+export const SITE_HOME = "/";
 export const SITE_REFERENCES = "/referenciak";
 export const SITE_EMAIL = "office@twinx.hu";
 

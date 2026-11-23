@@ -21,9 +21,9 @@ const display = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "TWINX — AI-alapú üzleti automatizáció",
+  title: "TWINX — a te cégedre szabott modul",
   description:
-    "Saját fejlesztésű, kategorizált AI alkalmazás-platform a mindennapi üzletmenethez. Használat alapon, havidíjak nélkül.",
+    "Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Foglalj ingyenes felmérést.",
 };
 
 export default function RootLayout({

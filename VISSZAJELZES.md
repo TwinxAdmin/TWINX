@@ -3,6 +3,30 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-23 – 3. lépés (3a–3e) és élesítés
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/12-admin-terv.md, 14-adatmodell-terv.md (2.1, 2.2, 2.6), 11 (4. szakasz), 22 (3.A, 5.C), D30, D31, D40, D42, D45, D46, D51
+Elkészült:
+- 3a: új admin menü (Foglalások, Megkeresések, Felhasználók, Cégek, Előfizetések/Pénzügy/Egyedi modulok „Hamarosan”, Költségfigyelő, Eszközök); a Kredit-napló, Kredit-kérések, Meghívók kikerült a menüből (a kód és a cím megmaradt).
+- 3b: migráció `20261123210000_admin-roles.sql`: csak admin és user; admin jog adása/elvétele megerősítéssel, naplózva (`role_audit_log`, `admin_set_role`); az utolsó admin DB-védelme; a 2 sales fiók user lett (lefuttatva).
+- 3c: migráció `20261123220000_companies.sql`: `companies`, `company_members` (cégvezetői státusz cégenként, az utolsó cégvezető trigger-védelme), `access_audit_log` (csak hozzáfűzhető); Admin → Cégek (tagok, kinevezés, napló); „Céggé alakítás” a foglalásból (a regisztrált foglaló automatikusan tag lesz, nem cégvezető).
+- 3d: kredit-kivezetés az „Új felület” kapcsoló mögött (app_settings.new_ui; admin mindig látja): Ingatlan-hozzáférés pipa a Felhasználóknál (company_access, naplózva); bekapcsolt kapcsolónál hozzáféréssel nincs levonás; a „kredit” eltűnik a fejlécből, a modulokból, a kezdőlapról, a vásárlásokból; modul-kapu hozzáférés nélkül (terv 22 szöveg); az irodai fiók kredit nélküli közös tér (OfficeSpaceView); az admin Kredit/Egyenleg oszlop és „+” gomb bekapcsolt kapcsolónál rejtve; a szerver-hibaüzenetekből kikerült a kredit.
+- 3e: új felületen személyre szabott kezdőlap (Moduljaim, Legutóbbi munkáim, Irodai fiók, kapcsolatblokk; üres és Besorolatlan állapot) és az új felső sáv a dashboardon.
+- Élesítés (Márk döntése): az új főoldal a `/` címen, a `/referenciak` mindenkinek; `/uj` → `/`; `/pricing` és `/egyedi-modul` → `/` (ideiglenes átirányítás); a régi főoldal mentve: `src/app/(public)/_backup/page.landing-v2-kredites.tsx.txt`.
+Eltérés a tervtől:
+- „Hozzáféréssel ingyen” (Márk döntése): az Ingatlan-hozzáféréssel rendelkezőknek nincs levonás; a pénztárca láthatatlanul marad; a költséget a későbbi plafon védi (terv 20).
+- A modul-kártyákon nincs „⋯” menü (csak megnyitás van, más művelet nincs).
+- A foglalás élesítéséig (BOOKINGS_PUBLIC=1) a kapcsolatblokk e-mailes tartalékot mutat a látogatóknak — kapu: adatkezelési tájékoztató + Resend-hitelesítés.
+- A Felhasználók táblában a cég-oszlop és a „Besorolatlan” jelölés még nincs (a kezdőlap már kezeli).
+Új buktató / tanulság: a „kredit” ~90 fájlban élt; a felületi kivezetés kapcsoló mögé tétele (UiModeProvider, useCr) lehetővé tette az admin-előnézetet és a visszakapcsolhatóságot.
+Nem lett kész / Hamarosan: 3f (nézet-váltó cég/felhasználó szerint); a /ingatlan és /bemutatkozas kampányoldalak még kredites üzenetet hordoznak (D31: a futó hirdetés átterve később); a /login oldal régi stílusú; hospitality (rejtett) modulok szövegei.
+Ellenőrzési lépések eredménye: `tsc` és `eslint` (érintett fájlok) rendben; Márk localhoston: foglalás, admin jog, Cégek; a többi 3d/3e rész admin-nézetben átnézendő; RLS valódi felhasználói tokennel még nincs tesztelve.
+Döntés kell tőled, Márk:
+- Mikor kapcsolod be az „Új felület” kapcsolót (előtte: GDN-es kollégák Ingatlan-pipája)?
+- /ingatlan és /bemutatkozas: maradnak (futó kampány), átirányítás, vagy átírás?
+- Foglalás élesítése: adatkezelési tájékoztató + Resend DNS, utána `BOOKINGS_PUBLIC=1` a Vercelen.
+Éles állapot: az új főoldal és a referencia-landing mindenkinek; az új dashboard-felület adminnak, a kapcsoló bekapcsolása után mindenkinek.
+
 ## 2026-11-23 – 2. lépés: ingyenes felmérés foglalása (2a–2e)
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/15-foglalas-terv.md, 16-email-szovegek.md, 17 (hozzájárulási szöveg), D33, D37, D48, D49, D51

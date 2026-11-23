@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: "/kovacs-mark", destination: "/kovacs-mark/index.html" }];
   },
+  // Új irány (D23, D34; élesítve 2026-11-23): a kredites árlista és a régi egyedi-modul landing a főoldalra visz.
+  // (Nem végleges átirányítás, hogy később szükség esetén visszaállítható legyen.)
+  async redirects() {
+    return [
+      { source: "/pricing", destination: "/", permanent: false },
+      { source: "/egyedi-modul", destination: "/", permanent: false },
+    ];
+  },
   // A build ne bukjon el ESLint stílus-szabályokon (a "funkcionális UI a 7. fázisig" elv miatt).
   // A TypeScript típusellenőrzés így is fut és megfog minden valódi hibát.
   eslint: { ignoreDuringBuilds: true },
