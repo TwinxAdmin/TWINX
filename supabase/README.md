@@ -135,6 +135,7 @@ Mind lefuttatva: **2026-10-12** (Márk ellenőrizte). Az időbélyeg a fájl els
 | `20261103140000_linkedin-signup-credits.sql` | LinkedIn bemutatkozó oldal (`/bemutatkozas`): `handle_new_user` a `linkedin-bemutatkozas` forrásra 10 kezdőkreditet ad, saját 50 fős kerettel; a forrás az adminban LinkedIn-jelölést kap |
 | `20261105120000_activation-agent.sql` | Aktiváló ügynök: `activation_feedback` (levélből érkező visszajelzés, levelenként egy), `email_optout` (leiratkozás az aktiváló levelekről), `activation_reports` (heti jelentés az adminnak); RLS be, policy nélkül, csak a szerver éri el |
 | `20261105180000_agent-monitor.sql` | Admin → AI-ügynökök: `agent_status` (ügynökönként az utolsó jelzés és a napi összefoglaló), `agent_events` (eseménynapló, 90 napig); RLS be, policy nélkül, csak a szerver éri el |
+| `20261123190000_bookings.sql` | Ingyenes felmérés foglalása (terv 15): `booking_hosts` (gazdák: admin + megjelenített név), `availability_templates` (heti sablon), `availability_slots` (időpontok, átfedés-tiltás), `bookings` (foglalás / visszahívás, egy aktív címenként), `booking_events` (napló), `booking_attempts` (sebességkorlát); szerveroldali függvények (create_booking, lemondás tokennel, admin-műveletek, sablon alkalmazása); RLS: csak admin olvas. Visszacsinálás: `supabase/down/20261123190000_bookings.down.sql` |
 
 ## Egyszeri szkriptek (`one-off/`)
 

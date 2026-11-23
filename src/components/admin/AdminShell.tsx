@@ -27,6 +27,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/irodak", label: "Irodai fiókok", hint: "irodai TWINX igénylések jóváhagyása", countKey: "pendingOffices" },
     ],
   },
+  { id: "bookings", label: "Foglalások", href: "/admin/foglalasok" },
   { id: "users", label: "Felhasználók és modulok", href: "/admin/users" },
   { id: "agents", label: "AI-ügynökök", href: "/admin/ugynokok" },
   {
