@@ -3,6 +3,7 @@
 // Hang: csak zene. Feliratok: nyitó/záró kártya + a fotók alsó felirat-sávja (Satori).
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { useModuleTracker, type RunHandle } from "@/lib/module-events";
@@ -73,6 +74,7 @@ export default function VideoWizard({
   /** A SAJÁT TWINX motor fut → a saját sablonok (Aurora, Skandi …) közül lehet választani. */
   engineMode?: boolean;
 }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   // tölcsér-mérés (ME2): a varázsló első érintése = űrlap; MINDEN méret külön futtatás (job), a lezárást a polling
   // jelzi; letöltés. A Videólabor (admin teszt, `lab`) nem mérődik.
   const track = useModuleTracker("/dashboard/real-estate/video");
@@ -415,7 +417,7 @@ export default function VideoWizard({
           }
           if (data.status === "failed") {
             runHandles.current.get(id)?.failed(failDetail("job_failed", { message: data.error })); runHandles.current.delete(id);
-            showToast(`A videó${label} nem készült el — a kredit visszajárt.`, "error");
+            showToast(cr(`A videó${label} nem készült el — a kredit visszajárt.`), "error");
           }
         } catch { /* következő kör */ }
       }
@@ -633,7 +635,7 @@ export default function VideoWizard({
                         );
                       })()}
                     </div>
-                    {!lab && (
+                    {!lab && cr("kredit") && (
                       <p className="mt-2">
                         <span className="rounded-md px-2 py-0.5 text-[13px] font-bold" style={{ background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
                           Összesen: {totalCredits} kredit
@@ -879,7 +881,7 @@ export default function VideoWizard({
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   <div className="rounded-xl p-3 text-left" style={{ border: "1px solid var(--twx-coral)", background: "var(--twx-coral-soft)" }}>
                     <span className="block text-sm font-semibold" style={{ color: "#7a2e17" }}>
-                      Standard · {VIDEO_CREDITS_ALAP} kredit / méret{aspects.length > 1 ? ` · összesen ${totalCredits} kredit` : ""}
+                      {cr(`Standard · ${VIDEO_CREDITS_ALAP} kredit / méret${aspects.length > 1 ? ` · összesen ${totalCredits} kredit` : ""}`)}
                     </span>
                     <span className="mt-0.5 block text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Finom kameramozgás (Ken Burns) minden fotón</span>
                   </div>
@@ -907,11 +909,11 @@ export default function VideoWizard({
                   <p className="mx-auto mt-2 max-w-md text-xs" style={{ color: "var(--twx-ink-muted)" }}>
                     {aspects.length > 1 && (
                       <><strong>{aspects.map((a) => ASPECT_LABEL[a]).join(" és ")}</strong> méretben készül — ugyanazokból a fotókból
-                        {lab ? "." : `, méretenként ${VIDEO_CREDITS_ALAP} kredit (összesen ${totalCredits}).`}{" "}</>
+                        {lab || !cr("kredit") ? "." : `, méretenként ${VIDEO_CREDITS_ALAP} kredit (összesen ${totalCredits}).`}{" "}</>
                     )}
                     A videó generálása 1–3 percig tart. A kész videó azonnal mentésre kerül a
                     Korábbi videóim közé — akkor sem vész el, ha közben bezárod az oldalt.
-                    Ha a generálás nem sikerül, a kredit automatikusan visszajár.
+                    {cr("Ha a generálás nem sikerül, a kredit automatikusan visszajár.")}
                   </p>
                 </div>
               ) : (
@@ -937,7 +939,7 @@ export default function VideoWizard({
                         <div className="py-6">
                           <p className="text-sm font-semibold text-red-600">A videó nem készült el.</p>
                           <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                            {r.error || "Ismeretlen hiba."} A kredit automatikusan visszajárt — próbáld újra.
+                            {r.error || "Ismeretlen hiba."} {cr("A kredit automatikusan visszajárt — próbáld újra.") || "Próbáld újra."}
                           </p>
                         </div>
                       ) : (
@@ -1002,7 +1004,7 @@ export default function VideoWizard({
                 ? "Generálás folyamatban…"
                 : lab
                   ? (aspects.length > 1 ? "Próbavideók (2 méret) a saját motorral" : "Próbavideó a saját motorral")
-                  : `${aspects.length > 1 ? `Videók generálása (${aspects.length} méret` : "Videó generálása ("} · ${totalCredits} kredit)`}
+                  : cr(`${aspects.length > 1 ? `Videók generálása (${aspects.length} méret` : "Videó generálása ("} · ${totalCredits} kredit)`)}
             </button>
           )}
         </div>

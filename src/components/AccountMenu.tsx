@@ -17,7 +17,8 @@ export default function AccountMenu({
 }: {
   email: string;
   role: string;
-  balance: number;
+  /** null = új, kredit nélküli felület (3d): nincs egyenleg, feltöltés és vásárlási előzmény. */
+  balance: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -63,8 +64,8 @@ export default function AccountMenu({
           </p>
         </div>
 
-        {/* Egyenleg */}
-        <div
+        {/* Egyenleg — csak a régi, kredites felületen */}
+        {balance !== null && <div
           className="mt-1 flex items-center justify-between rounded-xl px-3 py-2.5"
           style={{ background: "rgba(255,255,255,0.05)" }}
         >
@@ -85,7 +86,7 @@ export default function AccountMenu({
           >
             Feltöltés
           </button>
-        </div>
+        </div>}
 
         {/* Linkek */}
         <div className="mt-2 space-y-0.5">
@@ -108,14 +109,16 @@ export default function AccountMenu({
           >
             Beállítások / profil
           </a>
-          <a
-            href="/dashboard/purchases"
-            onClick={() => setOpen(false)}
-            className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
-            style={{ color: "var(--twx-on-dark)" }}
-          >
-            Korábbi vásárlások
-          </a>
+          {balance !== null && (
+            <a
+              href="/dashboard/purchases"
+              onClick={() => setOpen(false)}
+              className="block rounded-xl px-3 py-2.5 text-sm transition-colors hover:bg-white/5"
+              style={{ color: "var(--twx-on-dark)" }}
+            >
+              Korábbi vásárlások
+            </a>
+          )}
           <a
             href="/kapcsolat"
             onClick={() => setOpen(false)}

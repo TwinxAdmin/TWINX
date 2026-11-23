@@ -22,7 +22,8 @@ export default function MobileNav({
 }: {
   email: string;
   role: string;
-  balance: number;
+  /** null = új, kredit nélküli felület (3d) */
+  balance: number | null;
   isAdmin: boolean;
   premium3d?: Premium3dState;
 }) {
@@ -105,10 +106,12 @@ export default function MobileNav({
               <div className="mb-4 rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)" }}>
                 <p className="truncate text-sm font-medium">{email || "—"}</p>
                 <p className="text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>{ROLE_LABEL[role] ?? role}</p>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>Egyenleg</span>
-                  <span className="font-display text-lg font-semibold">{balance.toLocaleString("hu-HU")}</span>
-                </div>
+                {balance !== null && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-xs" style={{ color: "var(--twx-on-dark-muted)" }}>Egyenleg</span>
+                    <span className="font-display text-lg font-semibold">{balance.toLocaleString("hu-HU")}</span>
+                  </div>
+                )}
               </div>
 
               {sections.map((sec) => (

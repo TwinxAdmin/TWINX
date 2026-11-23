@@ -3,6 +3,7 @@
 // megjelenítése és a videóspecifikus műveletek (törlés a tárhelyről) egyedi.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
 import { toDownloadUrl } from "@/lib/files";
 
@@ -27,6 +28,7 @@ export type Folder = LibraryFolder;
 export default function VideoLibrary({
   items, folders, onChanged,
 }: { items: VideoItem[]; folders: Folder[]; onChanged: () => void }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   async function call(url: string, init: RequestInit) {
     const res = await fetch(url, init);
     const d = await res.json().catch(() => ({}));
@@ -60,7 +62,7 @@ export default function VideoLibrary({
               ) : null}
               <span className="relative rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "rgba(255,255,255,0.85)", color: "var(--twx-ink)" }}>
-                {v.status === "failed" ? "Sikertelen (kredit visszatérítve)" : "Készül…"}
+                {v.status === "failed" ? cr("Sikertelen (kredit visszatérítve)") : "Készül…"}
               </span>
             </div>
           )}

@@ -6,6 +6,7 @@
 // mentődik, így az előzményekből újranyitva is ugyanaz a lap jön elő.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useRef, useState } from "react";
 import type { BrandingProfile } from "@/lib/branding";
 import { compressImage } from "@/lib/image-compress";
@@ -28,6 +29,7 @@ export default function ValuationStartModal({
   onCancel: () => void;
   onStart: (choice: { profileId: string; photos: PagePhotoPick[] }) => void;
 }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [profileId, setProfileId] = useState("");
   const [picked, setPicked] = useState<PagePhotoPick[]>([]);
@@ -261,7 +263,7 @@ export default function ValuationStartModal({
             disabled={busy}
             onClick={() => onStart({ profileId, photos: picked })}
           >
-            {busy ? "Indítás…" : "Értékbecslés indítása (1 kredit)"}
+            {busy ? "Indítás…" : cr("Értékbecslés indítása (1 kredit)")}
           </button>
         </div>
       </div>

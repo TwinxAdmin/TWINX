@@ -2,6 +2,7 @@
 // Kép kiválasztása -> helység (kötelező) + opcionális változók. Kész-jelzés a kártyán.
 // Generálás csak akkor aktív, ha MINDEN kép kész. Animáció/nagyítás: 7. dizájn-fázis.
 "use client";
+import { useCr } from "@/components/UiModeProvider";
 import ModuleIntro from "@/components/ModuleIntro";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
 import { WorkChips, WorkDot, type WorkKind } from "@/components/WorkBadge";
@@ -33,6 +34,7 @@ type Item = { file: File; url: string; config: RoomConfig };
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 export default function VisualizationPage() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   // tölcsér-mérés (ME2): képek / beállítások érintése = űrlap elkezdése; generálás = futtatás; letöltés
   const track = useModuleTracker("/dashboard/real-estate/visualization");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -217,7 +219,7 @@ export default function VisualizationPage() {
       <ModuleIntro
         eyebrow="Ingatlan · Vizuál"
         title="Ingatlan Látványtervező"
-        subtitle={`Üres vagy elavult szobákból fotórealisztikus, berendezett látványterv — hogy a vevő elképzelje a potenciált. Egy képpel is működik, legfeljebb ${MAX_IMAGES} mehet egyszerre. Add meg a helységet, a többit az AI hozza. Egy feldolgozás = 1 kredit.`}
+        subtitle={cr(`Üres vagy elavult szobákból fotórealisztikus, berendezett látványterv — hogy a vevő elképzelje a potenciált. Egy képpel is működik, legfeljebb ${MAX_IMAGES} mehet egyszerre. Add meg a helységet, a többit az AI hozza. Egy feldolgozás = 1 kredit.`)}
         icon="visualization"
         chips={["Fotórealisztikus", "Bútorozás", "Helységenként"]}
       />
@@ -427,7 +429,7 @@ export default function VisualizationPage() {
             : items.length === 0
               ? "Tölts fel legalább egy képet"
               : allReady
-                ? `Látványtervek generálása (${items.length} kép · 1 kredit)`
+                ? cr(`Látványtervek generálása (${items.length} kép · 1 kredit)`)
                 : `Állítsd be ${missingLabel} (kattints rá)`}
         </button>
       </form>

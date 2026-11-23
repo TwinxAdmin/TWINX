@@ -4,6 +4,7 @@
 // A hirdetést kódból rajzoljuk (nincs AI): a fotókat sablonba rendezzük, a feliratokat élesen írjuk rá.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import AdWizard from "@/components/flyer/AdWizard";
@@ -23,6 +24,7 @@ type FlyerItem = {
 };
 
 export default function FlyerPage() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [items, setItems] = useState<FlyerItem[]>([]);
   const [folders, setFolders] = useState<LibraryFolder[]>([]);
@@ -63,7 +65,7 @@ export default function FlyerPage() {
       <ModuleIntro
         eyebrow="Ingatlan · Marketing"
         title="Hirdetéskép készítő"
-        subtitle={`Kész, posztolható hirdetéskép percek alatt: válaszd ki a sablont és a méretet, tölts fel 1–${MAX_FLYER_IMAGES} fotót, add meg az adatokat — a képet a Twinx rajzolja meg. Az előnézet ingyenes, csak az elfogadott kép kerül kreditbe.`}
+        subtitle={cr(`Kész, posztolható hirdetéskép percek alatt: válaszd ki a sablont és a méretet, tölts fel 1–${MAX_FLYER_IMAGES} fotót, add meg az adatokat — a képet a Twinx rajzolja meg. Az előnézet ingyenes, csak az elfogadott kép kerül kreditbe.`)}
         icon="flyer"
         chips={["Posztolásra kész kép", "Saját arculat", "Instagram · Facebook · portál"]}
       />

@@ -3,6 +3,7 @@
 // a feliratokat élesen írjuk rá — így az ékezetek, a telefonszám és az e-mail mindig hibátlan.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { useModuleTracker } from "@/lib/module-events";
@@ -79,6 +80,7 @@ const FLYER_SUBTITLE_MAX = 46;
 export default function AdWizard({
   profiles, onClose, onDone,
 }: { profiles: BrandingProfile[]; onClose: () => void; onDone?: () => void }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   // tölcsér-mérés (ME2): a varázsló első érintése = űrlap elkezdése; „Elfogadom" = futtatás; letöltés / megosztás
@@ -408,7 +410,7 @@ export default function AdWizard({
       onDone?.(); // a "Korábbi hirdetéseim" lista frissítése
       showToast(
         data.charged
-          ? `${getFlyerSize(sizeVal).label} kész és mentve! ${FLYER_CREDITS} kredit levonva.`
+          ? cr(`${getFlyerSize(sizeVal).label} kész és mentve! ${FLYER_CREDITS} kredit levonva.`)
           : `${getFlyerSize(sizeVal).label} kész és mentve!`,
         "success"
       );
@@ -641,7 +643,7 @@ export default function AdWizard({
                   );
                 })}
                 <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                  A pipálva lévő méretek készülnek el ({FLYER_CREDITS} kredit / méret).
+                  {cr(`A pipálva lévő méretek készülnek el (${FLYER_CREDITS} kredit / méret).`)}
                 </span>
               </div>
 
@@ -1036,7 +1038,7 @@ export default function AdWizard({
                     </p>
                   )}
                   <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    Vízjeles előnézet, ingyenes. Az elfogadás {FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.
+                    {cr(`Vízjeles előnézet, ingyenes. Az elfogadás ${FLYER_CREDITS} kredit, és tiszta, letölthető hirdetést ad.`) || "Vízjeles előnézet. Az elfogadás után tiszta, letölthető hirdetést kapsz."}
                   </p>
                 </>
               ) : (
@@ -1073,7 +1075,7 @@ export default function AdWizard({
           ) : (
             <button type="button" onClick={accept} disabled={accepting || rendering || !preview}
               className="rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-              {accepting ? "Feldolgozás…" : `Elfogadom (${FLYER_CREDITS} kredit)`}
+              {accepting ? "Feldolgozás…" : cr(`Elfogadom (${FLYER_CREDITS} kredit)`)}
             </button>
           )}
         </div>

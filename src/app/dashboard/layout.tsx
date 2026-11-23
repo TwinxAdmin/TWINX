@@ -24,6 +24,9 @@ import TermsGate from "@/components/TermsGate";
 import { termsStatus } from "@/lib/terms";
 import { premium3dStatus } from "@/lib/premium3d";
 import { loadDockState } from "@/lib/office-dock";
+import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
+import { UiModeProvider } from "@/components/UiModeProvider";
+import ModuleGate from "@/components/ModuleGate";
 
 export default async function DashboardLayout({
   children,
@@ -50,6 +53,11 @@ export default async function DashboardLayout({
   // A sales saját, szűkített megkeresés-felületet kap (jelvénnyel).
   const isSales = view.role === "sales";
   const balance = (wallet?.balance as number | undefined) ?? 0;
+  // Új, kredit nélküli felület (3d): admin mindig; más csak az admin „Új felület" kapcsolójával. Az előnézetben
+  // (nézet-váltó) a megjelenített szerepkör számít, hogy az admin pontosan azt lássa, amit a felhasználó.
+  const newUi = await newUiFor(view.role);
+  const estate = user && newUi && view.role !== "admin" ? await hasEstateAccess(user.id) : false;
+  const uiMode = { newUi, estate, admin: view.role === "admin" };
 
   // Irodai tag? → a kredit-sávon Privát | Irodai váltó (+ irodaválasztó, ha több irodája van).
   const realDock = user ? await loadDockState(user.id) : null;
@@ -111,7 +119,7 @@ export default async function DashboardLayout({
             currentOffice={dock?.offices.find((o) => o.id === dock.officeId)?.name ?? null}
             officeCount={dock?.offices.length ?? 0}
           />
-          <AccountMenu email={user?.email ?? ""} role={view.role} balance={balance} />
+          <AccountMenu email={user?.email ?? ""} role={view.role} balance={newUi ? null : balance} />
           <LogoutButton />
         </div>
 
@@ -120,22 +128,25 @@ export default async function DashboardLayout({
           <MobileNav
             email={user?.email ?? ""}
             role={view.role}
-            balance={balance}
+            balance={newUi ? null : balance}
             isAdmin={isAdmin}
             premium3d={premium3d}
           />
         </div>
       </header>
       {/* pb-28: a lebegő kredit-sáv ne takarja ki az oldal alját */}
-      <div className="mx-auto max-w-5xl px-6 py-10 pb-28">{children}</div>
+      <UiModeProvider value={uiMode}>
+        <div className="mx-auto max-w-5xl px-6 py-10 pb-28"><ModuleGate>{children}</ModuleGate></div>
+      </UiModeProvider>
 
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}
       <B2BModal />
-      <PricingModal />
+      {/* Kreditvásárlás, fizetés-visszajelzés és irodai kredit-tartalék: csak a régi felületen (3d). */}
+      {!newUi && <PricingModal />}
       {/* bankkártyás fizetés utáni visszajelzés (?purchase=success) */}
-      <Suspense fallback={null}><PurchaseSuccessNotice /></Suspense>
+      {!newUi && <Suspense fallback={null}><PurchaseSuccessNotice /></Suspense>}
       {/* Elfogyott irodai keret → „Folytatás saját kreditből?" (minden modulra, egy helyen) */}
-      {dock && <OfficeFallbackProvider />}
+      {dock && !newUi && <OfficeFallbackProvider />}
       <OfficeModals />
       {/* modul-megnyitások mérése (admin „Modul-használat") — láthatatlan */}
       <ModuleViewTracker />
@@ -147,11 +158,13 @@ export default async function DashboardLayout({
       {user && <SmartsuppIdentity name={(me?.full_name as string | null) ?? null} email={user.email ?? null} />}
 
       {/* Kredit-sáv alul középen: egyenleg; irodai tagnak Privát | Irodai váltóval. */}
-      <CreditDock
-        balance={balance}
-        unlimited={view.role === "admin"}
-        office={dock}
-      />
+      {!newUi && (
+        <CreditDock
+          balance={balance}
+          unlimited={view.role === "admin"}
+          office={dock}
+        />
+      )}
 
       {/* Nézet-váltó — jobb alsó sarok: admin (Admin/Sales/Felhasználó) + irodai vezető (Vezető/Kolléga) */}
       {(view.canPreview || realDock?.isManager) && (

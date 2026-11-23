@@ -3,6 +3,7 @@
 // szakember a Kedvencek közé), kategória-mappák (szakmánként) az előzményhez, PDF.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { toDownloadUrl } from "@/lib/files";
 import SavedRow from "@/components/ui/SavedRow";
 import { MI } from "@/components/ui/ActionMenu";
@@ -34,6 +35,7 @@ const FAV_KEY = "__fav__";
 const favKey = (name: string) => name.trim().toLowerCase();
 
 export default function ProfessionalFinder({ industry }: { industry: Industry }) {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   // Két fő mód: "finder" = online elérhető szolgáltatók keresése; "recruit" = toborzás
   // (egyéni alkalmazottak — később kidolgozzuk).
   const [tab, setTab] = useState<"finder" | "recruit">("finder");
@@ -128,7 +130,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       setResult(data.result);
       setPdfUrl(data.pdf_url ?? null);
       if (data.search) setHistory((h) => [data.search, ...h]);
-      showToast(data.charged ? `${data.credits} kredit levonva.` : "Keresés kész (ingyenes hozzáférés).", "success");
+      showToast(cr(data.charged ? `${data.credits} kredit levonva.` : "Keresés kész (ingyenes hozzáférés).") || "Keresés kész.", "success");
     } catch {
       showToast("Hálózati hiba. Próbáld újra.", "error");
     } finally {
@@ -220,7 +222,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
         <span className="rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white" style={{ background: "var(--twx-coral)" }}>Béta</span>
         <span className="text-xs" style={{ color: "#9a3412" }}>
-          A Szakember-kereső még <b>fejlesztés alatt</b> áll — használható, de az eredmények pontossága még csiszolás alatt van. A béta idején minden keresés <b>5 találat = 1 kredit</b>.
+          A Szakember-kereső még <b>fejlesztés alatt</b> áll — használható, de az eredmények pontossága még csiszolás alatt van. A béta idején minden keresés <b>{cr("5 találat = 1 kredit") || "5 találatot ad"}</b>.
         </span>
       </div>
 
@@ -403,13 +405,13 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
           <>
             {/* Találatszám = kredit — BÉTA: egyetlen verzió (5 találat = 1 kredit) */}
             <div className="rounded-xl p-3 text-xs" style={{ background: "var(--twx-coral-soft)", color: "var(--twx-ink)" }}>
-              A béta verzióban minden keresés <b>5 szakember-találatot</b> ad, ára <b>1 kredit</b>.
+              A béta verzióban minden keresés <b>5 szakember-találatot</b> ad{cr("kredit") ? <>, ára <b>1 kredit</b></> : null}.
             </div>
 
             <div>
               <button onClick={search} disabled={running}
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60" style={{ background: "var(--twx-coral)" }}>
-                {running ? "Keresés folyamatban…" : `Szakemberek keresése (${creditsForCount(count)} kredit)`}
+                {running ? "Keresés folyamatban…" : cr(`Szakemberek keresése (${creditsForCount(count)} kredit)`)}
               </button>
             </div>
           </>

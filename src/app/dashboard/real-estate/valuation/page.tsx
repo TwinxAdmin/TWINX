@@ -1,6 +1,7 @@
 // dashboard/real-estate/valuation — Ingatlan Értékbecslő (14 mezős, wireframe).
 // A partner bevált eszköze alapján. Sorrend: űrlap validáció -> API.
 "use client";
+import { useCr } from "@/components/UiModeProvider";
 import ModuleIntro from "@/components/ModuleIntro";
 import ComboField from "@/components/ComboField";
 import SelectField from "@/components/SelectField";
@@ -97,6 +98,7 @@ function historyTitle(h: HistoryItem): string {
 }
 
 export default function ValuationPage() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [values, setValues] = useState<ValuationInput>({ ...EMPTY_VALUATION });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -251,7 +253,7 @@ export default function ValuationPage() {
           setJobId(null);
           setLoading(false);
           runRef.current?.failed(failDetail("job_failed", { message: data.error })); runRef.current = null;
-          setServerError(data.error ?? "A becslés nem sikerült. Kredit nem került levonásra.");
+          setServerError(cr(data.error ?? "A becslés nem sikerült. Kredit nem került levonásra.") || "A becslés nem sikerült.");
         }
       } catch { /* következő kör */ }
     }, 3000);
@@ -486,7 +488,7 @@ export default function ValuationPage() {
       <ModuleIntro
         eyebrow="Ingatlan · Elemzés"
         title="Ingatlan értékbecslés"
-        subtitle="Új, összehasonlító-alapú számítás: a becslés a környék HASONLÓ ingatlanjainak az elmúlt 1 évből származó piaci adataiból, egységes módszertannal készül — így konzisztens és védhető, ügyfélnek is átadható. A csillagos (*) mezők kötelezők, egy becslés 1 kredit."
+        subtitle={cr("Új, összehasonlító-alapú számítás: a becslés a környék HASONLÓ ingatlanjainak az elmúlt 1 évből származó piaci adataiból, egységes módszertannal készül — így konzisztens és védhető, ügyfélnek is átadható. A csillagos (*) mezők kötelezők, egy becslés 1 kredit.")}
         icon="valuation"
         chips={["Összehasonlító-alapú", "Friss (1 éves) adatok", "Konzisztens", "PDF-riport"]}
       />
@@ -847,9 +849,11 @@ export default function ValuationPage() {
         >
           {loading ? "Becslés készül…" : "Ingatlan értékbecslés indítása"}
         </button>
-        <p className="text-center text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-          Költség: <strong>1 kredit</strong> / értékbecslés — a levonás csak a kész becslésnél.
-        </p>
+        {cr("kredit") && (
+          <p className="text-center text-xs" style={{ color: "var(--twx-ink-muted)" }}>
+            Költség: <strong>1 kredit</strong> / értékbecslés — a levonás csak a kész becslésnél.
+          </p>
+        )}
       </form>
 
       <ValuationStartModal

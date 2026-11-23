@@ -3,6 +3,7 @@
 // Nincs előnézet: a kész videó azonnal mentve, innen (és az ablakból) letölthető.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import VideoWizard from "@/components/video/VideoWizard";
@@ -11,6 +12,7 @@ import type { BrandingProfile } from "@/lib/branding";
 import { MIN_VIDEO_IMAGES, MAX_VIDEO_IMAGES, VIDEO_CREDITS_ALAP } from "@/lib/video";
 
 export default function VideoPage() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [items, setItems] = useState<VideoItem[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -78,10 +80,12 @@ export default function VideoPage() {
           <div className="flex items-center gap-2">
             <h2 className="font-display text-lg font-semibold">Új videó</h2>
             {/* Az ár EGY helyen: a cím mellett. */}
-            <span className="rounded-full px-2.5 py-1 text-[11px] font-bold"
-              style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
-              {VIDEO_CREDITS_ALAP} kredit
-            </span>
+            {cr("kredit") && (
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+                style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
+                {VIDEO_CREDITS_ALAP} kredit
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
             Töltsd fel a fotókat, add meg az adatokat — a videó pár perc alatt elkészül.

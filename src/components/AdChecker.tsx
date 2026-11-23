@@ -4,6 +4,7 @@
 // A korábbi elemzések mappákba rendezve, ugyanabban az ablakos nézetben.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 import FolderLibrary, { type LibraryFolder } from "@/components/library/FolderLibrary";
@@ -45,6 +46,7 @@ function itemTitle(it: SavedItem): string {
 }
 
 export default function AdChecker() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [url, setUrl] = useState("");
   const [manualText, setManualText] = useState("");
   const [showText, setShowText] = useState(false);
@@ -164,7 +166,7 @@ export default function AdChecker() {
         <button type="button" onClick={analyze} disabled={busy}
           className="mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: "var(--twx-coral)" }}>
-          {busy ? "Elemzés folyamatban…" : `Szöveg ellenőrzés (${ADCHECK_CREDITS} kredit)`}
+          {busy ? "Elemzés folyamatban…" : cr(`Szöveg ellenőrzés (${ADCHECK_CREDITS} kredit)`)}
         </button>
       </section>
 

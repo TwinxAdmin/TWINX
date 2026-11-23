@@ -3,6 +3,7 @@
 //  • Google Ads (PPC): reszponzív keresési hirdetés címsorai/leírásai + kulcsszólista.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useCallback, useEffect, useState } from "react";
 import { showToast } from "@/components/Toast";
 import { FBADS_CREDITS, EMPTY_FBADS, type FbAdsResult } from "@/lib/fbads";
@@ -32,6 +33,7 @@ const FB_STYLES: { key: keyof Pick<FbAdsResult, "short" | "story" | "bullets">; 
 ];
 
 export default function FbAdsGenerator() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   const [platform, setPlatform] = useState<Platform>("facebook");
   const [url, setUrl] = useState("");
   const [manualText, setManualText] = useState("");
@@ -259,7 +261,7 @@ export default function FbAdsGenerator() {
         <button type="button" onClick={generate} disabled={busy}
           className="mt-4 block rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: "var(--twx-coral)" }}>
-          {busy ? "Generálás folyamatban…" : `${platform === "google" ? "Google Ads szövegek" : "Facebook szövegek"} generálása (${FBADS_CREDITS} kredit)`}
+          {busy ? "Generálás folyamatban…" : cr(`${platform === "google" ? "Google Ads szövegek" : "Facebook szövegek"} generálása (${FBADS_CREDITS} kredit)`)}
         </button>
       </section>
 

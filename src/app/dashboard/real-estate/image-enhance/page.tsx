@@ -5,6 +5,7 @@
 // Max 3 kép feldolgozásonként. Dátum-mappák + Kedvencek a korábbi munkákhoz. Nagy nézet: lightbox.
 "use client";
 
+import { useCr } from "@/components/UiModeProvider";
 import { useEffect, useRef, useState } from "react";
 import ModuleIntro from "@/components/ModuleIntro";
 import AssetTray, { readTwxDragUrl } from "@/components/AssetTray";
@@ -38,6 +39,7 @@ const otherMode = (m: EnhanceMode): EnhanceMode => (m === "feljavitas" ? "rendra
 const MAX_FREE_FIX = 1;
 
 export default function ImageEnhancePage() {
+  const cr = useCr(); // új felületen a „kredit"-es szövegrészek kimaradnak (3d)
   // tölcsér-mérés (ME2): képfeltöltés = űrlap elkezdése; minden feldolgozás = futtatás; letöltés
   const track = useModuleTracker("/dashboard/real-estate/image-enhance");
   // Aktív ablak (melyik művelettel indítottunk); null = nincs nyitva.
@@ -187,7 +189,7 @@ export default function ImageEnhancePage() {
         setAssetsReload((n) => n + 1);
       }
       run.succeeded();
-      showToast(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)", "success");
+      showToast(cr(data.charged ? "Kész! 1 kredit levonva." : "Kész! (ingyenes hozzáférés)"), "success");
       return true;
     } catch (e) {
       run.failed(failDetail("network", { message: (e as Error).message }));
@@ -446,7 +448,7 @@ export default function ImageEnhancePage() {
       <ModuleIntro
         eyebrow="Ingatlan · Fotó"
         title="Képjavító"
-        subtitle="Válaszd a Feljavítást vagy a Rendrakást — a felugró ablakban töltsd fel a fotókat, ott fut le a folyamat, és rögtön látod az eredményt. Az elkészült képen egy gombbal futtathatod a másik műveletet is. Az ingatlanon semmit nem változtatunk. Egy feldolgozás 1 kredit."
+        subtitle={cr("Válaszd a Feljavítást vagy a Rendrakást — a felugró ablakban töltsd fel a fotókat, ott fut le a folyamat, és rögtön látod az eredményt. Az elkészült képen egy gombbal futtathatod a másik műveletet is. Az ingatlanon semmit nem változtatunk. Egy feldolgozás 1 kredit.")}
         icon="visualization"
         chips={["Feljavítás", "Rendrakás", "Hű a valósághoz"]}
       />
@@ -480,13 +482,15 @@ export default function ImageEnhancePage() {
                     </span>
                     <div className="font-display text-lg font-semibold" style={{ color: over ? "#7a2e17" : "var(--twx-ink)" }}>{m.label}</div>
                     {/* Ár a cím mellett — ne a leírásból kelljen kihámozni. */}
-                    <span className="ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-                      style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
-                      1 kredit
-                    </span>
+                    {cr("1 kredit") && (
+                      <span className="ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                        style={{ background: "var(--twx-coral-soft)", color: "#7a2e17", border: "1px solid var(--twx-coral)" }}>
+                        1 kredit
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                    {m.desc} <span className="font-semibold" style={{ color: "var(--twx-ink)" }}>1 kredit / feldolgozás, legfeljebb {MAX_IMAGES} kép.</span>
+                    {m.desc} <span className="font-semibold" style={{ color: "var(--twx-ink)" }}>{cr("1 kredit / feldolgozás, ")}legfeljebb {MAX_IMAGES} kép.</span>
                   </div>
                 </button>
 
@@ -529,7 +533,7 @@ export default function ImageEnhancePage() {
           );
         }}
         reloadKey={assetsReload}
-        note={`Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzz rá képeket (akár több mappából, max ${MAX_IMAGES}) a Feljavítás / Rendrakás kártyára. A folyamat csak a megerősítés után indul el, kredit addig nem fogy.`}
+        note={cr(`Válassz egy mappát, majd kattints egy képre a nagy nézethez — vagy húzz rá képeket (akár több mappából, max ${MAX_IMAGES}) a Feljavítás / Rendrakás kártyára. A folyamat csak a megerősítés után indul el, kredit addig nem fogy.`)}
       />
 
       {/* Munka-ablak: tallózás → folyamat → eredmény */}
@@ -555,7 +559,7 @@ export default function ImageEnhancePage() {
                   <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
                     {producedMode
                       ? "Az eredmény mentve a korábbi munkáid közé."
-                      : `Válassz képeket, majd erősítsd meg — legfeljebb ${MAX_IMAGES} kép, 1 kredit.`}
+                      : cr(`Válassz képeket, majd erősítsd meg — legfeljebb ${MAX_IMAGES} kép, 1 kredit.`)}
                   </p>
                 </div>
               </div>
@@ -692,11 +696,11 @@ export default function ImageEnhancePage() {
                       {loading
                         ? "Feldolgozás… (néhány másodperc képenként)"
                         : picks.length + libPicks.length
-                          ? `${modeLabel(session)} indítása — ${picks.length + libPicks.length} kép · 1 kredit`
+                          ? cr(`${modeLabel(session)} indítása — ${picks.length + libPicks.length} kép · 1 kredit`)
                           : "Válassz legalább egy képet"}
                     </button>
-                    <p className="mt-1.5 text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
-                      A kredit csak a gomb megnyomásakor fogy.
+                    <p className="mt-1.5 h-4 text-center text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>
+                      {cr("A kredit csak a gomb megnyomásakor fogy.")}
                     </p>
                   </div>
                 </>
@@ -740,7 +744,7 @@ export default function ImageEnhancePage() {
                       {loading
                         ? "Feldolgozás…"
                         : producedMode
-                          ? `${modeLabel(otherMode(producedMode))} ezen a képen (1 kredit)`
+                          ? cr(`${modeLabel(otherMode(producedMode))} ezen a képen (1 kredit)`)
                           : ""}
                     </button>
                     <button onClick={resetToUpload} disabled={loading}

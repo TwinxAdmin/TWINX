@@ -6,6 +6,7 @@ import { visibleCategories, visibleModules } from "@/lib/catalog";
 import RecentActivity from "@/components/RecentActivity";
 import { activityTitle, featureLabel } from "@/lib/activity";
 import { officeNonePreview, resolveViewContext } from "@/lib/view-as";
+import { newUiFor } from "@/lib/new-ui";
 import { premium3dStatus } from "@/lib/premium3d";
 import StarterCards from "@/components/dashboard/StarterCards";
 import InspirationBlock from "@/components/dashboard/inspiration/InspirationBlock";
@@ -41,6 +42,9 @@ export default async function DashboardHome() {
   const isAdmin = role === "admin"; // korlátlan, prezentációs mód (nincs kreditlevonás)
   const catalogView = { isAdmin, premium3d: (await premium3dStatus()).status };
   const isSales = role === "sales"; // az admin által biztosított keretet fogyasztja
+  // Új, kredit nélküli felület (3d): a kreditblokk és az „Ajándék kredit" dia nem jelenik meg.
+  // (A teljes, személyre szabott kezdőlap a 3e lépésben váltja ezt az oldalt.)
+  const newUi = await newUiFor(role);
 
   // Időszakok a folyamat-számláláshoz (hét = hétfőtől, hónap = 1-jétől).
   const now = new Date();
@@ -106,7 +110,7 @@ export default async function DashboardHome() {
         {showNewsletter && <NewsletterBanner />}
 
         {/* 1) Kreditblokk — mindenkinek ugyanaz a felépítés, a tartalom a szerepkörhöz igazodik. */}
-        {isAdmin ? (
+        {newUi ? null : isAdmin ? (
           <CreditBlock mode="admin" weekCount={weekCount} monthCount={monthCount} />
         ) : isSales ? (
           <CreditBlock mode="sales" balance={balance} />
@@ -122,7 +126,7 @@ export default async function DashboardHome() {
           slides={[
             { key: "machine", label: "Mire képes a TWINX", node: <MachineSlide /> },
             { key: "morning", label: "Egy új megbízás, egy délelőtt", node: <MorningSlide /> },
-            ...(hasWelcomeCredits ? [{ key: "gift", label: "Ajándék kredit", node: <GiftSlide credits={balance} /> }] : []),
+            ...(hasWelcomeCredits && !newUi ? [{ key: "gift", label: "Ajándék kredit", node: <GiftSlide credits={balance} /> }] : []),
           ]}
         />
       </div>
