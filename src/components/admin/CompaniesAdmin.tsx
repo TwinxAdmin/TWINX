@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionMenu, MenuDots, MI, useActionMenu, type MenuItem } from "@/components/ui/ActionMenu";
 import { showToast } from "@/components/Toast";
+import { CompanyFinance } from "@/components/admin/Finance";
 import {
   COMPANY_LOG_LABEL, COMPANY_STATUS_LABEL,
   type AdminCompany, type CompanyLogEntry, type CompanyMember,
@@ -59,6 +60,7 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
   const [email, setEmail] = useState("");
   const [log, setLog] = useState<CompanyLogEntry[] | null>(null);
   const [edit, setEdit] = useState(false);
+  const [finance, setFinance] = useState(false);
   const [name, setName] = useState(c.name);
   const [note, setNote] = useState(c.note ?? "");
   const heads = c.members.filter((m) => m.isHead);
@@ -72,7 +74,8 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
 
   const items: MenuItem[] = [
     { label: "Adatok szerkesztése", icon: MI.rename, onClick: () => { setName(c.name); setNote(c.note ?? ""); setEdit(true); } },
-    { label: "Modulok és előfizetés", icon: MI.folder, disabled: true, hint: "Hamarosan — 4. lépés.", onClick: () => {} },
+    { label: "Pénzügy (ajánlatok, fizetések)", icon: MI.folder, onClick: () => setFinance(true) },
+    { kind: "link", label: "Modulok és előfizetés", icon: MI.open, href: "/admin/egyedi-modulok" },
     { label: "Cég lezárása", icon: MI.trash, disabled: true, hint: "Hamarosan (terv 21).", onClick: () => {} },
   ];
 
@@ -110,7 +113,7 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
             )}
             {c.note && <p className="mt-3 whitespace-pre-wrap text-xs" style={{ color: "var(--twx-ink-muted)" }}>Megjegyzés: {c.note}</p>}
             <p className="mt-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-              Létrehozva: {fmt(c.createdAt)}{c.bookingAt ? ` · foglalás: ${fmt(c.bookingAt)}` : ""} · Modulok, helyek, lejárat: Hamarosan
+              Létrehozva: {fmt(c.createdAt)}{c.bookingAt ? ` · foglalás: ${fmt(c.bookingAt)}` : ""} · Pénzügy: a „⋯” menüben
             </p>
           </div>
           <div>
@@ -127,6 +130,7 @@ function CompanyRow({ c, open, onToggle, busy, act }: { c: AdminCompany; open: b
         </div>
       )}
 
+      {finance && <CompanyFinance companyId={c.id} companyName={c.name} onClose={() => setFinance(false)} />}
       {edit && (
         <Dialog title="Cég adatai" onClose={() => setEdit(false)}>
           <label className="mt-4 block text-xs" style={{ color: "var(--twx-ink-muted)" }}>Név

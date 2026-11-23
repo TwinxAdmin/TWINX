@@ -190,7 +190,7 @@ export async function POST(request: Request) {
       call = admin.rpc("cap_add_pack", { p_actor: actor, p_cm: id, p_extra_cost_ft: ft,
         p_extra_units: b.extraUnits === "" || b.extraUnits == null ? null : Number(b.extraUnits),
         p_price_net: b.priceNet === "" || b.priceNet == null ? null : Number(b.priceNet), p_reason: str(b.reason) });
-      notice = "Pluszcsomag hozzáadva (erre a hónapra). A fizetési tétel a Pénzügy lap elkészültével kötődik be.";
+      notice = "Pluszcsomag hozzáadva erre a hónapra; ha adtál meg árat, a fizetési tétel is létrejött (Pénzügy → Esedékes).";
       break;
     }
     case "set_cap": {

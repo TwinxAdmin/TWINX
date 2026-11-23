@@ -260,7 +260,7 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
       )}
       {dlg === "pack" && (
         <Dialog title="Pluszcsomag hozzáadása" onClose={() => setDlg(null)}>
-          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.moduleName} · {m.companyName} — erre a hónapra azonnal bővíti a keretet. A fizetési tételt a Pénzügy lap elkészültével kötjük be.</p>
+          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.moduleName} · {m.companyName} — erre a hónapra azonnal bővíti a keretet. Ha megadod a nettó árat, Esedékes fizetési tétel is létrejön.</p>
           <div className="grid grid-cols-2 gap-x-3">
             <Label t="Keret-kiegészítés (Ft) *"><input className="twx-input w-full text-sm" inputMode="numeric" value={pack.extraCostFt} onChange={(e) => setPack((p) => ({ ...p, extraCostFt: e.target.value.replace(/\D/g, "") }))} /></Label>
             <Label t={`Mennyiség${m.unitLabel ? ` (${m.unitLabel})` : ""}`}><input className="twx-input w-full text-sm" inputMode="numeric" value={pack.extraUnits} onChange={(e) => setPack((p) => ({ ...p, extraUnits: e.target.value.replace(/\D/g, "") }))} /></Label>
