@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMetrics, getUserMetrics } from "@/lib/metrics";
 import AdminShell from "@/components/admin/AdminShell";
+import NewUiSwitch from "@/components/admin/NewUiSwitch";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,7 @@ export default async function AdminHomePage() {
 
   return (
     <AdminShell title="Admin — Kezdőlap" subtitle="A legfontosabb számok és belépők egy helyen.">
+      <NewUiSwitch />
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((c) => (
           <div key={c.label} className="twx-card p-4">

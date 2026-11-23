@@ -6,6 +6,7 @@
 //     note       { note }    — belső jegyzet (naplózva)
 //     cancel     {}          — admin-lemondás; a látogató és a gazdák értesítést kapnak
 //     resend     {}          — a ki nem ment értesítés újraküldése (látogató: új lemondási linkkel)
+//     to_company {}          — Céggé alakítás (D42): új cég a foglalás adataival → { companyId }
 // A cancel_token_hash SOSEM megy ki; a látogató szabad szövege csak szövegként jelenik meg a felületen.
 import { after, NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
@@ -14,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffRole } from "@/lib/staff";
 import { notifyCanceledBooking, notifyNewBooking } from "@/lib/booking-notify";
 import { BOOKING_MIGRATION, type AdminBooking, type BookingEvent, type BookingStatus } from "@/lib/bookings";
+import { COMPANIES_MIGRATION, COMPANY_ERR } from "@/lib/companies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +27,7 @@ async function requireAdmin() {
 const missing = (m: string) => /bookings|booking_|function .* does not exist/i.test(m);
 
 const COLS = "id, kind, status, starts_at, host_id, name, company_name, email, phone, message, source, created_at, updated_at, " +
-  "visitor_mail_sent_at, admin_notified_at, admin_note, handled_by, canceled_at, canceled_by, user_id";
+  "visitor_mail_sent_at, admin_notified_at, admin_note, handled_by, canceled_at, canceled_by, user_id, company_id";
 
 async function payload(userId: string) {
   const admin = createAdminClient();
@@ -44,7 +46,7 @@ async function payload(userId: string) {
       message: x.message, source: x.source as string, createdAt: x.created_at as string,
       visitorMailSentAt: x.visitor_mail_sent_at, adminNotifiedAt: x.admin_notified_at, note: x.admin_note,
       handledBy: x.handled_by ? hostName.get(x.handled_by) ?? "admin" : null,
-      canceledBy: x.canceled_by as AdminBooking["canceledBy"], registered: !!x.user_id,
+      canceledBy: x.canceled_by as AdminBooking["canceledBy"], registered: !!x.user_id, companyId: x.company_id,
     };
   });
   return { migrated: true, me: userId, hosts: [...hostName.entries()].map(([id, name]) => ({ id, name })), bookings };
@@ -127,6 +129,20 @@ export async function POST(request: Request) {
       if (!ok) return NextResponse.json({ error: "Az újraküldés nem sikerült. A részletek a fejlesztői naplóban (pl. a Resend domain-hitelesítése)." }, { status: 502 });
       notice = "Értesítés elküldve.";
       break;
+    }
+    case "to_company": {
+      const { data, error } = await admin.rpc("admin_create_company_from_booking", { p_actor: staff.userId, p_booking_id: id });
+      if (error) {
+        const m = /admin_create_company_from_booking|companies|function .* does not exist/i.test(error.message)
+          ? `Futtasd le a ${COMPANIES_MIGRATION} migrációt.` : error.message;
+        return NextResponse.json({ error: m }, { status: 500 });
+      }
+      const r = data as { ok: boolean; error?: string; company_id?: string; member_added?: boolean };
+      if (!r.ok) return NextResponse.json({ error: COMPANY_ERR[r.error ?? ""] ?? "Nem sikerült.", companyId: r.company_id ?? null }, { status: 422 });
+      notice = r.member_added
+        ? "Cég létrehozva; a foglaló regisztrált felhasználóként tag lett. Nevezd ki cégvezetőnek a Cégek lapon."
+        : "Cég létrehozva. A foglaló még nem regisztrált — ha regisztrál, add hozzá tagként a Cégek lapon.";
+      return NextResponse.json({ ...(await payload(staff.userId)), notice, companyId: r.company_id });
     }
     default:
       return NextResponse.json({ error: "Ismeretlen művelet." }, { status: 400 });

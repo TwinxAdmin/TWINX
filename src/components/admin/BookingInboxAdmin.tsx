@@ -69,7 +69,11 @@ function Row({ b, open, onToggle, busy, act }: {
     { label: "Jegyzet", icon: MI.rename, onClick: () => { if (!open) onToggle(); } },
     { label: "Értesítés újraküldése", icon: MI.send, disabled: busy || !notifyMissing,
       hint: notifyMissing ? "A ki nem ment levelet küldi el újra." : "Minden értesítés kiment.", onClick: () => act({ action: "resend", id: b.id }) },
-    { label: "Céggé alakítás", icon: MI.folder, disabled: true, hint: "Hamarosan — a Cégek lappal együtt (4. lépés).", onClick: () => {} },
+    b.companyId
+      ? { kind: "link", label: "Cég megnyitása", icon: MI.open, href: `/admin/cegek?ceg=${b.companyId}` }
+      : { label: "Céggé alakítás", icon: MI.folder, disabled: busy || b.status === "lemondva" || b.status === "elvetve",
+          hint: "Új cég a foglalás adataival; a foglalás „Céggé alakítva” lesz.",
+          onClick: () => act({ action: "to_company", id: b.id }) },
     { kind: "divider" },
     { label: "Lemondás", icon: MI.trash, danger: true, disabled: busy || !active,
       hint: active ? "Az időpont újra szabad lesz, a látogató értesítést kap." : "Csak aktív foglalás mondható le.", onClick: () => setConfirmCancel(true) },

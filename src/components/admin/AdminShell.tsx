@@ -30,7 +30,7 @@ const SECTIONS: Section[] = [
     ],
   },
   { id: "users", label: "Felhasználók", href: "/admin/users" },
-  { id: "companies", label: "Cégek", soon: true },
+  { id: "companies", label: "Cégek", href: "/admin/cegek" },
   { id: "subscriptions", label: "Előfizetések", soon: true },
   { id: "finance", label: "Pénzügy", soon: true },
   { id: "custom", label: "Egyedi modulok", soon: true },

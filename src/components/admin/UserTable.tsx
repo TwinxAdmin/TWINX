@@ -32,8 +32,31 @@ function huf(n: number): string {
 }
 
 export default function UserTable({
-  users, hufPerUsd,
-}: { users: UserMetric[]; hufPerUsd: number }) {
+  users, hufPerUsd, estateIds = [],
+}: { users: UserMetric[]; hufPerUsd: number; /** Ingatlan csomag hozzáféréssel rendelkezők (3d) */ estateIds?: string[] }) {
+  // Ingatlan-hozzáférés (company_access): helyben kapcsolható, a friss érték itt él.
+  const [estate, setEstate] = useState<Set<string>>(() => new Set(estateIds));
+  const [estateBusy, setEstateBusy] = useState<string | null>(null);
+  async function toggleEstate(u: UserMetric) {
+    const next = !estate.has(u.userId);
+    setEstateBusy(u.userId);
+    try {
+      const r = await fetch("/api/admin/new-ui", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: u.userId, estateAccess: next }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return; }
+      setEstate((prev) => { const x = new Set(prev); if (next) x.add(u.userId); else x.delete(u.userId); return x; });
+      showToast(`${u.name || u.email}: Ingatlan-hozzáférés ${next ? "megadva" : "elvéve"}`, "success");
+    } finally { setEstateBusy(null); }
+  }
+  /** Ingatlan csomag hozzáférés kapcsolója (fix méretű). */
+  const EstateToggle = ({ u }: { u: UserMetric }) => (
+    <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs" onClick={(e) => e.stopPropagation()}
+      title="Ingatlan csomag hozzáférés — az új felületen ezzel használhatja az ingatlanos modulokat, levonás nélkül.">
+      <input type="checkbox" className="h-4 w-4 accent-[#ef7a5a]" checked={estate.has(u.userId)} disabled={estateBusy === u.userId}
+        onChange={() => void toggleEstate(u)} />
+      Ingatlan
+    </label>
+  );
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
   const [newestFirst, setNewestFirst] = useState(true); // csak a „Regisztrált" oszlopnál fordítható
@@ -186,6 +209,9 @@ export default function UserTable({
               <th className="pb-2 text-left text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
                 Szerep
               </th>
+              <th className="pb-2 pr-3 text-left text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--twx-ink-muted)" }}>
+                Hozzáférés
+              </th>
               <Th k="created" label="Regisztrált" />
               <Th k="balance" label="Egyenleg" right />
               <Th k="uses" label="Generálás" right />
@@ -218,6 +244,7 @@ export default function UserTable({
                   )}
                 </td>
                 <td className="py-2.5 pr-3"><RolePicker u={u} /></td>
+                <td className="py-2.5 pr-3"><EstateToggle u={u} /></td>
                 <td className="whitespace-nowrap py-2.5 pr-3 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{regDate(u.createdAt)}</td>
                 {/* AKTUÁLIS kredit-egyenleg — a 0 kiemelve, mert az blokkolja a partnert. */}
                 <td className="py-2.5 text-right font-bold"
@@ -238,7 +265,7 @@ export default function UserTable({
               </tr>
             ))}
             {!rows.length && (
-              <tr><td colSpan={9} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              <tr><td colSpan={10} className="py-6 text-center text-sm" style={{ color: "var(--twx-ink-muted)" }}>
                 Nincs találat.
               </td></tr>
             )}
@@ -246,7 +273,7 @@ export default function UserTable({
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td className="pt-3 text-xs font-semibold" colSpan={3}>Összesen</td>
+                <td className="pt-3 text-xs font-semibold" colSpan={4}>Összesen</td>
                 <td className="pt-3 text-right text-xs font-semibold">{totals.balance}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{totals.uses}</td>
                 <td className="pt-3 text-right text-xs font-semibold">{huf(totals.cost)}</td>
@@ -267,7 +294,7 @@ export default function UserTable({
             {u.company && <p className="text-xs font-medium" style={{ color: "var(--twx-coral)" }}>{u.company}</p>}
             <p className="text-xs" style={{ color: "var(--twx-ink-muted)" }}>{u.email}</p>
             <p className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>Regisztrált: {regDate(u.createdAt)}</p>
-            <div className="mt-2 flex items-center justify-between gap-2"><RolePicker u={u} /><DetailsButton u={u} /></div>
+            <div className="mt-2 flex items-center justify-between gap-2"><RolePicker u={u} /><EstateToggle u={u} /><DetailsButton u={u} /></div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
               <span style={{ color: "var(--twx-ink-muted)" }}>Egyenleg</span>
               <span className="text-right font-bold" style={{ color: u.balance > 0 ? "var(--twx-ink)" : "#c0392b" }}>{u.balance}</span>

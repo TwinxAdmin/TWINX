@@ -147,5 +147,6 @@ export type AdminBooking = {
   hostId: string | null; hostName: string | null; name: string; company: string; email: string; phone: string;
   message: string | null; source: string; createdAt: string; visitorMailSentAt: string | null; adminNotifiedAt: string | null;
   note: string | null; handledBy: string | null; canceledBy: "latogato" | "admin" | null; registered: boolean;
+  companyId: string | null;
 };
 export type BookingEvent = { id: number; actor: string; kind: string; data: Record<string, unknown> | null; at: string };

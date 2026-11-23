@@ -9,6 +9,7 @@
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMembershipIn, getWorkContext, officeFree, officeKind } from "@/lib/office-server";
+import { freeByEstateAccess } from "@/lib/new-ui";
 
 export type CreditSource = "wallet" | "office";
 
@@ -59,6 +60,9 @@ export async function chargeCredit(params: {
   if (profile?.role === "admin") {
     return { ok: true, bypassed: true };
   }
+
+  // 1b) Új felület (3d): Ingatlan-hozzáféréssel nincs levonás (terv 12 / 3., Márk döntése 2026-11-23).
+  if (await freeByEstateAccess(userId)) return { ok: true, bypassed: true };
 
   // 2a) Irodai mód → az iroda egyenlegéből + a tag keretéből (atomikus, office_deduct).
   //     Ha a felhasználó erre a kérésre a saját kreditjét választotta, ezt az ágat kihagyjuk.
@@ -126,6 +130,7 @@ export async function checkCreditAvailable(params: {
     .single();
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
+  if (await freeByEstateAccess(userId)) return { ok: true, bypassed: true };
 
   // Irodai mód (foglalásos keret, 20261008104953_office-reserve.sql):
   //   • tag: a saját (lefoglalt) kerete számít;

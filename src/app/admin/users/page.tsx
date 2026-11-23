@@ -9,6 +9,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUserMetrics } from "@/lib/metrics";
+import { estateAccessUserIds } from "@/lib/new-ui";
 import UserTable from "@/components/admin/UserTable";
 import AdminShell from "@/components/admin/AdminShell";
 import ModuleUsageView from "@/components/admin/ModuleUsageView";
@@ -37,6 +38,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const t = (await searchParams).tab;
   const tab = t === "hasznalat" || t === "elemzes" || t === "munkak" ? t : "egyenlegek";
   const metrics = tab === "egyenlegek" ? await getUserMetrics() : null;
+  const estateIds = tab === "egyenlegek" ? [...(await estateAccessUserIds())] : [];
 
   return (
     <AdminShell
@@ -60,7 +62,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         ))}
       </nav>
 
-      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} />
+      {metrics ? <UserTable users={metrics.users} hufPerUsd={metrics.hufPerUsd} estateIds={estateIds} />
         : tab === "elemzes" ? <ModuleAnalysisView />
         : tab === "munkak" ? <AdminWorksView />
         : <ModuleUsageView />}
