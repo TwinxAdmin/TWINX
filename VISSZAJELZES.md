@@ -3,6 +3,27 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-24 – Felhasználók cég-oszlop, terv 20 (plafon) és terv 19 (ajánlat, fizetés)
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/12 (1.2), 19, 20, 22 (3.A); D31, D52, D53
+Elkészült:
+- Felhasználók: cég-tagságok (★ cégvezető), „Besorolatlan” jelölés és szűrő (Mind / Besorolatlan / Cégben), „Céghez rendelés”.
+- Terv 20 — migráció `20261124120000_module-usage.sql` (lefuttatva): foglalás → elszámolás / feloldás (sorzár, idempotens kéréskulcs, naplózási hibánál a hívás nem indul), budapesti havi időszak, 80/100% jelzés (egyszer / hónap / keret; e-mail + Telegram, ha beállítva; személyes adat nélkül), leállás semleges szöveggel (terv 22), pluszcsomag, keret módosítása indoklással, napi cron (elakadt foglalások, jelzések); Előfizetéseknél keret-sáv és használati lista; a próba modulban 10 Ft-os próbaművelet.
+- Terv 19 — migráció `20261124150000_finance.sql` (lefuttatva): ajánlat (Vázlat → Elküldve → Elfogadva / Elutasítva / Lejárt; elfogadás tételekkel, összeg-egyezés egy tranzakcióban), fizetési tételek (Esedékes → Kiszámlázva → Fizetve; Visszatérítve / Törölve indoklással; egyedi számlaszám; számlázási pillanatkép; havi díj „Fizetve” → érvényesség-hosszabbítás, idempotens), „Késik” jelzés, a cég Pénzügy ablaka (Ajánlatok / Fizetések / Számlázási adatok), Admin → Pénzügy (fülek, cégszűrő, CSV BOM-mal), lejárati figyelmeztetés 3 és 1 nappal előtte; a pluszcsomag mostantól fizetési tételt is ad.
+Eltérés a tervtől:
+- A 20 és a 19 sorrendje megcserélve (Márk döntése); a pluszcsomag fizetési tételét a 19-es migráció pótolta (cap_add_pack új változata).
+- A keret (monthly_cap) első beállítása az Előfizetés-adatlapon történik; utána csak „Keret módosítása” (indoklással, naplózva).
+- A Telegram helyett / mellett e-mail megy a BOOKING_NOTIFY_EMAILS címekre (Márk döntése); Telegram: TELEGRAM_BOT_TOKEN + CAP_TELEGRAM_CHAT_ID.
+- A visszatérítés nem vonja vissza az érvényességet (a terv javaslata szerint az admin dönt).
+Új buktató / tanulság: a terv 20 csak az egyedi modulokra szól — az Ingatlan-hozzáféréssel ingyenes használat költségét jelenleg semmi nem korlátozza (csak a Költségfigyelő mutatja).
+Nem lett kész / Hamarosan: terv 21 (lemondás, lezárás, ügyféladat-törlés); cégvezetői „Számláim” nézet; Számla Agent és Stripe; cégnek küldött lejárati e-mail; műveletenkénti használati bontás és grafikon.
+Ellenőrzési lépések eredménye: `tsc` és `eslint` (érintett fájlok) rendben; mindkét migráció lefutott; a plafon és a pénzügyi folyamat Márk tesztjére vár (próba modul: 50 Ft-os keret, 80% / 100%, pluszcsomag; ajánlat → tételek → számlaszám → Fizetve → érvényesség).
+Döntés kell tőled, Márk:
+- Ingatlan csomag költségvédelme (keret felhasználónként vagy a csomagra) — tervezői döntés.
+- A leállási szöveg (terv 22 / 3.A) végleges jóváhagyása; a meghívó-korlát (20/óra/cég) és a 7 napos meghívó jóváhagyása.
+- Mikor jön a terv 21 (az első lemondó ügyfél előtt kell).
+Éles állapot: Felhasználók cég-oszlop, Pénzügy, Előfizetések keret-sávval élesben (csak admin látja); valódi ügyfélmodul még nincs aktiválva.
+
 ## 2026-11-23 – 3f és 4. lépés: nézet-váltó, egyedi modulok, előfizetés, meghívás
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/12 (1., 6.), 13, 14 (2.3–2.5, 3.), 16 (1.), 22 (3.A, 4.B, 6.D), 23; D43, D44, D46, D54, D56
