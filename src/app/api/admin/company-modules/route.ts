@@ -10,6 +10,9 @@
 //     revoke_handover { id, reason }
 //     activate      { id }   — + regiszter és dataPolicy ellenőrzés (a DB nem látja a kódot)
 //     deactivate    { id }
+//     add_pack      { id, extraCostFt, extraUnits?, priceNet?, reason }   — pluszcsomag erre a hónapra (terv 20)
+//     set_cap       { id, capFt|null, reason }                            — keret módosítása indoklással
+//   GET ?usage=<companyModuleId> → { events } (a használati napló)
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,7 +38,7 @@ async function payload() {
   const admin = createAdminClient();
   const today = new Date().toISOString();
   const [cm, comps, heads, access, invites, hand, admins] = await Promise.all([
-    admin.from("company_modules").select("id, company_id, module_key, state, owner_admin_id, seats, valid_until, is_api_costly, monthly_cap, note, updated_at")
+    admin.from("company_modules").select("id, company_id, module_key, state, owner_admin_id, seats, valid_until, is_api_costly, monthly_cap, note, updated_at, usage_unit_label, included_units, extra_pack_units, extra_pack_cost_cap_ft, extra_pack_price_net")
       .order("updated_at", { ascending: false }),
     admin.from("companies").select("id, name, status").order("name"),
     admin.from("company_members").select("company_id").eq("is_company_head", true).eq("status", "aktiv"),
@@ -46,6 +49,10 @@ async function payload() {
     admin.from("profiles").select("id, full_name").eq("role", "admin"),
   ]);
   if (cm.error) return { migrated: !missing(cm.error.message), error: cm.error.message, modules: [], companies: [], admins: [], registry: [] };
+  // Havi keret-állapot (terv 20) — a module-usage migráció előtt üres (a lista attól még működik).
+  const { data: capRows } = await admin.rpc("module_cap_status");
+  const capMap = new Map(((capRows ?? []) as { company_module_id: string; used_ft: number; cap_ft: number | null; pct: number | null; units: number }[])
+    .map((c) => [c.company_module_id, c]));
 
   const compName = new Map((comps.data ?? []).map((c) => [c.id as string, c.name as string]));
   const headSet = new Set((heads.data ?? []).map((h) => h.company_id as string));
@@ -68,6 +75,13 @@ async function payload() {
       seats: r.seats as number, seatsUsed: used.get(r.id as string) ?? 0, validUntil: r.valid_until as string | null,
       isApiCostly: !!r.is_api_costly, monthlyCap: r.monthly_cap as number | null, note: r.note as string | null,
       updatedAt: r.updated_at as string, hasHead: headSet.has(r.company_id as string), handovers,
+      usage: capMap.has(r.id as string) ? {
+        usedFt: capMap.get(r.id as string)!.used_ft, capFt: capMap.get(r.id as string)!.cap_ft,
+        pct: capMap.get(r.id as string)!.pct, units: capMap.get(r.id as string)!.units,
+      } : null,
+      unitLabel: (r.usage_unit_label as string | null) ?? null, includedUnits: (r.included_units as number | null) ?? null,
+      packUnits: (r.extra_pack_units as number | null) ?? null, packCostFt: (r.extra_pack_cost_cap_ft as number | null) ?? null,
+      packPriceNet: (r.extra_pack_price_net as number | null) ?? null,
     };
   });
   return {
@@ -80,6 +94,13 @@ async function payload() {
 
 export async function GET(request: Request) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Nincs jogosultság." }, { status: 403 });
+  const usageFor = new URL(request.url).searchParams.get("usage");
+  if (usageFor) {
+    const { data } = await createAdminClient().from("module_usage_events")
+      .select("id, operation_key, units, estimated_cost_ft, actual_cost_ft, status, created_at")
+      .eq("company_module_id", usageFor).order("created_at", { ascending: false }).limit(200);
+    return NextResponse.json({ events: data ?? [] });
+  }
   const logFor = new URL(request.url).searchParams.get("log");
   if (logFor) {
     const admin = createAdminClient();
@@ -130,7 +151,16 @@ export async function POST(request: Request) {
       if (!Number.isInteger(seats) || seats < 0 || seats > 10000) return NextResponse.json({ error: "A helyek száma 0 és 10000 közötti egész szám." }, { status: 422 });
       if (cap !== null && (!Number.isInteger(cap) || cap < 0)) return NextResponse.json({ error: "A havi plafon nem negatív egész szám (Ft)." }, { status: 422 });
       if (valid && !/^\d{4}-\d{2}-\d{2}$/.test(valid)) return NextResponse.json({ error: "Érvénytelen dátum." }, { status: 422 });
-      call = admin.rpc("admin_set_module_subscription", { p_actor: actor, p_cm: id, p_seats: seats, p_valid_until: valid, p_is_api_costly: b.isApiCostly === true, p_monthly_cap: cap });
+      // Ha már van keret, az csak a „Keret módosítása" művelettel (indoklással, naplózva) változhat — itt megtartjuk.
+      const { data: cur } = await admin.from("company_modules").select("monthly_cap").eq("id", id).maybeSingle();
+      const capToSet = cur?.monthly_cap != null ? (cur.monthly_cap as number) : cap;
+      call = admin.rpc("admin_set_module_subscription", { p_actor: actor, p_cm: id, p_seats: seats, p_valid_until: valid, p_is_api_costly: b.isApiCostly === true, p_monthly_cap: capToSet });
+      // Az ajánlatban rögzített mennyiség és pluszcsomag (terv 20 / 3.) — leíró mezők, csak admin.
+      const int = (v: unknown) => (v === null || v === "" || v === undefined || !Number.isFinite(Number(v)) ? null : Math.max(0, Math.round(Number(v))));
+      await admin.from("company_modules").update({
+        usage_unit_label: str(b.unitLabel).trim().slice(0, 40) || null, included_units: int(b.includedUnits),
+        extra_pack_units: int(b.packUnits), extra_pack_cost_cap_ft: int(b.packCostFt), extra_pack_price_net: int(b.packPriceNet),
+      }).eq("id", id);
       notice = "Előfizetés mentve.";
       break;
     }
@@ -152,6 +182,22 @@ export async function POST(request: Request) {
       if (!reg.dataPolicy?.trim()) return NextResponse.json({ error: MODULE_ERR.nincs_data_policy }, { status: 422 });
       call = admin.rpc("activate_company_module", { p_actor: actor, p_cm: id });
       notice = "Aktiválva. A cégvezető most már meghívhatja a kollégákat.";
+      break;
+    }
+    case "add_pack": {
+      const ft = Number(b.extraCostFt);
+      if (!Number.isInteger(ft) || ft <= 0) return NextResponse.json({ error: "A keret-kiegészítés pozitív egész Ft." }, { status: 422 });
+      call = admin.rpc("cap_add_pack", { p_actor: actor, p_cm: id, p_extra_cost_ft: ft,
+        p_extra_units: b.extraUnits === "" || b.extraUnits == null ? null : Number(b.extraUnits),
+        p_price_net: b.priceNet === "" || b.priceNet == null ? null : Number(b.priceNet), p_reason: str(b.reason) });
+      notice = "Pluszcsomag hozzáadva (erre a hónapra). A fizetési tétel a Pénzügy lap elkészültével kötődik be.";
+      break;
+    }
+    case "set_cap": {
+      const cap = b.capFt === "" || b.capFt == null ? null : Number(b.capFt);
+      if (cap !== null && (!Number.isInteger(cap) || cap < 0)) return NextResponse.json({ error: "A keret nem negatív egész Ft." }, { status: 422 });
+      call = admin.rpc("cap_set", { p_actor: actor, p_cm: id, p_new_cap: cap, p_reason: str(b.reason) });
+      notice = "Keret módosítva.";
       break;
     }
     case "deactivate":

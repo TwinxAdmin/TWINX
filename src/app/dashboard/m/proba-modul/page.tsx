@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { userCanUseModule } from "@/lib/custom-modules";
 import { MODULE_UNAVAILABLE_TEXT } from "@/components/ModuleGate";
+import RunButton from "./RunButton";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function ProbaModulPage() {
         <>
           <p className="font-display text-2xl font-semibold">Próba modul</p>
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>Működik: a hozzáférésed érvényes. Ez egy belső teszt modul, nem tárol adatot.</p>
+          <RunButton />
         </>
       ) : (
         <>

@@ -47,6 +47,10 @@ export const COMPANY_LOG_LABEL: Record<string, string> = {
   hozzaferes_eltavolitva: "Hozzáférés eltávolítva",
   ingatlan_hozzaferes_megadva: "Ingatlan-hozzáférés megadva",
   ingatlan_hozzaferes_elveve: "Ingatlan-hozzáférés elvéve",
+  pluszcsomag_hozzaadva: "Pluszcsomag hozzáadva",
+  keret_modositva: "Keret módosítva",
+  keret_80: "Keret 80%",
+  keret_100: "Keret elfogyott (100%)",
 };
 
 // ---------------------------------------------------------------------------
@@ -77,6 +81,9 @@ export type AdminCompanyModule = {
   hasDataPolicy: boolean; state: ModuleState; ownerId: string | null; ownerName: string | null; seats: number; seatsUsed: number;
   validUntil: string | null; isApiCostly: boolean; monthlyCap: number | null; note: string | null; updatedAt: string;
   hasHead: boolean; handovers: Handover[];
+  /** Havi keret-állapot (terv 20): Ft, nettó önköltség; null = a migráció előtt. */
+  usage: { usedFt: number; capFt: number | null; pct: number | null; units: number } | null;
+  unitLabel: string | null; includedUnits: number | null; packUnits: number | null; packCostFt: number | null; packPriceNet: number | null;
 };
 
 export const HANDOVER_VIA: Record<string, string> = {
@@ -101,4 +108,5 @@ export const MODULE_ERR: Record<string, string> = {
   nincs_cegvezeto: "A cégnek nincs aktív cégvezetője (Cégek lap).",
   nincs_regiszter: "A modul nincs a kód regiszterében (src/lib/module-registry.ts) — előbb a kódnak élesben kell lennie.",
   nincs_data_policy: "A modul regiszter-bejegyzéséből hiányzik az adatkezelési leírás (dataPolicy).",
+  nincs_keret: "Előbb állíts be havi keretet (Előfizetés szerkesztése).",
 };

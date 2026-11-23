@@ -61,19 +61,31 @@ function SubscriptionDialog({ m, busy, act, onClose }: { m: AdminCompanyModule; 
   const [valid, setValid] = useState(m.validUntil ?? "");
   const [costly, setCostly] = useState(m.isApiCostly);
   const [cap, setCap] = useState(m.monthlyCap === null ? "" : String(m.monthlyCap));
+  const [u, setU] = useState({ unitLabel: m.unitLabel ?? "", includedUnits: m.includedUnits == null ? "" : String(m.includedUnits),
+    packUnits: m.packUnits == null ? "" : String(m.packUnits), packCostFt: m.packCostFt == null ? "" : String(m.packCostFt),
+    packPriceNet: m.packPriceNet == null ? "" : String(m.packPriceNet) });
+  const num = (k: keyof typeof u) => (e: React.ChangeEvent<HTMLInputElement>) => setU((p) => ({ ...p, [k]: e.target.value.replace(/\D/g, "") }));
+  const capLocked = m.monthlyCap !== null;
   return (
-    <Dialog title={`Előfizetés — ${m.moduleName}`} onClose={onClose}>
+    <Dialog title={`Előfizetés — ${m.moduleName}`} onClose={onClose} wide>
       <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.companyName} · foglalt hely: {m.seatsUsed}</p>
       <Label t="Helyek száma"><input className="twx-input w-full text-sm" inputMode="numeric" value={seats} onChange={(e) => setSeats(e.target.value.replace(/\D/g, ""))} /></Label>
       <Label t="Érvényes eddig"><DateField value={valid} onChange={setValid} clearable /></Label>
       <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-[#ef7a5a]" checked={costly} onChange={(e) => setCostly(e.target.checked)} />API-költséges modul (kép, videó, kutatás)</label>
-      <Label t="Havi plafon (Ft, nettó önköltség) — API-költséges modulnál az Aktiválás előtt kötelező">
-        <input className="twx-input w-full text-sm" inputMode="numeric" value={cap} placeholder="üres = nincs" onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} />
+      <Label t={capLocked ? "Havi keret (Ft, nettó önköltség) — módosítás a „⋯” → Keret módosítása ponttal, indoklással" : "Havi keret (Ft, nettó önköltség) — API-költséges modulnál az Aktiválás előtt kötelező"}>
+        <input className="twx-input w-full text-sm" inputMode="numeric" value={cap} placeholder="üres = nincs" disabled={capLocked} onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} />
       </Label>
+      <div className="grid grid-cols-2 gap-x-3">
+        <Label t="Egység neve (pl. kép)"><input className="twx-input w-full text-sm" maxLength={40} value={u.unitLabel} onChange={(e) => setU((p) => ({ ...p, unitLabel: e.target.value }))} /></Label>
+        <Label t="Havi díjban foglalt mennyiség"><input className="twx-input w-full text-sm" inputMode="numeric" value={u.includedUnits} onChange={num("includedUnits")} /></Label>
+        <Label t="Pluszcsomag: mennyiség"><input className="twx-input w-full text-sm" inputMode="numeric" value={u.packUnits} onChange={num("packUnits")} /></Label>
+        <Label t="Pluszcsomag: keret-kiegészítés (Ft)"><input className="twx-input w-full text-sm" inputMode="numeric" value={u.packCostFt} onChange={num("packCostFt")} /></Label>
+        <Label t="Pluszcsomag: nettó ár (Ft)"><input className="twx-input w-full text-sm" inputMode="numeric" value={u.packPriceNet} onChange={num("packPriceNet")} /></Label>
+      </div>
       <div className="mt-5 flex justify-end gap-2">
         <button type="button" className="twx-btn-outline" onClick={onClose}>Mégse</button>
         <button type="button" className="twx-btn" disabled={busy || seats === ""}
-          onClick={async () => { if (await act({ action: "subscription", id: m.id, seats: Number(seats), validUntil: valid || null, isApiCostly: costly, monthlyCap: cap === "" ? null : Number(cap) })) onClose(); }}>
+          onClick={async () => { if (await act({ action: "subscription", id: m.id, seats: Number(seats), validUntil: valid || null, isApiCostly: costly, monthlyCap: cap === "" ? null : Number(cap), ...u })) onClose(); }}>
           Mentés
         </button>
       </div>
@@ -110,7 +122,11 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
   admins: { id: string; name: string }[];
 }) {
   const menu = useActionMenu();
-  const [dlg, setDlg] = useState<null | "sub" | "handover" | "revoke" | "edit">(null);
+  const [dlg, setDlg] = useState<null | "sub" | "handover" | "revoke" | "edit" | "pack" | "cap">(null);
+  const [pack, setPack] = useState({ extraCostFt: "", extraUnits: "", priceNet: "", reason: "" });
+  const [capEdit, setCapEdit] = useState({ capFt: "", reason: "" });
+  const [events, setEvents] = useState<{ id: string; operation_key: string; units: number; estimated_cost_ft: number; actual_cost_ft: number | null; status: string; created_at: string }[] | null>(null);
+  const pct = m.usage?.pct ?? null;
   const [log, setLog] = useState<CompanyLogEntry[] | null>(null);
   const [reason, setReason] = useState("");
   const [owner, setOwner] = useState(m.ownerId ?? "");
@@ -123,6 +139,7 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
     if (!open) return;
     let alive = true;
     fetch(`${API}?log=${m.id}`).then((r) => r.json()).then((d) => { if (alive) setLog(d.log ?? []); }).catch(() => {});
+    fetch(`${API}?usage=${m.id}`).then((r) => r.json()).then((d) => { if (alive) setEvents(d.events ?? []); }).catch(() => {});
     return () => { alive = false; };
   }, [open, m.id, m.state, m.seats, m.validUntil, m.handovers.length]);
 
@@ -132,6 +149,9 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
         disabled: m.state === "aktiv", onClick: async () => { await act({ action: "set_state", id: m.id, state: s }); menu.close(); } })) },
     { label: "Előfizetés szerkesztése", icon: MI.rename, onClick: () => setDlg("sub") },
     { label: "Felelős és megjegyzés", icon: MI.rename, onClick: () => { setOwner(m.ownerId ?? ""); setNote(m.note ?? ""); setDlg("edit"); } },
+    { label: "Pluszcsomag hozzáadása", icon: MI.folder, disabled: m.monthlyCap === null, hint: m.monthlyCap === null ? "Előbb állíts be havi keretet." : "Erre a hónapra bővíti a keretet.",
+      onClick: () => { setPack({ extraCostFt: m.packCostFt == null ? "" : String(m.packCostFt), extraUnits: m.packUnits == null ? "" : String(m.packUnits), priceNet: m.packPriceNet == null ? "" : String(m.packPriceNet), reason: "" }); setDlg("pack"); } },
+    { label: "Keret módosítása", icon: MI.rename, onClick: () => { setCapEdit({ capFt: m.monthlyCap == null ? "" : String(m.monthlyCap), reason: "" }); setDlg("cap"); } },
     { kind: "divider" },
     m.state === "teszt"
       ? { label: "Átadás rögzítése", icon: MI.send, onClick: () => setDlg("handover") }
@@ -160,6 +180,17 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
         ) : (
           <>
             <span className="w-20 flex-none text-right text-xs tabular-nums">{m.seatsUsed} / {m.seats} hely</span>
+            {/* Havi keret-sáv (terv 20): fix szélesség; 80% fölött narancs, 100%-nál piros */}
+            <span className="hidden w-32 flex-none md:block" title={m.usage?.capFt != null ? `${m.usage.usedFt.toLocaleString("hu-HU")} / ${m.usage.capFt.toLocaleString("hu-HU")} Ft` : "Nincs keret"}>
+              {m.usage?.capFt != null ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: "#ece3d7" }}>
+                    <span className="block h-full" style={{ width: `${Math.min(100, pct ?? 0)}%`, background: (pct ?? 0) >= 100 ? "#b5372f" : (pct ?? 0) >= 80 ? "#e08a2b" : "#3f8a5c" }} />
+                  </span>
+                  <span className="w-9 text-right text-[11px] tabular-nums">{pct ?? 0}%</span>
+                </span>
+              ) : <span className="text-[11px]" style={{ color: "var(--twx-ink-muted)" }}>nincs keret</span>}
+            </span>
             <span className="w-28 flex-none text-right text-xs tabular-nums" style={{ color: expiring ? "#b5372f" : "var(--twx-ink-muted)", fontWeight: expiring ? 700 : 400 }}>
               {fmtDate(m.validUntil)}{expiring ? (dl! < 0 ? " · lejárt" : ` · ${dl} nap`) : ""}
             </span>
@@ -175,6 +206,9 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
             <p><span style={{ color: "var(--twx-ink-muted)" }}>Kulcs:</span> <code>{m.moduleKey}</code> · {m.registered ? (m.hasDataPolicy ? "regiszterben, adatkezeléssel" : "regiszterben, adatkezelési leírás nélkül") : "nincs a regiszterben"}</p>
             <p><span style={{ color: "var(--twx-ink-muted)" }}>Előfizetés:</span> {m.seatsUsed} / {m.seats} hely · érvényes: {fmtDate(m.validUntil)}{m.isApiCostly ? ` · API-költséges, plafon: ${m.monthlyCap === null ? "nincs beállítva" : `${m.monthlyCap.toLocaleString("hu-HU")} Ft`}` : ""}</p>
             <p><span style={{ color: "var(--twx-ink-muted)" }}>Cégvezető:</span> {m.hasHead ? "van" : <span style={{ color: "#b5372f" }}>nincs (Cégek lap)</span>} · felelős: {m.ownerName ?? "—"}</p>
+            {m.usage?.capFt != null && (
+              <p><span style={{ color: "var(--twx-ink-muted)" }}>E havi keret:</span> {m.usage.usedFt.toLocaleString("hu-HU")} / {m.usage.capFt.toLocaleString("hu-HU")} Ft ({m.usage.pct ?? 0}%) · {m.usage.units}{m.unitLabel ? ` ${m.unitLabel}` : " művelet"}{m.includedUnits != null ? ` (díjban: ${m.includedUnits})` : ""}</p>
+            )}
             {m.note && <p className="whitespace-pre-wrap text-xs" style={{ color: "var(--twx-ink-muted)" }}>Megjegyzés: {m.note}</p>}
             <p className="pt-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>Átadás</p>
             <div className="h-32 overflow-y-auto rounded-xl p-3 text-xs" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
@@ -188,6 +222,17 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
             {!valid && ["atadva", "aktiv"].includes(m.state) && <p className="text-xs" style={{ color: "#b5372f" }}>Nincs érvényes átadási bejegyzés.</p>}
           </div>
           <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>Használat (legutóbbi műveletek)</p>
+            <ul className="mb-3 h-24 space-y-0.5 overflow-y-auto rounded-xl p-2 text-xs" style={{ background: "#fff", border: "1px solid var(--twx-line)" }}>
+              {events === null ? <li style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</li> : events.length === 0 ? <li style={{ color: "var(--twx-ink-muted)" }}>Még nincs használat.</li> : events.map((e) => (
+                <li key={e.id} className="flex gap-2">
+                  <span className="w-24 flex-none tabular-nums" style={{ color: "var(--twx-ink-muted)" }}>{fmtTs(e.created_at)}</span>
+                  <span className="min-w-0 flex-1 truncate">{e.operation_key} × {e.units}</span>
+                  <span className="flex-none tabular-nums">{(e.actual_cost_ft ?? e.estimated_cost_ft).toLocaleString("hu-HU")} Ft</span>
+                  <span className="w-16 flex-none text-right" style={{ color: e.status === "feloldott" ? "var(--twx-ink-muted)" : undefined }}>{e.status === "elszamolt" ? "elszámolt" : e.status}</span>
+                </li>
+              ))}
+            </ul>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--twx-ink-muted)" }}>Története</p>
             <ul className="h-56 space-y-1 overflow-y-auto text-xs">
               {log === null ? <li style={{ color: "var(--twx-ink-muted)" }}>Betöltés…</li> : log.length === 0 ? <li style={{ color: "var(--twx-ink-muted)" }}>Még nincs esemény.</li> : log.map((e) => (
@@ -210,6 +255,33 @@ function Row({ m, view, open, onToggle, busy, act, admins }: {
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
             <button type="button" className="twx-btn" disabled={busy || !reason.trim()} onClick={async () => { if (await act({ action: "revoke_handover", id: m.id, reason })) setDlg(null); }}>Visszavonás</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "pack" && (
+        <Dialog title="Pluszcsomag hozzáadása" onClose={() => setDlg(null)}>
+          <p className="mt-1 text-xs" style={{ color: "var(--twx-ink-muted)" }}>{m.moduleName} · {m.companyName} — erre a hónapra azonnal bővíti a keretet. A fizetési tételt a Pénzügy lap elkészültével kötjük be.</p>
+          <div className="grid grid-cols-2 gap-x-3">
+            <Label t="Keret-kiegészítés (Ft) *"><input className="twx-input w-full text-sm" inputMode="numeric" value={pack.extraCostFt} onChange={(e) => setPack((p) => ({ ...p, extraCostFt: e.target.value.replace(/\D/g, "") }))} /></Label>
+            <Label t={`Mennyiség${m.unitLabel ? ` (${m.unitLabel})` : ""}`}><input className="twx-input w-full text-sm" inputMode="numeric" value={pack.extraUnits} onChange={(e) => setPack((p) => ({ ...p, extraUnits: e.target.value.replace(/\D/g, "") }))} /></Label>
+            <Label t="Nettó ár az ügyfélnek (Ft)"><input className="twx-input w-full text-sm" inputMode="numeric" value={pack.priceNet} onChange={(e) => setPack((p) => ({ ...p, priceNet: e.target.value.replace(/\D/g, "") }))} /></Label>
+          </div>
+          <Label t="Indoklás *"><input className="twx-input w-full text-sm" maxLength={500} value={pack.reason} onChange={(e) => setPack((p) => ({ ...p, reason: e.target.value }))} /></Label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || !pack.extraCostFt || !pack.reason.trim()}
+              onClick={async () => { if (await act({ action: "add_pack", id: m.id, extraCostFt: Number(pack.extraCostFt), extraUnits: pack.extraUnits, priceNet: pack.priceNet, reason: pack.reason })) setDlg(null); }}>Hozzáadás</button>
+          </div>
+        </Dialog>
+      )}
+      {dlg === "cap" && (
+        <Dialog title="Havi keret módosítása" onClose={() => setDlg(null)}>
+          <Label t="Új havi keret (Ft, nettó önköltség; üres = nincs keret)"><input className="twx-input w-full text-sm" inputMode="numeric" value={capEdit.capFt} onChange={(e) => setCapEdit((p) => ({ ...p, capFt: e.target.value.replace(/\D/g, "") }))} /></Label>
+          <Label t="Indoklás *"><input className="twx-input w-full text-sm" maxLength={500} value={capEdit.reason} onChange={(e) => setCapEdit((p) => ({ ...p, reason: e.target.value }))} /></Label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="twx-btn-outline" onClick={() => setDlg(null)}>Mégse</button>
+            <button type="button" className="twx-btn" disabled={busy || !capEdit.reason.trim()}
+              onClick={async () => { if (await act({ action: "set_cap", id: m.id, capFt: capEdit.capFt === "" ? null : Number(capEdit.capFt), reason: capEdit.reason })) setDlg(null); }}>Mentés</button>
           </div>
         </Dialog>
       )}
