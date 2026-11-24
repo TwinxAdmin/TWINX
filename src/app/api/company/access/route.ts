@@ -10,6 +10,7 @@
 //     self    { cmId }            — „Használom én is"
 //     appoint { companyId, userId }  — csak a cég aktív tagja
 //     resign  { companyId }       — a saját cégvezetői státusz feladása (az utolsó nem)
+import { INVITE_VALID_DAYS } from "@/lib/policy";
 import { NextResponse } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
@@ -120,14 +121,14 @@ export async function POST(request: Request) {
   switch (String(b.action ?? "")) {
     case "invite": {
       const token = randomBytes(32).toString("base64url");
-      res = await admin.rpc("create_invitation", { p_actor: actor, p_cm: str(b.cmId), p_email: str(b.email), p_token_hash: sha256(token), p_days: 7 });
+      res = await admin.rpc("create_invitation", { p_actor: actor, p_cm: str(b.cmId), p_email: str(b.email), p_token_hash: sha256(token), p_days: INVITE_VALID_DAYS });
       const r = res.data as { ok?: boolean; id?: string } | null;
       if (!res.error && r?.ok && r.id) await deliver(r.id, token);
       break;
     }
     case "resend": {
       const token = randomBytes(32).toString("base64url");
-      res = await admin.rpc("resend_invitation", { p_actor: actor, p_inv: str(b.invId), p_token_hash: sha256(token), p_days: 7 });
+      res = await admin.rpc("resend_invitation", { p_actor: actor, p_inv: str(b.invId), p_token_hash: sha256(token), p_days: INVITE_VALID_DAYS });
       if (!res.error && (res.data as { ok?: boolean } | null)?.ok) await deliver(str(b.invId), token);
       break;
     }

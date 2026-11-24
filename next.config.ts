@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/pricing", destination: "/", permanent: false },
       { source: "/egyedi-modul", destination: "/", permanent: false },
+      // 5/b (D63): a régi kredites kampányoldal helyett a Referenciák (a kód és a jelentkezők adata megmarad).
+      { source: "/ingatlan", destination: "/referenciak", permanent: true },
       // A vendéglátós modulok kikerültek (2026-11-24) — a régi linkek a Dashboardra visznek.
       { source: "/dashboard/hospitality/:path*", destination: "/dashboard", permanent: false },
     ];

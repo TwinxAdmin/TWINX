@@ -12,6 +12,7 @@
 //            request_deletion { id, reason, confirmName, beforeDeadline } · decide { requestId, approve, reason } · withdraw { requestId }
 //            execute_deletion { requestId } · approver { userId, active }
 // Minden írás DB-függvényen megy (tranzakció + access_audit_log napló).
+import { RETENTION_DAYS } from "@/lib/policy";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -179,5 +180,12 @@ export async function POST(request: Request) {
   if (error) return /utolso_cegvezeto/.test(error.message) ? NextResponse.json({ error: COMPANY_ERR.utolso_cegvezeto }, { status: 422 }) : fail(error.message);
   const r = data as { ok: boolean; error?: string; company_id?: string };
   if (!r.ok) return NextResponse.json({ error: COMPANY_ERR[r.error ?? ""] ?? "Nem sikerült." }, { status: 422 });
+  // 5/b (D65): lezáráskor a megőrzési határidő = a lezárás napja + RETENTION_DAYS (ideiglenes, jogász véglegesíti).
+  // Ha ez a mentés nem sikerül, a határidő üres marad → a törlés továbbra is csak „határidő előtt” jelöléssel kérhető.
+  if (action === "close") {
+    const until = new Date(Date.now() + RETENTION_DAYS * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Budapest" });
+    const { error: rErr } = await admin.from("companies").update({ data_retention_until: until }).eq("id", id);
+    if (rErr) console.error("[companies] megőrzési határidő mentése", rErr.message);
+  }
   return NextResponse.json({ ...(await payload()), notice: notices[action], createdId: r.company_id ?? null });
 }

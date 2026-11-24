@@ -3,6 +3,31 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-24 – 5/b: Kampányoldalak, kisebb módosítások
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/28 (5/b); D63, D65, D66
+Elkészült:
+- **`/ingatlan`:** 301-es átirányítás a `/referenciak` oldalra (`next.config.ts`). Az oldal kódja, az `ingatlan_invites` és a `profiles.invite_code` megmarad.
+- **`/bemutatkozas`:** a kredites regisztrációs blokk helyén az új irány áll: „A te cégedre szabott modul”, a javasolt szöveg és „Ingyenes felmérés” gomb (a főoldal kapcsolat/foglalás blokkjára visz). Ár és „kredit” nincs. Az angol változat változatlan, abban nem volt kredit.
+- **Regisztráció** (ablak és `/register`): nincs ajándékkredit- és ajándékkód-szöveg. A „Ha meghívót kaptál…” szöveg mindenkinek látszik. A kampány-forrás csak a mérésekhez marad.
+- **Központi konstansok:** `src/lib/policy.ts`.
+  - `RETENTION_DAYS` = 90, ideiglenes, a jogász véglegesíti. Cég lezárásakor beállítja a megőrzési határidőt (lezárás napja + 90 nap); a határidő előtt a törlés továbbra is csak a jelöléssel kérhető.
+  - `INVITE_VALID_DAYS` = 7: a meghívó és a levél szövege is ebből dolgozik.
+  - `INVITE_HOURLY_LIMIT` = 20.
+- **Végleges felhasználói szövegek egy helyen:** `src/lib/user-texts.ts` („modul nem érhető el”, leállási szöveg).
+- **Felhasználó szerinti előnézet:** az Irodai fiók oldal a megjelenített felhasználó irodáját és taglistáját mutatja (`readSubjectId`). Csak olvasás, a módosítás az előnézetben továbbra is tiltott.
+Eltérés a tervtől:
+- **Meghívó-korlát:** a 20/óra értéket az adatbázis-függvény (`create_invitation`) ellenőrzi. A TS-konstans dokumentálja, de a módosításához migráció kell. Nem írtam át a függvényt, hogy ne kelljen újabb migráció.
+- **Megőrzési határidő:** a lezárás után külön lépésben mentődik. Ha ez nem sikerül, üres marad, és akkor a szigorúbb (jelöléses) szabály él.
+- **A Meta-hirdetés szüneteltetését** Márk a folytatással jóváhagyta (nem külön üzenetben).
+Új buktató / tanulság: a `/bemutatkozas` gombja nem mutathat a saját oldal `#kapcsolat` horgonyára (ugyanaz a blokk), ezért a főoldal `/#kapcsolat` blokkjára visz.
+Nem lett kész / Hamarosan:
+- a ConfirmEmailModal `bonusCredits` szövege a kódban maradt, de már semmi nem hívja;
+- a régi `landing.ts` `ctaNote` és `/ingatlan` oldal kódja érintetlen (nem érhető el).
+Ellenőrzési lépések eredménye: `tsc` és `eslint` (érintett fájlok) rendben. Függő kampány-jelentkező: **0** (az `ingatlan_invites` táblában 1 sor, „elfogadva”) — a Meghívók oldal nyugodtan maradhat menün kívül.
+Döntés kell tőled, Márk: a megőrzési napok véglegesítése (NDA, jogász).
+Éles állapot: helyben kész, push nélkül.
+
 ## 2026-11-24 – A vendéglátós modulok kódjának törlése
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: Márk kérése („minden, ami vendéglátás, töröljük"), nem tervből; D23 (egyedi modulok iránya)

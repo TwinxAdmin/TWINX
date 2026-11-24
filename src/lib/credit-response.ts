@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChargeResult } from "@/lib/credits";
-import { CAP_STOP_TEXT } from "@/lib/module-cap";
+import { CAP_STOP_TEXT } from "@/lib/user-texts";
 
 /** Az Ingatlan csomag keretének hibái (terv 27) — szám és „kredit" nélkül. */
 const PACKAGE_TEXT: Record<string, { error: string; status: number }> = {

@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { syncUserToBrevo } from "@/lib/brevo";
 import { generateJoinCode, TEAMS_PER_USER_MAX, validateOfficeName, validateTeamCreate } from "@/lib/office";
 import { getMembership, listMyOffices, loadMyOffice, officeKind, setWorkContext } from "@/lib/office-server";
-import { officeMemberPreview, officeNonePreview } from "@/lib/view-as";
+import { officeMemberPreview, officeNonePreview, readSubjectId } from "@/lib/view-as";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,9 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const [office, offices, preview, none] = await Promise.all([loadMyOffice(user.id), listMyOffices(user.id), officeMemberPreview(), officeNonePreview()]);
+  // Admin felhasználó szerinti előnézetben a megjelenített felhasználó irodája (5/b).
+  const subjectId = await readSubjectId(user.id);
+  const [office, offices, preview, none] = await Promise.all([loadMyOffice(subjectId), listMyOffices(subjectId), officeMemberPreview(), officeNonePreview()]);
   // „Nincs iroda" előnézet (csak létrehozó/vezető kapcsolhatja be): úgy válaszolunk, mintha nem lenne tagság
   if (none && office && (office.role === "owner" || office.canAllocate)) {
     return NextResponse.json({ office: null, offices: [], memberPreview: false, nonePreview: true });

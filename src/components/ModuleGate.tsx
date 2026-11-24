@@ -9,7 +9,8 @@ import { useUiMode } from "@/components/UiModeProvider";
 /** Az Ingatlan csomag moduljainak útvonalai (lib/catalog.ts). */
 const ESTATE_PATHS = ["/dashboard/real-estate", "/dashboard/flyer"];
 
-export const MODULE_UNAVAILABLE_TEXT = "Ez a modul most nem érhető el. Kérdezd a cégvezetőt, vagy írj nekünk: office@twinx.hu.";
+import { MODULE_UNAVAILABLE_TEXT } from "@/lib/user-texts";
+export { MODULE_UNAVAILABLE_TEXT };
 
 export default function ModuleGate({ children }: { children: React.ReactNode }) {
   const { newUi, estate, admin } = useUiMode();

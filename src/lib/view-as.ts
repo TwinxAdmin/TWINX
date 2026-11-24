@@ -8,6 +8,7 @@
 //   • Az /admin/* oldalak és a szerveroldali kreditlevonás (lib/credits.ts) a
 //     VALÓDI szerepkört nézik az adatbázisból — azokat ez nem érinti.
 import { cookies } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const VIEW_AS_COOKIE = "twx_view_as";
 
@@ -84,4 +85,17 @@ export async function officeMemberPreview(): Promise<boolean> {
 export async function officeNonePreview(): Promise<boolean> {
   const jar = await cookies();
   return jar.get(OFFICE_VIEW_COOKIE)?.value === "none";
+}
+
+/**
+ * Kinek az adatait OLVASSA egy megjelenítő GET-végpont (5/b): felhasználó szerinti előnézetben (csak admin, cookie)
+ * a megjelenített felhasználóét, különben a bejelentkezettét. CSAK olvasáshoz — a módosító kérések az előnézetben
+ * tiltottak (middleware), és minden jogot a valódi felhasználóra ellenőrzünk.
+ */
+export async function readSubjectId(realUserId: string): Promise<string> {
+  const jar = await cookies();
+  const asUser = jar.get(VIEW_AS_USER_COOKIE)?.value || "";
+  if (!/^[0-9a-f-]{36}$/i.test(asUser) || asUser === realUserId) return realUserId;
+  const { data } = await createAdminClient().from("profiles").select("role").eq("id", realUserId).maybeSingle();
+  return data?.role === "admin" ? asUser : realUserId;
 }

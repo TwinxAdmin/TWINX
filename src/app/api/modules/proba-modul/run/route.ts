@@ -1,5 +1,6 @@
 // POST /api/modules/proba-modul/run — a próba modul „költséges" próbaművelete (terv 20 kipróbálására).
 // Nincs valódi API-hívás: 10 Ft becsült költséget foglal és számol el a havi keretből (withModuleCap).
+import { MODULE_UNAVAILABLE_TEXT } from "@/lib/user-texts";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
@@ -13,7 +14,7 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
   if (!(await userCanUseModule(user.id, "proba-modul"))) {
-    return NextResponse.json({ error: "Ez a modul most nem érhető el." }, { status: 403 });
+    return NextResponse.json({ error: MODULE_UNAVAILABLE_TEXT }, { status: 403 });
   }
   const r = await withModuleCap(
     { userId: user.id, moduleKey: "proba-modul", operation: "proba-muvelet", estimatedFt: 10, requestKey: randomUUID() },

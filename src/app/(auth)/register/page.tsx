@@ -16,7 +16,7 @@ import { normalizeInviteCode } from "@/lib/invites";
 import { gaEvent } from "@/lib/analytics";
 import { hasMarketingConsent } from "@/lib/consent";
 import { newMetaEventId, pixelCompleteRegistration } from "@/lib/meta-pixel";
-import { LANDING_WELCOME_CREDITS, bonusSignupSource } from "@/lib/onboarding";
+import { bonusSignupSource } from "@/lib/onboarding";
 
 export default function RegisterPage() {
   // A useSearchParams miatt Suspense-be kell tenni (Next követelmény).
@@ -50,7 +50,6 @@ function RegisterForm() {
   // „confirm” = előbb meg kell erősíteni az e-mail címet.
   const [done, setDone] = useState<null | "session" | "confirm">(null);
   const [confirmOpen, setConfirmOpen] = useState(false); // „Már csak egy lépés!” ablak a sikerképernyő fölött
-  const [fromLanding, setFromLanding] = useState(false); // a landingről (10 kredit) indult Google-regisztráció
 
   useEffect(() => {
     const fromLink = params.get("kod") ?? params.get("kód") ?? "";
@@ -60,7 +59,6 @@ function RegisterForm() {
     if (params.get("siker")) {
       setDone("session");
       const src = bonusSignupSource(params.get("src"));
-      setFromLanding(!!src);
       // GA konverzió: Google-fiókkal befejezett regisztráció (ide tér vissza a callback).
       gaEvent("sign_up", { method: "google", source: src ?? "direct" });
       // Meta: csak ÚJ fióknál (a callback ekkor ad eseményazonosítót) — utána kivesszük a címből, hogy frissítéskor ne ismétlődjön.
@@ -151,20 +149,11 @@ function RegisterForm() {
               </p>
             ) : (
               <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
-                A fiókod elkészült, és be is vagy jelentkezve.{fromLanding ? ` ${LANDING_WELCOME_CREDITS} kredittel kezdesz.` : ""} Bármikor
+                A fiókod elkészült, és be is vagy jelentkezve. Bármikor
                 visszatérhetsz ide a belépéssel.
               </p>
             )}
 
-            {linkCode && (
-              <div className="mt-4 rounded-xl p-3 text-left text-sm"
-                style={{ background: "rgba(239,122,90,0.10)", border: "1px solid rgba(239,122,90,0.35)" }}>
-                <p className="font-semibold">Ajándékkódod: <span className="tracking-wider">{linkCode}</span></p>
-                <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                  A kezdőlapon, az egyenleged mellett találod az „Ajándékkód beváltása” gombot.
-                </p>
-              </div>
-            )}
 
             <div className="mt-6 space-y-2">
               {done === "session" && (
@@ -189,20 +178,9 @@ function RegisterForm() {
         <div className="twx-card p-7">
           <h1 className="font-display text-2xl font-semibold">Regisztráció</h1>
 
-          {/* Aki a kódos levélből érkezett: itt még nincs teendője a kóddal,
-              csak jelezzük, hol lesz. A beváltás belépés után, a kezdőlapon van. */}
-          {linkCode && (
-            <div className="mt-4 rounded-xl p-3 text-sm"
-              style={{ background: "rgba(239,122,90,0.10)", border: "1px solid rgba(239,122,90,0.35)" }}>
-              <p className="font-semibold">Ajándékkódod: <span className="tracking-wider">{linkCode}</span></p>
-              <p className="mt-0.5 text-xs" style={{ color: "var(--twx-ink-muted)" }}>
-                Először regisztrálj — belépés után a kezdőlapon, az egyenleged mellett tudod beváltani.
-              </p>
-            </div>
-          )}
 
-          {/* Terv 22 / 5. C: a regisztráció fölötti szöveg (kampány-kód nélkül) */}
-          {!linkCode && !fromLanding && (
+          {/* Terv 22 / 5. C: a regisztráció fölötti szöveg. 5/b (D63): ajándékkód / ajándékkredit-szöveg nincs. */}
+          {(
             <p className="mt-4 rounded-xl px-3 py-2 text-xs" style={{ background: "#f3ece3", color: "var(--twx-ink-muted)" }}>
               Ha meghívót kaptál, ugyanazzal az e-mail címmel regisztrálj, amelyre a meghívó érkezett.
             </p>

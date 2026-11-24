@@ -8,8 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { esc, layout, sendMail } from "@/lib/booking-notify";
 import { moduleName } from "@/lib/module-registry";
 
-/** A felhasználónak mutatott semleges szöveg leálláskor (terv 22 / 3. A) — számot, Ft-ot nem ír ki. */
-export const CAP_STOP_TEXT = "A havi keret erre a funkcióra elfogyott, ezért most nem indítható. Az elkészült anyagaidat továbbra is eléred. Szóltunk a csapatnak.";
+/** A felhasználónak mutatott semleges szövegek (terv 22 / 3. A) — lib/user-texts.ts. */
+import { CAP_STOP_TEXT, MODULE_UNAVAILABLE_TEXT } from "@/lib/user-texts";
+export { CAP_STOP_TEXT };
 
 export type CapResult<T> =
   | { ok: true; value: T }
@@ -37,7 +38,7 @@ export async function withModuleCap<T>(
       cmId = (any1?.id as string | undefined) ?? null;
     }
   }
-  if (!cmId) return { ok: false, status: 403, error: "Ez a modul most nem érhető el. Kérdezd a cégvezetőt, vagy írj nekünk: office@twinx.hu." };
+  if (!cmId) return { ok: false, status: 403, error: MODULE_UNAVAILABLE_TEXT };
 
   const { data: res, error } = await admin.rpc("usage_reserve", {
     p_cm: cmId, p_user: p.userId, p_operation: p.operation, p_estimated_ft: Math.max(0, Math.round(p.estimatedFt)),
@@ -50,7 +51,7 @@ export async function withModuleCap<T>(
   const r = res as { ok: boolean; error?: string; event_id?: string };
   if (!r.ok) {
     if (r.error === "keret_elfogyott") { after(() => checkCapThresholds()); return { ok: false, status: 429, error: CAP_STOP_TEXT }; }
-    return { ok: false, status: 403, error: "Ez a modul most nem érhető el. Kérdezd a cégvezetőt, vagy írj nekünk: office@twinx.hu." };
+    return { ok: false, status: 403, error: MODULE_UNAVAILABLE_TEXT };
   }
   const eventId = r.event_id as string;
   try {

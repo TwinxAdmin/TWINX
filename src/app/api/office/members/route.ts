@@ -5,6 +5,7 @@
 //   • action "permissions" { canAllocate?, unlimited? } — jogosultságok (CSAK a létrehozó)
 //   • action "remove"                                   — tag eltávolítása (CSAK a létrehozó; magát nem)
 // A keretkiosztás szabályait az adatbázis (office_allocate_in) kényszeríti ki — egy tranzakcióban, naplózva.
+import { readSubjectId } from "@/lib/view-as";
 import { after, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,11 +20,13 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Bejelentkezés szükséges." }, { status: 401 });
 
-  const me = await getMembership(user.id);
+  // Admin felhasználó szerinti előnézetben a megjelenített felhasználó szemével (5/b; csak olvasás).
+  const subjectId = await readSubjectId(user.id);
+  const me = await getMembership(subjectId);
   if (!me || !(me.role === "owner" || me.can_allocate)) {
     return NextResponse.json({ error: "A taglistát a létrehozó és a kiosztó jogú tag látja." }, { status: 403 });
   }
-  return NextResponse.json({ members: await listMembers(me.office_id), canManage: me.role === "owner", meId: user.id });
+  return NextResponse.json({ members: await listMembers(me.office_id), canManage: me.role === "owner", meId: subjectId });
 }
 
 export async function PATCH(request: Request) {

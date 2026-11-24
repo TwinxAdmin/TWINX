@@ -1,14 +1,12 @@
 // A kétnyelvű LinkedIn-bemutatkozó oldal közös tartalma: /bemutatkozas (magyar) és /bemutatkozas/en (angol).
 // Sorrend (Márk kérése): rövid bemutatkozás → közös fejlesztés → Prémium 3D (a modul saját bemutatója, mint a Portálban) →
 // egyedi modulok (az /egyedi-modul felső része) → most elérhető szolgáltatások → „Nézd meg működés közben" (mint a /ingatlan oldalon) →
-// magyarul 10 kredites regisztráció + kapcsolat; angolul csak kapcsolat (a Portál magyar nyelvű, ezért ott nincs regisztrációs ajánlat).
+// magyarul „Ingyenes felmérés” (5/b, D63) + kapcsolat; angolul csak kapcsolat (a Portál magyar nyelvű, ezért ott nincs regisztrációs ajánlat).
 // Görgetéskor sötét és világos váltja egymást; az egymás melletti sötét blokkok (3D, egyedi modul) saját keretet kapnak.
 import Image from "next/image";
 import Link from "next/link";
 import Wordmark from "@/components/Wordmark";
 import ModuleIcon from "@/components/ModuleIcon";
-import AuthModal from "@/components/AuthModal";
-import AuthTrigger from "@/components/AuthTrigger";
 import Reveal from "@/components/motion/Reveal";
 import HeroShowcase from "@/components/landing/HeroShowcase";
 import HtmlLang from "@/components/landing/HtmlLang";
@@ -23,7 +21,7 @@ import CookieSettingsLink from "@/components/analytics/CookieSettingsLink";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { ENGLISH_PATH, type Lang } from "@/lib/lang";
 import { SHOWCASE, SHOWCASE_EN } from "@/lib/landing";
-import { LANDING_WELCOME_CREDITS, LINKEDIN_SIGNUP_SOURCE } from "@/lib/onboarding";
+import { SITE_LINKS } from "@/lib/site";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
 import { loadStyleSheet } from "@/lib/floorplan3d/stylesheet";
 
@@ -277,7 +275,7 @@ export default async function IntroductionPage({ lang }: { lang: Lang }) {
         </div>
       </section>
 
-      {/* ============ 6) REGISZTRÁCIÓ + KAPCSOLAT (világos); angolul regisztráció nélkül ============ */}
+      {/* ============ 6) FELMÉRÉS + KAPCSOLAT (világos) ============ */}
       <section id="kapcsolat" className="scroll-mt-4 px-4 py-14 sm:px-6 sm:py-20">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="flex flex-col rounded-3xl p-7 sm:p-9" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
@@ -303,16 +301,17 @@ export default async function IntroductionPage({ lang }: { lang: Lang }) {
               </>
             ) : (
               <>
-                <h2 className="font-display text-3xl font-semibold sm:text-4xl">Regisztrálj, és azonnal {LANDING_WELCOME_CREDITS} kredittel kezdesz</h2>
+                {/* 5/b (D63): az új irány — egyedi, cégre szabott modul, ingyenes felmérés; ár és kredit nélkül. */}
+                <h2 className="font-display text-3xl font-semibold sm:text-4xl">A te cégedre szabott modul</h2>
                 <p className="mt-3 text-[15px]" style={{ color: "var(--twx-on-dark-muted)" }}>
-                  Próbáld ki a saját hirdetéseiden. Nincs havidíj, és a megvásárolt kredit nem jár le.
+                  A TWINX egyedi modult épít a te cégedre. Profi felmérés után a napi munkádhoz igazított eszközt kapsz.
                 </p>
                 <div className="mt-auto pt-8">
-                  <AuthTrigger mode="register" source={LINKEDIN_SIGNUP_SOURCE}
-                    className="w-full rounded-xl px-8 py-4 text-base font-semibold transition-opacity hover:opacity-90 sm:w-auto"
+                  <a href={`/${SITE_LINKS.contact}`}
+                    className="inline-flex w-full items-center justify-center rounded-xl px-8 py-4 text-base font-semibold transition-opacity hover:opacity-90 sm:w-auto"
                     style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
-                    Regisztrálok — {LANDING_WELCOME_CREDITS} kredit ajándékba
-                  </AuthTrigger>
+                    Ingyenes felmérés
+                  </a>
                 </div>
               </>
             )}
@@ -333,7 +332,6 @@ export default async function IntroductionPage({ lang }: { lang: Lang }) {
           <CookieSettingsLink label={tx.cookies} className="text-xs underline-offset-2 hover:underline" style={{ color: "var(--twx-on-dark-muted)" }} />
         </div>
       </footer>
-      {!en && <AuthModal />}
       {!en && <B2BModal />}
     </main>
   );
