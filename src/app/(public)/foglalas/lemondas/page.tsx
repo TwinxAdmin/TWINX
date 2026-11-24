@@ -30,27 +30,34 @@ export default async function CancelBookingPage({ searchParams }: { searchParams
   const token = ((await searchParams).t ?? "").trim();
   const booking = token ? await findBooking(token) : null;
 
+  // B arculat (Márk kérése 2026-11-24): a foglalási folyamat minden pontja egyezzen — ugyanaz a korall „selyem"
+  // kártya, mint a „Foglalj ingyenes felmérést" sávban (globals.css: .b-contact-silk), világos B háttéren.
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-16 font-sans" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
-      <div className="w-full max-w-lg rounded-3xl p-8" style={{ background: "#1b1815", border: "1px solid rgba(255,255,255,0.08)" }}>
-        <Link href="/" className="font-display text-2xl font-semibold"><Wordmark /></Link>
-        {booking ? (
-          <>
-            <h1 className="font-display mt-8 text-2xl font-semibold">Lemondod a foglalásod?</h1>
-            <p className="mt-3 text-base" style={{ color: "var(--twx-on-dark-muted)" }}>
-              Ingyenes felmérés: <strong style={{ color: "var(--twx-on-dark)" }}>{booking.when}</strong>
-              {booking.host ? <> · {booking.host}</> : null}
-            </p>
-            <CancelBookingClient token={token} />
-          </>
-        ) : (
-          <>
-            <h1 className="font-display mt-8 text-2xl font-semibold">Ez a link már nem érvényes</h1>
-            <p className="mt-3 text-base" style={{ color: "var(--twx-on-dark-muted)" }}>
-              Lehet, hogy a foglalást már lemondták, vagy az időpont elmúlt. Ha segítség kell, írj nekünk: office@twinx.hu.
-            </p>
-          </>
-        )}
+    <main className="flex min-h-screen items-center justify-center bg-b-bg px-4 py-16 font-sans text-b-ink sm:px-6">
+      <div className="b-contact-silk relative w-full max-w-lg overflow-hidden rounded-[28px] p-8 text-white shadow-b-lg sm:p-10">
+        <div className="relative">
+          <Link href="/" className="font-display text-2xl font-semibold"><Wordmark accent="#ffd2c2" /></Link>
+          {booking ? (
+            <>
+              <p className="mt-8 text-[13px] uppercase tracking-[1.6px] text-white">Ingyenes felmérés</p>
+              <h1 className="font-display mt-2 text-[28px] font-bold leading-tight tracking-[-0.5px]">Lemondod a foglalásod?</h1>
+              <p className="mt-3 text-[17px] leading-relaxed text-white">
+                Időpont: <strong>{booking.when}</strong>
+                {booking.host ? <> · {booking.host}</> : null}
+              </p>
+              <CancelBookingClient token={token} />
+            </>
+          ) : (
+            <>
+              <h1 className="font-display mt-8 text-[28px] font-bold leading-tight tracking-[-0.5px]">Ez a link már nem érvényes</h1>
+              <p className="mt-3 text-[17px] leading-relaxed text-white">
+                Lehet, hogy a foglalást már lemondták, vagy az időpont elmúlt. Ha segítség kell, írj nekünk:{" "}
+                <a href="mailto:office@twinx.hu" className="font-semibold underline underline-offset-2">office@twinx.hu</a>.
+              </p>
+              <div className="mt-6"><Link href="/#kapcsolat" className="b-btn-light">Új időpontot foglalok</Link></div>
+            </>
+          )}
+        </div>
       </div>
     </main>
   );

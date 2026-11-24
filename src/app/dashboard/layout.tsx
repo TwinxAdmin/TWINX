@@ -27,6 +27,7 @@ import { loadDockState } from "@/lib/office-dock";
 import { hasEstateAccess, newUiFor } from "@/lib/new-ui";
 import { UiModeProvider } from "@/components/UiModeProvider";
 import ModuleGate from "@/components/ModuleGate";
+import DashboardFrame from "@/components/dashboard/DashboardFrame";
 import SiteHeader from "@/components/site/SiteHeader";
 import { modulesFor, previewSubject } from "@/lib/site-preview";
 import { isAnyCompanyHead } from "@/lib/custom-modules";
@@ -82,7 +83,9 @@ export default async function DashboardLayout({
   const terms = user ? await termsStatus(user.id) : null;
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
+    // Új felület: a B arculat háttere és szövegszíne (terv 29, D70); a régi felület változatlan.
+    <div className={`min-h-screen font-sans ${newUi ? "bg-b-bg text-b-ink" : ""}`}
+      style={newUi ? undefined : { background: "var(--twx-cream)", color: "var(--twx-ink)" }}>
       {siteViewer ? (
         <SiteHeader viewer={siteViewer} contactHref="/dashboard#kapcsolat" />
       ) : (
@@ -153,7 +156,7 @@ export default async function DashboardLayout({
       )}
       {/* pb-28: a lebegő kredit-sáv ne takarja ki az oldal alját */}
       <UiModeProvider value={uiMode}>
-        <div className="mx-auto max-w-5xl px-6 py-10 pb-28"><ModuleGate>{children}</ModuleGate></div>
+        <DashboardFrame newUi={newUi}><ModuleGate>{children}</ModuleGate></DashboardFrame>
       </UiModeProvider>
 
       {/* Egyedi fejlesztés / árajánlatkérés + egyenleg feltöltés modálok */}

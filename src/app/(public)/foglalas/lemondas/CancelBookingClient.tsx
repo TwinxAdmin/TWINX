@@ -1,4 +1,5 @@
 // A „Lemondom" gomb a lemondási oldalon — POST-tal mond le (a link megnyitása önmagában nem).
+// B arculat: fehér gomb a korall „selyem" kártyán (mint a foglalási sávban).
 "use client";
 
 import { useState } from "react";
@@ -27,15 +28,14 @@ export default function CancelBookingClient({ token }: { token: string }) {
   return (
     <div className="mt-6 min-h-[88px]">
       {state === "done" ? (
-        <p className="text-base">A foglalásodat lemondtuk. A megerősítést e-mailben is elküldtük.</p>
+        <p className="text-[17px] font-medium text-white">A foglalásodat lemondtuk. A megerősítést e-mailben is elküldtük.</p>
       ) : (
         <>
           <button type="button" onClick={cancel} disabled={state === "busy"}
-            className="rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
-            style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+            className="b-btn-light disabled:opacity-50">
             {state === "busy" ? "Lemondás…" : "Lemondom"}
           </button>
-          <p className="mt-3 text-sm" style={{ color: "#F4A48A" }} role="alert">{state === "error" ? msg : ""}</p>
+          <p className="mt-3 text-sm font-semibold text-white" role="alert">{state === "error" ? msg : ""}</p>
         </>
       )}
     </div>

@@ -25,11 +25,11 @@ export function layout(paragraphs: string[], button?: { label: string; href: str
   const para = (list: string[]) => list.map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#1c1815">${p}</p>`).join("");
   const body = para(paragraphs);
   const btn = button
-    ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="display:inline-block;background:#ef7a5a;color:#1c1005;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;font-size:14px">${esc(button.label)}</a></p>`
+    ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="display:inline-block;background:#c8401f;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:999px;font-size:14px">${esc(button.label)}</a></p>`
     : "";
-  return `<!doctype html><html lang="hu"><body style="margin:0;background:#f7f3ec;font-family:Arial,Helvetica,sans-serif">
+  return `<!doctype html><html lang="hu"><body style="margin:0;background:#f6f1ea;font-family:Arial,Helvetica,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:32px 24px">
-<p style="font-size:22px;font-weight:700;margin:0 0 24px;color:#1c1815">TWIN<span style="color:#ef7a5a">X</span></p>
+<p style="font-size:22px;font-weight:700;margin:0 0 24px;color:#1c1815">TWIN<span style="color:#c8401f">X</span></p>
 ${body}${btn}${para(after)}
 <p style="margin:22px 0 0;font-size:15px;color:#1c1815">${SIGN}</p>
 <p style="margin:28px 0 0;font-size:12px;color:#6e655c;border-top:1px solid #e8e1d6;padding-top:14px">${CONTACT}</p>
@@ -173,7 +173,7 @@ export async function notifyCanceledBooking(bookingId: string, by: "latogato" | 
     if (when) {
       const site = siteUrl(origin);
       const text = `Szia!\n\nA(z) ${when} időpontot lemondtuk. Ha mégis szeretnél beszélni velünk, itt foglalhatsz újat: ${site.replace(/^https?:\/\//, "")}\n\n${SIGN}`;
-      const html = layout(["Szia!", `A(z) ${esc(when)} időpontot lemondtuk. Ha mégis szeretnél beszélni velünk, itt foglalhatsz újat: <a href="${esc(site)}" style="color:#b4553a">${esc(site.replace(/^https?:\/\//, ""))}</a>`]);
+      const html = layout(["Szia!", `A(z) ${esc(when)} időpontot lemondtuk. Ha mégis szeretnél beszélni velünk, itt foglalhatsz újat: <a href="${esc(site)}" style="color:#b3381a">${esc(site.replace(/^https?:\/\//, ""))}</a>`]);
       visitorOk = await sendMail(b.email, "Foglalásodat lemondtuk", html, text, CONTACT);
     }
 

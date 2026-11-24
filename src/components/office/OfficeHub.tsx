@@ -4,7 +4,8 @@
 //   • közös munkatér (kind = team): társ nézet (OfficeTeamView) — mindenki egyenrangú
 //   • ha még nem tag: rövid üres állapot — igénylés (külön oldal) vagy csatlakozás kóddal (felugró ablak)
 // Ha több irodának tagja, felül irodaváltó.
-// ÚJ FELÜLET (3d-3): kredit nélküli közös tér (OfficeSpaceView) minden irodaformára.
+// ÚJ FELÜLET (3d-3): kredit nélküli közös tér (OfficeSpaceView) minden irodaformára; alatta (és az üres állapotban)
+// az „Így működik" animáció (OfficeShareScene, 2026-11-24).
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import OfficeManagerView from "@/components/office/OfficeManagerView";
 import OfficeTeamView from "@/components/office/OfficeTeamView";
 import OfficeSpaceView from "@/components/office/OfficeSpaceView";
 import { useUiMode } from "@/components/UiModeProvider";
+import OfficeShareScene from "@/components/office/OfficeShareScene";
 
 type State = { office: MyOffice | null; offices: { id: string; name: string; role: "owner" | "member" }[]; memberPreview: boolean };
 
@@ -47,6 +49,8 @@ export default function OfficeHub() {
     return (
       <>
         <Intro newUi={newUi} />
+        {/* Új felület: rövid animáció a közös tér működéséről (általános, iparág-független szöveggel). */}
+        {newUi && <div className="my-6"><OfficeShareScene /></div>}
         <section className="twx-card space-y-4 p-6">
           <h2 className="font-display text-xl font-semibold">Még nem vagy tagja irodai fióknak</h2>
           <p className="text-sm" style={{ color: "var(--twx-ink-muted)" }}>
@@ -88,7 +92,11 @@ export default function OfficeHub() {
         </div>
       )}
       {newUi ? (
-        <OfficeSpaceView key={state.office.id} office={state.office} />
+        <>
+          <OfficeSpaceView key={state.office.id} office={state.office} />
+          {/* a közös tér működése röviden — a tagoknak is (a felület alján, nem tolja le a munkát) */}
+          <OfficeShareScene />
+        </>
       ) : state.office.kind === "team" ? (
         <OfficeTeamView key={state.office.id} />
       ) : isManager ? (

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>TWINX főoldal – B irány: Világos, tiszta</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+body{margin:0;background:#f6f1ea}
+a{color:#1d1712;text-decoration:none}a:hover{color:#c8401f}
+@keyframes mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pu{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.mq{display:flex;gap:12px;width:max-content;animation:mq 30s linear infinite}
+.fl{animation:fl 6s ease-in-out infinite}.pu{animation:pu 3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.mq,.fl,.pu{animation:none}}
+</style>
+</helmet>
+<div style="width:100%;box-sizing:border-box;background:#f6f1ea;color:#1d1712;font-family:Inter,system-ui,sans-serif;overflow:hidden">
+
+<div style="max-width:1200px;margin:0 auto;padding:22px 32px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px">
+<div style="display:flex;align-items:center;gap:10px"><div style="width:26px;height:26px;border-radius:7px;background:#c8401f"></div><span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px">TWINX</span></div>
+<nav style="display:flex;gap:34px;font-size:15px;font-weight:500"><a href="#hogyan">Hogyan működik</a><a href="#ref">Referenciák</a><a href="#kapcsolat">Kapcsolat</a></nav>
+<div style="display:flex;gap:20px;align-items:center;justify-content:flex-end;font-size:15px"><a href="#">Belépés</a><a href="#">Regisztráció</a><a href="#kapcsolat" style="background:#1d1712;color:#f6f1ea;font-weight:600;padding:11px 20px;border-radius:999px">Ingyenes felmérés</a></div>
+</div>
+
+<!-- HERO középre igazítva -->
+<div style="max-width:980px;margin:0 auto;padding:70px 32px 40px;text-align:center">
+<div style="display:inline-block;font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#c8401f;background:#fbe3da;border-radius:999px;padding:7px 16px;margin-bottom:26px">Egyedi, cégre szabott modulok</div>
+<h1 style="margin:0 0 22px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:76px;line-height:1.02;letter-spacing:-2px">A te cégedre<br>szabott modul.</h1>
+<p style="margin:0 auto 34px;font-size:21px;line-height:1.55;color:#5a4d42;max-width:620px">Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Nem sablont kapsz.</p>
+<div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap"><a href="#kapcsolat" style="background:#c8401f;color:#fff;font-weight:600;padding:17px 30px;border-radius:999px;font-size:16px">Ingyenes felmérés</a><a href="#ref" style="border:1.5px solid #1d1712;padding:15px 28px;border-radius:999px;font-size:16px">Referenciák megtekintése</a></div>
+</div>
+
+<!-- Futó sáv: ötletek bármilyen iparágra -->
+<div style="text-align:center;font-size:14px;color:#7a6a5a;padding-top:30px">Bármilyen iparágra építünk. Néhány ötlet:</div>
+<div style="overflow:hidden;padding:16px 0 30px"><div class="mq">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="8"><span style="white-space:nowrap;background:#fff;border:1px solid #e3d8cb;border-radius:999px;padding:12px 22px;font-size:15px;font-weight:500">{{c}}</span></sc-for>
+</div></div>
+
+<!-- Modul-ablak bemutató -->
+<div style="max-width:1100px;margin:0 auto;padding:20px 32px 80px">
+<div class="fl" style="background:#fff;border:1px solid #e3d8cb;border-radius:24px;box-shadow:0 30px 70px rgba(80,50,30,.12);overflow:hidden">
+<div style="height:42px;background:#efe6da;display:flex;align-items:center;gap:7px;padding:0 18px"><span style="width:11px;height:11px;border-radius:50%;background:#d9c9b8"></span><span style="width:11px;height:11px;border-radius:50%;background:#d9c9b8"></span><span style="width:11px;height:11px;border-radius:50%;background:#d9c9b8"></span><span style="margin-left:16px;font-size:12px;color:#8a7a6a">app.twinx.hu · példa-modulok</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:28px;background:#fbf8f3">
+<div style="height:200px;box-sizing:border-box;border-radius:16px;background:#fff;border:1px solid #e3d8cb;padding:16px"><div style="font-weight:600;margin-bottom:4px">Ajánlatkészítő</div><div style="font-size:12px;color:#8a7a6a;margin-bottom:14px">pl. építőipar, szolgáltatás</div><div style="height:9px;border-radius:5px;background:#efe6da;margin-bottom:10px"></div><div style="height:9px;width:80%;border-radius:5px;background:#efe6da;margin-bottom:10px"></div><div style="height:9px;width:55%;border-radius:5px;background:#efe6da;margin-bottom:18px"></div><div style="display:inline-block;background:#c8401f;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:999px">PDF kész</div></div>
+<div style="height:200px;box-sizing:border-box;border-radius:16px;background:#fff;border:1px solid #e3d8cb;padding:16px"><div style="font-weight:600;margin-bottom:4px">Ügyfélkérdés-válaszoló</div><div style="font-size:12px;color:#8a7a6a;margin-bottom:14px">pl. webshop, szépségipar</div><div style="background:#efe6da;border-radius:12px 12px 12px 3px;padding:8px 10px;font-size:12px;width:70%;margin-bottom:8px">Mikor van szabad időpont?</div><div style="background:#c8401f;color:#fff;border-radius:12px 12px 3px 12px;padding:8px 10px;font-size:12px;width:70%;margin-left:auto">Csütörtök 10:00 jó?</div></div>
+<div style="height:200px;box-sizing:border-box;border-radius:16px;background:#fff;border:1px solid #e3d8cb;padding:16px"><div style="font-weight:600;margin-bottom:4px">Készletfigyelő</div><div style="font-size:12px;color:#8a7a6a;margin-bottom:6px">pl. kereskedelem, vendéglátás</div><div style="display:flex;align-items:flex-end;gap:10px;height:110px"><div style="flex:1;height:40%;background:#efe6da;border-radius:6px"></div><div style="flex:1;height:65%;background:#efe6da;border-radius:6px"></div><div class="pu" style="flex:1;height:100%;background:#c8401f;border-radius:6px"></div><div style="flex:1;height:55%;background:#efe6da;border-radius:6px"></div></div></div>
+</div></div></div>
+
+<!-- MI AZ EGYEDI MODUL -->
+<div style="background:#1d1712;color:#f6f1ea"><div style="max-width:1100px;margin:0 auto;padding:90px 32px;display:flex;flex-wrap:wrap;gap:56px">
+<div style="flex:1 1 360px"><div style="font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#ff9a7e;margin-bottom:16px">Mi az egyedi modul?</div><h2 style="margin:0;font-family:'Space Grotesk',sans-serif;font-size:44px;line-height:1.1;letter-spacing:-1px">Egy eszköz, ami pontosan a te munkafolyamatodra épül.</h2></div>
+<div style="flex:1 1 480px;font-size:18px;line-height:1.65;color:#d8cabb;display:flex;flex-direction:column;gap:18px"><p style="margin:0">Az egyedi modul egy olyan program, amely a te cégednek egy konkrét, ismétlődő feladatát végzi el. Nem általános szoftver, amihez alkalmazkodnod kell: mi alkalmazkodunk hozzád.</p><p style="margin:0">A kollégáid a saját fiókjukkal használják, ott, ahol neked a legjobb: a TWINX oldalán, saját appban vagy ahol már dolgoztok.</p></div>
+</div></div>
+
+<!-- HOGYAN -->
+<div id="hogyan" style="max-width:1100px;margin:0 auto;padding:90px 32px 40px">
+<h2 style="margin:0 0 34px;font-family:'Space Grotesk',sans-serif;font-size:40px;letter-spacing:-.8px">Hogyan működik?</h2>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="3"><div style="background:#fff;border:1px solid #e3d8cb;border-radius:22px;padding:28px;min-height:190px"><div style="width:44px;height:44px;border-radius:50%;background:#c8401f;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:20px;margin-bottom:16px">{{s.n}}</div><div style="font-size:22px;font-weight:600;margin-bottom:8px">{{s.t}}</div><div style="font-size:15px;line-height:1.55;color:#5a4d42">{{s.d}}</div></div></sc-for>
+</div></div>
+
+<!-- HOL FUT -->
+<div style="max-width:1100px;margin:0 auto;padding:50px 32px 40px">
+<h2 style="margin:0 0 26px;font-family:'Space Grotesk',sans-serif;font-size:34px;letter-spacing:-.6px">Hol fut a modul?</h2>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+<sc-for list="{{where}}" as="w" hint-placeholder-count="4"><div style="height:176px;box-sizing:border-box;border-radius:18px;padding:22px;background:{{w.bg}};border:1.5px solid {{w.bd}}"><div style="height:22px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#c8401f;font-weight:600">{{w.tag}}</div><div style="font-size:18px;font-weight:600;margin:4px 0 8px">{{w.t}}</div><div style="font-size:14px;line-height:1.5;color:#5a4d42">{{w.d}}</div></div></sc-for>
+</div></div>
+
+<!-- REFERENCIÁK -->
+<div id="ref" style="max-width:1100px;margin:0 auto;padding:50px 32px 70px">
+<div style="font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#c8401f;margin-bottom:12px">Működő példa</div>
+<h2 style="margin:0 0 8px;font-family:'Space Grotesk',sans-serif;font-size:36px;letter-spacing:-.6px">Egy ingatlaniroda napi eszközei.</h2>
+<p style="margin:0 0 26px;color:#5a4d42;font-size:16px">Ingatlanra készült, de bármilyen területre építünk egyedi modult.</p>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px">
+<sc-for list="{{refs}}" as="r" hint-placeholder-count="3"><div style="background:#fff;border:1px solid #e3d8cb;border-radius:20px;overflow:hidden"><div style="height:140px;background:linear-gradient(135deg,#f3d9c8,#e8b79c);display:flex;align-items:flex-end;padding:12px;font-size:12px;color:#5a4d42">[képernyőkép helye]</div><div style="padding:20px"><div style="font-size:19px;font-weight:600;margin-bottom:6px">{{r.t}}</div><div style="font-size:14px;line-height:1.5;color:#5a4d42">{{r.d}}</div></div></div></sc-for>
+</div></div>
+
+<!-- KAPCSOLAT -->
+<div id="kapcsolat" style="max-width:1100px;margin:0 auto;padding:0 32px 80px"><div style="border-radius:28px;background:#c8401f;color:#fff;padding:48px;display:flex;flex-wrap:wrap;gap:30px;align-items:center;justify-content:space-between">
+<div style="flex:1 1 380px"><h2 style="margin:0 0 12px;font-family:'Space Grotesk',sans-serif;font-size:38px;letter-spacing:-.6px">Foglalj ingyenes felmérést.</h2><p style="margin:0;font-size:17px;line-height:1.55;color:#ffe9e1">Válassz időpontot, add meg az adataidat, és végigbeszéljük, hol tudunk időt spórolni neked.</p></div>
+<a href="#" style="background:#fff;color:#1d1712;font-weight:600;padding:17px 30px;border-radius:999px;font-size:16px">Időpontot foglalok</a>
+</div></div>
+
+<div style="border-top:1px solid #e3d8cb"><div style="max-width:1100px;margin:0 auto;padding:28px 32px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;font-size:14px;color:#7a6a5a"><span>TWINX · Egyedi modulok cégedre szabva.</span><span style="display:flex;gap:22px;flex-wrap:wrap"><span>Adatkezelési tájékoztató (Hamarosan)</span><span>office@twinx.hu</span><span>© TWINX</span></span></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":2100}}'>
+class Component extends DCLogic {
+renderVals() {
+return {
+chips:["Ajánlatkészítés · építőipar","Időpontfoglalás · szépségipar","Készletfigyelés · kereskedelem","Számlafeldolgozás · könyvelés","Műszakbeosztás · vendéglátás","Ügyfélkérdések · webshop","Hirdetésírás · ingatlan","Szerződés-ellenőrzés · iroda","Ajánlatkészítés · építőipar","Időpontfoglalás · szépségipar","Készletfigyelés · kereskedelem","Számlafeldolgozás · könyvelés","Műszakbeosztás · vendéglátás","Ügyfélkérdések · webshop","Hirdetésírás · ingatlan","Szerződés-ellenőrzés · iroda"],
+steps:[{n:"1",t:"Felmérünk.",d:"Foglalsz egy ingyenes időpontot, és végigbeszéljük, hol megy el sok időd. Ha van konkrét ötleted, azzal is jöhetsz."},{n:"2",t:"Megépítjük.",d:"A te folyamatodra szabott modult készítjük el, nem sablont. Az ajánlatot a felmérés után kapod."},{n:"3",t:"Használod.",d:"A modul ott fut, ahol neked a legjobb."}],
+where:[{tag:"Ajánlott kezdés",t:"A TWINX oldalán",d:"A kollégáid a saját fiókjukkal belépnek, külön app vagy weblap nélkül.",bg:"#fff4ee",bd:"#c8401f"},{tag:"",t:"Saját app vagy oldal",d:"Megépítjük neked, a te arculatoddal.",bg:"#fff",bd:"#e3d8cb"},{tag:"",t:"A saját weboldaladba építve",d:"Ha hozzáférést adsz, beépítjük.",bg:"#fff",bd:"#e3d8cb"},{tag:"",t:"Ahol már dolgozol",d:"Telegramban, Slackben vagy Excelben.",bg:"#fff",bd:"#e3d8cb"}],
+refs:[{t:"Látványterv",d:"Lakásfotóból felújítási koncepcióterv, 9 stílusban."},{t:"Hirdetés-ellenőrző",d:"Bemásolod egy hirdetés linkjét: pontozza, megmondja, mi hiányzik, és újraírja a szöveget."},{t:"Értékbecslés",d:"Ingatlanadatokból tájékoztató ársáv, egyoldalas PDF-ben."}]
+};
+}
+}
+</script>
+</body>
+</html>

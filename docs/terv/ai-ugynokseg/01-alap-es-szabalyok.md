@@ -5,7 +5,7 @@
 > **Ez a beszélgetés = tervező ablak.** Itt tervezünk és döntünk; **kódot nem írunk** — minden
 > fejlesztés a Code-ban történik, az itt lefektetett alap és döntési napló alapján.
 > **Nyelv:** magyar. **Jelölés:** `[KITÖLTENDŐ]` / `[DÖNTÉSRE VÁR]` a nyitott részek.
-> **Frissítve:** 2026-11-23 (D23–D68: irányváltás, alügynökök, főoldal és referencia-landing, irodai fiók és előfizetés modellje, egyedi árazás, admin szerkezete, meghívás, modul-regiszter, szerepkörök, hozzáférések és cégvezetői szabályok, adatmodell, foglalás, e-mail szövegek, adatkezelési tájékoztató, tesztkörnyezet, díjak és fizetés követése, havi plafon és használat-mérés, modul lemondása és cég lezárása, felhasználói szövegek, átadási bejegyzés, ajánlat-ellenőrző lista és kalkuláció).
+> **Frissítve:** 2026-11-24 (D23–D70: irányváltás, alügynökök, főoldal és referencia-landing, irodai fiók és előfizetés modellje, egyedi árazás, admin szerkezete, meghívás, modul-regiszter, szerepkörök, hozzáférések és cégvezetői szabályok, adatmodell, foglalás, e-mail szövegek, adatkezelési tájékoztató, tesztkörnyezet, díjak és fizetés követése, havi plafon és használat-mérés, modul lemondása és cég lezárása, felhasználói szövegek, átadási bejegyzés, ajánlat-ellenőrző lista és kalkuláció, Ingatlan-keret, B arculat).
 >
 > **IRÁNYVÁLTÁS (D23):** a TWINX mostantól egyedi, cégre szabott modulok gyártója, bármilyen cég számára. A kreditalapú eszköztár-modell megszűnik. A hivatalos leírás: `claude/00-iranyvaltas-D23.md`. Ha ez a dokumentum valahol ellentmond annak, a `00` az irányadó.
 
@@ -156,6 +156,8 @@
 - **D66 — Szövegek és korlátok (2026-11-24, ajánlás szerinti alapérték, megerősítésre vár):** a leállási szöveg és a „modul nem érhető el” szöveg a `22` szerint végleges; a meghívó-korlát 20/óra/cég; a meghívó 7 napig érvényes (konfigurálható konstansok).
 - **D67 — Az irodai fiók közös terének 3. fázisa (2026-11-24):** **parkolt az első valódi ügyfélmodul aktiválásáig**; a specifikációt valós visszajelzésből írjuk.
 - **D68 — Visszajelzésből átvezetett eltérések (2026-11-24, a fejlesztés 11–23. lépéséből):** (1) a plafon-jelzés **e-mailben** megy a `BOOKING_NOTIFY_EMAILS` címekre, Telegram csak ha be van állítva (módosítja a D53 5. pontját); (2) új `booking_hosts` tábla a gazdák megjelenített nevéhez; (3) a visszatérítés nem vonja vissza az érvényességet (az admin dönt); (4) a keret első beállítása az Előfizetés-adatlapon, utána csak „Keret módosítása”; (5) resend nélkül a meghívó link egyszer megjelenik a cégvezetőnek másolásra; (6) a lezárási migráció (`20261124180000_closure.sql`) több korábbi függvényt (meghívás, Fizetve, lejárati jelzés, hozzáférés) új változatra cserélt, a down szkript visszaállítja; (7) az „Új felület” kapcsoló mögött él a kredit-kivezetés; bekapcsolása előtt a GDN-es kollégák Ingatlan-hozzáférése kell (Márk); (8) a Telegram-bot még nincs, a két chat-változó (`BOOKING_TELEGRAM_CHAT_ID`, `CAP_TELEGRAM_CHAT_ID`) ugyanarra a csoportra mutasson.
+- **D69 — A B irány a TWINX arculata (2026-11-24):** világos, meleg törtfehér alap, sötét szöveg, korall akcent, középre igazított hero; a belépett kezdőlap is ezt a világot mutatja, vonzó üres állapottal. A hero alatti kirakat (futó sáv, modul-ablak) **iparágfüggetlen ötleteket** mutat, „ötlet/példa” címkével; az ingatlanos modulok csak a Referenciák részben szerepelnek. Részletek és CODE-prompt: `29`. A vizuális minta a projekt design-vásznán (B oszlop) és a `docs/terv/design/` mappában.
+- **D70 — Egy design minden oldalon (2026-11-24):** a `29` tokenjei (színek, betűk, kártyák, gombok, mozgás) minden oldalra vonatkoznak, az admin minden menüpontjára és megnyitható fülére/ablakára is. Az admin átalakítása külön lépés a főoldal és a kezdőlap után, saját vizuális tervvel; addig a CODE új, eltérő stílust nem vezet be.
 - `[KITÖLTENDŐ — új döntések, ahogy jönnek]`
 
 ## 8. Nyitott döntések / kapuk
@@ -202,6 +204,7 @@ A Code ezeket kapja:
 10/e. **`claude/26-egyuttmukodes-rendje.md`** — az együttműködés rendje: szerepek, lépés-lezárás, export és visszajelzés, nyitott és parkolt lista (D59). `claude/25-atado-uzenetek.md` — az átadó üzenetek.
 10/f. **`claude/ai-ugynokseg/11-ugynokseg-kovetkezo-feladatok.md`** — az ügynökség következő feladatai sorrendben, a parkolt és a félretett dolgokkal (D61).
 10/g. **`claude/27-ingatlan-csomag-koltsegvedelme-terv.md`** — az Ingatlan csomag havi költségkerete (D62). **`claude/28-code-promptok-5-lepes.md`** — az 5/a és 5/b CODE-prompt.
+10/h. **`claude/29-design-B-irany-terv.md`** — a B arculat, design-tokenek, főoldal és kezdőlap megjelenése, a 6. lépés CODE-promptja (D69, D70).
 11. **`claude/18-atadas-fejlesztesi-beszelgetesnek.md`** — az áttekintő átadó-dokumentum a fejlesztési beszélgetésnek.
 12. **Ez az alap-dokumentum** (célok + szabályok + döntési napló).
 13. **`02-keretrendszer-spec.md`** — a váz, a feladat-tábla, a memória, az építési sorrend.

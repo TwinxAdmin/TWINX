@@ -12,6 +12,7 @@ import Reveal from "@/components/motion/Reveal";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import ContactBlock from "@/components/site/ContactBlock";
+import GdnShowcase from "@/components/site/b/GdnShowcase";
 import { bookingsOpenFor, getSiteViewer } from "@/lib/site-preview";
 import { SITE_LINKS } from "@/lib/site";
 
@@ -93,6 +94,15 @@ export default async function ReferencesPage() {
           <p className="mt-6 max-w-2xl text-lg" style={{ color: "var(--twx-on-dark-muted)" }}>
             Ezeket az ingatlanos modulokat a GDN Mandala Ingatlaniroda számára fejlesztettük, a kollégáik napi munkájához igazítva.
           </p>
+        </div>
+      </section>
+
+      {/* ===== 1/b) INTERAKTÍV BEMUTATÓ — ugyanaz, mint a főoldalon (GdnShowcase; Márk kérése 2026-11-24) ===== */}
+      <section className="bg-b-surface text-b-ink">
+        <div className="mx-auto max-w-[1100px] px-4 py-16 sm:px-8 sm:py-20">
+          <p className="b-eyebrow mb-3">Interaktív bemutató</p>
+          <h2 className="font-display mb-[26px] text-[28px] font-bold tracking-[-0.6px] sm:text-[36px]">Amit egy ingatlaniroda kapott tőlünk.</h2>
+          <GdnShowcase />
         </div>
       </section>
 

@@ -1,51 +1,54 @@
-// Kapcsolatblokk (D33, D37 — terv 11 / 5. szakasz), a főoldalon és a referencia-landingen azonos.
-//
-// A jobb oldalon a kétlépéses időpontfoglalás (BookingForm); belépett felhasználónál név és e-mail előre kitöltve.
+// Kapcsolatblokk (D33, D37 — terv 11 / 5. szakasz), a főoldalon, a referencia-landingen és a kezdőlapon azonos.
+// 6. lépés (B arculat, terv 29 / 4.): korall „selyem" sáv (globals.css: .b-contact-silk); jobb oldalon a meglévő kétlépéses időpontfoglalás (BookingForm,
+// világos változat). Belépett felhasználónál név és e-mail előre kitöltve. A foglalás logikája változatlan.
 import BookingForm from "@/components/site/BookingForm";
+import SilkRibbons from "@/components/site/b/SilkRibbons";
 import { SITE_EMAIL } from "@/lib/site";
 import type { BookingSource } from "@/lib/bookings";
 
-export default function ContactBlock({ source, prefill, bookingOpen = true }: {
+export default function ContactBlock({ source, prefill, bookingOpen = true, inset = false }: {
   source: BookingSource; prefill?: { name?: string; email?: string };
   /** Az online foglalás élesítéséig (BOOKINGS_PUBLIC; kapu: adatkezelési tájékoztató + Resend-hitelesítés)
    *  a doboz e-mailes kapcsolatfelvételt mutat, ugyanakkora méretben. */
   bookingOpen?: boolean;
+  /** Beágyazva (a kezdőlapon): a szülő keret adja a szélességet és a térközt. */
+  inset?: boolean;
 }) {
   return (
-    <section id="kapcsolat" className="scroll-mt-20" style={{ background: "var(--twx-dark)", color: "var(--twx-on-dark)" }}>
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-center sm:py-24">
-        <div>
-          <p className="font-display text-xs font-semibold uppercase" style={{ color: "var(--twx-coral)", letterSpacing: "0.22em" }}>
-            Ingyenes felmérés
+    <section id="kapcsolat" className={inset ? "w-full scroll-mt-24 pb-6" : "mx-auto w-full max-w-[1100px] scroll-mt-24 px-4 pb-20 sm:px-8"}>
+      <div className="b-contact-silk relative grid grid-cols-1 gap-8 overflow-hidden rounded-[28px] p-6 text-white [&>*]:min-w-0 sm:p-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-center lg:p-12">
+        {/* Hangulat: krémfehér selyemszalagok a sáv alján, a szöveg és az űrlap mögött (csak díszítés). */}
+        <SilkRibbons tone="accent" heightClass="h-[220px] sm:h-[280px]" />
+        <div className="relative">
+          <p className="text-[13px] uppercase tracking-[1.6px] text-white">Ingyenes felmérés</p>
+          <h2 className="font-display mt-3 text-[30px] font-bold leading-tight tracking-[-0.6px] sm:text-[38px]">Foglalj ingyenes felmérést.</h2>
+          <p className="mt-3 max-w-md text-[17px] leading-relaxed text-white">
+            Válassz időpontot, add meg az adataidat, és végigbeszéljük, hol tudunk időt spórolni neked.
+            A felmérés ingyenes, és nem kötelez semmire.
           </p>
-          <h2 className="font-display mt-3 text-3xl font-semibold leading-tight sm:text-4xl">Beszéljük át, hol megy el sok időd.</h2>
-          <p className="mt-4 max-w-md text-base" style={{ color: "var(--twx-on-dark-muted)" }}>
-            A felmérés ingyenes, és nem kötelez semmire. Ha már van konkrét ötleted, azzal is jöhetsz;
-            ha nincs, együtt megkeressük, mit érdemes egyszerűsíteni.
+          <p className="mt-6 text-sm text-white">
+            Inkább írnál? <a href={`mailto:${SITE_EMAIL}`} className="font-semibold underline underline-offset-2">{SITE_EMAIL}</a>
           </p>
-          <p className="mt-6 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
-            Inkább írnál? <a href={`mailto:${SITE_EMAIL}`} className="underline underline-offset-2 hover:text-white">{SITE_EMAIL}</a>
-          </p>
+          {/* Átvezetés a Kapcsolat oldalra (telefon, chat, üzenet) — „selymes", áttetsző gomb (Márk kérése 2026-11-24). */}
+          <a href="/kapcsolat" className="b-silk-btn mt-4">Minden elérhetőség →</a>
         </div>
 
         {/* Fix méretű, kétlépéses foglaló doboz (terv 15) — élesítésig e-mailes tartalék, azonos mérettel. */}
-        {bookingOpen ? <BookingForm source={source} prefill={prefill} /> : (
-          <div className="flex h-[560px] flex-col rounded-3xl p-6 sm:p-8" style={{ background: "#1b1815", border: "1px solid rgba(255,255,255,0.08)" }}>
+        {bookingOpen ? <div className="relative"><BookingForm source={source} prefill={prefill} tone="light" /></div> : (
+          <div className="relative flex h-[560px] flex-col rounded-3xl border border-b-line bg-b-card p-6 text-b-ink sm:p-8">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-display text-lg font-semibold">Időpontfoglalás</h3>
-              <span className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "rgba(255,255,255,0.1)", color: "#CFC6BB" }}>Hamarosan</span>
+              <span className="rounded-full bg-b-surface px-2.5 py-1 text-xs font-semibold text-b-ink-2">Hamarosan</span>
             </div>
-            <p className="mt-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>
+            <p className="mt-3 text-sm text-b-ink-2">
               Az online időpontfoglalás hamarosan indul. Addig írj nekünk e-mailt: írd meg a neved, a céged és a telefonszámod,
               és visszahívunk egy időpont-egyeztetésre.
             </p>
             <div className="mt-auto">
-              <a href={`mailto:${SITE_EMAIL}?subject=${encodeURIComponent("Ingyenes felmérés")}`}
-                className="inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold sm:w-auto"
-                style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+              <a href={`mailto:${SITE_EMAIL}?subject=${encodeURIComponent("Ingyenes felmérés")}`} className="b-btn w-full sm:w-auto">
                 Írok e-mailt
               </a>
-              <p className="mt-3 text-sm" style={{ color: "var(--twx-on-dark-muted)" }}>{SITE_EMAIL}</p>
+              <p className="mt-3 text-sm text-b-ink-2">{SITE_EMAIL}</p>
             </div>
           </div>
         )}

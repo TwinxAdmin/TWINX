@@ -3,6 +3,338 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-24 – 6. lépés, 15. kör: Kapcsolat oldal reklámblokkja általános; „Minden elérhetőség" gomb a foglalási sávban
+
+**Mi változott (Márk kérése):**
+- `/kapcsolat`, jobb alsó sötét blokk: az ingatlanos szöveg és a mért-szerű számok (pl. „2–3 nap helyett ~20 perc",
+  „~40 mp feljavított fotó") helyett általános céges feladatok, szám nélkül: „EGYEDI MODUL A NAPI MUNKÁHOZ · Kevesebb
+  kézi munka, gyorsabb nap." + négy csempe (Ajánlat · Heti riport · Ügyfélkérdés · Nyilvántartás). A kijelentkezett
+  gomb „Kipróbálom ingyen" (regisztráció, kredites korszak) helyett „Ingyenes felmérés →" (főoldal foglalási sávja).
+- Foglalási sáv (`ContactBlock`, mindhárom helyen): az e-mail sor alatt új, „selymes" áttetsző gomb: „Minden
+  elérhetőség →" → `/kapcsolat`. Új közös osztály: `.b-silk-btn` (sötétített üveg, fehér keret; a fehér betű
+  kontrasztja ≥ 4,5:1).
+- Megjegyzés: a `/kapcsolat` oldal többi része még a régi stílusban van (nem kérted az átalakítását).
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 14. kör: felső sáv — nincs dupla „Ingyenes felmérés", kiemelt Belépés/Regisztráció
+
+**Mi változott (Márk kérése, `SiteHeader.tsx`):**
+- Az asztali felső sáv jobb oldaláról kikerült az „Ingyenes felmérés" gomb (kijelentkezve és belépve is), mert közvetlenül
+  alatta, a hero-ban és a foglalási sávban ott van. A mobilmenüben megmaradt. A menü továbbra is pontosan középen van
+  (3 oszlopos rács).
+- „Belépés · Regisztráció" egy halvány, áttetsző fehér kapszulába került (vékony keret); a „Regisztráció" kicsit
+  erősebb háttérrel, így elkülönülnek a középső menüpontoktól.
+- **Eltérés a terv 29-től** (ott a sáv jobb szélén ott volt a gomb) — a tervezőnek átvezetendő.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 13. kör: „Így működik" animáció az Irodai fiók oldalon
+
+**Mi változott (Márk kérése):** belépve az **Irodai fiók** menüpontban (új felület) megjelenik a korábbi irodai
+animáció utódja: `src/components/office/OfficeShareScene.tsx` — „Így működik · Megosztod, és a csapat már látja."
+- Általános, iparág-független szövegek (a régi `OfficeHandoffScene` ingatlanos példája, nevei és kredit-sávja nélkül):
+  Elkészül a munka (Ajánlat · kész PDF) → Megosztva a közös mappában → A kolléga megnyitja → Mindenki ugyanazt látja.
+  Szereplők: „Te" · „Közös mappa" · „Kolléga". Csak a már működő részeket mutatja (zárolás és verziónapló nincs benne,
+  mert az új közös térben nem ellenőriztük).
+- Helye (`OfficeHub.tsx`): ha még nincs irodai fiók → a bevezető alatt, a „Csatlakozás kóddal / létrehozás" kártya
+  fölött; ha van → a közös tér felülete alatt. B arculat, fix méret, „mozgás csökkentése" esetén álló kép.
+- A régi `OfficeHandoffScene` / `OfficeShowcase` (régi, kredites ismertető) változatlanul a régi felületen maradt.
+- Háttér (Márk kérése: „selymes, mint az időpontfoglaló, de más dinamikus szín, ne narancs"): új `.b-office-silk`
+  (globals.css) — mély petróleum → türkiz → éjkék átlós átmenet, halvány türkiz fényfolt, lassan vonuló selyemfény,
+  halvány selyemszalagok; a szöveg krém (kontraszt ≥ 5,2:1, mérve), a korall kiemelések (aktív szereplő, „PDF kész")
+  maradnak. „Mozgás csökkentése": a fény áll.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 12. kör: a foglalási folyamat minden pontja egységes
+
+**Mi változott (Márk: „minden más helyen, ahol időpontfoglalás van, vigyük végig, hogy egyezzen"):**
+- A foglalási sáv (`ContactBlock` + `BookingForm`) mindhárom helyen ugyanaz a közös komponens volt (főoldal,
+  Referenciák, belépett kezdőlap) → ott már egyezett, nincs több másolat.
+- **Foglalás lemondása oldal** (`/foglalas/lemondas`, a visszaigazoló levél linkje): a régi sötét kártya helyett
+  ugyanaz a korall „selyem" kártya (`.b-contact-silk`) világos B háttéren; fehér „Lemondom" gomb; érvénytelen
+  linknél „Új időpontot foglalok" gomb (→ főoldal foglalási sáv). A lemondás logikája változatlan.
+- **Foglalási e-mailek** (`lib/booking-notify.ts` → közös `layout`): a gomb a B korall (#c8401f) fehér betűvel, a
+  háttér a B krém, a logó „X" és a linkek a B korall. A közös sablont a meghívó levél (`invite-mail.ts`) is
+  használja, így az is egységes lett. (E-mailben átmenetes háttér nem megbízható, ezért ott telt szín.)
+- A régi `/ingatlan` landing saját konzultációs ablaka (`IngatlanConsultModal`) nem elérhető (az oldal a
+  Referenciákra irányít), ezért nem nyúltam hozzá.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 11. kör: „selymesebb" kapcsolat-sáv
+
+**Mi változott (Márk: „nagyon sárgás, legyen több színdinamika, selymesebb"):** a kapcsolat-sáv („Foglalj ingyenes
+felmérést", főoldal / Referenciák / kezdőlap) a telt korall helyett új `.b-contact-silk` hátteret kapott (globals.css):
+mély terrakotta → korall → málna/bordó átlós átmenet, sarokban mélyebb árnyalatok és halvány meleg fényfolt, rajta
+lassan (14 mp) oda-vissza vonuló, nagyon halvány selyemfény; a krémfehér selyemszalagok maradnak. A fehér szöveg
+kontrasztja a legvilágosabb ponton is ≥ 4,7:1 (mérve). „Mozgás csökkentése": a fény áll. tsc + eslint hibamentes.
+- Módosítás (Márk: „a jobb oldalon a lila cserélődjön"): a málna/bordó (lilás) árnyalatok helyett a jobb oldal mély,
+  égetett rozsdabarna (#8f2e17 → #6f2412, a sarokban sötét barna árnyék) — a márka meleg színeihez illik.
+
+## 2026-11-24 – 6. lépés, 10. kör: „Miért érdemes?" blokk a belépett kezdőlapon
+
+**Mi változott (Márk kérése):** a belépett kezdőlapon a magyarázó rész (moduljaim / „Még nincs modulod" kártya) és a
+„Legutóbbi munkáim" közé új blokk került (`NewHome.tsx`, szöveg: `site-copy.ts` → `WHY_CUSTOM_MODULE`):
+- bal oldalt: „Miért érdemes? · A modern cégeknél az AI-modul lassan alapfelszereltség." + két rövid bekezdés (a napi
+  gyors munkához kevés az általános program; cégre szabva készül, úgy dolgozik, ahogy ti) + három címke
+  (Cégre szabva · Gyorsabb napi munka · Kevesebb kézi lépés);
+- jobb oldalt a korábbi „Mi az egyedi modul?" ismertető animációja (`custom-module/MainGoalAnimation.tsx`, változatlanul):
+  szétszórt kézi munkadarabok → a modul → egy kattintás → egy kész anyag. Fix magasságú dobozban.
+- Szám vagy mért ígéret nincs a szövegben (az animáció saját „Órákig tartó kézi munka → Percek alatt kész" felirata
+  a korábbi oldalról jön — ha ez túl erős állítás, átírható).
+- Megjegyzés: az animáció SVG (SMIL), a „mozgás csökkentése" beállításra nem áll le — ha kell, ezt külön javítom.
+
+- Olvashatóság (Márk: „a felette lévő blokkban nem olvasható mindenhol a szöveg"): a „Még nincs modulod" kártyában a
+  selyemszalagok halványabbak (70%), a szövegek új `.b-glow-text` osztályt kaptak (puha fehér fény a betűk körül;
+  gombon és korall elemen kikapcsolva), és erősebb színt: a leírás és az idővonal szövege `b-ink` (eddig `b-ink-2`), félkövérebb.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 9. kör: kezdőlapi referencia-ízelítő helyett átvezető sor; bemutató a Referenciák oldalon
+
+**Mi változott (Márk kérése):**
+- Belépett kezdőlap (`NewHome.tsx`): a „Nézd meg, mit építettünk egy ingatlaniroda számára" rész (3 kis kártya)
+  kikerült; helyette egy vékony sor: „Referenciák" + „Tekintsd meg a referenciákat →" gomb → `/referenciak`.
+  Márk kérésére sötét sáv lett (`bg-b-dark`, krém szöveg, telt korall gomb), mint a felső menüsor.
+- Referenciák oldal (`/referenciak`): a hero alá bekerült a főoldali interaktív GDN-bemutató (`GdnShowcase`,
+  benne az „Alaprajzból 3D" three.js-animáció), „Interaktív bemutató · Amit egy ingatlaniroda kapott tőlünk." címmel,
+  világos B-sávban. Az oldal többi része változatlan (régi sötét stílus — a teljes B-átalakítás továbbra is nyitott).
+- A `ReferenceCards.tsx` már sehol nincs használva (a `CityLines.tsx`-szel és a `ModuleWindow.tsx`-szel együtt kérésre törölhető).
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-24 – 6. lépés, 8. kör: aranyozott kiemelő címkék a hero-ban
+
+**Mi változott (Márk kérése):** új közös osztály `.b-gold` (globals.css, `@layer components`): arany átmenetes
+háttér, sötétbarna szöveg (kontraszt > 7:1), finom árnyék és lassú fényvillanás (csökkentett mozgásnál áll).
+- A hero „EGYEDI, CÉGRE SZABOTT MODULOK" címkéje aranyozott, nagyobb.
+- A futó sáv fölötti felirat aranyozott címke lett: „Bármilyen iparágra építünk." — a „Néhány ötlet:" rész Márk
+  döntésére kikerült. **Eltérés a terv 29-től** (ott a sáv elemei „ötletként" felcímkézve szerepelnek) — a tervezőnek
+  átvezetendő.
+
+**Képernyőkép:** `docs/visszajelzes/6-b-arculat/v7-arany-cimkek.jpg` (még az arany változat). tsc + eslint hibamentes.
+- Módosítás (Márk: „ne arany legyen"; döntés: sötét + korall): az osztály neve `.b-highlight` lett — sötétbarna
+  kapszula (mint a felső sáv), krém betű (kontraszt > 12:1), korall szegély és korall pont a szöveg előtt, halvány
+  korall fényvillanás. Chrome-ellenőrzés Márk kérésére nem volt, a felületet ő nézi meg.
+- Áthelyezés (Márk kérése): az „Egyedi, cégre szabott modulok" címke lekerült a hero tetejéről, és a „Bármilyen
+  iparágra építünk" mellé került, a futó sáv fölé — a kettő egymás mellett, középre igazítva (keskeny kijelzőn
+  egymás alá törnek). A szimmetria kedvéért a második címke végéről a pont kikerült. A hero most a főcímmel indul.
+
+## 2026-11-24 – 6. lépés, 7. kör: „Alaprajzból 3D" a modul SAJÁT three.js motorjával, falszínezés nélkül
+
+**Mi változott (Márk kérése: „vegyük le a falak színezését, a falak illeszkedése és a hitelesség legyen tökéletes,
+ha kell, three.js"):** a `Floorplan3DDemo.tsx` CSS 3D helyett már a modul saját motorját használja:
+`lib/floorplan3d/scene.ts → buildApartment` a modul mintalakásán (`lib/floorplan3d/demo.ts`, 10,60 × 7,00 m — a plakát
+lakása), a modul alap falvastagságaival (belső 10 cm, külső 30 cm). Így a falak valódi vastagságúak, a sarkok és a
+T-csatlakozások pontosan illeszkednek, az ablakok (keret + üveg) és ajtók (tok + lap, erkélyajtó üveges) a valódi
+helyükön vannak, valódi fénnyel és árnyékkal. Új külső függőség nincs (a `three` már a projekt része).
+- Ütemek (14,5 mp, minden átmenet folyamatos): egyenes alaprajz felülnézetből (sötét falvonalak, helyiségnév + m²)
+  → a kamera lágyan megdől és ráfordul → a falak egyszerre, egyenletesen kinőnek (a falvonal színe közben
+  vakolatszínre úszik) → áttűnéssel a nyílászárók → áttűnéssel a burkolat (a modul bemutatójának padlói:
+  `demoFloors.ts`) → helyiségcímkék m²-rel, lágyan induló forgás, gyorsan érkező érdeklődő üzenetek → áttűnéssel újra.
+- **Falszínezés nincs**: a falak a modul vakolt fehérjében maradnak.
+- Villódzás ellen: a „papír" padló és a burkolat közé polygonOffset + emelés, szűkebb kamera-mélységtartomány.
+- Csak akkor rajzol, ha látszik; a fülek automatikus lapozása is csak látható blokknál fut (különben a 3D „lemaradna").
+- Mobilon a kamera hátrébb lép, és csak a legfrissebb üzenet látszik. „Mozgás csökkentése": kész, álló kép.
+
+**Képernyőkép:** `docs/visszajelzes/6-b-arculat/v6-alaprajz-3d-animacio.jpg`. Asztali és 390 px-es nézet ellenőrizve.
+tsc + eslint hibamentes.
+
+## 2026-11-24 – 6. lépés, 6. kör: „Alaprajzból 3D" animáció, első fülként
+
+**Mi változott (Márk kérése, minta: TWINX prémium 3D plakát):** új `src/components/site/b/Floorplan3DDemo.tsx`
+(tiszta CSS 3D + SVG, kép nélkül), a GDN-bemutató **első** füle.
+- Életszerű minta-lakás: nappali erkéllyel, hálószoba, szoba, fürdő, előszoba, konyha; reális helyű ablakok
+  (kettős vonal) és ajtók (nyitásív), bejárati ajtó az előszobán, erkélyajtó a nappaliból.
+- Ütemek (~13,5 mp, ismétlődik): alaprajz → megdől 3D-be → kinőnek a falak (ajtó/ablak helye nyitva, ablakban
+  üveg, parapet, szemöldök) → helyiségenként más színre festődnek → lerakódik a burkolat (parketta, fürdőcsempe,
+  járólap, mintás konyhacsempe, erkélykő) → megjelennek a helyiségek m²-rel, a modell forog, gyorsan jönnek az
+  érdeklődő üzenetek. Alul ütem-felirat, fent „Szemléltető animáció" jelölés.
+- A 3D-fül addig marad, amíg az animáció végigfut, utána lapoz tovább; a többi fül 8 mp. A színpad magasabb lett
+  (400 / mobilon 300 px), minden fülnél ugyanakkora. „Mozgás csökkentése": a kész állapot áll, forgás nélkül.
+- A m²-adatok és az üzenetek a minta-lakásé / illusztráció, nem ügyféladat.
+- Finomítás (Márk kérése): a falaknak két oldala van — **kívül egységes homlokzatszín**, belül a helyiség saját
+  színe (a fal két oldala a mellette lévő helyiséget kapja; két lap `backface-visibility: hidden`-nel).
+  Lágyabb mozgás: a megdőlés 1,3 mp, a falak egymás után, 1,3 mp alatt, lassuló görbével nőnek ki; utánuk
+  áttűnéssel érkeznek az ablakok (üveg + fehér keret) és az ajtókeretek.
+- 2. finomítás (Márk: „ugrások vannak a festésben és az ajtók megjelenésében"): az ok az volt, hogy a háttér-
+  színt / mintás burkolatot közvetlenül cseréltük (a mintás háttér nem animálható, ezért ugrott), és falanként
+  eltérő késleltetéssel. Most a festés és a burkolat külön réteg, **egyenletes áttűnéssel (1,1 mp), minden falon
+  és helyiségen egyszerre**; a falak egyszerre nőnek ki (1,6 mp, lágy görbe), a nyílászárók egyszerre, csak
+  áttűnéssel jönnek (méretugrás nélkül); a forgás lágyan indul. Mérve: az áttűnések folyamatosak, nincs ugrás.
+- 3. finomítás (Márk: „a színek ugrálnak össze-vissza"): két ok volt. (1) A forgást a framer `animate`
+  kulcskocka-tömbje vezérelte, és minden új érdeklődő-üzenetnél (újrarajzolás) **elölről indult** → a modell
+  visszaugrott, a látott falszínek ugráltak. Most a forgás CSS-animáció (`fp-spin`, globals.css) egy belső
+  „tányéron": pontosan egy kör az 5. ütem alatt, lágy indulással és megállással, ugyanabban a szögben ér véget →
+  újrarajzolás és újrakezdés sem ugrasztja. Mérve: a szög folyamatosan, egy irányba nő. (2) A fal két lapja egy
+  síkban volt (villódzhatott); most 1,2 px-re elállnak egymástól (falvastagság).
+- A teljes referencia-blokk teljes szélességű, sötétebb sávot kapott (`bg-b-surface`), alatta térköz a kapcsolat-sávig.
+
+**Képernyőkép:** `docs/visszajelzes/6-b-arculat/v6-alaprajz-3d-animacio.jpg`. Asztali és 390 px-es nézet ellenőrizve
+(mobilon a modell kisebb, a m²-lista rejtve, az üzenetek a jobb felső sarokban). tsc + eslint hibamentes.
+
+## 2026-11-24 – 6. lépés, 5. kör: GDN-referencia interaktív bemutató
+
+**Mi változott (Márk döntése):** a főoldali „Működő példa" 3 kártyája helyére interaktív bemutató került
+(`src/components/site/b/GdnShowcase.tsx`, szövegek: `site-copy.ts` → `GDN_SHOWCASE`).
+- Cím: „Működő példa · GDN Mandala Ingatlaniroda — Amit egy ingatlaniroda kapott tőlünk." + „A GDN Mandala kollégái
+  naponta használják…" (terv 11 szerinti mondat).
+- 6 fül: Látványtervező, Képjavító, Hirdetés-ellenőrző, Hirdetésszöveg, Értékbecslés, Alaprajzból 3D (a videó Márk
+  döntésére kimaradt). Fix méretű színpad: a látványtervnél és a képjavítónál VALÓDI előtte–utána kép húzható
+  csúszkával („Koncepcióterv", ill. „AI-val javított kép" jelöléssel); a többinél rajzolt, animált mini-felület
+  (ellenőrző lista, gépelt mintaszöveg „illusztráció" jelöléssel, ársáv szám nélkül, alaprajz → 3D billenés).
+- Alatta „Előtte / Most, a modullal" összevetés, **szám és idézet nélkül** (terv 11: csak GDN által jóváhagyott adattal).
+- Magától lapoz 8 mp-enként (haladásjelző a fülön), egér fölötte megáll, kattintás után nem lapoz tovább.
+  „Mozgás csökkentése": nincs lapozás és pásztázás. Mobilon a fülsor vízszintesen görget, az aktív fül látszik.
+- A régi `ReferenceCards` a kezdőlapi ízelítőben marad.
+
+**Képernyőkép:** `docs/visszajelzes/6-b-arculat/v5-gdn-referencia-bemutato.jpg`. 1440 és 390 px-en ellenőrizve
+(nincs kilógás, a szövegdobozok nem csordulnak túl). tsc + eslint hibamentes.
+
+**Márknak:** az „Előtte / Most" mondatokat érdemes Tiborral/a GDN-nel átnézni (site-copy.ts). Ha lesz jóváhagyott
+szám (pl. időmegtakarítás), egy sorral kiemelhető.
+
+## 2026-11-24 – 6. lépés, 4. kör: Irodai fiók bemutató a példa-modulok helyén
+
+**Mi változott (Márk kérése):** a főoldalon a hero alatti „példa-modulok" ablak (ModuleWindow) helyére azonos
+vékonyságú, animált **Irodai fiók** blokk került (`src/components/site/b/OfficeShowcase.tsx`).
+- Cím: „Irodai fiók · Egy cég, egy közös tér." + egy mondat: a cégnek épített modulokat minden kolléga eléri,
+  a munkát megosztják egymással, gyorsabb a napi munka.
+- Bal oldalon „Közös modulok" polc (Ajánlatkészítő, Ügyfélkérdés-válaszoló; mindegyiken a csapat jelei — „Mindenki eléri").
+- Jobb oldalon a munka útja, 4 ütem ismétlődik (2,8 mp): elkészül a modullal → megosztva a közös mappában →
+  a kolléga folytatja → „Minden modul, mindenkinek" (a polc kiemelődik). Fix méretek, nincs ugrálás;
+  „mozgás csökkentése" beállításnál álló kép (megosztva).
+- Csak a már működő részeket mutatja (közös mappa, közös modulok). A „munka küldése egymásnak" még „Hamarosan",
+  ezért nem szerepel. Szerepek (Kolléga / Vezető), nincs kitalált név vagy szám.
+
+- Utólagos finomítás (Márk kérése): a blokk teljes szélességű, kicsit sötétebb sávot kapott (`bg-b-surface`),
+  a cím és a leírás pedig sötét kiemelő dobozba került (krém szöveg, korall „IRODAI FIÓK" címke).
+
+**Képernyőkép:** `docs/visszajelzes/6-b-arculat/v4-irodai-fiok-bemutato.jpg`. 390 px-en ellenőrizve: egymás alá
+rendeződik, nincs kilógás. tsc + eslint hibamentes.
+
+**Nyitva:** `ModuleWindow.tsx` már sehol nincs használva (a `CityLines.tsx`-szel együtt kérésre törölhető).
+A terv 29 / 4.3 (modul-ablak) átvezetendő: helyette Irodai fiók bemutató.
+
+## 2026-11-24 – 6. lépés, 3. kör: selymes háttérvideó és bronz selyemszalagok
+
+**Mi változott (Márk döntése):** a bronz selyemszalagos AI-klip a sötét „Mi az egyedi modul?" sáv háttere lett
+(áttűnéses hurok), a vonalas városkép (CityLines) helyére kódból rajzolt bronz selyemszalagok kerültek.
+- `public/design/silk-loop.mp4` (11 mp, 1600 px, hang nélkül, ~1,4 MB) + `silk-poster.jpg`. A hurok a fájlba van
+  „sütve": az eredeti klip utolsó 2 mp-e áttűnik az elejébe, ezért a sima `loop` sem ugrik. Újravágás parancsa a
+  komponens fejkommentjében.
+- `src/components/site/b/SilkVideo.tsx`: videó + állókép + balról sötét átmenet (a szöveg a kép fekete felén).
+  Mobilon és „mozgás csökkentése" beállításnál csak állókép (kevesebb adat, nincs mozgás).
+- `src/components/site/b/SilkRibbons.tsx`: 3 csavarodó, hullámzó szalag bronz átmenettel, nagyon lassú sodródás
+  (`.b-silk`, globals.css; csökkentett mozgásnál áll). Helyek: főoldali hero alja, kapcsolat-sáv (krémfehér
+  változat), kezdőlap üres-állapot kártyája.
+- A sötét sáv elrendezése: eddig két hasáb volt, most a szöveg egy hasábban balra kerül (a jobb oldalon az alak),
+  alatta a TWINX pecsét. A korábbi meleg fényfolt és a városkép innen kikerült.
+
+**Képernyőképek:** `docs/visszajelzes/6-b-arculat/v3-sotet-sav-selyem-video.jpg`, `v3-kapcsolat-selyemszalag.jpg`.
+
+**Ellenőrzés:** `tsc --noEmit` és eslint (érintett fájlok) hibamentes. A videó fut (readyState 4), nincs konzolhiba,
+390 px-en nincs vízszintes kilógás; ott az állókép látszik, a szöveg olvasható.
+
+**Nyitva:** a `CityLines.tsx` már sehol nincs használva, törölhető (kérésre törlöm). Mobilon a sötétítés erős,
+így a kép alig látszik — ha kell, lazítható. A terv 29-be átvezetendő: a sötét sáv videós háttere + selyemszalagok.
+
+## 2026-11-24 – 6. lépés, 2. kör: sötét felső sáv, hangulati vonalgrafika, TWINX pecsét
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: Márk visszajelzése a 6. lépésre (három ötletkép). Döntései: teljesen sötét felső sáv; kódból rajzolt vonalgrafika; pecsét-elem egy szekcióban; HTML-minta nélkül, egyből kódba.
+Elkészült:
+- **Felső sáv:** sötét (`b-dark`), világos szöveggel, korall „Ingyenes felmérés” gombbal. A logó X-e `b-accent-on-dark`. A mobil menü is sötét. A rács és a középvonal változatlan.
+- **`CityLines`** (`src/components/site/b/CityLines.tsx`): vonalas, „modern város” SVG. Épületkontúrok, ablaksorok, tornyok, fényvonal, felül elhalványítva. Abszolút pozícióban, `aria-hidden`, nincs layout shift.
+  - Világos változat: a hero és a futó sáv mögött, és a kezdőlap üres állapotú kártyájának alján.
+  - Sötét, izzó változat: a „Mi az egyedi modul?” sávban, meleg korall fénnyel a sarokban.
+- **`TwinxStamp`** (`src/components/site/b/TwinxStamp.tsx`): „TWINX · EGYEDI MODUL · CÉGRE SZABVA” pecsét a „Mi az egyedi modul?” sávban, a cím alatt. Szám és állítás nincs rajta.
+Képernyőképek: `docs/visszajelzes/6-b-arculat/`
+- `v2-fooldal-sotet-savval.jpg`
+- `v2-kezdolap-modul-nelkul.jpg`
+- `v2-kezdolap-modullal.jpg`
+Eltérés a tervtől:
+- A terv 29 3. szakasza a felső sávot a világos háttéren írja le; most sötét (Márk döntése). **A tervezőben át kell vezetni** (D69/D70 kiegészítése: „a felső sáv sötét”).
+- A hangulati elemek nem szerepelnek a terv 29-ben, ezért új elemekként kell rögzíteni.
+Új buktató / tanulság: az SVG-szöveg (pecsét) más betűvel szélesebb lehet, ezért `textLength`-tel rögzítettük a szélességét.
+Nem lett kész / Hamarosan:
+- A hangulati elem nincs a kapcsolat sávban és a láblécben (szándékosan, ne legyen túl sok).
+- A Referenciák oldal átdolgozása továbbra is nyitott.
+Ellenőrzési lépések eredménye:
+- `tsc` és `eslint` az érintett fájlokon rendben.
+- A felső sáv a localhoston ellenőrizve belépve, és a kezdőlapon Besorolatlan előnézettel; a mobilnézet a sötét sávval még nincs újramérve.
+Döntés kell tőled, Márk:
+- a vonalgrafika erőssége (most halvány);
+- kell-e a pecsét máshol is (pl. kapcsolat sáv, lábléc).
+Éles állapot: helyben kész, push nélkül.
+
+## 2026-11-24 – 6. lépés: B arculat – főoldal és belépett kezdőlap
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/29 (D69, D70), design/B-fooldal.dc.html, design/B-kezdolap.dc.html, 11 (tartalom); 3. export
+Elkészült:
+- Design-tokenek központi helyen: `src/app/globals.css`, „B ARCULAT” blokk.
+  - Tailwind `@theme` színek: `b-bg`, `b-card`, `b-line`, `b-surface`, `b-surface-2`, `b-accent-soft`, `b-accent-tint`, `b-ink`, `b-ink-2`, `b-ink-3`, `b-accent`, `b-accent-ink`, `b-dark`, `b-on-dark`, `b-on-dark-2`, `b-accent-on-dark`.
+  - Lekerekítés: `--radius-card*`. Árnyék: `shadow-b`, `shadow-b-lg`.
+  - Közös osztályok (`@layer components`): `.b-btn`, `.b-btn-outline`, `.b-btn-dark`, `.b-btn-light`, `.b-card`, `.b-tag`, `.b-eyebrow`.
+  - Mozgások: `.b-marquee` (30 mp), `.b-float` (6 mp), `.b-pulse` (2,6 mp), `.b-bar`. Csökkentett mozgásnál állnak.
+  - A régi `--twx-*` változók az admin-körig változatlanok.
+- **Felső sáv** (`SiteHeader.tsx`): világos B-változat, háromoszlopos rács (`minmax(0,1fr) | auto | minmax(0,1fr)`), fix 72 px. Belépés előtti és utáni változat; az Irodai fiók mellett marad az értesítési hely. Asztali menü 1280 px-től, alatta hamburger.
+- **Főoldal** (`(public)/page.tsx`):
+  - hero, futó sáv (`IdeaMarquee`), lebegő modul-ablak (`ModuleWindow`);
+  - sötét „Mi az egyedi modul?”;
+  - Hogyan működik, Hol fut a modul (4 fix kártya);
+  - Referenciák (`ReferenceCards`), korall Kapcsolat sáv, világos lábléc.
+  - A szövegek egy helyen: `src/lib/site-copy.ts`. A „Mi az egyedi modul?” szöveg Márk átnézésére vár.
+- **Kezdőlap** (`NewHome.tsx`):
+  - üdvözlés;
+  - modul nélkül nagy kártya pulzáló „Időpontot foglalok” gombbal (a lenti foglalási blokkhoz visz) és 3 lépéses idővonallal; Besorolatlan felhasználónál ugyanez, plusz a terv 22 sora;
+  - modullal Moduljaim kártyák (fix 96 px, „⋯” menü, jobb klikk);
+  - Legutóbbi munkáim, Irodai fiók („Hamarosan”), referencia-ízelítő, foglalási blokk.
+  - A kezdőlap a dashboardon 1200 px-es keretet kap (`DashboardFrame`); a modulok kerete változatlan.
+- **Foglalás:** a `BookingForm` `tone="light"` változatot kapott (CSS-változókkal), a logikája nem változott. A `ContactBlock` korall sáv minden oldalon (főoldal, referenciák, kezdőlap).
+- **`Reveal.tsx`:** mostantól figyeli a csökkentett mozgás beállítást.
+Képernyőképek: `docs/visszajelzes/6-b-arculat/`
+- `fooldal-kijelentkezve-1000-es-390.jpg`
+- `kezdolap-modullal-1440.jpg`
+
+A belépett, modul nélküli (Besorolatlan) nézetet 1440 px-en és 390 px-en is ellenőriztem, ezekről nem mentettem képet.
+Ellenőrzési lépések eredménye:
+- `tsc` rendben. `eslint` az érintett fájlokon rendben; meglévő, nem érintett hibák: `image-enhance/page.tsx`, `visualization/page.tsx` (nem használt változók).
+- `next build` rendben (Márk gépén).
+- **Középvonal:** a menü közepe és az oldal közepe közti eltérés 0,00 px belépve és kijelentkezve is (1425 px széles nézet). A sáv mindkét állapotban 72 px.
+- **Mobil (390 px):** nincs vízszintes kilógás (`scrollWidth` = `clientWidth`). A hamburger jobbra, a logó balra áll.
+- **Kontraszt (számolva):**
+  - fő szöveg és `#5a4d42` a háttéren: 7.26;
+  - `#7a6a5a` a háttéren: 4.63, kártyán: 5.2;
+  - fehér a korall gombon: 4.99;
+  - címkék (`b-accent-ink` a halvány korallon): 4.89;
+  - sötét sávon a szöveg: 11.06, az akcent: 8.6.
+- **Admin:** a fő lapok (`/admin`, Felhasználók, Cégek, Előfizetések, Foglalások, Egyedi modulok, Pénzügy) 200-zal betöltenek; az admin elrendezéséhez nem nyúltam.
+Eltérés a mintától:
+- A korall SZÖVEG világos háttéren `#b3381a` (`b-accent-ink`), nem `#c8401f`, mert az csak 4.06–4.44 kontrasztot ad. A gombok és kitöltések `#c8401f`-ek maradtak.
+- A minta `#8a7a6a` halvány szövege helyett `#7a6a5a` (4.14 helyett 4.63/5.2).
+- A korall kapcsolat-sávban a halvány `#ffe9e1` szöveg helyett fehér (4.28 helyett 4.99).
+- **Kapcsolat sáv:** a minta egy gombot mutat; nálunk a sávban a meglévő kétlépéses foglalási doboz áll (a CODE-prompt szerint). Élesítésig (`BOOKINGS_PUBLIC`) kijelentkezve az e-mailes tartalékdoboz látszik.
+- **Lábléc:** a mintánál bővebb (Hogyan működik, Referenciák, Kapcsolat, ÁSZF, süti-beállítások — a terv 11 szerint).
+- **Irodai fiók sáv:** a főoldalról kimaradt (a terv 11-ben benne van, a B-mintában nincs). A kezdőlapon kártyaként szerepel.
+- **Üdvözlés:** „Üdv újra, [teljes név]!”. A sorrendet (vezeték- / keresztnév) nem tippeljük.
+- **Referencia-képek:** csak a Látványtervhez van valódi kép (`showcase/visual-after.jpg`, „Koncepcióterv” jelöléssel). A Hirdetés-ellenőrző és az Értékbecslés „Képernyőkép hamarosan” helyőrzőt kapott.
+- **Középre igazítás:** mérve pontos, de kijelentkezve a jobb oldali gombsor közel esik a menühöz (kb. 45 px hézag 1440 px-en). Ez a mintában is így van.
+Mit használtunk fel a régi /ingatlan oldalból: semmit. A sötét, filmes hero és a felugró főcímek nem illenek a világos B arculathoz. A futó sáv és a lebegés egyszerű CSS-animáció lett. A `/ingatlan` komponensei érintetlenek.
+5/b állapota: élesben van (`8ddc6fc`), a `/ingatlan` → `/referenciak` átirányítás működik. Nem vontam vissza.
+Nyitott maradt:
+- **Csökkentett mozgás:** a CSS- és a Framer-szabály kódban kész, de a macOS-beállítással Márk próbálja ki (Kisegítő lehetőségek → Mozgás csökkentése).
+- **Referenciák oldal** (`/referenciak`): a felső sáv és a kapcsolat-sáv már B, a többi szekciója még a régi sötét stílusú. Külön kör kell.
+- **Valódi képernyőkép** a Hirdetés-ellenőrzőhöz és az Értékbecsléshez.
+- **Kezdőlap modullal:** admin nézetben ellenőrizve. Ingatlan-hozzáféréses felhasználóval ugyanez a komponens fut.
+- **Admin átalakítása:** külön lépés (D70).
+Döntés kell tőled, Márk:
+- a „Mi az egyedi modul?” szöveg jóváhagyása;
+- a sötétebb korall szövegszín elfogadása;
+- a Referenciák oldal átdolgozása mikor jöjjön.
+Éles állapot: helyben kész, push nélkül.
+
 ## 2026-11-24 – 5/b: Kampányoldalak, kisebb módosítások
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/28 (5/b); D63, D65, D66

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TWINX – hangulati irányok (minta)</title>
+<style>
+  :root{--bg:#f6f1ea;--card:#fff;--line:#e3d8cb;--ink:#1d1712;--ink2:#5a4d42;--ink3:#7a6a5a;--acc:#c8401f;--accink:#b3381a;--dark:#1d1712;--ondark:#f6f1ea;--ondark2:#d8cabb;--accdark:#ff9a7e}
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:Manrope,"Segoe UI",system-ui,-apple-system,sans-serif;padding:40px 24px 80px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:34px;letter-spacing:-.8px;margin-bottom:8px}
+  .lead{color:var(--ink2);font-size:16px;max-width:760px;line-height:1.55;margin-bottom:40px}
+  .dir{margin-bottom:56px}
+  .dir-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+  .dir-head .n{font-weight:800;color:var(--accink);font-size:14px;letter-spacing:1.4px}
+  .dir-head h2{font-size:24px;letter-spacing:-.4px}
+  .dir-head .rec{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--acc);color:#fff;padding:4px 9px;border-radius:99px}
+  .why{color:var(--ink2);font-size:15px;line-height:1.55;max-width:820px;margin-bottom:14px}
+  .stage{position:relative;overflow:hidden;border-radius:26px;height:420px;border:1px solid var(--line)}
+  .stage .content{position:relative;z-index:2;padding:56px 56px 0;max-width:620px}
+  .tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:6px 12px;border-radius:99px;margin-bottom:20px}
+  .big{font-size:52px;line-height:1.02;letter-spacing:-1.6px;font-weight:800;margin-bottom:16px}
+  .sub{font-size:17px;line-height:1.55;max-width:460px}
+  .btn{display:inline-block;margin-top:24px;background:var(--acc);color:#fff;font-weight:700;padding:14px 24px;border-radius:99px;font-size:15px}
+  .refs{font-size:13px;color:var(--ink3);margin-top:10px}
+  .refs b{color:var(--ink2)}
+  /* A – Tervrajz */
+  .bp{background-color:#fbf8f3;background-image:linear-gradient(rgba(200,64,31,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(200,64,31,.07) 1px,transparent 1px),linear-gradient(rgba(200,64,31,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(200,64,31,.035) 1px,transparent 1px);background-size:120px 120px,120px 120px,24px 24px,24px 24px}
+  .bp .tag{background:#fbe3da;color:var(--accink)}
+  .bp .sub{color:var(--ink2)}
+  /* B – Hálózat, C – Város */
+  .dk{background:var(--dark);color:var(--ondark);border-color:#2c241d}
+  .dk .tag{background:rgba(255,154,126,.12);color:var(--accdark);border:1px solid rgba(255,154,126,.25)}
+  .dk .sub{color:var(--ondark2)}
+  .glow{position:absolute;border-radius:50%;pointer-events:none}
+  /* D – Márka */
+  .ed{background:var(--bg)}
+  .ed .tag{background:var(--dark);color:var(--ondark)}
+  .ed .sub{color:var(--ink2)}
+  svg.deco{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  @keyframes dash{to{stroke-dashoffset:-40}}
+  .flow{animation:dash 2.4s linear infinite}
+  @keyframes twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+  .tw{animation:twinkle 4s ease-in-out infinite}
+  @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .drift{animation:drift 40s linear infinite}
+  @media (prefers-reduced-motion:reduce){.flow,.tw,.drift{animation:none}}
+  /* Keskeny ablakban a díszítés háttérbe húzódik, hogy ne takarja a szöveget (a mintát széles ablakban érdemes nézni). */
+  @media (max-width:980px){svg.deco{opacity:.28}.stage .content{padding:40px 28px 0}.big{font-size:40px!important}}
+  .sumtab{width:100%;border-collapse:collapse;background:var(--card);border-radius:18px;overflow:hidden;border:1px solid var(--line);font-size:14px}
+  .sumtab th,.sumtab td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  .sumtab th{background:#efe6da;font-size:12px;text-transform:uppercase;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hangulati és márka-irányok – TWINX B arculat</h1>
+  <p class="lead">Négy lehetséges irány a „profibb" megjelenéshez. Mindegyik kódból rajzolt (SVG/CSS), nincs benne fotó, nincs kitalált szám. A minták csak a hangulatot mutatják egy hero-méretű blokkon – a végleges oldalon egy irány fő elemként, egy másik legfeljebb kiegészítőként jelenne meg. A mozgás „mozgás csökkentése" beállításnál leáll.</p>
+
+  <!-- ================= A ================= -->
+  <section class="dir">
+    <div class="dir-head"><span class="n">A</span><h2>Tervrajz – „cégre szabva, mint egy mérnöki rajz"</h2><span class="rec">Ajánlott fő irány</span></div>
+    <p class="why">Finom mérnöki rács, méretvonalak, sarokjelek és számozott megjegyzések. Az „egyedi, méretre szabott" ígéretet vizuálisan is elmondja, és illik az ingatlanos gyökerekhez (alaprajz). Világos felületen is karakteres, de nem tolakodó.</p>
+    <div class="stage bp">
+      <svg class="deco" viewBox="0 0 1100 420" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+        <g stroke="#c8401f" fill="none" stroke-width="1.4" opacity=".55">
+          <!-- sarokjelek -->
+          <path d="M24 44 V24 H44"/><path d="M1056 24 H1076 V44"/><path d="M24 376 V396 H44"/><path d="M1056 396 H1076 V376"/>
+        </g>
+        <!-- alaprajz-szerű modulkeret jobbra -->
+        <g stroke="#c8401f" fill="none" opacity=".7">
+          <rect x="700" y="70" width="320" height="250" stroke-width="2"/>
+          <path d="M700 170 H830 M830 70 V240 M830 240 H1020 M900 240 V320" stroke-width="1.4"/>
+          <path d="M760 170 a30 30 0 0 1 30 -30" stroke-dasharray="3 4"/>
+        </g>
+        <g fill="#b3381a" font-size="11" font-weight="700" letter-spacing="1.2" font-family="Manrope,system-ui,sans-serif">
+          <text x="716" y="96">01 · FELMÉRÉS</text>
+          <text x="846" y="96">02 · FOLYAMAT</text>
+          <text x="846" y="264">03 · MODUL</text>
+        </g>
+        <!-- méretvonal -->
+        <g stroke="#c8401f" stroke-width="1.2" opacity=".8">
+          <path d="M700 350 H1020"/><path d="M700 342 V358 M1020 342 V358"/>
+        </g>
+        <rect x="805" y="340" width="110" height="20" fill="#fbf8f3"/>
+        <text x="860" y="355" text-anchor="middle" fill="#b3381a" font-size="12" font-weight="700" font-family="Manrope,system-ui,sans-serif">a te céged</text>
+        <!-- függőleges méretvonal -->
+        <g stroke="#c8401f" stroke-width="1.2" opacity=".8"><path d="M1050 70 V320"/><path d="M1042 70 H1058 M1042 320 H1058"/></g>
+        <!-- célkereszt -->
+        <g stroke="#c8401f" opacity=".6"><circle cx="830" cy="170" r="9" fill="none"/><path d="M816 170 H844 M830 156 V184"/></g>
+      </svg>
+      <div class="content">
+        <span class="tag">Egyedi, cégre szabott modulok</span>
+        <div class="big">A te cégedre<br>szabott modul.</div>
+        <p class="sub">Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít.</p>
+        <span class="btn">Ingyenes felmérés</span>
+      </div>
+    </div>
+    <p class="refs"><b>Hasonló szellemű oldalak, ahol érdemes megnézni:</b> Vercel (rácsvonalak, célkereszt-sarkok), Linear „method" oldalai (precíz vonalak), építészirodák portfóliói (méretvonalas tipográfia).</p>
+  </section>
+
+  <!-- ================= B ================= -->
+  <section class="dir">
+    <div class="dir-head"><span class="n">B</span><h2>Folyamat-hálózat – „látszik, ahogy a munka magától halad"</h2><span class="rec" style="background:#5a4d42">Ajánlott kiegészítő</span></div>
+    <p class="why">Sötét sávon izzó csomópontok és vonalak, amelyeken apró fénypontok haladnak: e-mail → ajánlat → nyilvántartás → riport. Az AI-t és az automatizálást mutatja meg absztrakt, nem „robotos" módon. Ideális a „Mi az egyedi modul?" vagy a „Hogyan működik?" sávba.</p>
+    <div class="stage dk">
+      <div class="glow" style="right:-120px;top:-140px;width:520px;height:520px;background:radial-gradient(closest-side,rgba(200,64,31,.38),transparent)"></div>
+      <svg class="deco" viewBox="0 0 1100 420" aria-hidden="true">
+        <defs><filter id="g"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <g fill="none" stroke="#ff9a7e" stroke-width="1.4" filter="url(#g)">
+          <path id="p1" d="M640 110 C720 110 720 210 800 210" opacity=".5"/>
+          <path id="p2" d="M800 210 C880 210 880 110 960 110" opacity=".5"/>
+          <path id="p3" d="M800 210 C880 210 880 310 960 310" opacity=".5"/>
+          <path d="M640 310 C720 310 720 210 800 210" opacity=".5"/>
+          <path d="M640 110 C720 110 720 210 800 210" stroke-dasharray="4 16" class="flow"/>
+          <path d="M800 210 C880 210 880 310 960 310" stroke-dasharray="4 16" class="flow"/>
+          <path d="M800 210 C880 210 880 110 960 110" stroke-dasharray="4 16" class="flow"/>
+          <path d="M640 310 C720 310 720 210 800 210" stroke-dasharray="4 16" class="flow"/>
+        </g>
+        <g font-family="Manrope,system-ui,sans-serif" font-size="12" font-weight="700">
+          <g><rect x="560" y="90" width="120" height="40" rx="12" fill="#2a211b" stroke="#ff9a7e" stroke-opacity=".5"/><text x="620" y="115" text-anchor="middle" fill="#f6f1ea">Bejövő e-mail</text></g>
+          <g><rect x="560" y="290" width="120" height="40" rx="12" fill="#2a211b" stroke="#ff9a7e" stroke-opacity=".5"/><text x="620" y="315" text-anchor="middle" fill="#f6f1ea">Táblázat</text></g>
+          <g filter="url(#g)"><circle cx="800" cy="210" r="34" fill="#c8401f"/></g>
+          <text x="800" y="215" text-anchor="middle" fill="#fff" font-size="13" font-weight="800">TWINX</text>
+          <g><rect x="940" y="90" width="120" height="40" rx="12" fill="#2a211b" stroke="#ff9a7e" stroke-opacity=".5"/><text x="1000" y="115" text-anchor="middle" fill="#f6f1ea">Kész ajánlat</text></g>
+          <g><rect x="940" y="290" width="120" height="40" rx="12" fill="#2a211b" stroke="#ff9a7e" stroke-opacity=".5"/><text x="1000" y="315" text-anchor="middle" fill="#f6f1ea">Heti riport</text></g>
+        </g>
+      </svg>
+      <div class="content">
+        <span class="tag">Mi az egyedi modul?</span>
+        <div class="big" style="font-size:44px">A munka megy,<br>te csak döntesz.</div>
+        <p class="sub">A modul összeköti, amit ma kézzel csinálsz – a példa illusztráció, nem kész termék.</p>
+      </div>
+    </div>
+    <p class="refs"><b>Hasonló szellemű oldalak:</b> Stripe (animált adatfolyam-vonalak), Zapier/n8n termékoldalak (csomópontos folyamatábra), Linear (izzó sötét felületek).</p>
+  </section>
+
+  <!-- ================= C ================= -->
+  <section class="dir">
+    <div class="dir-head"><span class="n">C</span><h2>Éjszakai város – a mostani vonalgrafika erősebb változata</h2></div>
+    <p class="why">A meglévő vonalas városkép továbbfejlesztve: két réteg mélység, néhány halványan felvillanó korall ablak, a horizonton meleg fénysáv. A küldött plakát hangulatához áll a legközelebb. Önmagában kevésbé „egyedi", mert sok tech-oldal használ városképet.</p>
+    <div class="stage dk">
+      <div class="glow" style="left:10%;right:10%;bottom:-180px;height:320px;border-radius:50%;background:radial-gradient(closest-side,rgba(200,64,31,.45),transparent)"></div>
+      <svg class="deco" viewBox="0 0 1100 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <!-- hátsó réteg -->
+        <g fill="none" stroke="#ff9a7e" stroke-opacity=".14">
+          <rect x="20" y="250" width="60" height="160"/><rect x="110" y="200" width="50" height="210"/><rect x="190" y="270" width="80" height="140"/><rect x="300" y="180" width="40" height="230"/><rect x="380" y="240" width="70" height="170"/><rect x="480" y="210" width="60" height="200"/><rect x="580" y="260" width="90" height="150"/><rect x="700" y="190" width="50" height="220"/><rect x="790" y="230" width="80" height="180"/><rect x="900" y="200" width="60" height="210"/><rect x="1000" y="250" width="80" height="160"/>
+        </g>
+        <!-- első réteg -->
+        <g fill="none" stroke="#ff9a7e" stroke-opacity=".42" stroke-width="1.3">
+          <rect x="560" y="230" width="70" height="180"/><rect x="650" y="150" width="56" height="260"/><path d="M678 150 V105"/><rect x="726" y="260" width="90" height="150"/><rect x="836" y="190" width="64" height="220"/><rect x="920" y="280" width="80" height="130"/><rect x="1020" y="210" width="60" height="200"/>
+          <path d="M0 410 H1100"/>
+        </g>
+        <g fill="#ff9a7e">
+          <rect class="tw" x="664" y="180" width="8" height="10" style="animation-delay:.2s"/><rect class="tw" x="684" y="240" width="8" height="10" style="animation-delay:1.4s"/><rect class="tw" x="850" y="220" width="8" height="10" style="animation-delay:2.1s"/><rect class="tw" x="872" y="300" width="8" height="10" style="animation-delay:.9s"/><rect class="tw" x="1036" y="260" width="8" height="10" style="animation-delay:3s"/><rect class="tw" x="744" y="300" width="8" height="10" style="animation-delay:2.6s"/><rect class="tw" x="580" y="280" width="8" height="10" style="animation-delay:1.8s"/>
+        </g>
+      </svg>
+      <div class="content">
+        <span class="tag">Egyedi, cégre szabott modulok</span>
+        <div class="big" style="font-size:46px">Modern eszköz<br>a mai cégeknek.</div>
+        <p class="sub">Halvány, mozgó fények a háttérben – a tartalom marad a fókuszban.</p>
+      </div>
+    </div>
+    <p class="refs"><b>Hasonló szellemű:</b> a küldött „TWINX AI Agency" plakát, Framer sablonok éjszakai hero-i.</p>
+  </section>
+
+  <!-- ================= D ================= -->
+  <section class="dir">
+    <div class="dir-head"><span class="n">D</span><h2>Márka-szerkesztőség – óriás „TWINX", pecsétek, számozott rend</h2><span class="rec" style="background:#5a4d42">Ajánlott kiegészítő</span></div>
+    <p class="why">Magazin-hatás: a háttérben körvonalas, lassan úszó óriás „TWINX" felirat, vékony elválasztó vonalak, számozott szekciók (01 / 02 / 03), és a pecsét két-három jól választott helyen. A márkát teszi hangsúlyossá – ez a harmadik küldött kép ötletének továbbvitele.</p>
+    <div class="stage ed">
+      <svg class="deco" viewBox="0 0 1100 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <g class="drift">
+          <text x="0" y="380" font-family="Manrope,system-ui,sans-serif" font-size="260" font-weight="800" fill="none" stroke="#c8401f" stroke-opacity=".14" stroke-width="1.5" letter-spacing="10">TWINX TWINX TWINX TWINX</text>
+        </g>
+        <g stroke="#1d1712" stroke-opacity=".18"><path d="M56 40 H1044"/><path d="M56 396 H1044"/></g>
+        <g font-family="Manrope,system-ui,sans-serif" font-size="12" font-weight="700" letter-spacing="1.4" fill="#5a4d42">
+          <text x="56" y="30">01 — FELMÉRÉS</text><text x="420" y="30">02 — ÉPÍTÉS</text><text x="790" y="30">03 — HASZNÁLAT</text>
+        </g>
+        <!-- pecsét -->
+        <g transform="translate(830 150) rotate(-8)">
+          <rect x="0" y="0" width="220" height="104" rx="14" fill="none" stroke="#c8401f" stroke-width="4" stroke-opacity=".85"/>
+          <rect x="9" y="9" width="202" height="86" rx="9" fill="none" stroke="#c8401f" stroke-width="1.5" stroke-opacity=".85"/>
+          <text x="110" y="62" text-anchor="middle" fill="#c8401f" font-family="Manrope,system-ui,sans-serif" font-weight="800" font-size="40" textLength="160" lengthAdjust="spacingAndGlyphs">TWINX</text>
+          <text x="110" y="82" text-anchor="middle" fill="#c8401f" font-family="Manrope,system-ui,sans-serif" font-weight="700" font-size="9" textLength="170" lengthAdjust="spacingAndGlyphs">EGYEDI MODUL · CÉGRE SZABVA</text>
+        </g>
+      </svg>
+      <div class="content" style="padding-top:76px">
+        <span class="tag">Működő példa</span>
+        <div class="big" style="font-size:48px">Nem sablont kapsz.<br>Saját eszközt.</div>
+        <p class="sub">Erős tipográfia, kevés szín, sok levegő – a márka beszél.</p>
+      </div>
+    </div>
+    <p class="refs"><b>Hasonló szellemű:</b> Pentagram és designstúdiók oldalai (óriás tipográfia), Arc / The Browser Company (szerkesztőségi ritmus), a küldött „Elindult a TWINX" pecsétes kép.</p>
+  </section>
+
+  <h2 style="font-size:22px;margin-bottom:12px">Összevetés</h2>
+  <table class="sumtab">
+    <tr><th>Irány</th><th>Mit üzen</th><th>Mennyire egyedi</th><th>Hol lenne az oldalon</th></tr>
+    <tr><td><b>A – Tervrajz</b></td><td>Pontos, cégre szabott munka</td><td>Magas – a TWINX ígéretéhez kötött</td><td>Hero háttere, Hogyan működik, Referenciák</td></tr>
+    <tr><td><b>B – Folyamat-hálózat</b></td><td>Automatizálás, AI a háttérben</td><td>Közepes–magas</td><td>Sötét „Mi az egyedi modul?" sáv</td></tr>
+    <tr><td><b>C – Éjszakai város</b></td><td>Modern, nagyvárosi hangulat</td><td>Közepes – gyakori motívum</td><td>Lábléc felett / kapcsolat-sáv háttere</td></tr>
+    <tr><td><b>D – Márka-szerkesztőség</b></td><td>Erős, magabiztos márka</td><td>Magas</td><td>Referenciák, lábléc, pecsét 2–3 helyen</td></tr>
+  </table>
+  <p class="lead" style="margin-top:18px">Javaslatom: <b>A (Tervrajz) fő irányként</b>, <b>B a sötét sávba</b>, és D-ből csak a pecsét + számozás. A városkép (C) ekkor visszakerülhet egyetlen helyre, vagy kimaradhat.</p>
+</div>
+</body>
+</html>

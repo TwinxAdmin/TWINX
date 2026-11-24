@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<title>TWINX kezdőlap belépés után – B irány</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+body{margin:0;background:#f6f1ea}
+a{color:#1d1712;text-decoration:none}a:hover{color:#c8401f}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pu{0%,100%{box-shadow:0 0 0 0 rgba(200,64,31,.35)}50%{box-shadow:0 0 0 12px rgba(200,64,31,0)}}
+.fl{animation:fl 6s ease-in-out infinite}.pu{animation:pu 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.fl,.pu{animation:none}}
+</style>
+</helmet>
+<div style="width:100%;box-sizing:border-box;background:#f6f1ea;color:#1d1712;font-family:Inter,system-ui,sans-serif;overflow:hidden">
+
+<div style="max-width:1200px;margin:0 auto;padding:22px 32px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px">
+<div style="display:flex;align-items:center;gap:10px"><div style="width:26px;height:26px;border-radius:7px;background:#c8401f"></div><span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px">TWINX</span></div>
+<nav style="display:flex;gap:30px;font-size:15px;font-weight:500"><a href="#">Moduljaim ▾</a><a href="#">Irodai fiók</a><a href="#">Referenciák</a><a href="#">Kapcsolat</a></nav>
+<div style="display:flex;gap:16px;align-items:center;justify-content:flex-end"><a href="#" style="background:#1d1712;color:#f6f1ea;font-weight:600;padding:11px 20px;border-radius:999px;font-size:15px">Ingyenes felmérés</a><div style="width:38px;height:38px;border-radius:50%;background:#e3d8cb;display:flex;align-items:center;justify-content:center;font-weight:600">M</div></div>
+</div>
+
+<div style="max-width:1200px;margin:0 auto;padding:30px 32px 22px">
+<div style="font-size:14px;color:#c8401f;font-weight:600;margin-bottom:8px">Üdv újra, [Név]!</div>
+<h1 style="margin:0;font-family:'Space Grotesk',sans-serif;font-size:46px;letter-spacing:-1.2px;line-height:1.08">Itt jelennek meg az egyedi moduljaid.</h1>
+</div>
+
+<!-- Üres állapot: nagy, két oszlopos kártya -->
+<div style="max-width:1200px;margin:0 auto;padding:0 32px 22px">
+<div style="background:#fff;border:1px solid #e3d8cb;border-radius:28px;padding:40px;display:flex;flex-wrap:wrap;gap:36px;align-items:center;box-shadow:0 20px 50px rgba(80,50,30,.08)">
+<div style="flex:1 1 420px"><h2 style="margin:0 0 12px;font-family:'Space Grotesk',sans-serif;font-size:32px;letter-spacing:-.6px">Még nincs modulod. Építünk egyet neked.</h2><p style="margin:0 0 24px;color:#5a4d42;font-size:17px;line-height:1.55;max-width:520px">Az egyedi modul egy, a te munkafolyamatodra szabott eszköz. Foglalj ingyenes felmérést, és megbeszéljük, hol tudunk időt spórolni.</p><a class="pu" href="#" style="display:inline-block;background:#c8401f;color:#fff;font-weight:600;padding:15px 28px;border-radius:999px">Időpontot foglalok</a></div>
+<div style="flex:0 0 380px;display:flex;flex-direction:column;gap:0">
+<div style="display:flex;gap:16px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center"><span style="width:34px;height:34px;border-radius:50%;background:#c8401f;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif">1</span><span style="width:2px;height:34px;background:#e3d8cb"></span></div><div style="padding-top:4px"><b>Felmérünk</b><div style="color:#5a4d42;font-size:14px;margin-top:2px">ingyenes időpont, beszélgetés</div></div></div>
+<div style="display:flex;gap:16px;align-items:flex-start"><div style="display:flex;flex-direction:column;align-items:center"><span style="width:34px;height:34px;border-radius:50%;background:#efe6da;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif">2</span><span style="width:2px;height:34px;background:#e3d8cb"></span></div><div style="padding-top:4px"><b>Megépítjük</b><div style="color:#5a4d42;font-size:14px;margin-top:2px">a te folyamatodra szabva</div></div></div>
+<div style="display:flex;gap:16px;align-items:flex-start"><span style="width:34px;height:34px;border-radius:50%;background:#efe6da;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif">3</span><div style="padding-top:4px"><b>Használod</b><div style="color:#5a4d42;font-size:14px;margin-top:2px">itt, a kezdőlapodon</div></div></div>
+</div></div></div>
+
+<div style="max-width:1200px;margin:0 auto;padding:0 32px 22px;display:flex;flex-wrap:wrap;gap:18px">
+<div style="flex:2 1 560px;background:#fff;border:1px solid #e3d8cb;border-radius:22px;padding:26px;min-height:140px;box-sizing:border-box"><div style="font-size:18px;font-weight:600;margin-bottom:10px">Legutóbbi munkáim</div><div style="color:#7a6a5a;font-size:15px">Az elkészült munkáid itt jelennek meg.</div></div>
+<div style="flex:1 1 300px;background:#fff;border:1px solid #e3d8cb;border-radius:22px;padding:26px;min-height:140px;box-sizing:border-box"><div style="font-size:18px;font-weight:600;margin-bottom:8px">Irodai fiók</div><div style="color:#5a4d42;font-size:15px;line-height:1.5;margin-bottom:10px">Közös tér, ha együtt dolgoztok.</div><div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#c8401f;font-weight:600">Hamarosan: munka küldése egymásnak</div></div>
+</div>
+
+<div style="max-width:1200px;margin:0 auto;padding:0 32px 40px">
+<div style="font-size:18px;font-weight:600;margin-bottom:14px">Nézd meg, mit építettünk egy ingatlaniroda számára</div>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+<sc-for list="{{refs}}" as="r" hint-placeholder-count="3"><div class="fl" style="background:#fff;border:1px solid #e3d8cb;border-radius:18px;overflow:hidden"><div style="height:100px;background:linear-gradient(135deg,#f3d9c8,#e8b79c);display:flex;align-items:flex-end;padding:10px;font-size:11px;color:#5a4d42">[képernyőkép helye]</div><div style="padding:16px;font-weight:600">{{r}}</div></div></sc-for>
+</div></div>
+
+<div style="border-top:1px solid #e3d8cb"><div style="max-width:1200px;margin:0 auto;padding:26px 32px;font-size:14px;color:#7a6a5a;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px"><span>Kérdésed van? office@twinx.hu</span><span>© TWINX</span></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":980}}'>
+class Component extends DCLogic {
+renderVals() { return { refs:["Látványterv","Hirdetés-ellenőrző","Értékbecslés"] }; }
+}
+</script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 // Reveal — görgetésre megjelenő, finom belépő animáció (Framer Motion).
-// Az animáció MINDIG fut (reduced-motion beállítást szándékosan nem figyeljük),
-// hogy a landing élménye a partner böngészőjétől függetlenül egységes legyen.
+// 6. lépés (terv 29 / 6.): csökkentett mozgás beállításnál (prefers-reduced-motion) NINCS animáció —
+// a tartalom azonnal, a végleges helyén jelenik meg.
 "use client";
 
-import { motion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -14,19 +14,20 @@ type Props = {
 };
 
 export default function Reveal({ children, delay = 0, y = 20, className }: Props) {
+  const reduce = useReducedMotion();
   const variants: Variants = {
     hidden: { opacity: 0, y },
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] },
+      transition: reduce ? { duration: 0 } : { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] },
     },
   };
   return (
     <motion.div
       className={className}
       variants={variants}
-      initial="hidden"
+      initial={reduce ? false : "hidden"}
       whileInView="show"
       viewport={{ once: true, margin: "-80px" }}
     >

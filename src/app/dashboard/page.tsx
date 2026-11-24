@@ -118,6 +118,7 @@ export default async function DashboardHome() {
         email={subject?.email ?? user.email ?? ""}
         modules={modules}
         unassigned={!isAdmin && !estate && !(memberships ?? 0)}
+        bookingOpen={process.env.BOOKINGS_PUBLIC === "1" || me?.role === "admin"}
         works={historyList.slice(0, 12).map((h) => ({
           id: h.id,
           title: activityTitle(h.feature_used, h.input_data, h.created_at),

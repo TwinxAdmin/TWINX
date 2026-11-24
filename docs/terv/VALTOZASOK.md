@@ -1,5 +1,12 @@
 # VÁLTOZÁSOK (a tervező projekt vezeti; a repóban csak olvasható)
 
+## 2026-11-24 – 3. export (döntések: D23–D70)
+- Új dokumentum: `29-design-B-irany-terv.md` (D69, D70: a B arculat, design-tokenek, főoldal és kezdőlap megjelenése, a 6. lépés CODE-promptja).
+- Új mappa: `design/` – a vizuális minta (`B-fooldal.dc.html`, `B-kezdolap.dc.html`), statikus HTML; csak mintának, nem bemásolásra.
+- Módosult: `ai-ugynokseg/01` (D69, D70).
+- Mit kell elolvasnia a fejlesztésnek: `29`, a `design/` két fájlja, `11` (tartalom), és az `01` D69–D70 bejegyzése.
+- Az 5/b `/ingatlan` átirányítása várjon, amíg Márk jóvá nem hagyja az új főoldalt.
+
 ## 2026-11-24 – 2. export (döntések: D23–D68)
 - A fejlesztés visszajelzése (a terv 11–23 lépései, élesben) átvezetve.
 - Új dokumentum: `27-ingatlan-csomag-koltsegvedelme-terv.md` (D62) és `28-code-promptok-5-lepes.md` (az 5/a és 5/b CODE-prompt).

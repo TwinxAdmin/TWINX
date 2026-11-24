@@ -14,9 +14,9 @@ import {
 type Step = "time" | "data" | "done";
 type Done = { kind: "idopont" | "visszahivas"; startsAt: string | null; hostName: string | null };
 
-const MUTED = "var(--twx-on-dark-muted)";
-const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-[var(--twx-coral)]";
-const inputStyle: React.CSSProperties = { background: "#121110", border: "1px solid #3A322C", color: "var(--twx-on-dark)" };
+const MUTED = "var(--bf-muted)";
+const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-[var(--bf-accent)]";
+const inputStyle: React.CSSProperties = { background: "var(--bf-input-bg)", border: "1px solid var(--bf-input-line)", color: "var(--bf-ink)" };
 
 function shortDay(key: string) {
   const [y, m, d] = key.split("-").map(Number);
@@ -31,12 +31,28 @@ function Field({ label, error, children, optional }: { label: string; error?: st
       <span className="mb-1 block text-xs" style={{ color: MUTED }}>{label}{optional && " (nem kötelező)"}</span>
       {children}
       {/* Fix magasságú hibasor — a doboz nem ugrik, ha megjelenik. */}
-      <span className="block h-4 pt-0.5 text-[11px]" style={{ color: "#F4A48A" }}>{error ?? ""}</span>
+      <span className="block h-4 pt-0.5 text-[11px]" style={{ color: "var(--bf-err)" }}>{error ?? ""}</span>
     </label>
   );
 }
 
-export default function BookingForm({ source, prefill }: { source: BookingSource; prefill?: { name?: string; email?: string } }) {
+/** Színvilág: "dark" = a korábbi sötét kapcsolatblokk; "light" = B arculat (6. lépés, terv 29) — fehér kártya a korall sávon. */
+const TONES: Record<"dark" | "light", Record<string, string>> = {
+  dark: {
+    "--bf-bg": "#1b1815", "--bf-line": "rgba(255,255,255,0.08)", "--bf-ink": "var(--twx-on-dark)", "--bf-muted": "var(--twx-on-dark-muted)",
+    "--bf-accent": "var(--twx-coral)", "--bf-on-accent": "#1c1005", "--bf-soft": "rgba(255,255,255,0.05)", "--bf-accent-soft": "rgba(239,122,90,0.18)",
+    "--bf-err": "#F4A48A", "--bf-input-bg": "#121110", "--bf-input-line": "#3A322C", "--bf-link": "var(--twx-coral-soft)",
+  },
+  light: {
+    "--bf-bg": "#ffffff", "--bf-line": "#e3d8cb", "--bf-ink": "#1d1712", "--bf-muted": "#5a4d42",
+    "--bf-accent": "#c8401f", "--bf-on-accent": "#ffffff", "--bf-soft": "#f6f1ea", "--bf-accent-soft": "#fff4ee",
+    "--bf-err": "#b3381a", "--bf-input-bg": "#ffffff", "--bf-input-line": "#e3d8cb", "--bf-link": "#b3381a",
+  },
+};
+
+export default function BookingForm({ source, prefill, tone = "dark" }: {
+  source: BookingSource; prefill?: { name?: string; email?: string }; tone?: "dark" | "light";
+}) {
   const [step, setStep] = useState<Step>("time");
   const [slots, setSlots] = useState<PublicSlot[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -103,7 +119,7 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
   const noSlots = slots !== null && slots.length === 0;
 
   return (
-    <div className="flex h-[560px] flex-col rounded-3xl p-6 sm:p-7" style={{ background: "#1b1815", border: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="flex h-[560px] flex-col rounded-3xl p-6 sm:p-7" style={{ ...TONES[tone], background: "var(--bf-bg)", border: "1px solid var(--bf-line)", color: "var(--bf-ink)" } as React.CSSProperties}>
       {/* Lépésjelző — fix sor */}
       <div className="flex h-7 flex-none items-center gap-2 text-xs" style={{ color: MUTED }}>
         {(["time", "data"] as const).map((s, i) => {
@@ -112,8 +128,8 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
             <span key={s} className="flex items-center gap-2">
               {i > 0 && <span aria-hidden>—</span>}
               <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
-                style={active ? { background: "var(--twx-coral)", color: "#1c1005" } : { background: "rgba(255,255,255,0.08)" }}>{i + 1}</span>
-              <span style={active ? { color: "var(--twx-on-dark)" } : undefined}>{s === "time" ? "Időpont" : "Adatok"}</span>
+                style={active ? { background: "var(--bf-accent)", color: "var(--bf-on-accent)" } : { background: "var(--bf-soft)" }}>{i + 1}</span>
+              <span style={active ? { color: "var(--bf-ink)" } : undefined}>{s === "time" ? "Időpont" : "Adatok"}</span>
             </span>
           );
         })}
@@ -126,12 +142,12 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
           <p className="mt-1 text-sm" style={{ color: MUTED }}>A kiválasztott időpontban telefonon hívunk, nagyjából 45 percre.</p>
 
           {slots === null ? (
-            <div className="mt-5 flex-1 animate-pulse rounded-2xl" style={{ background: "rgba(255,255,255,0.04)" }} />
+            <div className="mt-5 flex-1 animate-pulse rounded-2xl" style={{ background: "var(--bf-soft)" }} />
           ) : noSlots ? (
-            <div className="mt-5 flex flex-1 flex-col items-start justify-center gap-4 rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.03)" }}>
+            <div className="mt-5 flex flex-1 flex-col items-start justify-center gap-4 rounded-2xl p-5" style={{ background: "var(--bf-soft)" }}>
               <p className="text-sm">{loadError ?? "Jelenleg nincs szabad időpont, hagyd meg az adataidat, és visszahívunk."}</p>
               <button type="button" onClick={() => { setSlot(null); setStep("data"); }}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                className="rounded-full px-5 py-2.5 text-sm font-semibold" style={{ background: "var(--bf-accent)", color: "var(--bf-on-accent)" }}>
                 Tovább az adatokhoz
               </button>
             </div>
@@ -145,7 +161,7 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
                   return (
                     <button key={k} type="button" onClick={() => { setDay(k); setSlot(null); }}
                       className="flex w-[64px] flex-none flex-col items-center justify-center rounded-xl text-xs transition-colors"
-                      style={on ? { background: "var(--twx-coral)", color: "#1c1005" } : { background: "rgba(255,255,255,0.05)", color: "var(--twx-on-dark)" }}>
+                      style={on ? { background: "var(--bf-accent)", color: "var(--bf-on-accent)" } : { background: "var(--bf-soft)", color: "var(--bf-ink)" }}>
                       <span className="uppercase opacity-80">{wd}</span>
                       <span className="mt-0.5 font-semibold">{dd}</span>
                     </button>
@@ -161,7 +177,7 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
                     <li key={s.id}>
                       <button type="button" onClick={() => setSlot(s)}
                         className="flex h-11 w-full items-center justify-between rounded-xl px-4 text-sm transition-colors"
-                        style={on ? { background: "rgba(239,122,90,0.18)", border: "1px solid var(--twx-coral)" } : { background: "rgba(255,255,255,0.04)", border: "1px solid transparent" }}>
+                        style={on ? { background: "var(--bf-accent-soft)", border: "1px solid var(--bf-accent)" } : { background: "var(--bf-soft)", border: "1px solid transparent" }}>
                         <span className="font-semibold tabular-nums">{fmtTime(s.startsAt)}</span>
                         <span style={{ color: MUTED }}>{s.durationMin} perc · {s.hostName}</span>
                       </button>
@@ -174,13 +190,13 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
                   Egyik sem jó? Kérj visszahívást
                 </button>
                 <button type="button" disabled={!slot} onClick={() => setStep("data")}
-                  className="rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40" style={{ background: "var(--bf-accent)", color: "var(--bf-on-accent)" }}>
                   Tovább
                 </button>
               </div>
             </>
           )}
-          {formError && <p className="mt-2 flex-none text-xs" style={{ color: "#F4A48A" }}>{formError}</p>}
+          {formError && <p className="mt-2 flex-none text-xs" style={{ color: "var(--bf-err)" }}>{formError}</p>}
         </div>
       )}
 
@@ -188,12 +204,12 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
       {step === "data" && (
         <form onSubmit={submit} noValidate className="mt-4 flex min-h-0 flex-1 flex-col">
           {/* Összefoglaló sor — fix magasság */}
-          <div className="flex h-10 flex-none items-center justify-between gap-3 rounded-xl px-3.5 text-sm" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <div className="flex h-10 flex-none items-center justify-between gap-3 rounded-xl px-3.5 text-sm" style={{ background: "var(--bf-soft)" }}>
             <span className="truncate">
               {slot ? <>{fmtDayKey(budapestDayKey(slot.startsAt))}, <b>{fmtTime(slot.startsAt)}</b> · {slot.hostName}</> : "Visszahívást kérsz (időpont nélkül)"}
             </span>
             {!noSlots && (
-              <button type="button" onClick={() => { setStep("time"); setFormError(null); }} className="flex-none text-xs underline underline-offset-2" style={{ color: "var(--twx-coral-soft)" }}>
+              <button type="button" onClick={() => { setStep("time"); setFormError(null); }} className="flex-none text-xs underline underline-offset-2" style={{ color: "var(--bf-link)" }}>
                 Időpont módosítása
               </button>
             )}
@@ -221,20 +237,20 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
             <input type="text" name="website" value={f.website} onChange={set("website")} tabIndex={-1} autoComplete="off"
               className="absolute -left-[9999px] h-0 w-0 opacity-0" aria-hidden />
             <label className="flex items-start gap-2.5 text-xs leading-relaxed" style={{ color: MUTED }}>
-              <input type="checkbox" checked={f.consent} onChange={set("consent")} className="mt-0.5 h-4 w-4 flex-none accent-[#ef7a5a]" />
+              <input type="checkbox" checked={f.consent} onChange={set("consent")} className="mt-0.5 h-4 w-4 flex-none accent-[#c8401f]" />
               <span>
                 {BOOKING_CONSENT_TEXT}{" "}
-                <span className="whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "rgba(255,255,255,0.1)", color: "#CFC6BB" }}
+                <span className="whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--bf-soft)", color: "var(--bf-muted)" }}
                   title="Az Adatkezelési tájékoztató hamarosan elérhető.">Tájékoztató: Hamarosan</span>
               </span>
             </label>
-            <span className="block h-4 pt-0.5 text-[11px]" style={{ color: "#F4A48A" }}>{errors.consent ?? ""}</span>
+            <span className="block h-4 pt-0.5 text-[11px]" style={{ color: "var(--bf-err)" }}>{errors.consent ?? ""}</span>
           </div>
 
           <div className="flex flex-none items-center justify-between gap-3 pt-3">
-            <p className="min-h-[2rem] text-xs leading-snug" style={{ color: "#F4A48A" }} role="alert">{formError ?? ""}</p>
+            <p className="min-h-[2rem] text-xs leading-snug" style={{ color: "var(--bf-err)" }} role="alert">{formError ?? ""}</p>
             <button type="submit" disabled={sending}
-              className="flex-none rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50" style={{ background: "var(--twx-coral)", color: "#1c1005" }}>
+              className="flex-none rounded-full px-6 py-3 text-sm font-semibold disabled:opacity-50" style={{ background: "var(--bf-accent)", color: "var(--bf-on-accent)" }}>
               {sending ? "Küldés…" : slot ? "Foglalás elküldése" : "Visszahívást kérek"}
             </button>
           </div>
@@ -244,7 +260,7 @@ export default function BookingForm({ source, prefill }: { source: BookingSource
       {/* ===== VISSZAIGAZOLÁS ===== */}
       {step === "done" && done && (
         <div className="flex flex-1 flex-col items-start justify-center gap-4">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "rgba(239,122,90,0.18)", color: "var(--twx-coral)" }}>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--bf-accent-soft)", color: "var(--bf-accent)" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12 5 5 9-10" /></svg>
           </span>
           <h3 className="font-display text-2xl font-semibold">Köszönjük!</h3>

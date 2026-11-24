@@ -19,6 +19,162 @@
   --font-sans: var(--font-sans);
 }
 
+/* =====================================================================================
+   B ARCULAT (D69, D70; terv: docs/terv/29-design-B-irany-terv.md, 2. szakasz) — KÖZPONTI design-tokenek.
+   Minden új vagy átdolgozott oldal ezekből dolgozik (Tailwind: bg-b-bg, text-b-ink, border-b-line …).
+   A régi --twx-* változók az admin átalakításáig (külön lépés) változatlanok.
+   Kontraszt (WCAG AA, ≥ 4.5:1): a korall SZÖVEG világos háttéren a sötétebb b-accent-ink; a korall alapú
+   gomb fehér szöveggel (#c8401f / #fff = 4.99).
+   ===================================================================================== */
+@theme {
+  --color-b-bg: #f6f1ea;          /* háttér — meleg törtfehér */
+  --color-b-card: #ffffff;        /* kártya */
+  --color-b-line: #e3d8cb;        /* kártyakeret, elválasztó */
+  --color-b-surface: #efe6da;     /* másodlagos felület */
+  --color-b-surface-2: #fbf8f3;   /* nagyon halvány felület (ablak belseje) */
+  --color-b-accent-soft: #fbe3da; /* halvány akcent-háttér (címke) */
+  --color-b-accent-tint: #fff4ee; /* halvány akcent-háttér (kiemelt kártya) */
+  --color-b-ink: #1d1712;         /* fő szöveg */
+  --color-b-ink-2: #5a4d42;       /* másodlagos szöveg */
+  --color-b-ink-3: #7a6a5a;       /* halvány szöveg (csak világos háttéren) */
+  --color-b-accent: #c8401f;      /* korall — gomb, szám, kiemelés */
+  --color-b-accent-ink: #b3381a;  /* korall szöveg világos háttéren (kontraszt miatt) */
+  --color-b-dark: #1d1712;        /* sötét sáv */
+  --color-b-on-dark: #f6f1ea;     /* szöveg a sötét sávon */
+  --color-b-on-dark-2: #d8cabb;   /* másodlagos szöveg a sötét sávon */
+  --color-b-accent-on-dark: #ff9a7e; /* akcent a sötét sávon */
+  --radius-card-sm: 18px;
+  --radius-card: 22px;
+  --radius-card-lg: 28px;
+  --shadow-b: 0 20px 50px rgba(80, 50, 30, .08);
+  --shadow-b-lg: 0 30px 70px rgba(80, 50, 30, .12);
+}
+
+/* B közös elemek — gombok (kapszula), kártya, címke. */
+/* @layer components: a Tailwind utility-osztályok (pl. px-, w-full) felülírhatják őket. */
+@layer components {
+.b-btn, .b-btn-outline, .b-btn-dark, .b-btn-light {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  border-radius: 999px; font-weight: 600; white-space: nowrap; transition: background-color .15s, color .15s, opacity .15s;
+}
+.b-btn { background: var(--color-b-accent); color: #fff; padding: 15px 28px; font-size: 16px; }
+.b-btn:hover { background: #b3381a; }
+.b-btn-outline { border: 1.5px solid var(--color-b-ink); color: var(--color-b-ink); padding: 13.5px 26.5px; font-size: 16px; font-weight: 500; }
+.b-btn-outline:hover { background: rgba(29, 23, 18, .05); }
+.b-btn-dark { background: var(--color-b-dark); color: var(--color-b-on-dark); padding: 11px 20px; font-size: 15px; }
+.b-btn-dark:hover { background: #3a2f26; }
+.b-btn-light { background: #fff; color: var(--color-b-ink); padding: 15px 28px; font-size: 16px; }
+.b-btn-light:hover { background: var(--color-b-bg); }
+.b-btn:disabled, .b-btn-dark:disabled, .b-btn-outline:disabled { opacity: .5; }
+.b-card { background: var(--color-b-card); border: 1px solid var(--color-b-line); border-radius: var(--radius-card); }
+.b-tag {
+  display: inline-block; border-radius: 999px; padding: 7px 16px; font-size: 13px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--color-b-accent-ink); background: var(--color-b-accent-soft);
+}
+.b-eyebrow { font-size: 13px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--color-b-accent-ink); }
+}
+
+/* B mozgás (terv 29 / 6.): futó sáv ~30 mp/kör, lebegés 6 mp, gomb-pulzálás 2,6 mp. Csökkentett mozgásnál áll. */
+@keyframes b-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes b-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes b-pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(200, 64, 31, .35); } 50% { box-shadow: 0 0 0 12px rgba(200, 64, 31, 0); } }
+@keyframes b-bar { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
+.b-marquee { display: flex; gap: 12px; width: max-content; animation: b-marquee 30s linear infinite; }
+.b-float { animation: b-float 6s ease-in-out infinite; }
+.b-pulse { animation: b-pulse-ring 2.6s ease-in-out infinite; }
+.b-bar { animation: b-bar 3s ease-in-out infinite; transform-origin: bottom; }
+/* Kiemelő címke (Márk kérése 2026-11-24; az arany helyett sötét + korall): a hero „Egyedi, cégre szabott modulok"
+   és a „Bármilyen iparágra építünk." felirat. Sötét kapszula (mint a felső sáv), krém betű (kontraszt > 12:1),
+   korall szegély és pont, lassú, halvány fényvillanás („mozgás csökkentése" beállításnál áll). */
+@layer components {
+.b-highlight {
+  position: relative; display: inline-flex; align-items: center; gap: 10px; overflow: hidden; isolation: isolate;
+  border-radius: 999px; padding: 9px 20px; font-size: 13px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+  color: var(--color-b-on-dark);
+  background: linear-gradient(135deg, #2c221b 0%, #1d1712 55%, #2a1d16 100%);
+  border: 1px solid rgba(255, 154, 126, 0.45);
+  box-shadow: 0 8px 20px rgba(29, 23, 18, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.b-highlight::before {
+  content: ""; width: 7px; height: 7px; flex: none; border-radius: 999px;
+  background: var(--color-b-accent-on-dark); box-shadow: 0 0 0 3px rgba(255, 154, 126, 0.18);
+}
+.b-highlight::after {
+  content: ""; position: absolute; inset: -40% auto -40% -30%; width: 30%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 154, 126, 0.16), transparent);
+  transform: skewX(-18deg); animation: b-highlight-sheen 6s ease-in-out infinite;
+}
+}
+@keyframes b-highlight-sheen { 0%, 55% { left: -30%; } 85%, 100% { left: 120%; } }
+@media (prefers-reduced-motion: reduce) { .b-highlight::after { animation: none; display: none; } }
+
+/* Olvashatóság díszítő háttér (pl. selyemszalagok) fölött: puha fehér „glow" a betűk körül (Márk kérése 2026-11-24). */
+@layer components {
+.b-glow-text { text-shadow: 0 0 2px #fff, 0 0 8px #fff, 0 0 16px rgba(255, 255, 255, 0.95), 0 0 28px rgba(255, 255, 255, 0.8); }
+/* gombon és telt korall elemen (fehér betű) nincs glow, különben elmosódna */
+.b-glow-text .b-btn, .b-glow-text .bg-b-accent { text-shadow: none; }
+}
+
+/* Kapcsolat-sáv „selyem" háttere (Márk kérése 2026-11-24: kevésbé sárgás, több színdinamika, selymesebb).
+   Mély terrakotta → korall → égetett rozsdabarna átmenet (a lila/bordó Márk kérésére kikerült), halvány fényfoltokkal és lassan vonuló selyemfénnyel.
+   A legvilágosabb pont (#c23c1f + 7% selyemfény) mellett is ≥ 4,7:1 a fehér szöveg kontrasztja (mérve).
+   „Mozgás csökkentése" beállításnál a fény áll. */
+@layer components {
+.b-contact-silk {
+  background:
+    radial-gradient(70% 90% at 92% 8%, rgba(255, 196, 170, 0.16), transparent 60%),
+    radial-gradient(80% 110% at 100% 100%, rgba(52, 22, 12, 0.55), transparent 62%),
+    radial-gradient(60% 80% at 0% 100%, rgba(120, 30, 20, 0.45), transparent 60%),
+    linear-gradient(128deg, #a7311b 0%, #c23c1f 34%, #b4381d 58%, #8f2e17 82%, #6f2412 100%);
+}
+.b-contact-silk::before {
+  content: ""; position: absolute; inset: -30%; pointer-events: none;
+  background: linear-gradient(115deg, transparent 36%, rgba(255, 225, 210, 0.04) 45%, rgba(255, 240, 230, 0.07) 50%, rgba(255, 225, 210, 0.04) 55%, transparent 64%);
+  animation: b-contact-sheen 14s ease-in-out infinite alternate;
+}
+}
+@keyframes b-contact-sheen { from { transform: translateX(-18%) rotate(0.001deg); } to { transform: translateX(18%) rotate(0.001deg); } }
+@media (prefers-reduced-motion: reduce) { .b-contact-silk::before { animation: none; } }
+
+/* Irodai fiók „Így működik" doboz selyem-háttere (Márk kérése 2026-11-24): ugyanaz a selymes megoldás, mint a
+   foglalási sávnál (.b-contact-silk), de más, hűvösebb színnel — mély petróleum → türkiz → éjkék átmenet, a korall
+   kiemelések így jól elválnak. Sötét háttér, krém szöveg (kontraszt > 10:1). „Mozgás csökkentése": a fény áll. */
+@layer components {
+.b-office-silk {
+  position: relative; isolation: isolate; overflow: hidden;
+  background:
+    radial-gradient(70% 90% at 90% 0%, rgba(120, 210, 205, 0.18), transparent 60%),
+    radial-gradient(80% 110% at 0% 100%, rgba(10, 24, 40, 0.6), transparent 62%),
+    linear-gradient(128deg, #0e3b42 0%, #155a5c 36%, #12484f 60%, #13324a 84%, #10233a 100%);
+}
+.b-office-silk::before {
+  content: ""; position: absolute; inset: -30%; pointer-events: none; z-index: -1;
+  background: linear-gradient(115deg, transparent 36%, rgba(210, 245, 240, 0.05) 45%, rgba(225, 250, 246, 0.09) 50%, rgba(210, 245, 240, 0.05) 55%, transparent 64%);
+  animation: b-contact-sheen 14s ease-in-out infinite alternate;
+}
+}
+@media (prefers-reduced-motion: reduce) { .b-office-silk::before { animation: none; } }
+
+/* „Selymes" áttetsző gomb színes / sötét selyem-háttérre (pl. a foglalási sáv „Minden elérhetőség" gombja). */
+@layer components {
+.b-silk-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: 999px;
+  padding: 11px 22px; font-size: 15px; font-weight: 600; color: #fff; white-space: nowrap;
+  background: linear-gradient(135deg, rgba(40, 12, 6, 0.34), rgba(40, 12, 6, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 22px rgba(60, 20, 10, 0.25);
+  backdrop-filter: blur(6px); transition: background .2s ease, box-shadow .2s ease;
+}
+.b-silk-btn:hover { background: linear-gradient(135deg, rgba(40, 12, 6, 0.48), rgba(40, 12, 6, 0.26)); }
+/* sötétített üveg → a fehér betű kontrasztja a korall selymen is ≥ 4,5:1 */
+}
+
+/* Selyemszalagok (SilkRibbons): nagyon lassú, oda-vissza sodródás — nem vonja el a figyelmet. */
+@keyframes b-silk { 0% { transform: translateX(0) translateY(0); } 50% { transform: translateX(-28px) translateY(6px); } 100% { transform: translateX(0) translateY(0); } }
+.b-silk { animation: b-silk 24s ease-in-out infinite; transform-box: view-box; }
+@media (prefers-reduced-motion: reduce) {
+  .b-marquee, .b-float, .b-pulse, .b-bar, .b-silk { animation: none; }
+}
+
 body {
   overflow-x: clip; /* a teljes szélességű (100vw) szakaszok ne okozzanak vízszintes görgetősávot */
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
