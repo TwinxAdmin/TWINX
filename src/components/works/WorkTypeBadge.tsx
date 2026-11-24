@@ -33,10 +33,6 @@ const FEATURE_CATEGORY: Record<string, WorkCategory> = {
   "fb-ads": "ad",
   "google-ads": "ad",
   "ad-check": "text",
-  menu_generator: "text",
-  cost_analysis: "text",
-  profit_plan: "text",
-  supplier_search: "text",
   professional_search: "text",
 };
 

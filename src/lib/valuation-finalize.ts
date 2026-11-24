@@ -47,7 +47,8 @@ export async function finalizeValuation(params: {
   let charged = false;
   if (!params.bypassed) {
     try {
-      const c = await chargeCredit({ userId: params.userId, amount: 1, service: "valuation", payFrom: params.payFrom });
+      // Ingatlan-keretnél utólagos elszámolás (force): a kész riport beszámít a keretbe, kredit nem fogy (terv 27).
+      const c = await chargeCredit({ userId: params.userId, amount: 1, service: "valuation", payFrom: params.payFrom, force: true, cost: { units: params.photoCount ?? 0 } });
       charged = c.ok && !c.bypassed;
     } catch {
       charged = false; // a levonás technikai hibája ne buktassa el a kész riportot

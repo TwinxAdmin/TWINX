@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { chargeCredit, refundCharge, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 import { FLYER_FORMATS, FLYER_CREDITS } from "@/lib/flyer";
 
@@ -82,9 +82,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, url, kind: format.kind, charged: charge ? !charge.bypassed : false });
   } catch (err) {
-    if (charge && !charge.bypassed) {
-      await refundCredit(user.id, FLYER_CREDITS, charge?.source);
-    }
+    await refundCharge(user.id, FLYER_CREDITS, charge);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

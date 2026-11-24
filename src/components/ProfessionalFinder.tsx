@@ -43,7 +43,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
   // A szakmalista a fül szerint vált: "finder" = online elérhető szolgáltatók,
   // "recruit" = egyéni alkalmazottak (toborzás). Mindkettő teljes, részletes űrlappal.
   const professions = [...professionsForTrack(industry, tab)].sort((a, b) => a.label.localeCompare(b.label, "hu"));
-  // Toborzás fül csak ott, ahol van egyéni (recruit) szakma — pl. vendéglátás; ingatlannál nincs.
+  // Toborzás fül csak ott, ahol van egyéni (recruit) szakma — jelenleg egyik iparágnál sincs.
   const hasRecruit = professionsForTrack(industry, "recruit").length > 0;
 
   const [profession, setProfession] = useState(professions[0]?.value ?? "");
@@ -248,7 +248,7 @@ export default function ProfessionalFinder({ industry }: { industry: Industry })
       <div className="space-y-4">
         {tab === "recruit" && (
           <div className="rounded-xl border p-3 text-sm" style={{ borderColor: "var(--twx-line)", background: "var(--twx-coral-soft)", color: "#7a2e17" }}>
-            <b>Toborzás.</b> Itt egyéni munkatárs profilját állítod össze (séf, szakács, cukrász, felszolgáló, pultos, barista…) a részletes szempontokkal — pontosan azzal a szakmánkénti táblázattal, amit kidolgoztunk. A jelöltek elérésének módja és a kredit-modell még kidolgozás alatt, ezért itt egyelőre nem vonunk kreditet.
+            <b>Toborzás.</b> Itt egyéni munkatárs profilját állítod össze a részletes szempontokkal — pontosan azzal a szakmánkénti táblázattal, amit kidolgoztunk. A jelöltek elérésének módja és a kredit-modell még kidolgozás alatt, ezért itt egyelőre nem vonunk kreditet.
           </div>
         )}
         {/* Szakma */}

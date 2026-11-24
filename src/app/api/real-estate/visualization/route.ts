@@ -15,7 +15,7 @@ import {
   type RoomConfig,
 } from "@/lib/visualization";
 import { buildRoomPromptActive } from "@/lib/prompts";
-import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { chargeCredit, refundCharge, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 import { generateImage } from "@/lib/nanobanana";
 import { getReferenceImage } from "@/lib/references";
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     userId: user.id, payFrom: payFromRequest(request),
     amount: 1,
     service: "visualization",
+    cost: { units: files.length },
   });
   if (!charge.ok) {
     return insufficientResponse(user.id, 1, charge);
@@ -181,9 +182,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     // Nem sikerült MIND -> teljes visszatérítés.
-    if (!charge.bypassed) {
-      await refundCredit(user.id, 1, charge?.source);
-    }
+    await refundCharge(user.id, 1, charge);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

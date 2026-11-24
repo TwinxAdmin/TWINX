@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
 import { activeShare, createShare, extendShare, revokeShare } from "@/lib/floorplan3d/shares";
-import { chargeCredit, payFromRequest, refundCredit } from "@/lib/credits";
+import { chargeCredit, payFromRequest, refundCharge } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 
 export const runtime = "nodejs";
@@ -56,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (charge && !charge.ok) return insufficientResponse(g.userId, price, charge);
     const r = await extendShare(g.userId, id, cfg.linkDays);
     if ("error" in r) {
-      if (charge?.ok && !charge.bypassed) await refundCredit(g.userId, price, charge.source);
+      await refundCharge(g.userId, price, charge);
       return NextResponse.json({ error: `${r.error} Nem számoltuk el.` }, { status: r.status });
     }
     return NextResponse.json({ share: r.share, charged: charge?.ok && !charge.bypassed ? price : 0 });

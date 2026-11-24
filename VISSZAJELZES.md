@@ -3,6 +3,83 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-24 – A vendéglátós modulok kódjának törlése
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: Márk kérése („minden, ami vendéglátás, töröljük"), nem tervből; D23 (egyedi modulok iránya)
+Elkészült:
+- Törölve:
+  - 7 dashboard oldal (`/dashboard/hospitality/*`);
+  - 13 API (`/api/hospitality/*`);
+  - 5 komponens (`components/hospitality`);
+  - a lib-fájlok (`hospitality`, `costing`, `simulation`, `recipes`, `suppliers`, `supplier-finalize`);
+  - a vendéglátós PDF-ek;
+  - 6 prompt-modul (menü, önköltség, profit-terv, beszállító belföld/EU, vendéglátós szakember);
+  - a katalógus és a landing „Vendéglátás” fül és sorai;
+  - az irodai és a kedvenc-címkék;
+  - a „Korábbi munkák” típus-címkék;
+  - a vendéglátós példák az egyedi modul oldalán.
+- A Szakember-kereső csak ingatlanos maradt (a vendéglátós szakmák, szűrők és prompt kikerültek; az ingatlanos működés változatlan).
+- A régi `/dashboard/hospitality/*` linkek a Dashboardra irányítanak.
+Eltérés a tervtől: nincs terv. Az adatbázis érintetlen (Márk döntése): a 12 vendéglátós tábla és a régi migrációk maradnak; a lomtár-takarítás a régi beszállító-keresések fájljait továbbra is törli.
+Új buktató / tanulság: a Szakember-kereső és a PDF-készítő közös volt a két iparággal — ezeket részlegesen kellett bontani, nem fájlonként törölni.
+Nem lett kész / Hamarosan: a vendéglátós táblák eldobása (külön döntés, mentéssel); a `_backup` mappa régi főoldal-másolatai és a `docs/ugynokseg` szövegei érintetlenek.
+Ellenőrzési lépések eredménye: `tsc` rendben; `eslint` az érintett fájlokon rendben (a meglévő `MAX_IMAGES` hibán kívül).
+Döntés kell tőled, Márk: kell-e később a vendéglátós táblák végleges törlése.
+Éles állapot: helyben kész, push nélkül.
+
+## 2026-11-24 – 5/a: Az Ingatlan csomag havi költségkerete
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/27, 28 (5/a), 20; D62
+Elkészült:
+- Migráció `20261124200000_package-caps.sql` (+ down): cégenkénti Ingatlan-keret (Ft, nettó önköltség), havi használat budapesti hónap szerint, foglalás sorzárral és idempotens kéréskulccsal, feloldás hibánál, 80/100%-os jelzés egyszer / hónap / keret-érték, keret-módosítás csak adminnak, indoklással, naplózva; a hozzáférés-adás egy tranzakcióban ellenőrzi a cég-tagságot és a keretet.
+- Hook a közös kredit-ponton (`src/lib/credits.ts`). A korábbi „hozzáféréssel nincs levonás” ág helyett most a cég keretéből foglal. Hibánál a modulok egységesen `refundCharge`-dzsel oldanak fel. Az admin továbbra sem foglal.
+- Központi becslő: `src/lib/package-cap.ts`. A `costs.ts` konstansaiból számol, ugyanazokból, amelyekkel a Költségfigyelő naplóz. Ismeretlen szolgáltatásnál hibát ad, nem enged át csendben.
+- Leálláskor a terv 22 szövege jelenik meg, szám nélkül, 429-es kóddal.
+- Felhasználók → Ingatlan pipa: Besorolatlan felhasználónál előbb a „Céghez rendelés” ablak nyílik. Keret nélküli cégnél a felület bekéri a havi keretet (kötelező, Ft).
+- Előfizetések: új „Ingatlan csomag — havi keretek” doboz keret-sávval. A „⋯” menüben „Keret módosítása”, indoklással.
+  - A már Ingatlan-hozzáféréssel rendelkező, de keret nélküli cégek is megjelennek, „Nincs keret” jelöléssel. Náluk a „⋯ → Keret megadása” pótolja a keretet.
+  - A cégben nem lévő (Besorolatlan) hozzáférésesek nem jelennek meg itt. Ők céghez rendelés nélkül nem indíthatnak költséges műveletet.
+- A napi cron az Ingatlan-keretekre is lefut.
+Eltérés a tervtől:
+- **Tábla-döntés:** külön, additív táblák készültek (`package_caps`, `package_usage_events`, `package_cap_notifications`), nem egy `ingatlan` sor a `company_modules`-ban. Ok: a `company_modules` sorához aktiválás, helyek, érvényesség és meghívásos `module_access` tartozik. Az Ingatlan-hozzáférés viszont felhasználóhoz kötött (`company_access`). A mezőkészlet a terv 20-é.
+- **Elszámolás:** a közös kredit-pont nem kap jelzést a hívás sikeréről, ezért a foglalás egyben elszámolás a becsült költséggel; hibánál feloldás.
+  - Tényleges költséggel nem számolunk újra. A becslés felső értékkel dolgozik: képjavításnál újrapróbálással, videónál a csomag szerint, értékbecslésnél fotó-elemzéssel.
+- **Értékbecslés:** indulás előtt csak ellenőrzés történik. A kész riport utólag számít be a keretbe, akkor is, ha közben elfogyott (a kész eredményt nem dobjuk el).
+- **Csak az Ingatlan szolgáltatások mennek a keretre.** A vendéglátós modulok Ingatlan-hozzáféréssel a korábbi módon (levonás nélkül) futnak.
+- **Felhasználónként a legkorábbi aktív cég-tagság kerete számít,** ha annak a cégnek van Ingatlan-kerete.
+Új buktató / tanulság:
+- Ahol a hiba később, a háttérben derül ki (telekkutatás állapot-lekérdezése, videó háttérfolyamat), ott a foglalás nem oldódik fel. Ez a védelem javára túlszámol.
+- Nem mennek át a kredit-ponton, ezért a keret sem védi őket:
+  - képjavítás „újragenerálás” (`image-enhance/regenerate`);
+  - a 3D-labor lépései (digitize / furnish / target / quality);
+  - a logótisztítás.
+  Ezek költségét csak a Költségfigyelő mutatja.
+- A `floorplan-3d` jóváhagyásnak nincs egységes becslése, ezért Ingatlan-kerettel hibát ad, nem fut ingyen. Jelenleg prototípus.
+- A szórólap és a 3D-megosztás meghosszabbítása 0 Ft (nincs külső API). A saját videómotort is 0 Ft-tal számoljuk: nincs hívásonkénti API-díja, de a futtatási költsége nincs benne.
+- Meglévő, nem érintett eslint-hiba: `visualization/route.ts` nem használt `MAX_IMAGES` import (nem javítottam).
+Nem lett kész / Hamarosan:
+- a tényleges költséggel történő utólagos elszámolás;
+- a fenti, a kredit-pontot megkerülő hívások bekötése;
+- műveletenkénti használati lista az Ingatlan-keretnél.
+Ellenőrzési lépések eredménye: `tsc` rendben; `eslint` az érintett fájlokon rendben (a fenti, meglévő hibán kívül). A migráció és a terv 27 / 5. szakasz 10 pontja Márk tesztjére vár: tesztcég kis kerettel, 80% / 100%, két párhuzamos kérés, admin, Besorolatlan felhasználó.
+Döntés kell tőled, Márk:
+- a kezdeti keretek cégenként;
+- a kredit-pontot megkerülő hívások (újragenerálás, 3D-labor) bekötése;
+- a saját videómotor 0 Ft-os becslése elfogadható-e;
+- a vendéglátós modulok Ingatlan-hozzáféréssel maradjanak-e levonás nélkül.
+Éles állapot: a migráció lefutott; push után élesben. Push után azonnal: keret megadása a meglévő Ingatlan-hozzáféréses cégeknek (Előfizetések → „Nincs keret” → ⋯ → Keret megadása).
+
+## 2026-11-24 – Belépés, regisztráció és maradék régi szövegek
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/22 (5. C), D23 (nincs „kredit"), 3d utómunka
+Elkészült: regisztráció (ablak és /register) fölött a terv 22 szövege („Ha meghívót kaptál…”) — kampány-forrásnál a régi ajándékkredites szöveg marad; a megerősítő ablak kredit nélkül; Beállítások új felületen kredit-kérés és saját (kreditvásárlási) számlázás nélkül; Kapcsolat oldal linkjei az Ingyenes felmérésre és a Referenciákra, a téma „Előfizetés, fizetés, számla”; leiratkozás szövege kredit nélkül.
+Eltérés a tervtől: nincs.
+Új buktató / tanulság: a 3d kivezetésből kimaradt a Beállítások oldal kredit-kérés panelje — most pótolva.
+Nem lett kész / Hamarosan: ÁSZF (/aszf) még a kredites modellt írja le — jogászi átírás kell; /ingatlan és /bemutatkozas kampányoldalak érintetlenek (tervezői döntés).
+Ellenőrzési lépések eredménye: `tsc` és `eslint` rendben.
+Döntés kell tőled, Márk: ÁSZF átírása; kampányoldalak sorsa.
+Éles állapot: push után élesben.
+
 ## 2026-11-24 – Terv 21: lemondás, lezárás, ügyféladat
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/21; D54

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { affectedRooms, checkPlan } from "@/lib/floorplan3d/geometry";
 import { floorplan3dConfig } from "@/lib/floorplan3d/config";
 import { REVISIONS_MIGRATION_MSG, markApproved, projectForApproval } from "@/lib/floorplan3d/projects";
-import { chargeCredit, payFromRequest, refundCredit } from "@/lib/credits";
+import { chargeCredit, payFromRequest, refundCharge } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const locked = await markApproved(user.id, id, p.revisionsReady ? { plan: p.plan, rebuildRooms: rebuild, revision: p.revision + 1 } : null);
   if (!locked) {
-    if (charge?.ok && !charge.bypassed) await refundCredit(user.id, price, charge.source);
+    await refundCharge(user.id, price, charge);
     return NextResponse.json({ error: "A jóváhagyás nem sikerült — nem számoltuk el." }, { status: 409 });
   }
   return NextResponse.json({ ok: true, rebuildRooms: rebuild, revision: p.revision + 1, charged: charge && !charge.bypassed ? price : 0 });

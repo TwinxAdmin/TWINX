@@ -1,7 +1,7 @@
 // A főoldal (twinx.hu) tartalmi forrása — EGY helyen, hogy a szövegek és a számok
 // ne szóródjanak szét a komponensekben.
 //
-// ELV: a főoldal iparág-SEMLEGES. Az ingatlan és a vendéglátás példa, nem ígéret.
+// ELV: a főoldal iparág-SEMLEGES. Az ingatlan példa, nem ígéret.
 // Minden felirat azt nevezi meg, amit a partner KAP (eredmény-nyelv), nem a
 // szakmát vagy a technológiát. Tiltott szavak: AI-motor, platform, megoldás,
 // alkalmazás-áruház, „saját fejlesztésű".
@@ -16,7 +16,6 @@ import { FBADS_CREDITS } from "@/lib/fbads";
 import { ADCHECK_CREDITS } from "@/lib/adcheck";
 import { ENHANCE_CREDITS } from "@/lib/image-enhance";
 import { VALUATION_CREDITS } from "@/lib/valuation";
-import { MENU_CREDITS } from "@/lib/hospitality";
 import { WELCOME_CREDITS } from "@/lib/onboarding";
 
 export { WELCOME_CREDITS };
@@ -157,10 +156,6 @@ const RESULT_TITLES: Record<string, { title: string; input: string; credits: num
   "/dashboard/real-estate/ad-check": { title: "Meglévő hirdetés pontozva, átírva", input: "Egy link", credits: ADCHECK_CREDITS },
   "/dashboard/real-estate/valuation": { title: "Értékbecslés egy oldalon, arculattal", input: "Részletes adatlap az ingatlanról", credits: VALUATION_CREDITS },
   "/dashboard/real-estate/professionals": { title: "Szakember a környékről", input: "Mit keresel, hol", credits: 1 },
-  "/dashboard/hospitality/menu": { title: "Alapanyagból heti menü", input: "A kínálatod", credits: MENU_CREDITS },
-  "/dashboard/hospitality/costing": { title: "Önköltség és haszon egy táblában", input: "Alapanyag-árak", credits: 1 },
-  "/dashboard/hospitality/pricing": { title: "Ár-javaslat haszonkulccsal", input: "Az étlapod", credits: 1 },
-  "/dashboard/hospitality/suppliers": { title: "Beszállító-lista összehasonlítva", input: "Mit, mennyit, hova", credits: 1 },
 };
 
 function toLanding(m: ModuleLink): LandingModule {
@@ -187,12 +182,6 @@ export const AUDIENCES: Array<{ key: AudienceKey; label: string; blurb: string; 
     modules: ALL_MODULES.filter((m) => m.industry === "ingatlan" && !m.hidden).map(toLanding),
   },
   {
-    key: "vendeglatas",
-    label: "Vendéglátás",
-    blurb: "Menü, önköltség, árazás és beszállítók — a konyha és a kassza közti számolás.",
-    modules: ALL_MODULES.filter((m) => m.industry === "vendeglatas").map(toLanding),
-  },
-  {
     key: "altalanos",
     label: "Minden vállalkozás",
     blurb: "Fotó, levél, számla, vélemény — a mindennapi apró munkák, amik összeadva órákat visznek el.",
@@ -217,6 +206,5 @@ export const CREDIT_COSTS: Array<{ label: string; credits: number }> = [
   { label: "Hirdetéskép", credits: FLYER_CREDITS },
   { label: "Hirdetésszöveg", credits: FBADS_CREDITS },
   { label: "Értékbecslés", credits: VALUATION_CREDITS },
-  { label: "Heti menü", credits: MENU_CREDITS },
   { label: "Videó", credits: VIDEO_CREDITS_ALAP },
 ];

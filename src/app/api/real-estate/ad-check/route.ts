@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { chargeCredit, refundCharge, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildAdCheckPromptActive } from "@/lib/prompts";
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     return insufficientResponse(user.id, credits, charge);
   }
   const refund = async () => {
-    if (charge && !charge.bypassed) await refundCredit(user.id, credits, charge?.source);
+    await refundCharge(user.id, credits, charge);
   };
 
   try {

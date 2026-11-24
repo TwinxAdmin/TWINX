@@ -85,13 +85,22 @@ export default function UserTable({
   // Ingatlan-hozzáférés (company_access): helyben kapcsolható, a friss érték itt él.
   const [estate, setEstate] = useState<Set<string>>(() => new Set(estateIds));
   const [estateBusy, setEstateBusy] = useState<string | null>(null);
-  async function toggleEstate(u: UserMetric) {
+  // Ha a cégnek még nincs Ingatlan-kerete, a hozzáférés-adás bekéri (terv 27, D62) — kötelező, Ft.
+  const [capFor, setCapFor] = useState<UserMetric | null>(null);
+  const [capValue, setCapValue] = useState("");
+  async function toggleEstate(u: UserMetric, capFt?: number) {
     const next = !estate.has(u.userId);
     setEstateBusy(u.userId);
     try {
-      const r = await fetch("/api/admin/new-ui", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: u.userId, estateAccess: next }) });
+      const r = await fetch("/api/admin/new-ui", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: u.userId, estateAccess: next, ...(capFt ? { capFt } : {}) }) });
       const d = await r.json().catch(() => ({}));
+      if (r.status === 409 && d.code === "keret_kell") { setCapValue(""); setCapFor(u); return; }
+      if (r.status === 409 && d.code === "nincs_ceg" && companies.length > 0) {
+        showToast(d.error, "error"); setAssignCompany(companies[0]?.id ?? ""); setAssignFor(u); return;
+      }
       if (!r.ok) { showToast(d.error ?? "Nem sikerült.", "error"); return; }
+      setCapFor(null);
       setEstate((prev) => { const x = new Set(prev); if (next) x.add(u.userId); else x.delete(u.userId); return x; });
       showToast(`${u.name || u.email}: Ingatlan-hozzáférés ${next ? "megadva" : "elvéve"}`, "success");
     } finally { setEstateBusy(null); }
@@ -99,7 +108,7 @@ export default function UserTable({
   /** Ingatlan csomag hozzáférés kapcsolója (fix méretű). */
   const EstateToggle = ({ u }: { u: UserMetric }) => (
     <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs" onClick={(e) => e.stopPropagation()}
-      title="Ingatlan csomag hozzáférés — az új felületen ezzel használhatja az ingatlanos modulokat, levonás nélkül.">
+      title="Ingatlan csomag hozzáférés — az új felületen ezzel használhatja az ingatlanos modulokat, a cége havi keretéből.">
       <input type="checkbox" className="h-4 w-4 accent-[#ef7a5a]" checked={estate.has(u.userId)} disabled={estateBusy === u.userId}
         onChange={() => void toggleEstate(u)} />
       Ingatlan
@@ -401,6 +410,28 @@ export default function UserTable({
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" className="twx-btn-outline" onClick={() => setAssignFor(null)}>Mégse</button>
               <button type="button" className="twx-btn" disabled={assignBusy || !assignCompany} onClick={() => void assign()}>Hozzárendelés</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {capFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(18,16,14,0.55)" }}
+          onMouseDown={() => setCapFor(null)}>
+          <div className="twx-card w-full max-w-md p-6" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal>
+            <h3 className="font-display text-lg font-semibold">Ingatlan-hozzáférés és havi keret</h3>
+            <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
+              {capFor.name || capFor.email} · {(mem[capFor.userId] ?? [])[0]?.name ?? "cég"}
+            </p>
+            <p className="mt-3 text-sm">A cégnek még nincs Ingatlan-kerete. Add meg a havi keretet (nettó önköltség, Ft) — a cég minden Ingatlan-hozzáféréssel rendelkező tagja ebből fogyaszt. 80%-nál jelzést kapsz, 100%-nál a költséges műveletek leállnak a hónap végéig vagy a keret emeléséig.</p>
+            <label className="mt-4 block text-xs font-semibold" style={{ color: "var(--twx-ink-muted)" }}>Havi keret (Ft)</label>
+            <input type="number" min={1} step={1} inputMode="numeric" className="twx-input mt-1 w-full" value={capValue}
+              onChange={(e) => setCapValue(e.target.value)} placeholder="pl. a Költségfigyelő alapján" autoFocus />
+            <p className="mt-2 text-xs" style={{ color: "var(--twx-ink-muted)" }}>Később az Admin → Előfizetések lapon, indoklással módosítható. A felhasználó számot nem lát.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="twx-btn-outline" onClick={() => setCapFor(null)}>Mégse</button>
+              <button type="button" className="twx-btn" disabled={estateBusy === capFor.userId || !(Number(capValue) > 0) || !Number.isInteger(Number(capValue))}
+                onClick={() => void toggleEstate(capFor, Number(capValue))}>Hozzáférés megadása</button>
             </div>
           </div>
         </div>

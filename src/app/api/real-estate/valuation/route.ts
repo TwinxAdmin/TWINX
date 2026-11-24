@@ -163,7 +163,7 @@ export async function POST(request: Request) {
   const payFrom = payFromRequest(request);
   let avail: Awaited<ReturnType<typeof checkCreditAvailable>>;
   try {
-    avail = await checkCreditAvailable({ userId: user.id, amount: 1, payFrom });
+    avail = await checkCreditAvailable({ userId: user.id, amount: 1, payFrom, service: "valuation", cost: { units: photoImages.length } });
   } catch {
     return NextResponse.json(
       { error: "Az indítás ellenőrzése most nem sikerült. Próbáld újra." },

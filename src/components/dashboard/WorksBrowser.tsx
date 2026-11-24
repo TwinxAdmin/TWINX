@@ -20,7 +20,6 @@ const FEATURE_ICON: Record<string, string> = {
   video: "video",
   flyer: "flyer",
   "ad-check": "history",
-  menu_generator: "menu",
 };
 
 export type WorkItem = {

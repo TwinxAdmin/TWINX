@@ -39,10 +39,6 @@ export const FEATURE_TO_HREF: Record<string, string> = {
   valuation: "/dashboard/real-estate/valuation",
   professional_search: "/dashboard/real-estate/professionals",
   "land-valuation": "/dashboard/real-estate/land",
-  menu_generator: "/dashboard/hospitality/menu",
-  cost_analysis: "/dashboard/hospitality/costing",
-  profit_plan: "/dashboard/hospitality/costing",
-  supplier_search: "/dashboard/hospitality/suppliers",
 };
 
 /**

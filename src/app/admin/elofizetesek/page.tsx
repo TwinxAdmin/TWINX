@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminShell from "@/components/admin/AdminShell";
 import CompanyModulesAdmin from "@/components/admin/CompanyModulesAdmin";
+import PackageCapsAdmin from "@/components/admin/PackageCapsAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function Page() {
   if (me?.role !== "admin") redirect("/dashboard");
   return (
     <AdminShell title="Előfizetések" subtitle="Cégenként és modulonként: helyek (foglalt / összes), érvényesség, plafon. A lejáró modulok kiemelve.">
+      <PackageCapsAdmin />
       <CompanyModulesAdmin view="subscriptions" />
     </AdminShell>
   );

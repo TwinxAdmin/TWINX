@@ -1,11 +1,11 @@
-# 25 – Átadó üzenetek a fejlesztési és az ügynökség-beszélgetésnek (D57-ig)
+# 25 – Átadó üzenetek a fejlesztési és az ügynökség-beszélgetésnek (D61-ig)
 
 Állapot: 2026-11-23. Mindkét üzenet bemásolható a megfelelő beszélgetés elejére. A részletek a hivatkozott dokumentumokban vannak; ütközésnél a `00-iranyvaltas-D23.md` és a `01-alap-es-szabalyok.md` (döntési napló) az irányadó.
 
 ## 1. Üzenet a fejlesztési (Cowork) beszélgetésnek
 
 ```
-TWINX – átadás a fejlesztési beszélgetésnek (2026. 11. 23., döntések D23–D58)
+TWINX – átadás a fejlesztési beszélgetésnek (2026. 11. 23., döntések D23–D68)
 
 A TWINX irányt váltott: egyedi, cégre szabott modulok gyártója vagyunk, bármilyen cégnek. A kreditalapú eszköztár-modell megszűnt, a „kredit” szó kikerül a felületről. A meglévő ingatlanos modulok referenciák (a GDN Mandala kollégái használják). Az ügyfélút: ingyenes felmérés (időpontfoglalás) → Cég létrehozása → egyedi modul fejlesztése → Aktiválás → előfizetés → a cégvezető meghívja a kollégáit. Árat nem közlünk, minden ajánlat egyedi.
 
@@ -16,9 +16,9 @@ A tervek a repóban a docs/terv/ mappában vannak (a „claude/” előtag nélk
 Olvasási sorrend:
 1. claude/00-iranyvaltas-D23.md – az új irány hivatalos leírása (irányadó).
 2. claude/18-atadas-fejlesztesi-beszelgetesnek.md – áttekintés: mi változik, a teendők kötött sorrendje.
-3. claude/ai-ugynokseg/01-alap-es-szabalyok.md – döntési napló (D01–D58).
+3. claude/ai-ugynokseg/01-alap-es-szabalyok.md – döntési napló (D01–D68).
 4. claude/ai-ugynokseg/04-CLAUDE-fejlesztes.md – fejlesztési tudásbázis.
-5. Részletes tervek: 11 főoldal és landing · 12 admin · 13 hozzáférések és meghívás · 14 adatmodell · 15 foglalás · 16 e-mail szövegek · 17 adatkezelési tájékoztató · 19 díjak és fizetés · 20 plafon és használat · 21 lemondás és lezárás · 22 felhasználói szövegek · 23 átadási bejegyzés · 24 belső ajánlat-ellenőrző lista (belső, nem fejlesztési feladat).
+5. Részletes tervek: 11 főoldal és landing · 12 admin · 13 hozzáférések és meghívás · 14 adatmodell · 15 foglalás · 16 e-mail szövegek · 17 adatkezelési tájékoztató · 19 díjak és fizetés · 20 plafon és használat · 21 lemondás és lezárás · 22 felhasználói szövegek · 23 átadási bejegyzés · 24 belső ajánlat-ellenőrző lista (belső, nem fejlesztési feladat) · 27 az Ingatlan csomag költségvédelme · 28 az 5/a és 5/b CODE-prompt.
 6. Meglévő modul módosítása előtt: claude/TWINX-memoria-export-web_twinx.md (régi technikai tudás, buktatók).
 
 A fejlesztés kötött sorrendje:
@@ -44,7 +44,7 @@ Együttműködés rendje (D59, részletek: 26-egyuttmukodes-rendje.md): a docs/t
 ## 2. Üzenet az ügynökséget kezelő beszélgetésnek
 
 ```
-TWINX – átadás az ügynökség-beszélgetésnek (2026. 11. 23., döntések D23–D58)
+TWINX – átadás az ügynökség-beszélgetésnek (2026. 11. 23., döntések D23–D61)
 
 A TWINX irányt váltott: egyedi, cégre szabott modulok gyártója vagyunk, bármilyen cégnek (ingyenes felmérés → ajánlat → fejlesztés → átadás → előfizetés). A kreditalapú, regisztrálj-és-használd modell megszűnt. Ez az ügynökség céljait is átrendezi.
 
@@ -55,10 +55,12 @@ Mi változott az ügynökségnél:
 
 Olvasási sorrend a projektben:
 1. claude/00-iranyvaltas-D23.md – az új irány (irányadó).
-2. claude/ai-ugynokseg/01-alap-es-szabalyok.md – célok, szabályok, döntési napló (D01–D58).
+2. claude/ai-ugynokseg/01-alap-es-szabalyok.md – célok, szabályok, döntési napló (D01–D61).
 3. claude/ai-ugynokseg/10-fejlesztoi-ag-alugynokok.md – a 6 alügynök és a félretett szerepek.
 4. claude/ai-ugynokseg/02-keretrendszer-spec.md és 09-ugynokok-spec.md – váz, feladat-tábla, memória, ügynök-leírások (a partner ág része háttérben).
 5. claude/ai-ugynokseg/04-CLAUDE-fejlesztes.md – a TWINX tudásbázisa; 05 marketing (D53-szintű).
+6. claude/ai-ugynokseg/11-ugynokseg-kovetkezo-feladatok.md – a következő feladatok sorrendben (ezzel kezdj dolgozni).
+A 03, 06, 07, 08 történeti dokumentumok (a partner ág anyaga, szünetel) is a mappában vannak; csak háttérnek olvasd, az elavult részeket a fejlécük jelzi.
 Figyelem: a 02, 09 és 10 dokumentum még nincs szinkronban a D40–D58 döntésekkel (admin, szerepkörök, plafon, lemondás, átadás, ajánlat-ellenőrzés). Ütközésnél a 00 és a 01 az irányadó; ezeket a dokumentumokat a következő ügynökségi kör elején kell átvezetni.
 
 Ami az ügynökség munkáját érinti az új döntésekből:
@@ -69,7 +71,11 @@ Ami az ügynökség munkáját érinti az új döntésekből:
 - Az ajánlat- és költségbecslő ügynök (az első tervezett bővítés) a `24` belső ajánlat-ellenőrző listából és kalkulációs sablonból dolgozhat (D57). Az árat és a havi díjat Márk határozza meg, az ajánlatot Márk és Tibor jóváhagyja.
 - Nem fejlesztünk itt; a megvalósítás a Code-ban történik. Az indulási kapu: az API-bekötés és az éles indítás előtt Márk egyeztet Tiborral.
 
-Nyitott az ügynökségnél: a 02/09/10 szinkronja, az alügynökök alapokmányai (ügynökönként), a modul tesztelő teszt-környezete és a Felmérő jegyzet-útja, a partner ág jövője, havi költségplafon az ügynökség API-jára. A szerződés-, NDA- és ÁSZF-sablonok később, jogásszal készülnek (D58).
+API-költség (D60): Márk 20 eurót töltött fel a Claude Console-ba, nincs automatikus újratöltés, a pótlás kézi. Indulás: külön Workspace (twinx-agents) és külön kulcs, 20 USD havi Workspace-limit, később felülvizsgáljuk. A kulcs csak a laptop környezeti változójában él, a repóba és a gitbe soha nem kerül. Az ügynök naplózza hívásonként a költséget, napi alkalmazás-szintű plafont tart (a Workspace-limitnél kisebbet; elérésekor a MAX leáll és Telegramon szól), hibánál nem próbálkozik végtelenül, és heti költségjelentést küld. A modellek configból cserélhetők.
+
+Nyitott az ügynökségnél (rendezett sorrendben: ai-ugynokseg/11): a 02/09/10 szinkronja, az alügynökök alapokmányai (ügynökönként), a modul tesztelő teszt-környezete és a Felmérő jegyzet-útja, a partner ág jövője, a napi alkalmazás-szintű költségplafon értéke és a heti költségjelentés. A szerződés-, NDA- és ÁSZF-sablonok később, jogásszal készülnek (D58).
+
+Parkolt (D61): az ügynökség munkájának megtekintése a twinx.hu adminban („Ügynökség” oldal). Most a Telegram-összefoglalók és a Supabase felülete elég. Hogy később ne kelljen átépíteni, az adatmodellnél tartsd be: (1) a feladat- és szál-táblákban külön rövid nyilvános mezőkészlet (cím, állapot, ügynök, időbélyeg, költség) és külön privat tartalom; (2) csak olvasható adatbázis-szerepkör az állapot-adatokhoz, amely nem látja a privat tartalmat és nem kerül a böngészőbe. A jóváhagyás marad a Telegramon.
 
 Együttműködés rendje (D59, részletek: 26-egyuttmukodes-rendje.md): a docs/terv/ másolat csak olvasható, a terv és a döntés a tervező projektben él. Minden lépés végén írj bejegyzést a a repó gyökerében lévő VISSZAJELZES.md-be (a docs/terv/ alatt csak a sablon van, azt minden export felülírja) a sablon szerint (elkészült, eltérés a tervtől, új buktató, ami nem lett kész, ellenőrzés eredménye, kérdések Márknak, éles állapot). Új lépést csak akkor kezdj, ha Márk jelezte, hogy a terv szinkronban van. Ha frissült az export, a docs/terv/VALTOZASOK.md első bejegyzése mondja meg, mit olvass újra.
 ```

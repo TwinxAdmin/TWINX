@@ -17,7 +17,7 @@ import { runEngineJob } from "@/lib/video-engine/job-node";
 import type { AspectId } from "@/lib/video-engine/template-schema";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit, payFromRequest, type PayFrom } from "@/lib/credits";
+import { chargeCredit, refundCharge, refundCredit, payFromRequest, type PayFrom } from "@/lib/credits";
 import { resolveViewContext } from "@/lib/view-as";
 import { isTemplateStartable, TEMPLATE_UNAVAILABLE_MESSAGE } from "@/lib/video-template-availability";
 import { insufficientResponse } from "@/lib/credit-response";
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
   // 1) Kredit (admin/sales bypass). Hibánál a lánc bármely pontján visszatérítjük.
   const credits = creditsForPackage(pkg);
-  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "video", payFrom: payFromRequest(request) }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId: user.id, amount: credits, service: "video", payFrom: payFromRequest(request), cost: { variant: pkg === "pro" ? "pro" : "alap", units: files.length } }) : null;
   if (charge && !charge.ok) {
     return insufficientResponse(user.id, credits, charge);
   }
@@ -158,7 +158,10 @@ export async function POST(request: Request) {
   // hogy egy később beérkező webhook ne térítsen vissza másodszor is.
   let createdJobId: string | null = null;
   const refund = async (message: string) => {
-    if (!charge || charge.bypassed) return;
+    if (!charge || !charge.ok) return;
+    // Ingatlan-keret foglalás: feloldás (a job hiba-ágát a failJobOnce a kredit miatt kezeli).
+    if (charge.packageEvent) { await refundCharge(user.id, credits, charge); if (createdJobId) await failJobOnce(createdJobId, user.id, 0, message); return; }
+    if (charge.bypassed) return;
     if (createdJobId) await failJobOnce(createdJobId, user.id, credits, message);
     else await refundCredit(user.id, credits, charge?.source);
   };
@@ -518,7 +521,7 @@ async function postWithEngine(form: FormData, userId: string, payFrom: PayFrom) 
 
   // 2) Kredit (admin/sales bypass). A saját motornak nincs PRO csomagja.
   const credits = creditsForPackage("alap");
-  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits, service: "video", payFrom }) : null;
+  const charge = credits > 0 ? await chargeCredit({ userId, amount: credits, service: "video", payFrom, cost: { variant: "engine" } }) : null;
   if (charge && !charge.ok) {
     return insufficientResponse(userId, credits, charge);
   }
@@ -543,6 +546,7 @@ async function postWithEngine(form: FormData, userId: string, payFrom: PayFrom) 
     jobId = job.id as string;
   } catch (err) {
     if (charged) await refundCredit(userId, charged, charge?.source);
+    else await refundCharge(userId, credits, charge);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 

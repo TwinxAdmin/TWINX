@@ -48,34 +48,6 @@ import {
 } from "@/lib/flyer";
 import { VIDEO_DEFAULT_PROMPT } from "@/lib/fal";
 import {
-  MENU_DEFAULT_SEGMENTS,
-  MENU_DATA_BLOCK_PREVIEW,
-  composeMenuPrompt,
-  type Timeframe,
-  type MenuTheme,
-  type ProfitGoal,
-  type DayPlanEntry,
-} from "@/lib/hospitality";
-import {
-  COSTING_DEFAULT_SEGMENTS,
-  COSTING_DATA_BLOCK_PREVIEW,
-  composeCostingPrompt,
-} from "@/lib/costing";
-import {
-  SIMULATION_DEFAULT_SEGMENTS,
-  SIMULATION_DATA_BLOCK_PREVIEW,
-  composeSimulationPrompt,
-} from "@/lib/simulation";
-import {
-  SUPPLIER_DEFAULT_SEGMENTS,
-  SUPPLIER_DATA_BLOCK_PREVIEW,
-  SUPPLIER_EU_DEFAULT_SEGMENTS,
-  SUPPLIER_EU_DATA_BLOCK_PREVIEW,
-  composeSupplierPrompt,
-  composeSupplierPromptEu,
-  type SupplierQuery,
-} from "@/lib/suppliers";
-import {
   PROFESSIONAL_DEFAULT_SEGMENTS,
   PROFESSIONAL_DATA_BLOCK_PREVIEW,
   composeProfessionalPrompt,
@@ -238,106 +210,6 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
     ],
   },
   {
-    key: "menu_generator",
-    label: "Menü generátor (vendéglátás)",
-    dataBlockPreview: MENU_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep",
-        hint: "A séf/marketing szerep és az alapszabály (csak a listás ételek). Változó nem használható.",
-        default: MENU_DEFAULT_SEGMENTS.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet",
-        hint: "A menü felépítése és stílusa (bevezető + fogásokra/napokra bontás). Változó nem használható.",
-        default: MENU_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
-    key: "cost_analysis",
-    label: "Önköltség & profit elemzés (vendéglátás)",
-    dataBlockPreview: COSTING_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep",
-        hint: "A pénzügyi tanácsadó szerepe és az alapszabály (a számokat ne írja újra). Változó nem használható.",
-        default: COSTING_DEFAULT_SEGMENTS.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet",
-        hint: "Az elemzés felépítése (összkép + ételbontás + megtérülési javaslat + teendők). Változó nem használható.",
-        default: COSTING_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
-    key: "profit_plan",
-    label: "Profit-terv (vendéglátás)",
-    dataBlockPreview: SIMULATION_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep",
-        hint: "Az üzleti tanácsadó szerepe és az alapszabály (a számokat ne írja újra). Változó nem használható.",
-        default: SIMULATION_DEFAULT_SEGMENTS.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet",
-        hint: "Az értékelés felépítése (reális-e a terv + kockázat + javaslat + teendők). Változó nem használható.",
-        default: SIMULATION_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
-    key: "supplier_search",
-    label: "Beszállító-kereső (vendéglátás)",
-    dataBlockPreview: SUPPLIER_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep",
-        hint: "A beszerzési szakértő szerepe és a legfontosabb szabály: ne találjon ki céget vagy elérhetőséget. Változó nem használható.",
-        default: SUPPLIER_DEFAULT_SEGMENTS.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet (JSON)",
-        hint: "A kért JSON-kulcsok és a mezők tartalma. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
-        default: SUPPLIER_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
-    key: "supplier_search_eu",
-    label: "Beszállító-kereső — külföld (EU)",
-    dataBlockPreview: SUPPLIER_EU_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep (EU)",
-        hint: "A nemzetközi (EU) beszerzési szakértő szerepe: valós EU-s gyártók + magyar disztribútor, EU-import kontextus, ne találjon ki céget. Változó nem használható.",
-        default: SUPPLIER_EU_DEFAULT_SEGMENTS.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet (JSON, EU)",
-        hint: "A kért JSON és a mezők tartalma EU-import fókusszal (idegen nyelvű megkereső üzenet, magyar disztribútor-alternatíva).",
-        default: SUPPLIER_EU_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
     key: "ad_check",
     label: "Hirdetés-ellenőrző",
     dataBlockPreview: ADCHECK_DATA_BLOCK_PREVIEW,
@@ -394,26 +266,6 @@ export const PROMPT_MODULES: PromptModuleDef[] = [
         label: "Feladat / struktúra (JSON)",
         hint: "A reszponzív keresési hirdetés szövegei (címsorok ≤30, leírások ≤90) és a kulcsszólista (célzott + kizáró). A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
         default: GOOGLE_ADS_DEFAULT_SEGMENTS.task,
-      },
-    ],
-  },
-  {
-    key: "professional_hospitality",
-    label: "Szakember-kereső (vendéglátás)",
-    dataBlockPreview: PROFESSIONAL_DATA_BLOCK_PREVIEW,
-    dataBlockAfter: "intro",
-    segments: [
-      {
-        id: "intro",
-        label: "Bevezető / szerep",
-        hint: "A HR/beszerzési szakértő szerepe és a legfontosabb szabály: ne találjon ki személyt vagy elérhetőséget. Változó nem használható.",
-        default: PROFESSIONAL_DEFAULT_SEGMENTS.hospitality.intro,
-      },
-      {
-        id: "task",
-        label: "Feladat / kimenet (JSON)",
-        hint: "A kért JSON-kulcsok és a mezők tartalma. A JSON kapcsos zárójelei megengedettek, de {szó} alakú változó nem.",
-        default: PROFESSIONAL_DEFAULT_SEGMENTS.hospitality.task,
       },
     ],
   },
@@ -539,33 +391,6 @@ export async function getVideoPromptActive(): Promise<string> {
   return (segments.prompt ?? VIDEO_DEFAULT_PROMPT).trim();
 }
 
-export async function buildMenuPromptActive(opts: {
-  timeframe: Timeframe;
-  theme: MenuTheme;
-  goal: ProfitGoal;
-  dishListText: string;
-  instruction?: string;
-  dayPlan?: DayPlanEntry[];
-  courses?: string;
-  menuPrice?: string;
-  variety?: string;
-  targetCount?: string;
-  targetProfit?: string;
-}): Promise<string> {
-  const segments = await getActiveSegments("menu_generator");
-  return composeMenuPrompt(opts, segments);
-}
-
-export async function buildCostingPromptActive(summaryText: string): Promise<string> {
-  const segments = await getActiveSegments("cost_analysis");
-  return composeCostingPrompt(summaryText, segments);
-}
-
-export async function buildSimulationPromptActive(summaryText: string): Promise<string> {
-  const segments = await getActiveSegments("profit_plan");
-  return composeSimulationPrompt(summaryText, segments);
-}
-
 // Képjavító (Nano Banana) — mindkét mód egy-egy szöveges prompt.
 export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<string> {
   const key = mode === "rendrakas" ? "image_enhance_rendrakas_v3" : "image_enhance_feljavitas_v3";
@@ -573,19 +398,8 @@ export async function buildEnhancePromptActive(mode: EnhanceCoreMode): Promise<s
   return (segments.prompt ?? ENHANCE_PROMPTS[mode]).trim();
 }
 
-export async function buildSupplierPromptActive(query: SupplierQuery): Promise<string> {
-  // Külföld (EU) és belföld TELJESEN külön prompt-modult és compose-t használ.
-  if (query.scope === "eu") {
-    const segments = await getActiveSegments("supplier_search_eu");
-    return composeSupplierPromptEu(query, segments);
-  }
-  const segments = await getActiveSegments("supplier_search");
-  return composeSupplierPrompt(query, segments);
-}
-
 export async function buildProfessionalPromptActive(query: ProfessionalQuery): Promise<string> {
-  const moduleKey = query.industry === "realestate" ? "professional_realestate" : "professional_hospitality";
-  const segments = await getActiveSegments(moduleKey);
+  const segments = await getActiveSegments("professional_realestate");
   return composeProfessionalPrompt(query, segments);
 }
 

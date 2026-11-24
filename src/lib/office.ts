@@ -199,10 +199,6 @@ export const SERVICE_LABELS: Record<string, string> = {
   "google-ads": "Google Ads",
   land: "Telekelemzés",
   professionals: "Szakember-kereső",
-  "hospitality-menu": "Menü generátor",
-  costing: "Önköltség & profit",
-  simulation: "Profit-terv",
-  suppliers: "Beszállító-kereső",
 };
 
 // ---------------------------------------------------------------------

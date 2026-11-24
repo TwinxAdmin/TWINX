@@ -10,6 +10,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMembershipIn, getWorkContext, officeFree, officeKind } from "@/lib/office-server";
 import { freeByEstateAccess } from "@/lib/new-ui";
+import { isEstateService, packageCheck, packageRelease, packageReserve, type CostHint } from "@/lib/package-cap";
 
 export type CreditSource = "wallet" | "office";
 
@@ -26,9 +27,14 @@ export function payFromRequest(request: Request): PayFrom {
   return request.headers.get("x-twx-pay-from") === "wallet" ? "wallet" : "auto";
 }
 
+/**
+ * `packageEvent`: az Ingatlan csomag keretéből foglalt tétel (terv 27) — ilyenkor kredit NEM fogy (bypassed: true),
+ * hibánál a `refundCharge` oldja fel. Hiba-okok: insufficient (kredit) · cap (a havi keret elfogyott) ·
+ * no_package (a cégnek nincs Ingatlan-kerete) · no_estimate (nincs költségbecslés) · error (ellenőrzési hiba).
+ */
 export type ChargeResult =
-  | { ok: true; bypassed: boolean; source?: CreditSource }
-  | { ok: false; reason: "insufficient"; source?: CreditSource };
+  | { ok: true; bypassed: boolean; source?: CreditSource; packageEvent?: string }
+  | { ok: false; reason: "insufficient" | "cap" | "no_package" | "no_estimate" | "error"; source?: CreditSource };
 
 /** Irodai módban dolgozik-e a felhasználó? (a KIVÁLASZTOTT irodában; ha nincs irodai mód: null) */
 async function officeMode(userId: string): Promise<{ allowance: number; unlimited: boolean; owner: boolean; officeId: string } | null> {
@@ -46,6 +52,10 @@ export async function chargeCredit(params: {
   amount?: number;
   service?: string;   // melyik modul (az irodai naplóhoz)
   payFrom?: PayFrom;  // "wallet" = most kifejezetten a saját kreditből (soha nem automatikus)
+  /** Ingatlan csomag (terv 27): mennyi munka indul — a költségbecsléshez */
+  cost?: CostHint;
+  /** utólagos elszámolás kész eredményhez (a keretet nem ellenőrzi, de beszámít) */
+  force?: boolean;
 }): Promise<ChargeResult> {
   const { userId, amount = 1, service, payFrom = "auto" } = params;
   const admin = createAdminClient();
@@ -61,8 +71,14 @@ export async function chargeCredit(params: {
     return { ok: true, bypassed: true };
   }
 
-  // 1b) Új felület (3d): Ingatlan-hozzáféréssel nincs levonás (terv 12 / 3., Márk döntése 2026-11-23).
-  if (await freeByEstateAccess(userId)) return { ok: true, bypassed: true };
+  // 1b) Új felület + Ingatlan-hozzáférés: nincs kredit-levonás (3d), helyette a cég havi Ingatlan-keretéből
+  //     foglalunk a becsült költséggel (terv 27, D62). Más (nem Ingatlan) szolgáltatás a korábbi módon fut.
+  if (await freeByEstateAccess(userId)) {
+    if (!isEstateService(service)) return { ok: true, bypassed: true };
+    const r = await packageReserve({ userId, service: service!, hint: params.cost, force: params.force });
+    if (!r.ok) return { ok: false, reason: r.reason };
+    return { ok: true, bypassed: true, packageEvent: r.eventId ?? undefined };
+  }
 
   // 2a) Irodai mód → az iroda egyenlegéből + a tag keretéből (atomikus, office_deduct).
   //     Ha a felhasználó erre a kérésre a saját kreditjét választotta, ezt az ágat kihagyjuk.
@@ -84,6 +100,17 @@ export async function chargeCredit(params: {
   if (!deducted) return { ok: false, reason: "insufficient", source: "wallet" };
 
   return { ok: true, bypassed: false, source: "wallet" };
+}
+
+/**
+ * Egységes visszaadás hibánál: Ingatlan-keret foglalás → feloldás; kredit-levonás → visszatérítés;
+ * megkerülés (admin) → nincs teendő. A modulok ezt hívják a `refundCredit` helyett.
+ */
+export async function refundCharge(userId: string, amount: number, charge: ChargeResult | null | undefined): Promise<void> {
+  if (!charge || !charge.ok) return;
+  if (charge.packageEvent) { await packageRelease(charge.packageEvent); return; }
+  if (charge.bypassed) return;
+  await refundCredit(userId, amount, charge.source);
 }
 
 /**
@@ -119,6 +146,9 @@ export async function checkCreditAvailable(params: {
   userId: string;
   amount?: number;
   payFrom?: PayFrom;
+  /** az Ingatlan csomag keret-ellenőrzéséhez (terv 27) */
+  service?: string;
+  cost?: CostHint;
 }): Promise<ChargeResult> {
   const { userId, amount = 1, payFrom = "auto" } = params;
   const admin = createAdminClient();
@@ -130,7 +160,14 @@ export async function checkCreditAvailable(params: {
     .single();
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
-  if (await freeByEstateAccess(userId)) return { ok: true, bypassed: true };
+  // Ingatlan-hozzáférés: a cég havi keretében van-e még hely (foglalás nélkül). bypassed: false → a végén a
+  // chargeCredit (force) számolja el a keretre — kredit ekkor sem fogy.
+  if (await freeByEstateAccess(userId)) {
+    if (!isEstateService(params.service)) return { ok: true, bypassed: true };
+    const r = await packageCheck({ userId, service: params.service!, hint: params.cost });
+    if (!r.ok) return { ok: false, reason: r.reason };
+    return { ok: true, bypassed: false };
+  }
 
   // Irodai mód (foglalásos keret, 20261008104953_office-reserve.sql):
   //   • tag: a saját (lefoglalt) kerete számít;

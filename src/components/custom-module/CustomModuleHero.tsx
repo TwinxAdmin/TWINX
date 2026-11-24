@@ -13,13 +13,13 @@ const TEXT = {
     eyebrow: "TWINX egyedi modul", l1: "A te vállalkozásod.", l2: "A te modulod.",
     lead: "Megépítjük azt az eszközt, ami a te napi munkádat automatizálja — a TWINX-be építve, a te adataiddal, sablonjaiddal és arculatoddal. Te csak egy kattintást látsz belőle.",
     request: "Egyedi modul igénylése", how: "Hogyan készül? ↓", free: "Díjmentes egyeztetés és árajánlat · kötelezettség nélkül", who: "Kinek?",
-    industries: ["Ingatlaniroda", "Vendéglátás", "Szolgáltató cég", "Kereskedelem", "Építőipar", "Bármilyen ismétlődő folyamat"],
+    industries: ["Ingatlaniroda", "Szolgáltató cég", "Kereskedelem", "Építőipar", "Bármilyen ismétlődő folyamat"],
   },
   en: {
     eyebrow: "TWINX custom module", l1: "Your business.", l2: "Your module.",
     lead: "We build the tool that automates your daily work, using your own data, templates and brand. All you see of it is a single click.",
     request: "Request a custom module", how: "", free: "Free consultation and quote · no obligation", who: "Who is it for?",
-    industries: ["Real estate agencies", "Hospitality", "Service companies", "Retail", "Construction", "Any repetitive process"],
+    industries: ["Real estate agencies", "Service companies", "Retail", "Construction", "Any repetitive process"],
   },
 };
 

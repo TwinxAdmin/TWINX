@@ -7,8 +7,21 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChargeResult } from "@/lib/credits";
+import { CAP_STOP_TEXT } from "@/lib/module-cap";
+
+/** Az Ingatlan csomag keretének hibái (terv 27) — szám és „kredit" nélkül. */
+const PACKAGE_TEXT: Record<string, { error: string; status: number }> = {
+  cap: { error: CAP_STOP_TEXT, status: 429 },
+  no_package: { error: "Ez a funkció most nem indítható, mert a csomagod beállítása még nincs kész. Írj nekünk: office@twinx.hu.", status: 403 },
+  no_estimate: { error: "Ez a funkció most nem indítható. Szóltunk a csapatnak; ha sürgős, írj nekünk: office@twinx.hu.", status: 503 },
+  error: { error: "A használat ellenőrzése most nem sikerült. Próbáld újra később.", status: 503 },
+};
 
 export async function insufficientResponse(userId: string, needed: number, result: ChargeResult | null | undefined) {
+  if (result && !result.ok && result.reason !== "insufficient") {
+    const t = PACKAGE_TEXT[result.reason] ?? PACKAGE_TEXT.error;
+    return NextResponse.json({ error: t.error, code: result.reason === "cap" ? "cap_reached" : "unavailable" }, { status: t.status });
+  }
   if (result && !result.ok && result.source === "office") {
     const { data: w } = await createAdminClient().from("wallets").select("balance").eq("user_id", userId).maybeSingle();
     return NextResponse.json({

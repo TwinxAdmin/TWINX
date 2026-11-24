@@ -1,19 +1,35 @@
-// Szakember-kereső — közös logika mindkét iparágnak (vendéglátás + ingatlan).
+// Szakember-kereső (ingatlan). A vendéglátós ág 2026-11-24-én kikerült (Márk döntése).
 // A Perplexity élő webes kutatással keres szakembereket a partner szűrői szerint.
 // FONTOS: minden SZAKMÁHOZ saját prompt-specializáció (hint) tartozik — így később
 // szakmánként külön-külön bővíthető és finomítható a keresés. Kitalált jelölt tilos,
 // minden találathoz forrás kell.
 
-import { COUNTIES, RADIUS_OPTIONS } from "@/lib/suppliers";
-export { COUNTIES, RADIUS_OPTIONS };
+// --- Terület ---------------------------------------------------------------
+export const COUNTIES = [
+  "Budapest", "Pest", "Bács-Kiskun", "Baranya", "Békés", "Borsod-Abaúj-Zemplén",
+  "Csongrád-Csanád", "Fejér", "Győr-Moson-Sopron", "Hajdú-Bihar", "Heves",
+  "Jász-Nagykun-Szolnok", "Komárom-Esztergom", "Nógrád", "Somogy",
+  "Szabolcs-Szatmár-Bereg", "Tolna", "Vas", "Veszprém", "Zala",
+] as const;
 
-export type Industry = "hospitality" | "realestate";
+// --- Körzet (a megadott településtől) --------------------------------------
+export const RADIUS_OPTIONS = [
+  { value: "5", label: "5 km-en belül" },
+  { value: "10", label: "10 km-en belül" },
+  { value: "25", label: "25 km-en belül" },
+  { value: "50", label: "50 km-en belül" },
+  { value: "100", label: "100 km-en belül" },
+  { value: "150", label: "150 km-en belül" },
+  { value: "orszagos", label: "Országosan" },
+] as const;
+
+
+export type Industry = "realestate";
 export const INDUSTRIES: { value: Industry; label: string }[] = [
-  { value: "hospitality", label: "Vendéglátás" },
   { value: "realestate", label: "Ingatlan" },
 ];
 export function isIndustry(v: unknown): v is Industry {
-  return v === "hospitality" || v === "realestate";
+  return v === "realestate";
 }
 
 // --- Közös szűrők ----------------------------------------------------------
@@ -68,7 +84,7 @@ export function ratePeriodLabel(v: string): string {
 // --- Szakmák iparáganként (mindegyikhez saját prompt-specializáció) ---------
 // track: "finder"  → az interneten nyilvános elérhetőséggel megtalálható szolgáltató/cég
 //                    (ezek jelennek meg a Szakember-kereső fülön).
-//        "recruit" → jellemzően egyéni alkalmazott (séf, szakács, pincér…), akit online
+//        "recruit" → jellemzően egyéni alkalmazott (pl. alkalmazott munkatárs), akit online
 //                    nem lehet kész kontaktként megtalálni → a Toborzás fülre tartozik.
 // Alapértelmezés (ha nincs megadva): "finder". SEMMIT nem törlünk — a recruit szakmák
 // bent maradnak a kódban, a későbbi Toborzás modulhoz.
@@ -77,24 +93,6 @@ export type Profession = { value: string; label: string; hint: string; track?: P
 export function professionTrack(p: Profession): ProfessionTrack {
   return p.track ?? "finder";
 }
-
-const HOSPITALITY_PROFESSIONS: Profession[] = [
-  { value: "sef", track: "recruit", label: "Séf / konyhafőnök", hint: "Tapasztalt séfet/konyhafőnököt keress. Nézd a korábbi éttermeket és azok színvonalát/stílusát, a vezetett brigád méretét, a menü- és étlaptervezési, valamint árukalkulációs (cost control) rutint, illetve új konyha beindításában szerzett tapasztalatot. Forrásként használd a szakmai közösségi profilokat (LinkedIn, szakmai csoportok), éttermi sajtót, díjakat/elismeréseket (pl. Gault&Millau, Michelin-említés), séf-adatbázisokat és álláshirdető felületeket. A megadott konyha-stílus, brigádméret és kiemelt kompetencia legyen a fő szűrő." },
-  { value: "szakacs", track: "recruit", label: "Szakács", hint: "Gyakorlott szakácsot keress a megadott poszt(ok)ra (melegkonyha, hidegkonyha, grill/húsok, tészta/pizza, köret) és szerviz-típusra (à la carte pörgős rendelés vagy menü/büfé nagy volumen). Fontos a megbízhatóság, műszakbírás, tempó és a HACCP-ismeret. Forrás: álláshirdető felületek, szakmai csoportok, korábbi munkahelyek." },
-  { value: "cukrasz", track: "recruit", label: "Cukrász / pék", hint: "Cukrászt vagy péket keress a megadott szakterületre (francia cukrászat/tányérdesszert, hagyományos sütemények, kovászos pékáru, mentes/vegán) és technológiai rutinra (fagylaltfőzés, csokoládé temperálás, kézműves kenyérsütés). Nézd a portfóliót/desszertkínálatot, kézműves tapasztalatot, esetleges saját manufaktúrát, versenyeredményeket. Forrás: Instagram/portfólió, szakmai csoportok, cukrász-versenyek." },
-  { value: "hidegkonyhas", track: "recruit", label: "Hidegkonyhás", hint: "Hidegkonyhás szakembert keress a megadott profilra (szállodai svédasztal/reggeliztetés, rendezvény/catering tálak és falatkák, à la carte előételek). Fontos a gyorsaság, az esztétikus tálalás, a nagy volumen bírása és a HACCP-fegyelem. Forrás: álláshirdetők, szállodai/catering háttér, szakmai csoportok." },
-  { value: "felszolgalo", track: "recruit", label: "Felszolgáló / pincér", hint: "Vendégtéri felszolgálót keress a megadott felszolgálási stílusra (tányérszerviz, francia/angol szerviz, bankett/rendezvény), kasszarendszer-ismeretre (HostWare, r_keeper, StandMágus vagy általános POS) és a hely tempójára (pörgős vs. elegáns). Fontos a vendégkezelés, ápolt megjelenés, nyelvtudás és a felszolgálási tapasztalat típusa. Forrás: álláshirdetők, szakmai csoportok, korábbi vendéglátóhelyek." },
-  { value: "pultos", track: "recruit", label: "Pultos / bartender", hint: "Pultost vagy bartendert keress a megadott italismeretre (koktélkeverés/mixer, csapolt/kézműves sörök, alap italok) és a hely stílusára (pörgős klub, elegáns lobby bár, látványpult/flair). Fontos a tempó, kasszakezelés, up-selling és a vendégélmény. Forrás: szakmai közösségek, versenyek (flair/mixológia), álláshirdetők, korábbi helyek." },
-  { value: "barista", track: "recruit", label: "Barista", hint: "Baristát keress a megadott kávé-stílusra (újhullámos/specialty világos pörkölés vagy klasszikus olasz sötét pörkölés) és extra tudásra (latte art, alternatív kávékészítés: V60, Aeropress). Fontos az eszpresszógép-kezelés és -karbantartás, darálóbeállítás, tempó és vendégélmény. Forrás: specialty kávézók, barista-versenyek, szakmai közösségek, álláshirdetők." },
-  { value: "kisegito", track: "recruit", label: "Konyhai kisegítő / mosogató", hint: "Konyhai kisegítőt/mosogatót keress a megadott munkakörre (fekete mosogató: edények/gépek, fehér mosogató: poharak/tányérok, zöldségelőkészítés) és fizikai terhelhetőségre. A megbízhatóság, állóképesség és a higiéniai fegyelem a legfontosabb. Forrás: helyi álláshirdetők, vendéglátós munkaközvetítők." },
-  { value: "uzletvezeto", track: "recruit", label: "Üzletvezető", hint: "Vendéglátós üzletvezetőt keress a megadott fő fókuszra (pénzügy/adminisztráció – NTAK, leltár; HR és csapatépítés; vendégkapcsolatok/front-office) és üzlettípus-rutinra (szálloda, klub/bár, kávézó, étterem). Fontos a személyzet-irányítás, készletgazdálkodás, hatósági megfelelés (NTAK), értékesítési szemlélet és eredményfelelősség. Forrás: LinkedIn, szakmai vezetői közösségek, korábbi üzletek." },
-  { value: "sommelier", track: "recruit", label: "Sommelier", hint: "Sommelier-t keress a megadott végzettségre/szintre (WSET diplomás vagy tapasztalati úton szerzett alap borismeret) és feladatkörre (borlap összeállítása beszerzéssel együtt, vagy kizárólag vendégtéri ajánlás). Fontos a borismeret, párosítási készség, pincészeti kapcsolatok, esetleges versenyeredmények. Forrás: WSET/sommelier közösségek, borversenyek, korábbi éttermek." },
-  { value: "haccp", label: "HACCP / élelmiszerbiztonsági tanácsadó", hint: "HACCP/élelmiszerbiztonsági tanácsadót vagy céget keress a megadott szolgáltatásra (új üzlet HACCP-kiépítése, eseti audit/ellenőrzés, havi folyamatos felügyelet). Fontos a hatósági (NÉBIH) megfelelés, dokumentáció, GHP/GMP, auditálási tapasztalat és a vendéglátós referenciák. Forrás: élelmiszerbiztonsági tanácsadó cégek, kamarai/szakmai listák, referenciák." },
-  { value: "konyvelo", label: "Vendéglátós könyvelő", hint: "Vendéglátásra szakosodott könyvelőt/könyvelőirodát keress a megadott szoftveres integrációra (NTAK adatszolgáltatás kezelése, vendéglátós szoftver – pl. r_keeper – összekötése a könyveléssel) és kapacitásra (bérszámfejtés, készletnyilvántartás ellenőrzése). Fontos a NAV-online, felszolgálási díj, KATA/áfa és a TEÁOR-specifikus vendéglátós tapasztalat, referenciák. Forrás: könyvelőirodák, kamarai listák, ajánlások." },
-  { value: "marketing", label: "Vendéglátó-marketinges", hint: "Vendéglátós marketingest/ügynökséget keress a megadott platform-fókuszra (TikTok/Instagram vizuális tartalom, TripAdvisor/Google reputációkezelés) és tartalomgyártási módra (helyszíni fotó/videó vs. kapott anyagokból). Nézd a közösségimédia-kezelést, ételfotózást, korábbi vendéglátós kampány-referenciákat és eredményeket. Forrás: ügynökségi portfóliók, Instagram/TikTok, ajánlások." },
-  { value: "gepszerelo", label: "Konyhagép-szerelő", hint: "Nagykonyhai gép szerelőt/szervizt keress a megadott gépcsoportokra (hűtéstechnika: kamrák/pultok; hőtechnika: gázos/elektromos tűzhelyek; sütőkemencék pl. Rational) és kiszállás-típusra (S.O.S. 0–24 hibaelhárítás vagy tervezett karbantartás). Fontos a gyors kiszállás, gyártói szakértelem/jogosultság, alkatrész-ellátás és karbantartási szerződés lehetősége. Forrás: szerviz-cégek, gyártói partnerlisták, ajánlások." },
-  { value: "takarito", label: "Takarító / mosodai szolgáltató", hint: "Vendéglátós takarítót vagy mosodai szolgáltatót keress a megadott területre (vendégtér napi takarítás, konyhai mélytakarítás – zsíroldás/elszívók, ablak/homlokzat) és eszköz-igényre (saját ipari gép/vegyszer vagy helyi eszközök). Fontos a higiéniai előírások ismerete, rugalmas (zárás utáni/hajnali) időbeosztás, számlaképesség és referenciák. Forrás: takarító cégek, helyi szolgáltatók, ajánlások." },
-];
 
 const REALESTATE_PROFESSIONS: Profession[] = [
   { value: "kozvetito", label: "Ingatlanközvetítő", hint: "Ingatlanközvetítőt/irodát keress; nézd a helyi piacismeretet, referenciákat, értékesítési statisztikát, esetleges MLM-tagságot." },
@@ -118,7 +116,6 @@ const REALESTATE_PROFESSIONS: Profession[] = [
 ];
 
 export const PROFESSIONS: Record<Industry, Profession[]> = {
-  hospitality: HOSPITALITY_PROFESSIONS,
   realestate: REALESTATE_PROFESSIONS,
 };
 
@@ -133,625 +130,7 @@ export type DetailField = {
   options: { value: string; label: string }[];
 };
 
-export const PROFESSION_DETAILS: Record<string, DetailField[]> = {
-  // Séf / konyhafőnök
-  sef: [
-    {
-      id: "konyha_stilus", label: "Konyha stílusa", type: "select",
-      options: [
-        { value: "fine_dining", label: "Fine dining" },
-        { value: "bisztro", label: "Bisztró" },
-        { value: "csarda", label: "Csárda / Hagyományos" },
-        { value: "fuzios", label: "Fúziós" },
-        { value: "kozetkeztetes", label: "Menüztetés / Közétkeztetés" },
-      ],
-    },
-    {
-      id: "vezetoi_rutin", label: "Vezetői rutin (brigád mérete)", type: "select",
-      options: [
-        { value: "1-3", label: "1–3 fős brigád" },
-        { value: "4-10", label: "4–10 fős brigád" },
-        { value: "10+", label: "10+ fős brigád" },
-      ],
-    },
-    {
-      id: "kompetencia", label: "Kiemelt kompetencia", type: "chips",
-      options: [
-        { value: "cost_control", label: "Árukalkuláció / Cost control" },
-        { value: "etlaptervezes", label: "Étlaptervezés" },
-        { value: "rendszerepites", label: "Rendszerépítés (új konyha nyitása)" },
-      ],
-    },
-    {
-      id: "vendegszam", label: "Napi vendégszám / kapacitás", type: "select",
-      options: [
-        { value: "kis", label: "50 fő alatt" },
-        { value: "kozepes", label: "50–150 fő" },
-        { value: "nagy", label: "150 fő felett" },
-      ],
-    },
-    {
-      id: "catering", label: "Rendezvény- és catering-tapasztalat", type: "select",
-      options: [
-        { value: "alkalmi", label: "Alkalmi rendezvények" },
-        { value: "rendszeres", label: "Rendszeres catering / nagy rendezvények" },
-      ],
-    },
-  ],
-
-  // Szakács
-  szakacs: [
-    {
-      id: "palyaismeret", label: "Pályaismeret (mely poszt)", type: "chips",
-      options: [
-        { value: "melegkonyha", label: "Melegkonyha" },
-        { value: "hidegkonyha", label: "Hidegkonyha" },
-        { value: "grill", label: "Grill / Húsok" },
-        { value: "teszta_pizza", label: "Tészta / Pizza" },
-        { value: "koret", label: "Köret" },
-      ],
-    },
-    {
-      id: "szerviz_tipus", label: "Szerviz típusa", type: "select",
-      options: [
-        { value: "alacarte", label: "À la carte (pörgős rendelés)" },
-        { value: "menu_bufe", label: "Menü / Büfé (nagy volumen)" },
-      ],
-    },
-    {
-      id: "konyhastilus", label: "Konyhastílus", type: "chips",
-      options: [
-        { value: "magyaros", label: "Magyaros" },
-        { value: "olasz", label: "Olasz" },
-        { value: "azsiai", label: "Ázsiai" },
-        { value: "mediterran", label: "Mediterrán" },
-        { value: "amerikai_bbq", label: "Amerikai / BBQ" },
-        { value: "street_food", label: "Street food" },
-        { value: "nemzetkozi", label: "Nemzetközi" },
-      ],
-    },
-    {
-      id: "onallosag", label: "Önállóság szintje", type: "select",
-      options: [
-        { value: "betanitas", label: "Betanítással dolgozik" },
-        { value: "onallo_poszt", label: "Önállóan visz egy posztot" },
-        { value: "tobb_poszt", label: "Több posztot átlát / helyettesít" },
-      ],
-    },
-  ],
-
-  // Cukrász / pék
-  cukrasz: [
-    {
-      id: "szakterulet", label: "Szakterület", type: "chips",
-      options: [
-        { value: "francia", label: "Francia cukrászat / Tányérdesszert" },
-        { value: "hagyomanyos", label: "Hagyományos sütemények" },
-        { value: "kovaszos", label: "Kovászos pékáru" },
-        { value: "mentes_vegan", label: "Mentes / Vegán vonal" },
-      ],
-    },
-    {
-      id: "technologiai_rutin", label: "Technológiai rutin", type: "chips",
-      options: [
-        { value: "fagylalt", label: "Fagylaltfőzés" },
-        { value: "csoki_temperalas", label: "Csokoládé temperálás" },
-        { value: "kezmuves_kenyer", label: "Kézműves kenyérsütés" },
-      ],
-    },
-    {
-      id: "napi_kapacitas", label: "Napi kapacitás / volumen", type: "select",
-      options: [
-        { value: "manufaktura", label: "Kis manufaktúra" },
-        { value: "kozepes", label: "Közepes üzem" },
-        { value: "nagyuzem", label: "Nagyüzemi sütés" },
-      ],
-    },
-    {
-      id: "esztetika", label: "Esztétika / díszítés szintje", type: "select",
-      options: [
-        { value: "alap", label: "Alap díszítés" },
-        { value: "kozepes", label: "Közepes (igényes)" },
-        { value: "eskuvoi", label: "Esküvői torták" },
-        { value: "showpiece", label: "Showpiece / verseny szintű" },
-      ],
-    },
-    {
-      id: "haccp_allergen", label: "HACCP / allergénkezelés rutin", type: "chips",
-      options: [
-        { value: "haccp", label: "HACCP-tudatos" },
-        { value: "allergen", label: "Allergén / mentes kezelés" },
-      ],
-    },
-  ],
-
-  // Hidegkonyhás
-  hidegkonyhas: [
-    {
-      id: "profil", label: "Profil", type: "chips",
-      options: [
-        { value: "svedasztal", label: "Szállodai svédasztal (reggeliztetés)" },
-        { value: "rendezveny", label: "Rendezvény / Catering (tálak, falatkák)" },
-        { value: "alacarte", label: "À la carte előételek" },
-      ],
-    },
-    {
-      id: "talalas", label: "Tálalás / dekoráció szintje", type: "select",
-      options: [
-        { value: "egyszeru", label: "Egyszerű, funkcionális" },
-        { value: "igenyes", label: "Igényes" },
-        { value: "reprezentativ", label: "Reprezentatív (fotózható) tálak" },
-      ],
-    },
-    {
-      id: "napi_volumen", label: "Napi volumen (fő)", type: "select",
-      options: [
-        { value: "kis", label: "50 fő alatt" },
-        { value: "kozepes", label: "50–150 fő" },
-        { value: "nagy", label: "150 fő felett" },
-      ],
-    },
-    {
-      id: "faragas", label: "Faragás / díszítő technikák", type: "select",
-      options: [
-        { value: "alap", label: "Alap díszítőelemek" },
-        { value: "faragas", label: "Zöldség- / gyümölcsfaragás rutin" },
-        { value: "showpiece", label: "Showpiece / jégszobor" },
-      ],
-    },
-  ],
-
-  // Konyhai kisegítő / mosogató
-  kisegito: [
-    {
-      id: "fizikai", label: "Fizikai terhelhetőség", type: "select",
-      options: [
-        { value: "normal", label: "Normál terhelés" },
-        { value: "nehez", label: "Nehéz fizikai munka bírása (pl. 50 l fazekak)" },
-      ],
-    },
-    {
-      id: "egeszsegugyi", label: "Egészségügyi kiskönyv", type: "select",
-      options: [
-        { value: "van", label: "Van érvényes egészségügyi kiskönyve" },
-      ],
-    },
-    {
-      id: "munkakor", label: "Munkakör", type: "chips",
-      options: [
-        { value: "fekete", label: "Fekete mosogató (edények / gépek)" },
-        { value: "feher", label: "Fehér mosogató (poharak / tányérok)" },
-        { value: "zoldseg", label: "Zöldségelőkészítés (pucolás, darabolás)" },
-      ],
-    },
-    {
-      id: "muszakvallalas", label: "Műszakvállalás", type: "chips",
-      options: [
-        { value: "hajnali", label: "Hajnali" },
-        { value: "esti", label: "Esti" },
-        { value: "hetvegi", label: "Hétvégi" },
-      ],
-    },
-    {
-      id: "gepismeret", label: "Nagykonyhai gépismeret", type: "chips",
-      options: [
-        { value: "mosogatogep", label: "Ipari mosogatógép" },
-        { value: "kutter", label: "Kutter" },
-        { value: "szeletelo", label: "Szeletelő gép" },
-      ],
-    },
-  ],
-
-  // Felszolgáló / pincér
-  felszolgalo: [
-    {
-      id: "munkabiras", label: "Munkabírás / hely tempója", type: "select",
-      options: [
-        { value: "porgos", label: "Nagy terasz / pörgős hely" },
-        { value: "elegans", label: "Elegáns / lassabb tempójú hely" },
-      ],
-    },
-    {
-      id: "felszolgalasi_stilus", label: "Felszolgálási stílus", type: "chips",
-      options: [
-        { value: "tanyerszerviz", label: "Tányérszerviz (klasszikus)" },
-        { value: "francia_angol", label: "Francia / Angol szerviz" },
-        { value: "bankett", label: "Bankett / Rendezvény" },
-      ],
-    },
-    {
-      id: "kasszarendszer", label: "Kasszarendszer-ismeret", type: "chips",
-      options: [
-        { value: "hostware", label: "HostWare" },
-        { value: "rkeeper", label: "r_keeper" },
-        { value: "standmagus", label: "StandMágus" },
-        { value: "altalanos_pos", label: "Általános POS rutin" },
-      ],
-    },
-    {
-      id: "protokoll", label: "Rendezvény- / protokoll-tapasztalat", type: "select",
-      options: [
-        { value: "rendezveny", label: "Rendezvény / fogadás tapasztalat" },
-        { value: "vip", label: "VIP / protokoll-tapasztalat" },
-      ],
-    },
-    {
-      id: "italismeret", label: "Borajánlás / italismeret", type: "chips",
-      options: [
-        { value: "borajanlas", label: "Borajánlás / up-selling" },
-        { value: "koktel", label: "Koktél rutin" },
-        { value: "kave", label: "Kávé / barista rutin" },
-      ],
-    },
-  ],
-
-  // Pultos / bartender
-  pultos: [
-    {
-      id: "stilus", label: "Hely stílusa", type: "select",
-      options: [
-        { value: "klub", label: "Pörgős szórakozóhely / Klub" },
-        { value: "lobby", label: "Elegáns lobby bár" },
-        { value: "flair", label: "Látványpult (Flair)" },
-      ],
-    },
-    {
-      id: "keszletkezeles", label: "Készletkezelés / leltár rutin", type: "select",
-      options: [
-        { value: "alap", label: "Alap leltárrutin" },
-        { value: "teljes", label: "Teljes készletkezelés (bevételezés, párlat-nyilvántartás)" },
-      ],
-    },
-    {
-      id: "italismeret_pult", label: "Italismeret", type: "chips",
-      options: [
-        { value: "koktel_mixer", label: "Koktélkeverés (Mixer)" },
-        { value: "sor", label: "Csapolt / kézműves sörök" },
-        { value: "alap", label: "Alap italok" },
-      ],
-    },
-    {
-      id: "kasszarendszer", label: "Kasszarendszer-ismeret", type: "chips",
-      options: [
-        { value: "hostware", label: "HostWare" },
-        { value: "rkeeper", label: "r_keeper" },
-        { value: "standmagus", label: "StandMágus" },
-        { value: "altalanos_pos", label: "Általános POS rutin" },
-      ],
-    },
-  ],
-
-  // Barista
-  barista: [
-    {
-      id: "kave_stilus", label: "Kávé stílus", type: "select",
-      options: [
-        { value: "ujhullamos", label: "Újhullámos (Specialty – világos pörkölés)" },
-        { value: "klasszikus", label: "Klasszikus (Olasz – sötét pörkölés)" },
-      ],
-    },
-    {
-      id: "volumen", label: "Volumen / tempó", type: "select",
-      options: [
-        { value: "alap", label: "Alap forgalom" },
-        { value: "rush", label: "Reggeli rush / nagy forgalom bírása" },
-      ],
-    },
-    {
-      id: "extra_tudas", label: "Extra tudás", type: "chips",
-      options: [
-        { value: "latte_art", label: "Latte art (tejhab minták)" },
-        { value: "alternativ", label: "Alternatív kávékészítés (V60, Aeropress)" },
-      ],
-    },
-    {
-      id: "sca_verseny", label: "Képzés / versenytapasztalat", type: "chips",
-      options: [
-        { value: "sca", label: "SCA / barista képzés" },
-        { value: "verseny", label: "Versenytapasztalat" },
-      ],
-    },
-    {
-      id: "alapanyag", label: "Alapanyag-ismeret", type: "chips",
-      options: [
-        { value: "porkolo", label: "Pörkölő-kapcsolat / beszerzés" },
-        { value: "upsell", label: "Kávéajánlás / up-selling" },
-      ],
-    },
-  ],
-
-  // Üzletvezető
-  uzletvezeto: [
-    {
-      id: "fo_fokusz", label: "Fő fókusz", type: "chips",
-      options: [
-        { value: "penzugy", label: "Pénzügy és adminisztráció (NTAK, leltár)" },
-        { value: "hr", label: "HR és csapatépítés" },
-        { value: "vendegkapcsolat", label: "Vendégkapcsolatok (front-office vezető)" },
-      ],
-    },
-    {
-      id: "uzlettipus", label: "Üzlettípus rutin", type: "chips",
-      options: [
-        { value: "szalloda", label: "Szálloda" },
-        { value: "klub_bar", label: "Éjszakai klub / Bár" },
-        { value: "kavezo", label: "Kávézó" },
-        { value: "etterem", label: "Étterem" },
-      ],
-    },
-    {
-      id: "csapatmeret", label: "Vezetett csapat mérete", type: "select",
-      options: [
-        { value: "kis", label: "10 fő alatt" },
-        { value: "kozepes", label: "10–30 fő" },
-        { value: "nagy", label: "30+ fő" },
-      ],
-    },
-    {
-      id: "nyitas", label: "Nyitás / rendszerépítés", type: "select",
-      options: [
-        { value: "van", label: "Új egység beindításában jártas" },
-      ],
-    },
-    {
-      id: "profit_felelosseg", label: "Árrés / profit-felelősség", type: "chips",
-      options: [
-        { value: "pl", label: "P&L / eredményfelelősség" },
-        { value: "cost_control", label: "Cost control / árrés-optimalizálás" },
-      ],
-    },
-  ],
-
-  // HACCP / élelmiszerbiztonsági tanácsadó
-  haccp: [
-    {
-      id: "szolgaltatas", label: "Szolgáltatás típusa", type: "chips",
-      options: [
-        { value: "kiepites", label: "Új üzlet HACCP kiépítése" },
-        { value: "audit", label: "Eseti audit / ellenőrzés" },
-        { value: "felugyelet", label: "Havi folyamatos felügyelet" },
-      ],
-    },
-    {
-      id: "uzlettipus_spec", label: "Üzlettípus-specializáció", type: "chips",
-      options: [
-        { value: "etterem", label: "Étterem" },
-        { value: "cukraszda", label: "Cukrászda" },
-        { value: "nagykonyha", label: "Nagykonyha" },
-        { value: "husfeldolgozo", label: "Húsfeldolgozó" },
-      ],
-    },
-    {
-      id: "oktatas", label: "Oktatás / tréning", type: "chips",
-      options: [
-        { value: "haccp_kepzes", label: "Dolgozói HACCP-képzés" },
-        { value: "higienia", label: "Higiéniai tréning" },
-      ],
-    },
-    {
-      id: "hatosagi", label: "Hatósági ügyintézés", type: "chips",
-      options: [
-        { value: "engedely", label: "Engedélyeztetés" },
-        { value: "nebih", label: "NÉBIH-kapcsolat" },
-        { value: "kifogas", label: "Kifogás-kezelés" },
-      ],
-    },
-  ],
-
-  // Vendéglátó-marketinges
-  marketing: [
-    {
-      id: "tartalomgyartas", label: "Tartalomgyártás", type: "select",
-      options: [
-        { value: "helyszini", label: "Helyszíni fotó/videó készítés" },
-        { value: "kapott", label: "Csak kapott anyagokból dolgozik" },
-      ],
-    },
-    {
-      id: "dijazas_modell", label: "Elszámolás / díjazás modell", type: "select",
-      options: [
-        { value: "havidij", label: "Havidíj (retainer)" },
-        { value: "projekt", label: "Projekt / egyszeri" },
-        { value: "sikerdij", label: "Sikerdíj / teljesítményalapú" },
-      ],
-    },
-    {
-      id: "platform", label: "Platform fókusz", type: "chips",
-      options: [
-        { value: "social", label: "TikTok / Instagram (vizuális)" },
-        { value: "reputacio", label: "TripAdvisor / Google (reputációkezelés)" },
-      ],
-    },
-    {
-      id: "fizetett_hirdetes", label: "Fizetett hirdetés kezelése", type: "chips",
-      options: [
-        { value: "meta_ads", label: "Meta Ads (Facebook / Instagram)" },
-        { value: "google_ads", label: "Google Ads" },
-      ],
-    },
-    {
-      id: "etterem_spec", label: "Étterem-specializáció", type: "chips",
-      options: [
-        { value: "fine_dining", label: "Fine dining" },
-        { value: "bisztro", label: "Bisztró" },
-        { value: "etterem", label: "Étterem (à la carte)" },
-        { value: "magyaros_csarda", label: "Magyaros / csárda" },
-        { value: "olasz_pizza", label: "Olasz / pizzéria" },
-        { value: "azsiai", label: "Ázsiai / sushi" },
-        { value: "kavezo", label: "Kávézó" },
-        { value: "cukraszda", label: "Cukrászda" },
-        { value: "pub_sorozo", label: "Pub / söröző" },
-        { value: "bar_klub", label: "Bár / klub" },
-        { value: "gyors_street", label: "Gyorsétterem / street food" },
-        { value: "brunch", label: "Reggeliző / brunch" },
-        { value: "vegan_healthy", label: "Vegán / egészséges" },
-        { value: "rendezveny_catering", label: "Rendezvény / catering" },
-        { value: "hotel", label: "Hotel / szálloda vendéglátás" },
-      ],
-    },
-  ],
-
-  // Konyhagép-szerelő
-  gepszerelo: [
-    {
-      id: "gepcsoport", label: "Gépcsoportok", type: "chips",
-      options: [
-        { value: "hutestechnika", label: "Hűtéstechnika (kamrák, pultok)" },
-        { value: "hotechnika", label: "Hőtechnika (gázos / elektromos tűzhelyek)" },
-        { value: "sutokemence", label: "Sütőkemencék (pl. Rational)" },
-      ],
-    },
-    {
-      id: "kiszallas", label: "Kiszállás", type: "chips",
-      options: [
-        { value: "sos", label: "S.O.S. (0–24 hibaelhárítás)" },
-        { value: "tervezett", label: "Tervezett karbantartás" },
-      ],
-    },
-    {
-      id: "reagalasi_ido", label: "Reagálási idő", type: "select",
-      options: [
-        { value: "2ora", label: "2 órán belül" },
-        { value: "4ora", label: "4 órán belül" },
-        { value: "aznap", label: "Aznap" },
-        { value: "24_48", label: "24–48 órán belül" },
-      ],
-    },
-    {
-      id: "szerzodes_tipus", label: "Szerződés típusa", type: "select",
-      options: [
-        { value: "eseti", label: "Eseti (alkalmi hívás)" },
-        { value: "atalany", label: "Átalánydíjas karbantartási szerződés" },
-      ],
-    },
-    {
-      id: "marka_jogosultsag", label: "Gyártói márka-jogosultság", type: "chips",
-      options: [
-        { value: "rational", label: "Rational" },
-        { value: "electrolux", label: "Electrolux Professional" },
-        { value: "winterhalter", label: "Winterhalter" },
-        { value: "hobart", label: "Hobart" },
-        { value: "meiko", label: "Meiko" },
-        { value: "egyeb", label: "Egyéb / több márka" },
-      ],
-    },
-  ],
-
-  // Takarító / mosodai szolgáltató
-  takarito: [
-    {
-      id: "eszkozok", label: "Eszközök", type: "select",
-      options: [
-        { value: "sajat", label: "Saját ipari géppel / vegyszerrel érkezik" },
-        { value: "helyi", label: "A helyi eszközöket használja" },
-      ],
-    },
-    {
-      id: "gyakorisag", label: "Gyakoriság", type: "select",
-      options: [
-        { value: "napi", label: "Napi" },
-        { value: "heti", label: "Heti" },
-        { value: "eseti", label: "Eseti nagytakarítás" },
-      ],
-    },
-    {
-      id: "idoablak", label: "Időablak", type: "select",
-      options: [
-        { value: "zaras_utan", label: "Zárás utáni" },
-        { value: "hajnali", label: "Hajnali / nyitás előtti" },
-        { value: "rugalmas", label: "Rugalmas" },
-      ],
-    },
-    {
-      id: "terulet", label: "Terület", type: "chips",
-      options: [
-        { value: "vendegter", label: "Vendégtér (napi takarítás)" },
-        { value: "melytakaritas", label: "Konyhai mélytakarítás (zsíroldás, elszívók)" },
-        { value: "ablak_homlokzat", label: "Ablak / Homlokzat" },
-      ],
-    },
-    {
-      id: "mosoda", label: "Mosodai szolgáltatás", type: "chips",
-      options: [
-        { value: "textil_mosas", label: "Asztalterítő / egyenruha mosás" },
-        { value: "textil_berles", label: "Textilbérlés (terítő, egyenruha)" },
-      ],
-    },
-  ],
-
-  // Vendéglátós könyvelő
-  konyvelo: [
-    {
-      id: "szoftver_integracio", label: "Szoftveres integráció", type: "chips",
-      options: [
-        { value: "ntak", label: "NTAK adatszolgáltatás kezelése" },
-        { value: "pos_konyveles", label: "Vendéglátós szoftver (pl. r_keeper) összekötése a könyveléssel" },
-      ],
-    },
-    {
-      id: "cegmeret", label: "Cégméret / tranzakciószám", type: "select",
-      options: [
-        { value: "kis", label: "Kis egység (pl. kávézó, 1 üzlet)" },
-        { value: "kozepes", label: "Közepes (több üzlet)" },
-        { value: "lanc", label: "Lánc / nagy tranzakciószám" },
-      ],
-    },
-    {
-      id: "dijazas_modell", label: "Díjazás modell", type: "select",
-      options: [
-        { value: "havidij", label: "Havidíj (átalány)" },
-        { value: "tranzakcio", label: "Tranzakcióalapú" },
-      ],
-    },
-    {
-      id: "kapacitas", label: "Kapacitás", type: "chips",
-      options: [
-        { value: "berszamfejtes", label: "Bérszámfejtést is vállal" },
-        { value: "keszletellenorzes", label: "Készletnyilvántartás ellenőrzése" },
-      ],
-    },
-    {
-      id: "ado_strategia", label: "Adótanácsadás / stratégia", type: "chips",
-      options: [
-        { value: "adooptimalizalas", label: "Adóoptimalizálás" },
-        { value: "penzugyi_strategia", label: "Pénzügyi stratégia / tanácsadás" },
-      ],
-    },
-  ],
-
-  // Sommelier
-  sommelier: [
-    {
-      id: "vegzettseg", label: "Végzettség / Szint", type: "select",
-      options: [
-        { value: "wset", label: "WSET diplomás" },
-        { value: "alap", label: "Alap borismeret (tapasztalati úton)" },
-      ],
-    },
-    {
-      id: "rendezveny", label: "Rendezvény / borvacsora vezetés", type: "select",
-      options: [
-        { value: "van", label: "Van borvacsora / rendezvény vezetési tapasztalat" },
-      ],
-    },
-    {
-      id: "feladatkor", label: "Feladatkör", type: "chips",
-      options: [
-        { value: "borlap_beszerzes", label: "Borlap összeállítása (beszerzés is)" },
-        { value: "vendegteri_ajanlas", label: "Kizárólag vendégtéri ajánlás" },
-      ],
-    },
-    {
-      id: "borstilus", label: "Borstílus-fókusz", type: "chips",
-      options: [
-        { value: "magyar", label: "Magyar borvidékek" },
-        { value: "import", label: "Import borok" },
-        { value: "pezsgo", label: "Pezsgő / champagne" },
-        { value: "naturbor", label: "Natúrborok" },
-      ],
-    },
-  ],
-};
+export const PROFESSION_DETAILS: Record<string, DetailField[]> = {};
 
 export function detailFieldsFor(profession: string): DetailField[] {
   return PROFESSION_DETAILS[profession] ?? [];
@@ -803,18 +182,6 @@ export function professionLabel(industry: Industry, value: string): string {
 }
 
 // --- Iparág-specifikus extra szűrők ----------------------------------------
-export const HOSPITALITY_STYLES = [
-  "magyaros", "olasz", "ázsiai", "fine dining", "bisztró", "street food",
-  "cukrászat", "kávézó", "gyorsétterem", "rendezvény / catering",
-] as const;
-export const HOSPITALITY_SHIFTS = [
-  { value: "", label: "Mindegy" },
-  { value: "nappali", label: "Nappali" },
-  { value: "esti", label: "Esti" },
-  { value: "hetvegi", label: "Hétvégi" },
-  { value: "ketmuszak", label: "Kétműszakos" },
-] as const;
-
 export const REALESTATE_PROPERTY_TYPES = [
   "lakás", "családi ház", "telek", "ipari / kereskedelmi", "új építésű", "luxus", "mezőgazdasági",
 ] as const;
@@ -836,8 +203,6 @@ export type ProfessionalQuery = {
   availability: string;
   languages: string[];
   rate: string;                // tervezett bér / óradíj / díjazás (szabad)
-  styles?: string[];           // vendéglátás
-  shift?: string;              // vendéglátás
   propertyTypes?: string[];    // ingatlan
   services?: string[];         // ingatlan
   needCredential?: boolean;    // engedély / kamarai tagság elvárt
@@ -893,12 +258,6 @@ function label<T extends { value: string; label: string }>(list: readonly T[], v
 
 // --- AI prompt (admin által szerkeszthető szegmensek, iparáganként) --------
 export const PROFESSIONAL_DEFAULT_SEGMENTS: Record<Industry, { intro: string; task: string }> = {
-  hospitality: {
-    intro: `Te egy magyar vendéglátóipari HR- és beszerzési szakértő vagy, aki éttermeknek, kávézóknak keres szakembereket és szolgáltatókat. Valós, ellenőrizhető forrásokból dolgozz: LÉTEZŐ személyeket, csapatokat, cégeket ajánlj. SOHA ne találj ki nevet, telefonszámot vagy e-mailt — ha egy adatot nem találsz, hagyd üresen. Minden találathoz adj meg forrás-URL-t.`,
-    task: `Válaszolj KIZÁRÓLAG érvényes JSON-nal, magyarázó szöveg nélkül, ebben a szerkezetben:
-{"professionals":[{"name":"","role":"","location":"","distance":"","experience":"","availability":"","rate":"","phone":"","email":"","website":"","why":"","source":""}],"extras":{"market":"","tips":["",""],"outreach":""}}
-A "role" a pontos szakma/pozíció. A "why" egy mondatban indokolja, miért illik a megadott igényhez. A "market" adjon rövid tájékoztatót a szakma aktuális bér-/díjszintjéről és arról, hol érdemes még keresni (pl. szakmai csoportok, álláshirdető felületek). A "tips" 2-3 gyakorlatias kiválasztási/tárgyalási tanács. Az "outreach" egy kész, udvarias magyar megkereső üzenet, amit a partner kimásolhat és elküldhet.`,
-  },
   realestate: {
     intro: `Te egy magyar ingatlanpiaci szakértő vagy, aki ingatlantulajdonosoknak és -kezelőknek keres szakembereket és szolgáltatókat (közvetítő, ügyvéd, energetikus, kivitelező stb.). Valós, ellenőrizhető forrásokból dolgozz: LÉTEZŐ szakembereket, cégeket ajánlj, ahol releváns, ellenőrizd a jogosultságot/kamarai tagságot. SOHA ne találj ki nevet, telefonszámot vagy e-mailt — ha nem találod, hagyd üresen. Minden találathoz adj meg forrás-URL-t.`,
     task: `Válaszolj KIZÁRÓLAG érvényes JSON-nal, magyarázó szöveg nélkül, ebben a szerkezetben:
@@ -915,7 +274,7 @@ export function composeProfessionalPrompt(
   q: ProfessionalQuery,
   segments: { intro?: string; task?: string }
 ): string {
-  const def = PROFESSIONAL_DEFAULT_SEGMENTS[q.industry] ?? PROFESSIONAL_DEFAULT_SEGMENTS.hospitality;
+  const def = PROFESSIONAL_DEFAULT_SEGMENTS.realestate;
   const intro = (segments.intro ?? def.intro).trim();
   const task = (segments.task ?? def.task).trim();
 
@@ -945,14 +304,9 @@ export function composeProfessionalPrompt(
     q.languages.length ? `Nyelvtudás: ${q.languages.join(", ")}.` : "",
   ];
 
-  if (q.industry === "hospitality") {
-    if (q.styles?.length) lines.push(`Konyha / profil: ${q.styles.join(", ")}.`);
-    if (q.shift) lines.push(`Műszak: ${label(HOSPITALITY_SHIFTS, q.shift)}.`);
-  } else {
-    if (q.propertyTypes?.length) lines.push(`Ingatlantípus: ${q.propertyTypes.join(", ")}.`);
-    if (q.services?.length) lines.push(`Kért szolgáltatás: ${q.services.join(", ")}.`);
-    if (q.needCredential) lines.push(`FONTOS: csak megfelelő jogosultsággal / kamarai tagsággal rendelkező szakembert ajánlj, és jelezd ezt.`);
-  }
+  if (q.propertyTypes?.length) lines.push(`Ingatlantípus: ${q.propertyTypes.join(", ")}.`);
+  if (q.services?.length) lines.push(`Kért szolgáltatás: ${q.services.join(", ")}.`);
+  if (q.needCredential) lines.push(`FONTOS: csak megfelelő jogosultsággal / kamarai tagsággal rendelkező szakembert ajánlj, és jelezd ezt.`);
 
   // Szakma-specifikus RÉSZLETES szempontok (a lenyíló keresőből) — ezekre külön figyelj.
   const detailLines = formatDetails(q.profession, q.details);

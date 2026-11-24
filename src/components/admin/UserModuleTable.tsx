@@ -29,9 +29,6 @@ const SHORT: Record<string, string> = {
   "/dashboard/real-estate/valuation": "Becslés", "/dashboard/flyer": "Hird.kép", "/dashboard/real-estate/image-enhance": "Képjavító",
   "/dashboard/real-estate/video": "Videó", "/dashboard/real-estate/ad-check": "Szöveg-ell.", "/dashboard/real-estate/visualization": "Látványterv",
   "/dashboard/real-estate/fb-ads": "Hird.szöveg", "/dashboard/real-estate/land": "Telek", "/dashboard/real-estate/professionals": "Szakember",
-  "/dashboard/hospitality/menu": "Menü", "/dashboard/hospitality/costing": "Önköltség", "/dashboard/hospitality/suppliers": "Beszállító",
-  "/dashboard/hospitality/ingredients": "Alapanyag", "/dashboard/hospitality/inventory": "Kínálat", "/dashboard/hospitality/pricing": "Árazás",
-  "/dashboard/hospitality/professionals": "Szakember",
 };
 
 type Status = "all" | "active" | "sleeping" | "never";

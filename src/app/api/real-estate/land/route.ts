@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { chargeCredit, refundCharge, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 import {
   validateLandInput,
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   const credits = cfg.credits;
 
   // Kredit levonás (admin/sales megkerüli). Hibánál visszatérítjük.
-  const charge = await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: credits, service: "land" });
+  const charge = await chargeCredit({ userId: user.id, payFrom: payFromRequest(request), amount: credits, service: "land", cost: { model: cfg.model } });
   if (!charge.ok) {
     return insufficientResponse(user.id, credits, charge);
   }
@@ -91,9 +91,7 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ ok: true, url, report, charged: !charge.bypassed });
     } catch (err) {
-      if (!charge.bypassed) {
-        await refundCredit(user.id, credits, charge?.source);
-      }
+      await refundCharge(user.id, credits, charge);
       return NextResponse.json({ error: (err as Error).message }, { status: 500 });
     }
   }
@@ -118,9 +116,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, jobId: job.id, async: true });
   } catch (err) {
-    if (!charge.bypassed) {
-      await refundCredit(user.id, credits, charge?.source);
-    }
+    await refundCharge(user.id, credits, charge);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

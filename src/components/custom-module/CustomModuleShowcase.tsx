@@ -13,7 +13,6 @@ const MUTED = { color: "var(--twx-ink-muted)" };
 
 const USE_CASES: { icon: string; title: string; text: string }[] = [
   { icon: "valuation", title: "Ingatlaniroda", text: "Irodai adatlap- és ajánlatgenerátor a saját ingatlanlistádból és arculatodból — minden kolléga egységes, profi anyagot ad ki." },
-  { icon: "menu", title: "Vendéglátás", text: "Menü- és árkalkulátor a beszállítói áraidból: ha drágul egy alapanyag, azonnal látod, melyik étel árát kell módosítani." },
   { icon: "pricing", title: "Szolgáltató cég", text: "Ajánlatkészítő a saját díjtételeiddel: a munkatárs megadja az igényt, a rendszer kész, márkázott árajánlatot ad." },
   { icon: "inventory", title: "Kereskedelem", text: "Készlet- és rendelésösszesítő, ami a táblázataidból heti riportot és beszerzési listát készít — magától." },
 ];

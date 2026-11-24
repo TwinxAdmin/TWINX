@@ -73,14 +73,20 @@ Döntés kell tőled, Márk: [kérdések; vagy „nincs”]
 - A partner ág (aktiváló, gyártó) újratervezése (D31).
 - A cégvezetői „Lemondás kérése” és „Átvettem” gomb, bizonyíték feltöltése (Hamarosan, D54, D56).
 - Az ajánlat-ellenőrző lista és kalkuláció admin-funkcióvá alakítása (D57).
+- Az irodai fiók közös terének 3. fázisa az első valódi ügyfélmodulig (D67).
+- Az ÁSZF átírása: a vázlatot később AI-ügynök készíti, jogász nézi át (D64).
+- Az új irányhoz tartozó Meta-hirdetés és landing (D31, D63).
+- Az „Ügynökség” admin-oldal a twinx.hu adminban (D61); addig Telegram és a Supabase felülete. Előfeltételei az ügynökség adatmodelljében: nyilvános és `privat` mezők szétválasztása, csak olvasható adatbázis-szerepkör.
 
 **Nyitott (eldöntendő vagy kitöltendő):**
 - Ügynökségi dokumentumok szinkronja a D40–D58 döntésekkel (`02`, `09`, `10`; a `05` marketing D53-szintű).
 - A D46 megerősítendő alapértelmezései: a külön meghívási jog megszűnik; egy felhasználó több cégben is lehet; a meghívó 7 napig érvényes; ha az előfizetés az elfogadás után lejár, a hozzáférés nem aktiválódik.
 - A megőrzési határidő napjai az NDA-val; a számviteli megőrzési idő (könyvelő/jogász); a mentések kezelése törlésnél (D54).
 - A belső óradíj és az óraszám-becslés módja (Márk); az első kitöltött kalkuláció az első valódi modulnál; a kitöltött kalkuláció tárolási helye (D57).
-- Az első API-költséges modul havi plafonjának értékei (D44, D53).
+- Az első API-költséges modul havi plafonjának értékei (D44, D53); az Ingatlan csomag cégenkénti keretének értéke (D62, Márk).
+- Megerősítendő alapértékek: megőrzési határidő 90 nap (D65); a szövegek, 20/óra meghívó-korlát és 7 napos meghívó (D66).
+- Márk teendői az élesítéshez: az „Új felület” kapcsoló előtt a GDN-es kollégák Ingatlan-hozzáférése; jóváhagyók felvétele (Tibor); Resend DNS (a gyökér SPF-ből az `include:_spf.google.com` is hiányzik); adatkezelési tájékoztató és cégalapítás; csak utána `BOOKINGS_PUBLIC=1`; Telegram: külön új bot a közös csoportba.
 - A felhasználói szövegek finomhangolása a próbafelületen (D55).
 - Adatkezelési tájékoztató: jogász és cégadatok (kapu a foglalás és meghívás éles indítása előtt); cégalapítás; Számlázz.hu fiók; Resend domain-hitelesítés.
 - Tibi hitelesíti a referencia-landing csoportjait és modulleírásait; a főoldal képi anyaga.
-- Az ügynökség: alügynökök alapokmányai; a Modul tesztelő teszt-környezete és a Felmérő jegyzet-útja; havi API-plafon az ügynökségre (javaslat: 20 USD); indulási kapu (egyeztetés Tiborral).
+- Az ügynökség: alügynökök alapokmányai; a Modul tesztelő teszt-környezete és a Felmérő jegyzet-útja; havi API-plafon az ügynökségre eldőlt (20 USD, D60), a napi alkalmazás-szintű plafon értéke és a heti költségjelentés hátravan; indulási kapu (egyeztetés Tiborral). Rendezett lista: `ai-ugynokseg/11-ugynokseg-kovetkezo-feladatok.md`.

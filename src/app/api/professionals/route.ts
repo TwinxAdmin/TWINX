@@ -1,4 +1,4 @@
-// /api/professionals — Szakember-kereső (vendéglátás + ingatlan), Perplexity kutatással.
+// /api/professionals — Szakember-kereső (ingatlan), Perplexity kutatással.
 // POST: kredit a KÉRT TALÁLATSZÁM szerint (3→1, 6→2, 9→3), élő keresés forrásokkal,
 // TWINX PDF elérhetőségekkel + kész megkereső üzenettel, keresés mentése.
 // GET (?industry=): a korábbi keresések listája.
@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargeCredit, refundCredit, payFromRequest } from "@/lib/credits";
+import { chargeCredit, refundCharge, payFromRequest } from "@/lib/credits";
 import { insufficientResponse } from "@/lib/credit-response";
 import { runSonar, PERPLEXITY_MODEL } from "@/lib/perplexity";
 import { buildProfessionalPromptActive } from "@/lib/prompts";
@@ -118,8 +118,6 @@ export async function POST(request: Request) {
     availability: str(body.availability, 20),
     languages: arrFree(body.languages),
     rate: str(body.rate, 120),
-    styles: industry === "hospitality" ? arrFree(body.styles) : undefined,
-    shift: industry === "hospitality" ? str(body.shift, 20) : undefined,
     propertyTypes: industry === "realestate" ? arrFree(body.propertyTypes) : undefined,
     services: industry === "realestate" ? arrFree(body.services) : undefined,
     needCredential: industry === "realestate" ? Boolean(body.needCredential) : undefined,
@@ -159,9 +157,7 @@ export async function POST(request: Request) {
     return insufficientResponse(user.id, credits, charge);
   }
   const refund = async () => {
-    if (!charge.bypassed && credits > 0) {
-      await refundCredit(user.id, credits, charge?.source);
-    }
+    if (credits > 0) await refundCharge(user.id, credits, charge);
   };
 
   try {

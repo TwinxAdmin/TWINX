@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     .upsert(
       {
         user_id: user.id,
-        industry: str(body.industry, 20) ?? "hospitality",
+        industry: str(body.industry, 20) ?? "realestate",
         name,
         role: str(body.role, 120),
         location: str(body.location),

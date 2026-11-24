@@ -1,4 +1,4 @@
-// „Kinek?" — iparág-fülek a főoldalon. Az Ingatlan, a Vendéglátás és a Minden
+// „Kinek?" — iparág-fülek a főoldalon. Az Ingatlan és a Minden
 // vállalkozás EGYENRANGÚ fül; a negyedik („Hamarosan") halványabb, és csak azt
 // mondja, hogy a kínálat bővül. A modul-kártyák EREDMÉNY-nyelvű címet viselnek.
 "use client";

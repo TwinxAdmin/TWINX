@@ -13,14 +13,10 @@ const FEATURE_LABEL: Record<string, string> = {
   video: "Videó",
   flyer: "Hirdetés",
   "ad-check": "Hirdetés-ellenőrzés",
-  menu_generator: "Menü generátor",
   image_enhance: "Képjavító",
   image_enhance_regenerate: "Képjavító (újra)",
   "fb-ads": "Hirdetésszöveg",
   "google-ads": "Google Ads",
-  cost_analysis: "Önköltség elemzés",
-  profit_plan: "Profit-terv",
-  supplier_search: "Beszállító-kereső",
   professional_search: "Szakember-kereső",
 };
 
@@ -46,11 +42,7 @@ const FEATURE_FOLDER: Record<string, { title: string; hint: string }> = {
   "ad-check": { title: "Hirdetés-ellenőrzések", hint: "Meglévő hirdetések elemzése" },
   "fb-ads": { title: "Hirdetésszövegek", hint: "Facebook és Google Ads szövegek" },
   "google-ads": { title: "Google Ads feltöltések", hint: "Kampányba küldött hirdetések" },
-  menu_generator: { title: "Menük", hint: "Napi és heti menü javaslatok" },
-  cost_analysis: { title: "Önköltség elemzések", hint: "Étterem-szintű költségriportok" },
-  profit_plan: { title: "Profit-tervek", hint: "Megtérülési szimulációk" },
-  supplier_search: { title: "Beszállító-keresések", hint: "Termelők és nagykerek listái" },
-  professional_search: { title: "Szakember-keresések", hint: "Ügyvéd, kivitelező, séf…" },
+  professional_search: { title: "Szakember-keresések", hint: "Ügyvéd, kivitelező, energetikus…" },
 };
 
 export function featureFolder(feature: string): { title: string; hint: string } {

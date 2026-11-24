@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/pricing", destination: "/", permanent: false },
       { source: "/egyedi-modul", destination: "/", permanent: false },
+      // A vendéglátós modulok kikerültek (2026-11-24) — a régi linkek a Dashboardra visznek.
+      { source: "/dashboard/hospitality/:path*", destination: "/dashboard", permanent: false },
     ];
   },
   // A build ne bukjon el ESLint stílus-szabályokon (a "funkcionális UI a 7. fázisig" elv miatt).
