@@ -22,7 +22,7 @@ export default function UnsubscribeClient({ token }: { token: string }) {
       <h1 className="font-display text-2xl font-semibold">{status === "done" ? "Leiratkoztál" : "Ez most nem sikerült"}</h1>
       <p className="mt-2 text-sm" style={{ color: "var(--twx-ink-muted)" }}>
         {status === "done"
-          ? "Több ilyen levelet nem küldünk, és a hírlevélről is levettünk. A fiókod és a kreditjeid megmaradnak."
+          ? "Több ilyen levelet nem küldünk, és a hírlevélről is levettünk. A fiókod és a munkáid megmaradnak."
           : "Kérlek, próbáld újra később, vagy írj nekünk: twinx.hu/kapcsolat"}
       </p>
     </div>

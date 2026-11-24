@@ -93,9 +93,9 @@ export default async function ContactPage() {
               <h2 className="font-display text-lg font-bold">Gyors segítség</h2>
               <ul className="mt-3 space-y-1">
                 {[
-                  { href: "/pricing", t: "Csomagok és árak", s: "Kreditcsomagok — a kredit nem jár le" },
-                  { href: "/egyedi-modul", t: "Egyedi fejlesztés", s: "Saját modul a cégednek" },
-                  { href: user ? "/dashboard/settings" : "/register", t: user ? "Fiók és számlázás" : "Regisztráció", s: user ? "Profil, számlázási adatok, hírlevél" : "Ingyenes próbakreditekkel" },
+                  { href: "/#kapcsolat", t: "Ingyenes felmérés", s: "Beszéljük át, milyen modul segítene" },
+                  { href: "/referenciak", t: "Referenciák", s: "Működő példa: egy ingatlaniroda eszközei" },
+                  { href: user ? "/dashboard/settings" : "/register", t: user ? "Fiók és számlázás" : "Regisztráció", s: user ? "Profil, számlázási adatok, hírlevél" : "Fiók a TWINX-hez" },
                   { href: "/aszf", t: "ÁSZF", s: "Általános Szerződési Feltételek" },
                 ].map((l) => (
                   <li key={l.href}>

@@ -214,6 +214,13 @@ export default function AuthModal() {
           </div>
         )}
 
+        {/* Terv 22 / 5. C: a regisztráció fölötti szöveg (a kampány-forrás nélküli, új regisztrációknál) */}
+        {!isLogin && !source && (
+          <p className="mt-4 rounded-xl px-3 py-2 text-xs" style={{ background: "#f3ece3", color: "var(--twx-ink-muted)" }}>
+            Ha meghívót kaptál, ugyanazzal az e-mail címmel regisztrálj, amelyre a meghívó érkezett.
+          </p>
+        )}
+
         <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">
           {!isLogin && (
             <div>

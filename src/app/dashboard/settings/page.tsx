@@ -7,6 +7,7 @@ import CreditRequestPanel from "@/components/CreditRequestPanel";
 import BillingForm from "@/components/BillingForm";
 import { BILLING_COLUMNS, type BillingInfo } from "@/lib/billing";
 import { resolveViewContext } from "@/lib/view-as";
+import { newUiFor } from "@/lib/new-ui";
 import NewsletterToggle from "@/components/NewsletterToggle";
 import { getNewsletter } from "@/lib/newsletter";
 
@@ -48,13 +49,16 @@ export default async function SettingsPage() {
   const news = await getNewsletter(user.id);
 
   // A sales kolléga belső keretet kap (ingyen), neki nincs számlázás.
-  const needsBilling = role === "user";
+  // Új felület (3d): nincs kredit-kérés és nincs saját (kreditvásárláshoz kötött) számlázási adat — a cég
+  // számlázási adatait az admin kezeli (terv 19).
+  const newUi = await newUiFor(role);
+  const needsBilling = role === "user" && !newUi;
 
   return (
     <main className="mx-auto max-w-2xl space-y-6">
       <h1 className="font-display text-3xl font-semibold">Beállítások</h1>
 
-      {role !== "admin" && (
+      {role !== "admin" && !newUi && (
         <CreditRequestPanel
           balance={balance}
           billing={billing}

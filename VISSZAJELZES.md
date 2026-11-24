@@ -3,6 +3,17 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-24 – Terv 21: lemondás, lezárás, ügyféladat
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: docs/terv/21; D54
+Elkészült: migráció `20261124180000_closure.sql` (lefuttatva): modul lemondása (hatályos napig él, nyitott meghívók vissza, nincs új meghívó / „Használom én is” / hosszabbítás / lejárati jelzés; napi cron „Lemondva”), újranyitás (Szünetel → Aktiválás), cég lezárása (archiválás; tagok Besorolatlanok, munkák megmaradnak; force indoklással), cég újranyitása, végleges törlés csak fizetési tétel nélkül, ügyféladat visszaadása (napló) és törlése négy szem elvvel (kijelölt jóváhagyók, saját kérés nem hagyható jóvá, részleges végrehajtás újraindítható), „Lezárt cég nyitott tétele” címke, Cégek menü jelzése a függő kérésekre; regiszter: kötelező `storesCustomerData`, törlő kezelők helye `src/lib/module-data-handlers.ts`.
+Eltérés a tervtől: a megőrzési határidő amíg nincs eldöntve, a törlés csak „határidő előtt, az ügyfél írásbeli kérésére” jelöléssel kérhető; a cégvezetői „Lemondás kérése” és az automatikus törlés Hamarosan (a terv szerint).
+Új buktató / tanulság: a closure migráció több korábbi függvényt (meghívás, Fizetve, lejárati jelzés, hozzáférés) új változatra cserélt — a down szkript visszaállítja őket.
+Nem lett kész / Hamarosan: Telegram-értesítés a törlési kérésről (Telegram még nincs); a felhasználónak mutatott szöveg a hozzáférés megszűnésekor (jóváhagyandó).
+Ellenőrzési lépések eredménye: `tsc` és `eslint` rendben; migráció lefutott; Márk tesztje: lemondás, lezárás, négy szem elv, végleges törlés.
+Döntés kell tőled, Márk: megőrzési határidő (napok, NDA-val); jóváhagyók (Tibor felvétele).
+Éles állapot: élesben, csak admin.
+
 ## 2026-11-24 – Felhasználók cég-oszlop, terv 20 (plafon) és terv 19 (ajánlat, fizetés)
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: docs/terv/12 (1.2), 19, 20, 22 (3.A); D31, D52, D53

@@ -96,7 +96,7 @@ export default function ConfirmEmailModal({ mode, email, sent = true, bonusCredi
     "Keresd a TWINX levelét, és kattints az „E-mail cím megerősítése” gombra.",
     bonusCredits
       ? `Utána be tudsz lépni, és már ott vár a ${bonusCredits} ajándék kredited.`
-      : "Utána be tudsz lépni, és már ott várnak az ajándék kreditjeid.",
+      : "Utána be tudsz lépni a TWINX-be.",
   ];
 
   return (

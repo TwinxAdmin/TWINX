@@ -1,4 +1,4 @@
-// (auth)/register — Regisztráció (wireframe).
+// (auth)/register — Regisztráció.
 // Sorrend: űrlap validáció -> API route (/api/auth/register) -> Supabase Auth.
 "use client";
 
@@ -199,6 +199,13 @@ function RegisterForm() {
                 Először regisztrálj — belépés után a kezdőlapon, az egyenleged mellett tudod beváltani.
               </p>
             </div>
+          )}
+
+          {/* Terv 22 / 5. C: a regisztráció fölötti szöveg (kampány-kód nélkül) */}
+          {!linkCode && !fromLanding && (
+            <p className="mt-4 rounded-xl px-3 py-2 text-xs" style={{ background: "#f3ece3", color: "var(--twx-ink-muted)" }}>
+              Ha meghívót kaptál, ugyanazzal az e-mail címmel regisztrálj, amelyre a meghívó érkezett.
+            </p>
           )}
 
           <form onSubmit={onSubmit} noValidate className="mt-5 space-y-4">

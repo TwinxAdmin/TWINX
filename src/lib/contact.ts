@@ -14,7 +14,7 @@ export const MODULE_IDEA_TOPIC = "Ötlet egy új modulra";
 
 export const CONTACT_TOPICS = [
   "Általános kérdés",
-  "Kredit, fizetés, számla",
+  "Előfizetés, fizetés, számla",
   "Technikai segítség egy modulhoz",
   "Irodai fiók",
   "Egyedi fejlesztés, céges ajánlat",
@@ -26,7 +26,7 @@ export const CONTACT_TOPICS = [
 /** A témák és a mezőhibák angol szövege (az angol bemutatkozó oldal űrlapjai; a beküldött téma-érték magyar marad). */
 export const CONTACT_TOPIC_EN: Record<string, string> = {
   "Általános kérdés": "General question",
-  "Kredit, fizetés, számla": "Credits, payment, invoice",
+  "Előfizetés, fizetés, számla": "Subscription, payment, invoice",
   "Technikai segítség egy modulhoz": "Technical help with a module",
   "Irodai fiók": "Office account",
   "Egyedi fejlesztés, céges ajánlat": "Custom development, business quote",
