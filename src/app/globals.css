@@ -79,7 +79,7 @@
 @keyframes b-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes b-pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(200, 64, 31, .35); } 50% { box-shadow: 0 0 0 12px rgba(200, 64, 31, 0); } }
 @keyframes b-bar { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
-.b-marquee { display: flex; gap: 12px; width: max-content; animation: b-marquee 30s linear infinite; }
+.b-marquee { display: flex; width: max-content; animation: b-marquee 40s linear infinite; will-change: transform; } /* nincs gap: a rés az elemek margója (ugrásmentes hurok) */
 .b-float { animation: b-float 6s ease-in-out infinite; }
 .b-pulse { animation: b-pulse-ring 2.6s ease-in-out infinite; }
 .b-bar { animation: b-bar 3s ease-in-out infinite; transform-origin: bottom; }

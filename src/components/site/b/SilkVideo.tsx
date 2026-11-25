@@ -33,3 +33,19 @@ export default function SilkVideo() {
     </div>
   );
 }
+
+/**
+ * Állókép-változat ugyanazzal a sötét átmenettel (a „Mi az egyedi modul?" sávba, Márk kérése 2026-11-25):
+ * AI-val generált, a videóhoz illő bronz selyem kép. Fájl: public/design/silk-still.png. CSS-háttérként töltjük,
+ * így ha a fájl még nincs a helyén, a sáv egyszerűen sötét marad (nincs törött kép).
+ */
+export function SilkStill({ src = "/design/silk-still.png?v=1" }: { src?: string }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-cover bg-[position:70%_45%]" style={{ backgroundImage: `url("${src}")` }} />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,#1d1712_0%,rgba(29,23,18,0.92)_34%,rgba(29,23,18,0.4)_62%,rgba(29,23,18,0.08)_100%)] max-sm:bg-[rgba(29,23,18,0.78)]" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-b-dark to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-b-dark to-transparent" />
+    </div>
+  );
+}

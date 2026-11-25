@@ -14,8 +14,9 @@ import ContactBlock from "@/components/site/ContactBlock";
 import IdeaMarquee from "@/components/site/b/IdeaMarquee";
 import OfficeShowcase from "@/components/site/b/OfficeShowcase";
 import GdnShowcase from "@/components/site/b/GdnShowcase";
-import SilkRibbons from "@/components/site/b/SilkRibbons";
 import SilkVideo from "@/components/site/b/SilkVideo";
+import ModuleTower3D from "@/components/site/b/ModuleTower3D";
+import TimeSkyline from "@/components/site/b/TimeSkyline";
 import TwinxStamp from "@/components/site/b/TwinxStamp";
 import { bookingsOpenFor, getSiteViewer } from "@/lib/site-preview";
 import { SITE_LINKS } from "@/lib/site";
@@ -36,25 +37,28 @@ export default async function HomePage() {
     <main className="min-h-screen bg-b-bg font-sans text-b-ink">
       <SiteHeader viewer={viewer} />
 
-      {/* Hero + futó sáv közös háttérrel: halvány bronz selyemszalagok az alján (hangulat, nem viszi el a figyelmet). */}
-      <div className="relative overflow-hidden">
-      <SilkRibbons tone="light" />
-      {/* ===== 1) HERO — középre igazítva ===== */}
-      <section className="relative mx-auto max-w-[980px] px-4 pb-10 pt-14 text-center sm:px-8 sm:pt-[70px]">
-        <h1 className="font-display mb-[22px] text-[44px] font-bold leading-[1.02] tracking-[-1.2px] sm:text-[64px] lg:text-[76px] lg:tracking-[-2px]">
-          A te cégedre<br />szabott modul.
-        </h1>
-        <p className="mx-auto mb-[34px] max-w-[620px] text-lg leading-[1.55] text-b-ink-2 sm:text-[21px]">
-          Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Nem sablont kapsz.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3.5">
-          <a href={SITE_LINKS.contact} className="b-btn px-[30px] py-[17px]">Ingyenes felmérés</a>
-          <a href="#ref" className="b-btn-outline">Referenciák megtekintése</a>
-        </div>
-      </section>
+      {/* ===== 1) HERO — sötét, a bronz selyemszalagos háttérvideóval (Márk kérése 2026-11-25: a videó a lap tetejére
+          került). A szöveg a kép sötét, bal felén áll, balra igazítva; a felső sávval egybeolvadó sötét blokk.
+          Alján a futó sáv (üveges kapszulák). ===== */}
+      <div className="relative overflow-hidden bg-b-dark text-b-on-dark">
+        <SilkVideo />
+        <section className="relative mx-auto flex min-h-[520px] max-w-[1100px] items-center px-4 pb-6 pt-16 sm:min-h-[600px] sm:px-8 sm:pt-[90px]">
+          <div className="min-w-0 max-w-[620px]">
+            <h1 className="font-display mb-[22px] text-[44px] font-bold leading-[1.02] tracking-[-1.2px] sm:text-[64px] lg:text-[76px] lg:tracking-[-2px]">
+              A te cégedre<br />szabott modul.
+            </h1>
+            <p className="mb-[34px] max-w-[560px] text-lg leading-[1.55] text-b-on-dark sm:text-[21px]">
+              Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Nem sablont kapsz.
+            </p>
+            <div className="flex flex-wrap gap-3.5">
+              <a href={SITE_LINKS.contact} className="b-btn px-[30px] py-[17px]">Ingyenes felmérés</a>
+              <a href="#ref" className="b-btn-outline border-white/45 text-b-on-dark hover:bg-white/10">Referenciák megtekintése</a>
+            </div>
+          </div>
+        </section>
 
-      {/* ===== 2) FUTÓ SÁV — ötletek bármilyen iparágra ===== */}
-      <div className="relative pb-6"><IdeaMarquee /></div>
+        {/* ===== 2) FUTÓ SÁV — a hero alján, a videóhoz illő üveges kapszulákkal ===== */}
+        <div className="relative pb-8"><IdeaMarquee tone="dark" /></div>
       </div>
 
       {/* ===== 3) IRODAI FIÓK — közös modulok, megosztott munka (animált bemutató) ===== */}
@@ -62,9 +66,9 @@ export default async function HomePage() {
 
       {/* ===== 4) MI AZ EGYEDI MODUL? — sötét sáv ===== */}
       <section className="relative overflow-hidden bg-b-dark text-b-on-dark">
-        {/* Hangulat: a bronz selyemszalagos háttérvideó (áttűnéses hurok); a szöveg a kép fekete, bal felén áll. */}
-        <SilkVideo />
-        <div className="relative mx-auto flex min-h-[560px] max-w-[1100px] items-center px-4 py-16 sm:min-h-[640px] sm:px-8 sm:py-[96px]">
+        {/* Selymes, meleg háttér (CSS): lágy bronz derengés a tárgy mögött, hogy a 3D modul „beleolvadjon" a sávba. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_76%_50%,rgba(176,118,76,0.30),transparent_65%),radial-gradient(40%_50%_at_76%_58%,rgba(255,122,79,0.14),transparent_70%),radial-gradient(90%_120%_at_0%_100%,rgba(10,6,4,0.55),transparent_60%)]" />
+        <div className="relative mx-auto grid min-h-[560px] max-w-[1100px] grid-cols-1 items-center gap-6 px-4 py-16 sm:min-h-[640px] sm:px-8 sm:py-[96px] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <Reveal className="min-w-0 max-w-[560px]">
             <p className="mb-4 text-[13px] uppercase tracking-[1.6px] text-b-accent-on-dark">{WHAT_IS_MODULE.eyebrow}</p>
             <h2 className="font-display m-0 mb-7 text-[32px] font-bold leading-[1.1] tracking-[-1px] sm:text-[44px]">{WHAT_IS_MODULE.title}</h2>
@@ -73,6 +77,15 @@ export default async function HomePage() {
             </div>
             <TwinxStamp className="mt-10" />
           </Reveal>
+          {/* Interaktív 3D modul-tárgy (ModuleTower3D): zárva izzik (láva + áram), egérre kinyílik, és kiúsznak a napi
+              feladatok kártyái; elengedve visszazár. Fix magasság. */}
+          <div className="relative h-[400px] sm:h-[540px]">
+            {/* Háttér: izzó „időspórolás-városkép" (homokóra, stopper, naptár, monitor, chip…) — a plakát épületeinek mintájára */}
+            <TimeSkyline className="absolute bottom-[3%] left-1/2 h-auto w-[135%] -translate-x-1/2 opacity-60" />
+            <div aria-hidden className="pointer-events-none absolute bottom-[8%] left-1/2 h-10 w-[60%] -translate-x-1/2 rounded-[50%] bg-black/45 blur-2xl" />
+            <ModuleTower3D className="h-full w-full" />
+            <p className="pointer-events-none absolute bottom-0 left-0 right-0 text-center text-xs text-b-on-dark-2">Mutass rá, vagy koppints rá</p>
+          </div>
         </div>
       </section>
 

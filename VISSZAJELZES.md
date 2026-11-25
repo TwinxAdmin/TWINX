@@ -3,6 +3,90 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-25 – 6. lépés, 17. kör: interaktív 3D „modul-tárgy" a „Mi az egyedi modul?" sávban
+
+**Mi változott (Márk döntése: A) egy nagy 3D tárgy; a kép helyett animáció, ami egérre változik; „selymesebb szín,
+olvadjon bele"):** új `src/components/site/b/ModuleTower3D.tsx` (three.js, a feltöltött *3d-feature-objects* skill
+módszerével, egyetlen nagyobb tárgyra). A sáv: balra a szöveg és a pecsét, jobbra a tárgy (asztalin két oszlop,
+mobilon egymás alatt; fix magasság 440 / 340 px).
+- Tárgy: moduláris kockatorony — 4 lekerekített élű, egymásba illeszkedő bronz blokk (mély, szatén és világosabb
+  árnyalat), középen korall fényű mag.
+- Egér rajta: ±0,7 rad fordulás a vízszintes helyzet szerint + lassú forgás (0,58 rad/s), a blokkok szétnyílnak, a mag
+  felizzik; simítás `1−e^(−10·dt)`. Egér el: a legrövidebb úton (atan2) vissza, a blokkok összezárnak. Érintésre /
+  Enter-re nyit-zár. „Mozgás csökkentése": álló kép, azonnali váltás. Csak látható és mozgó állapotban rajzol.
+- „Selymes": szatén bronz anyag lágy környezeti tükröződéssel (RoomEnvironment), meleg fő- és hűvös élfény, kemény
+  árnyék nélkül; átlátszó vászon, mögötte lágy bronz/korall derengés és elmosott „talaj-árnyék" (CSS).
+- Bővítés (Márk kérése): nagyobb (540 / 400 px magas, szélesebb oszlop). **Zárva izzik**: a fugákban és a magban
+  mozgó láva-textúra, amit áramszerű, kékesfehér villanások szőnek át, a blokkok is felhevülnek, mögöttük meleg
+  izzás-fény — minél jobban zár, annál erősebb (zárva folyamatosan pulzál). **Nyitva** az izzás kialszik, és a fugákból
+  6 kártya úszik ki balra-jobbra a napi munkával: Ajánlat · Heti riport · Ügyfélválasz · Időpont-egyeztetés ·
+  Nyilvántartás · Számla-előkészítés (sötét-bronz üvegkártyák, krém szöveg, korall pont; HTML, éles szöveg).
+  „Mozgás csökkentése": nincs pulzálás és villanás.
+- 2. bővítés (Márk: „általánosabb felirat; a lapok a téglák között feküdjenek, és a mozgáshoz igazodjanak"): a kártyák
+  már nem HTML-ben lebegnek, hanem **3D lapok a torony belsejében**: zárva a fugákban fekszenek (rejtve), nyitáskor a téglák
+  közül sugárirányban kicsúsznak, és ~64°-ban a néző felé billennek; a toronnyal együtt mozognak és forognak.
+  Feliratok (egy szó, iparág-független): Ajánlatok · Riportok · Ügyfelek · Határidők · Dokumentumok · Nyilvántartás.
+  Lap: sötét-bronz, bronz keret, korall pont, krém betű (vászon-textúra); fugánként kettő, kicsit eltolt indulással.
+  Módosítás (Márk: „a TWINX szolgáltatásaira utaljanak"): Ingyenes felmérés · Egyedi modul · Cégre szabva ·
+  AI-automatizálás · Irodai fiók · Saját arculat; a betűméret a felirat hosszához igazodik.
+- Áram (Márk: „a villogás helyett mintha áram járná körbe a téglákat belülről, a láva mellett"): a régi villanás
+  kikerült. Minden fugában két vékony, lekerekített gyűrű fut körbe a téglák belső peremén; rajtuk kékesfehér
+  áramimpulzusok haladnak (ellentétes irányban, kicsit eltérő sebességgel), finom „sercegő" remegéssel (saját shader,
+  additív fény). Az erőssége a hővel nő (zárva a legerősebb, nyitva kialszik). A láva megmaradt, egyenletesen pulzál.
+- Téglák modernebb, profibb megjelenése (Márk kérése):
+  • csiszolt (szálirányos) bronz felület finom lakkréteggel, élesebb, kisebb sugarú élek;
+  • minden blokkon körbefutó grafit „panelvonal", a felső élen vékony korall fénycsík (zárva erősebben világít);
+  • **digitális óra** a 2. blokk elülső oldalán: sötét üvegkijelző, 7-szegmenses borostyán-korall számok, élő idő
+    (ÓÓ:PP), villogó kettőspont;
+  • **beleégetett „TWINX"** a 3. blokk jobb oldalán: sötét égésnyom, zárva parázsló, izzó szélekkel (a hővel együtt).
+- Módosítás (Márk: „vissza az előzőhöz, az órát vegyük ki; a felület legyen a feltöltött képhez hasonló" — fekete
+  kerámia fali lámpa): az óra, a grafit panelvonal, a korall LED-csík és a csiszolt bronz kikerült. A téglák most
+  **matt, durva, pórusos fekete kerámiából** vannak (szénfekete alap, szürkés kérges foltok, apró pórusok — vászonból
+  rajzolt szín- és dombor-térkép, három kissé eltérő változat). Az izzás mélyebb vörös-narancs lett (mint a lámpa
+  vörös fénye). A **beleégetett „TWINX"** maradt: hamus-barna égésnyom a fekete kerámián, mindig halványan, zárva erősen parázsló szélekkel.
+- Végső felület (Márk: „vissza az eredetihez, de a kinyílásnál menjen át feketébe"): ZÁRVA az eredeti szatén bronz
+  (eredeti élsugár, narancs láva-izzás); NYITÁSKOR a téglák fokozatosan matt, pórusos fekete kerámiává válnak — a szín,
+  a fémesség, az érdesség és a pórusos dombor-térkép együtt úszik át a nyílás mértékével; záráskor vissza bronzba.
+  A beleégetett „TWINX" maradt.
+- Háttér a tárgy mögött (Márk kérése, minta: az ügynökségi plakát izzó épületei): új `TimeSkyline.tsx` — izzó
+  korall körvonalú „városkép", ahol az épületek helyén időspórolásra és modern, digitális munkára utaló tárgyak állnak:
+  monitor kóddal és villogó kurzorral, homokóra pergő homokkal, szerverszekrény villogó LED-ekkel, stopper forgó
+  mutatókkal, naptárköteg, óratorony, chip áramköri vonalakkal, laptop grafikonnal, kis homokóra, telefon órával;
+  mögöttük szaggatott „üveg" szellemtornyok, alul vízszerű tükröződés és meleg pára. Kódból rajzolt SVG, 60%-os
+  erősséggel a tárgy mögött; „mozgás csökkentése": minden áll.
+- Izzó kötelek (Márk kérése, minta: az ügynökségi plakát kezek feletti fényszálai): minden lapot 4 vékony, izzó
+  szál köt a téglák belsejéhez (a fugában rögzítve → a lap belső éléig, enyhe ívvel); a szálakon apró fénycseppek
+  futnak a torony felől a lap felé. A szálak minden képkockán a lap helyzetéből számolódnak, így együtt mozognak,
+  feszülnek és forognak; nyitáskor jelennek meg, záráskor eltűnnek. „Mozgás csökkentése": álló cseppek.
+- Finomítás (Márk: „erősebb glow; az előbújás finomabb, nagyobb egérmozgásra jöjjenek elő teljesen"):
+  • glow: a szálak mentén szálanként 14 nagy, lágy, lassan pulzáló fényfolt (izzó dereng), világosabb szál, nagyobb cseppek;
+  • előbújás: a nyitás mértéke az egér által megtett vízszintes úttal nő (kb. a doboz szélességének 1,2-szerese kell a
+    teljes előbújáshoz); megálláskor ott marad, elengedve visszazár. A követés lassú és lágy (nyitás ~2,6, zárás ~3,6 /s
+    csillapítás), így a lapok fokozatosan „bújnak elő", nem ugranak. Érintésre továbbra is teljesen nyit (lassan).
+    Módosítás (Márk: „ennek a fele legyen"): a teljes előbújáshoz szükséges egérút a felére csökkent (a doboz ~0,6-szorosa).
+- Visszavonva (Márk: „az áramot vegyük ki"): az áram-gyűrűk és a hűvös árnyalat kikerültek; zárva tiszta, lágyan
+  pulzáló láva-izzás maradt.
+- A 16. körben generált állókép (`silk-still.png`) **már nem kell** — a `SilkStill` komponens megmaradt, de nincs használva.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
+## 2026-11-25 – 6. lépés, 16. kör: videós hero, AI-állókép a sötét sávban, ugrásmentes futó sáv
+
+**Mi változott (Márk kérése):**
+- **Hero:** a selymes háttérvideó (`SilkVideo`) a lap tetejére került. A hero sötét lett (a felső sávval egybeolvad),
+  a cím, a leírás és a gombok balra, a videó sötét bal felén állnak; „Referenciák megtekintése" világos keretes gomb.
+- **Futó sáv:** a hero aljára került, a videóhoz illő **üveges** kapszulákkal és üveges kiemelő címkékkel
+  (`IdeaMarquee tone="dark"`). **Ugrás javítva:** a két listapéldány közti `gap` miatt a −50%-os hurok 6 px-et
+  ugrott; most minden kapszula saját margót kap, így a hurok varrat nélküli. Lassabb (40 mp/kör), a széleken lágy
+  elhalványulás.
+- **„Mi az egyedi modul?" sötét sáv:** sötét marad, a videó helyett AI-val generált, illő **állókép** (`SilkStill`,
+  Higgsfield / GPT Image: bronz selyemszalagok sötét háttéren, bal oldalt üres sötét tér a szövegnek, ember nélkül;
+  2 változat készült, 1,5 kredit). **Fájl: `public/design/silk-still.png`** — Márk tölti le és teszi a helyére
+  (a munkakörnyezetből nincs hálózat); amíg nincs ott, a sáv egyszerűen sötét.
+- A korábbi világos hero selyemszalagjai kikerültek.
+
+tsc + eslint hibamentes. Chrome-ellenőrzés Márk kérésére nem volt.
+
 ## 2026-11-24 – 6. lépés, 15. kör: Kapcsolat oldal reklámblokkja általános; „Minden elérhetőség" gomb a foglalási sávban
 
 **Mi változott (Márk kérése):**
