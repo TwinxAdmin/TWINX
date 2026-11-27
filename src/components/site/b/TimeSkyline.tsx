@@ -1,9 +1,9 @@
-// Időspórolás-„városkép" a 3D modul-tárgy mögött (Márk kérése 2026-11-25; minta: az ügynökségi plakát izzó, drótvázas
-// épületei). Az épületek helyett az IDŐRE és a MODERN, DIGITÁLIS munkára utaló tárgyak állnak sorban a horizonton:
-// homokóra, stopper, óratorony, naptárköteg, monitor kóddal, laptop, szerverszekrény, chip áramköri vonalakkal, telefon.
-// Izzó korall körvonalak, mögöttük halvány „üveg" szellemalakok, alul vízszerű tükröződés. Finom mozgás: forgó
-// mutatók, pergő homok, villogó LED-ek és kurzor — „mozgás csökkentése" beállításnál minden áll.
-// Csak díszítés: aria-hidden, nem kattintható, kód rajzolja (nincs kép).
+// Időspórolás-„városkép" a „Mi az egyedi modul?" ábrája mögött (Márk kérése 2026-11-25; 2026-11-27-én a gömbös ábra
+// mögé visszahozva). Minta: az ügynökségi plakát izzó, drótvázas épületei. Az épületek helyett az IDŐRE és a MODERN,
+// DIGITÁLIS munkára utaló tárgyak állnak sorban a horizonton: homokóra, stopper, óratorony, naptárköteg, monitor kóddal,
+// laptop, szerverszekrény, chip áramköri vonalakkal, telefon. Izzó korall körvonalak, mögöttük halvány „üveg"
+// szellemalakok, alul vízszerű tükröződés. Finom mozgás: forgó mutatók, pergő homok, villogó LED-ek és kurzor —
+// „mozgás csökkentése" beállításnál minden áll. Csak díszítés: aria-hidden, nem kattintható, kód rajzolja (nincs kép).
 
 const C = "#ff9a5a";      // izzó körvonal
 const F = "rgba(255,140,80,0.05)"; // halvány kitöltés

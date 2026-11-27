@@ -10,7 +10,15 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { GDN_SHOWCASE } from "@/lib/site-copy";
-import Floorplan3DDemo, { FLOORPLAN_DEMO_MS } from "@/components/site/b/Floorplan3DDemo";
+import dynamic from "next/dynamic";
+import { FLOORPLAN_DEMO_MS } from "@/components/site/b/floorplanDemoTiming";
+
+// Az „Alaprajzból 3D" demó (Three.js) késleltetve, külön darabban töltődik (csak a böngészőben); amíg betölt, a színpad
+// helyén ugyanakkora sötét felület áll, így semmi nem ugrik.
+const Floorplan3DDemo = dynamic(() => import("@/components/site/b/Floorplan3DDemo"), {
+  ssr: false,
+  loading: () => <div className="absolute inset-0 bg-[radial-gradient(120%_100%_at_70%_0%,#3a2a20,#1d1712_65%)]" />,
+});
 
 type Key = (typeof GDN_SHOWCASE.modules)[number]["key"];
 const MODS = GDN_SHOWCASE.modules;

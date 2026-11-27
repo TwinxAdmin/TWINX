@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TWINX – gömbös ábra minta</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* VOICE: a meglévő twinx.hu „Mi az egyedi modul?” szekció, változatlan szöveggel
+   IDEA: üvegből és rézből épült molekula: a TWINX előnyei egy hálóban
+   PICTURE: valódi 3D (Three.js) gömbök szavakkal, apró réz pontok, amelyek az egér elől szétrebbennek
+   COLOUR and TYPE: a mostani sötétbarna háttér, réz #c8703a, izzó narancs #ff6a3d, krém szöveg; Space Grotesk + Inter
+   LAYOUT: bal oldalt a meglévő szöveg (méret változatlan), jobb oldalt az ábra, hozzá igazítva */
+:root{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:#f3ede5;font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{background:radial-gradient(ellipse at 70% 55%,#3a2216 0%,#1d1410 45%,#140e0b 100%);color:#f4ece4;padding:clamp(48px,7vw,120px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:clamp(24px,4vw,64px);align-items:center}
+.eyebrow{color:#ff7a59;font-size:14px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 22px}
+h2{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(34px,4.4vw,58px);line-height:1.08;margin:0 0 30px;text-wrap:balance}
+p{font-size:clamp(16px,1.35vw,19px);line-height:1.75;color:#d9cbbd;margin:0 0 22px}
+.stamp{display:inline-block;margin-top:24px;border:3px solid #e07a5f;border-radius:10px;padding:8px 18px 10px;transform:rotate(-4deg);color:#e07a5f;text-align:center}
+.stamp b{display:block;font-family:'Space Grotesk',sans-serif;font-size:40px;letter-spacing:.12em;line-height:1.1}
+.stamp small{font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.fig{position:relative;aspect-ratio:1/1;width:100%;max-width:640px;justify-self:center;touch-action:pan-y}
+.fig canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.hint{text-align:center;color:#a8978a;font-size:14px;margin-top:6px}
+.fallback{display:none;flex-wrap:wrap;gap:10px;justify-content:center;align-content:center;height:100%}
+.fallback span{border:1px solid #8a5233;border-radius:999px;padding:10px 18px;color:#f4ece4}
+.nogl .fallback{display:flex}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.note{max-width:1240px;margin:0 auto;padding:18px max(5vw,16px);color:#5a4d42;font-size:14px}
+@media(max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.fig{max-width:520px}}
+</style>
+</head>
+<body>
+<section class="band" aria-labelledby="t">
+<div class="wrap">
+<div>
+<p class="eyebrow">Mi az egyedi modul?</p>
+<h2 id="t">Egy eszköz, ami pontosan a te munkafolyamatodra épül.</h2>
+<p>Az egyedi modul egy olyan program, amely a te cégednek egy konkrét, ismétlődő feladatát végzi el. Nem általános szoftver, amihez alkalmazkodnod kell: mi alkalmazkodunk hozzád.</p>
+<p>A kollégáid a saját fiókjukkal használják, ott, ahol neked a legjobb: a TWINX oldalán, saját appban vagy ahol már dolgoztok.</p>
+<div class="stamp"><b>TWINX</b><small>Egyedi modul · cégre szabva</small></div>
+</div>
+<div>
+<div class="fig" id="fig" role="img" aria-label="Üveggömbökből álló ábra a TWINX előneivel: TWINX AI, Biztonságos, Időt spórol, Cégre szabva, Bővíthető, Automatizál, AI-ügynökség.">
+<canvas id="c"></canvas>
+<div class="fallback" aria-hidden="true"><span>TWINX AI</span><span>Biztonságos</span><span>Időt spórol</span><span>Cégre szabva</span><span>Bővíthető</span><span>Automatizál</span><span>AI-ügynökség</span></div>
+</div>
+<div class="hint">Mutass rá, vagy koppints rá</div>
+</div>
+</div>
+</section>
+<p class="note">Minta a fejlesztésnek: a bal oldali szöveg a mostani oldalé, csak a jobb oldali ábra új. Húzd át az egeret az ábrán (mobilon érintsd meg).</p>
+<script>/*THREE*/</script>
+<script>
+{
+const fig=document.getElementById('fig'),cv=document.getElementById('c');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});}catch(e){renderer=null}
+if(!renderer||!window.THREE){fig.classList.add('nogl')}else{
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(34,1,0.1,100);
+camera.position.set(0,0,17.5);
+scene.add(new THREE.AmbientLight(0xffe2cc,0.35));
+const key=new THREE.DirectionalLight(0xffd9b8,1.1);key.position.set(-4,6,8);scene.add(key);
+const glow=new THREE.PointLight(0xff6a3d,1.6,22);glow.position.set(2,-3,4);scene.add(glow);
+
+const COPPER=new THREE.Color('#c8703a'),CREAM=new THREE.Color('#f6e6d2'),EMBER=new THREE.Color('#ff6a3d');
+const NODES=[
+ {w:'TWINX AI',p:[0,0,0],r:1.95},
+ {w:'Biztonságos',p:[-3.15,2.35,-0.6],r:1.08},
+ {w:'Időt spórol',p:[3.2,2.15,0.3],r:1.12},
+ {w:'Cégre szabva',p:[-3.45,-1.75,0.5],r:1.18},
+ {w:'Bővíthető',p:[3.35,-1.95,-0.4],r:1.02},
+ {w:'Automatizál',p:[0.15,3.75,-1.1],r:0.98},
+ {w:'AI-ügynökség',p:[0.35,-3.85,0.3],r:1.08}
+];
+/* üveg: fresnel perem + csúcsfény + alsó izzás */
+const glassMat=new THREE.ShaderMaterial({
+ transparent:true,depthWrite:false,
+ uniforms:{uRim:{value:new THREE.Color('#e9a374')},uIn:{value:new THREE.Color('#3a2116')},uEmber:{value:EMBER},uCream:{value:CREAM},uPulse:{value:0}},
+ vertexShader:'varying vec3 vN;varying vec3 vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+ fragmentShader:'uniform vec3 uRim;uniform vec3 uIn;uniform vec3 uEmber;uniform vec3 uCream;uniform float uPulse;varying vec3 vN;varying vec3 vV;void main(){vec3 n=normalize(vN);vec3 v=normalize(vV);float f=pow(1.-max(dot(n,v),0.),2.4);vec3 L=normalize(vec3(-.45,.7,.6));float s=pow(max(dot(reflect(-L,n),v),0.),48.);float g=pow(max(-n.y,0.),2.)*.55;vec3 col=mix(uIn,uRim,f)+uEmber*g*f+uCream*s+uEmber*uPulse*(f*.9+.12);float a=.07+f*.78+s*.9+g*.12+uPulse*(f*.2+.08);gl_FragColor=vec4(col,clamp(a,0.,1.));}'
+});
+const sphereGeo=new THREE.SphereGeometry(1,64,48);
+function label(text,r){
+ const c=document.createElement('canvas');c.width=1024;c.height=512;const x=c.getContext('2d');
+ let fs=150;x.font='600 '+fs+'px Inter, system-ui, sans-serif';
+ while(x.measureText(text).width>950&&fs>40){fs-=6;x.font='600 '+fs+'px Inter, system-ui, sans-serif'}
+ x.textAlign='center';x.textBaseline='middle';x.shadowColor='rgba(255,106,61,.55)';x.shadowBlur=24;x.fillStyle='#f8ecdd';x.fillText(text,512,262);
+ const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));
+ const w=r*(r>1.5?1.62:1.95);sp.scale.set(w,w/2,1);return sp;
+}
+const orbs=[];
+const haloTex=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const g=x.createRadialGradient(128,128,40,128,128,128);g.addColorStop(0,'rgba(255,122,61,0)');g.addColorStop(.42,'rgba(255,122,61,.55)');g.addColorStop(.55,'rgba(255,140,80,.28)');g.addColorStop(1,'rgba(255,122,61,0)');x.fillStyle=g;x.fillRect(0,0,256,256);return new THREE.CanvasTexture(c)})();
+NODES.forEach(n=>{
+ const mat=glassMat.clone();
+ const m=new THREE.Mesh(sphereGeo,mat);m.position.fromArray(n.p);m.scale.setScalar(n.r);m.renderOrder=1;scene.add(m);
+ const s=label(n.w,n.r);s.position.fromArray(n.p);s.renderOrder=2;scene.add(s);
+ const h=new THREE.Sprite(new THREE.SpriteMaterial({map:haloTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));h.scale.setScalar(n.r*3.1);h.position.fromArray(n.p);h.renderOrder=0;scene.add(h);
+ orbs.push({m,s,h,mat,r:n.r,home:new THREE.Vector3(...n.p),cur:new THREE.Vector3(...n.p),pt:-1,next:.4+Math.random()*3.5,dur:1.5+Math.random()*.8,amp:.55+Math.random()*.35});
+});
+/* vezetékek: ívek a középső gömbtől + két nagy pálya */
+const wireMat=new THREE.LineBasicMaterial({color:0xb8673a,transparent:true,opacity:.5});
+const curves=[],links=[];
+NODES.slice(1).forEach((n,i)=>{const a=0,b=i+1;const A=new THREE.Vector3(...NODES[a].p),B=new THREE.Vector3(...n.p);const off=new THREE.Vector3((i%3-1)*.6,0,(i%2?1.4:-1.4));links.push({a,b,mul:1,off});curves.push(new THREE.QuadraticBezierCurve3(A,A.clone().add(B).multiplyScalar(.5).add(off),B))});
+for(let i=1;i<NODES.length;i++){const a=i,b=i%6+1;const A=new THREE.Vector3(...NODES[a].p),B=new THREE.Vector3(...NODES[b].p);links.push({a,b,mul:1.25,off:new THREE.Vector3()});curves.push(new THREE.QuadraticBezierCurve3(A,A.clone().add(B).multiplyScalar(.5).multiplyScalar(1.25),B))}
+const orbit=(rx,ry,tx,tz)=>{const pts=[];for(let i=0;i<=200;i++){const t=i/200*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(t)*rx,Math.sin(t)*ry,0))}const cu=new THREE.CatmullRomCurve3(pts,true);cu.__rot=new THREE.Euler(tx,0,tz);return cu};
+const orbits=[orbit(5.6,2.3,1.15,0.35),orbit(5.2,2.0,-1.0,-0.55)];
+const linkLines=[];
+curves.forEach((cu,i)=>{const g=new THREE.BufferGeometry().setFromPoints(cu.getPoints(60));const l=new THREE.Line(g,wireMat);scene.add(l);linkLines.push(l)});
+orbits.forEach(cu=>{const g=new THREE.BufferGeometry().setFromPoints(cu.getPoints(120));const l=new THREE.Line(g,wireMat);l.rotation.copy(cu.__rot);scene.add(l)});
+const qc=new THREE.QuadraticBezierCurve3(),tv=new THREE.Vector3();
+function updateWires(){links.forEach((k,i)=>{const A=orbs[k.a].cur,B=orbs[k.b].cur;qc.v0.copy(A);qc.v2.copy(B);qc.v1.copy(A).add(B).multiplyScalar(.5*k.mul).add(k.off);const p=linkLines[i].geometry.attributes.position;for(let j=0;j<=60;j++){qc.getPoint(j/60,tv);p.setXYZ(j,tv.x,tv.y,tv.z)}p.needsUpdate=true})}
+
+/* apró elemek: pontok + kis rézgömbök, ezek rebbennek szét */
+const home=[],size=[],tone=[];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const push=(v,s,t)=>{home.push(v.x,v.y,v.z);size.push(s);tone.push(t)};
+curves.forEach(cu=>{for(let i=0;i<46;i++){const v=cu.getPoint(i/45);v.x+=rnd(-.05,.05);v.y+=rnd(-.05,.05);push(v,rnd(1.2,2.4),Math.random())}});
+orbits.forEach(cu=>{const m=new THREE.Matrix4().makeRotationFromEuler(cu.__rot);for(let i=0;i<300;i++){const v=cu.getPoint(i/300).applyMatrix4(m);v.addScalar(0);v.x+=rnd(-.08,.08);v.y+=rnd(-.08,.08);v.z+=rnd(-.08,.08);push(v,rnd(1.3,2.8),Math.random())}});
+const N0=900;for(let i=0;i<N0;i++){const y=1-(i/(N0-1))*2,rr=Math.sqrt(1-y*y),th=i*2.39996;const R=2.4+rnd(-.06,.06);push(new THREE.Vector3(Math.cos(th)*rr*R,y*R,Math.sin(th)*rr*R),rnd(1,2.2),Math.random()*.7)}
+for(let i=0;i<520;i++){const v=new THREE.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize().multiplyScalar(rnd(2.8,6.2));push(v,rnd(.8,1.8),Math.random())}
+const N=size.length;
+const pos=new Float32Array(home),alpha=new Float32Array(N).fill(1);
+const pg=new THREE.BufferGeometry();
+pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+pg.setAttribute('aSize',new THREE.BufferAttribute(new Float32Array(size),1));
+pg.setAttribute('aTone',new THREE.BufferAttribute(new Float32Array(tone),1));
+pg.setAttribute('aAlpha',new THREE.BufferAttribute(alpha,1));
+const pMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+ uniforms:{uPx:{value:1},uA:{value:COPPER},uB:{value:CREAM}},
+ vertexShader:'attribute float aSize;attribute float aTone;attribute float aAlpha;uniform float uPx;varying float vT;varying float vA;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vT=aTone;vA=aAlpha;gl_PointSize=aSize*uPx*(26./-mv.z);gl_Position=projectionMatrix*mv;}',
+ fragmentShader:'uniform vec3 uA;uniform vec3 uB;varying float vT;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=length(d);if(r>.5)discard;float s=smoothstep(.5,.1,r);gl_FragColor=vec4(mix(uA,uB,vT*.6),s*.85*vA);}'});
+const points=new THREE.Points(pg,pMat);points.renderOrder=0;scene.add(points);
+
+const ballMat=new THREE.MeshStandardMaterial({color:0xc27a48,metalness:.85,roughness:.28,emissive:0x2a1208});
+const balls=[],ballGeo=new THREE.SphereGeometry(1,24,18);
+[...curves.slice(0,6).map((c,i)=>c.getPoint(.62+(i%2)*.1)),...orbits.flatMap(cu=>{const m=new THREE.Matrix4().makeRotationFromEuler(cu.__rot);return[.08,.31,.57,.83].map(t=>cu.getPoint(t).applyMatrix4(m))})].forEach((v,i)=>{
+ const b=new THREE.Mesh(ballGeo,ballMat);const r=rnd(.12,.26);b.scale.setScalar(r);b.position.copy(v);b.userData.home=v.clone();scene.add(b);balls.push(b)});
+
+/* interakció */
+let W=1,H=1,ndc=new Float32Array(N*2);
+const tmp=new THREE.Vector3();
+function project(){for(let i=0;i<N;i++){tmp.set(home[i*3],home[i*3+1],home[i*3+2]).project(camera);ndc[i*2]=tmp.x;ndc[i*2+1]=tmp.y}balls.forEach(b=>{tmp.copy(b.userData.home).project(camera);b.userData.ndc=[tmp.x,tmp.y]});orbs.forEach(o=>{tmp.copy(o.home).project(camera);o.ndc=[tmp.x,tmp.y];tmp.copy(o.home).add(new THREE.Vector3(o.r,0,0)).project(camera);o.px=Math.abs(tmp.x-o.ndc[0])*W/2})}
+function resize(){const r=fig.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();pMat.uniforms.uPx.value=renderer.getPixelRatio()*(W/560);project();draw()}
+const mouse={x:0,y:0,on:false};let releaseT=0;
+function setPointer(e){const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-((e.clientY-r.top)/r.height*2-1);mouse.on=true;wake()}
+cv.addEventListener('pointermove',setPointer);
+cv.addEventListener('pointerdown',e=>{setPointer(e);clearTimeout(releaseT)});
+cv.addEventListener('pointerleave',()=>{mouse.on=false;wake()});
+cv.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse'){releaseT=setTimeout(()=>{mouse.on=false;wake()},700)}});
+const RAD=150,STR=2.9;
+function influence(nx,ny,extra){const R=RAD+(extra||0);if(!mouse.on)return null;const dx=(nx-mouse.x)*W/2,dy=(ny-mouse.y)*H/2;const d=Math.hypot(dx,dy);if(d>R)return null;const k=(1-d/R);return{k:k*k,ux:d?dx/d:0,uy:d?dy/d:1}}
+let running=false,visible=true,active=false,last=0;
+function step(){
+ let moving=false;
+ for(let i=0;i<N;i++){
+  const j=i*3;let tx=home[j],ty=home[j+1],tz=home[j+2],ta=1;
+  const f=influence(ndc[i*2],ndc[i*2+1]);
+  if(f){const s=STR*f.k*(.7+((i*7919)%13)/26);tx+=f.ux*s;ty+=f.uy*s;tz+=((i%2)?1:-1)*s*.6;ta=1-.8*f.k}
+  const e=f?.2:.06;
+  const dx=tx-pos[j],dy=ty-pos[j+1],dz=tz-pos[j+2],da=ta-alpha[i];
+  pos[j]+=dx*e;pos[j+1]+=dy*e;pos[j+2]+=dz*e;alpha[i]+=da*e;
+  if(Math.abs(dx)+Math.abs(dy)+Math.abs(dz)+Math.abs(da)>.002)moving=true;
+ }
+ balls.forEach((b,i)=>{const h=b.userData.home;const f=influence(b.userData.ndc[0],b.userData.ndc[1]);tmp.copy(h);if(f){const s=STR*1.2*f.k;tmp.x+=f.ux*s;tmp.y+=f.uy*s;tmp.z+=(i%2?1:-1)*s*.5}const e=f?.18:.05;const d=tmp.sub(b.position);b.position.addScaledVector(d,e);if(d.length()>.002)moving=true});
+ let orbMoved=false;
+ orbs.forEach((o,i)=>{const f=influence(o.ndc[0],o.ndc[1],o.px*.6);tmp.copy(o.home);if(f){const s=(i?0.75:0.35)*f.k;tmp.x+=f.ux*s;tmp.y+=f.uy*s;tmp.z+=s*.4}const e=f?.12:.05;const d=tmp.sub(o.cur);if(d.length()>.001){o.cur.addScaledVector(d,e);o.m.position.copy(o.cur);o.s.position.copy(o.cur);o.h.position.copy(o.cur);orbMoved=true;moving=true}});
+ if(orbMoved)updateWires();
+ pg.attributes.position.needsUpdate=true;pg.attributes.aAlpha.needsUpdate=true;
+ return moving||mouse.on;
+}
+function stepGlow(dt){orbs.forEach(o=>{if(o.pt<0){o.next-=dt;if(o.next<=0){o.pt=0;o.dur=1.4+Math.random()*.9;o.amp=.5+Math.random()*.4}}else{o.pt+=dt;if(o.pt>=o.dur){o.pt=-1;o.next=1.8+Math.random()*4.5}}const v=o.pt<0?0:Math.pow(Math.sin(Math.PI*o.pt/o.dur),2)*o.amp;o.mat.uniforms.uPulse.value=v;o.h.material.opacity=v*.6})}
+function draw(){renderer.render(scene,camera)}
+function loop(now){if(!visible||reduce){running=false;return}const dt=Math.min(.05,last?(now-last)/1000:.016);last=now;if(active)active=step();stepGlow(dt);draw();requestAnimationFrame(loop)}
+function wake(){if(reduce)return;active=true;if(!running&&visible){running=true;last=0;requestAnimationFrame(loop)}}
+new IntersectionObserver(es=>{visible=es[0].isIntersecting;if(visible&&!reduce&&!running){running=true;last=0;requestAnimationFrame(loop)}}).observe(fig);
+const ro=new ResizeObserver(resize);ro.observe(fig);
+resize();
+}
+}
+</script>
+</body>
+</html>

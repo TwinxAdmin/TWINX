@@ -45,6 +45,13 @@ export const RUN_PLACES = [
  * meglévő modulból; ha nincs, a kártya jelölt helyőrzőt mutat. `concept`: „Koncepcióterv" jelölés a képen.
  */
 /**
+ * Gömbös 3D ábra (terv 30, D72) a „Mi az egyedi modul?" szekcióban: a gömbök szavai (a TWINX előnyei).
+ * Az első a középső, nagy gömbé. Sorrend = a gömbök helye a mintában (középső, bal fent, jobb fent, bal lent,
+ * jobb lent, fent, lent).
+ */
+export const ORB_WORDS = ["TWINX AI", "Biztonságos", "Időt spórol", "Cégre szabva", "Bővíthető", "Automatizál", "AI-ügynökség"];
+
+/**
  * Belépett kezdőlap: „Miért érdemes?" blokk a magyarázó rész és a Legutóbbi munkáim között (Márk kérése 2026-11-24),
  * mellette a korábbi „Mi az egyedi modul?" animáció (MainGoalAnimation). Nincs benne szám vagy ígért mérték.
  */

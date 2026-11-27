@@ -3,6 +3,74 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-27 – 7. lépés, 2. kör: automatikus működés, elválasztott háttér, árnyék
+Melyik beszélgetés: Fejlesztés
+Elkészült (Márk kérése):
+- A „Mutass rá, vagy koppints rá" felirat kikerült. **Automatikus működés:** ha a szekció a képbe ér, kb. 0,6 mp múlva
+  egy láthatatlan „kurzor" lassan (4,2 mp) végigsöpör az ábrán balról jobbra, enyhe hullámmal — a pontok szétrebbennek,
+  a gömbök kitérnek, majd minden visszaáll; ~7 mp-enként ismétlődik, amíg a szekció látszik. Valódi egér / érintés
+  esetén az automatika azonnal átadja a vezérlést, és 2,5 mp tétlenség után folytatja. „Mozgás csökkentése": nincs söprés.
+- **Háttér elválasztása:** az időspórolás-városkép hidegebb, fakó kékesszürke tónust kapott (a réz helyett), halványabb
+  (45%) és enyhén elmosott (mélységélesség), így a réz gömbök kiemelkednek előtte.
+- **Árnyék:** a 3D ábrán kettős, lefelé eső árnyék (drop-shadow), ami a gömbökkel és a szétrebbenő pontokkal együtt mozog.
+- **Levágás megszüntetve** (Márk: a kitérő gömbök és pontok a doboz szélén „kettévágódtak"): a vászon minden oldalon
+  18%-kal túllóg a dobozon, a kamera arányosan hátrébb áll (az ábra mérete és a bal oldali szöveg nem változik), a
+  vászon szélén lágy, kör alakú elhalványulás van — éles vágás sehol. Az egeret a doboz figyeli, a túllógó rész nem
+  fog egeret (a szöveg felett nem indul el a szétrebbenés).
+Eltérés a tervtől: a terv 30 szerint a szétrebbenés csak egérre / érintésre indul — Márk kérésére most magától is.
+Ellenőrzési lépések eredménye: tsc + eslint rendben; megtekintés Márknál.
+
+## 2026-11-27 – 7. lépés: „Mi az egyedi modul?" – gömbös 3D ábra (D72, terv 30)
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: `docs/terv/30-gombos-abra-terv.md` + `docs/terv/design/gombos-abra-minta.html` (4. export,
+2026-11-27; a `docs/terv/` mappa a `terv-export.zip`-pel lecserélve, a külön küldött minta azonos a zipben lévővel).
+Elkészült:
+- `src/components/site/b/GlassOrbs3D.tsx`: a minta átültetése a projekt Three.js-ére — 7 üveggömb (fresnel réz perem,
+  csúcsfény, alsó izzás) a szavakkal (vászon-sprite a weboldal Inter betűjével, betöltés után újrarajzolva), réz ívek a
+  középtől és a szomszédok között, két megdöntött pálya, ~3000 pont + 14 kis rézgömb; szétrebbenés RAD 150 px /
+  erősség 2,9 / visszaállás 0,06; nagy gömbök: RAD + sugár 60%-a, 0,75 / középen 0,35, a vezetékek minden képkockán
+  követik őket; véletlen gömb-izzás (sin², 1,4–2,3 mp, szünet 1,8–6,3 mp, fényudvar). Rajzolás csak látható szekciónál
+  és előtérben lévő fülnél; nyugalomban csak az izzás számolódik; DPR ≤ 2; ResizeObserver; elhagyáskor dispose.
+- `src/components/site/b/GlassOrbs.tsx`: fix 1:1 arányú doboz (role="img", aria-label a 7 szóval); a 3D rész
+  `next/dynamic` (ssr: false) külön darabban, csak ha a doboz 400 px-en belül van; WebGL nélkül kapszulás tartalék;
+  „mozgás csökkentése": álló ábra, nem reagál, nincs izzás.
+- A szavak egy helyen: `src/lib/site-copy.ts` → `ORB_WORDS`.
+- A főoldal szekciójában csak a jobb oldali doboz cserélődött (bal oldali szöveg, pecsét, háttér változatlan; alatta a
+  „Mutass rá, vagy koppints rá" felirat).
+- A régi téglás animáció (`ModuleTower3D.tsx`) **törölve** (máshol nem használta semmi). Az időspórolás-városképet
+  (`TimeSkyline.tsx`) Márk kérésére visszahoztam: a gömbös ábra mögött áll, alul, 60%-os erősséggel.
+Eltérés a tervtől:
+- Three.js: a projektben már telepítve van, **0.180.0** (a `package.json`-ban `^0.180.0`). Nem írtam át pontos
+  rögzítésre, mert a `package-lock.json`-nal együtt kellene frissíteni (`npm install three@0.180.0 --save-exact`) —
+  ha kéred, ezt a parancsot futtasd.
+- r149 → r180 különbségek: a saját shaderek végére `colorspace_fragment` került (különben a színek sötétebbek lennének),
+  a pontfény fizikai lecsengése miatt az erőssége nagyobb (a kis rézgömbök fényessége így egyezik a mintáéval).
+- Első betöltés: a Three.js ma is a főoldal első csomagjában van, mert a referenciák „Alaprajzból 3D" animációja
+  (`Floorplan3DDemo`) statikusan tölti be (korábbi állapot). Az új ábra emiatt nem növeli a méretet; ha a Three.js-t
+  teljesen ki akarjuk venni az első betöltésből, a `Floorplan3DDemo`-t is késleltetve kell betölteni (külön lépés).
+Új buktató / tanulság: a Three.js r152+ saját shadereiben a kimeneti színtér-konverziót (`#include <colorspace_fragment>`)
+kézzel kell hozzáadni.
+Nem lett kész / Hamarosan: `next build`, képernyőképek (1440 / 390 px, nyugalom és szétrebbenés) és a Performance-mérés
+Márknál — a munkakörnyezetből nem futtatható, a Chrome-ellenőrzést Márk kérésére nem végzem.
+Ellenőrzési lépések eredménye: `tsc --noEmit` és `eslint` (érintett fájlok) rendben.
+Döntés kell tőled, Márk: nincs — Márk a fejlesztésre bízta (2026-11-27), és mindkettő megtörtént:
+- **Three.js pontosan rögzítve:** `package.json` és `package-lock.json`: `"three": "0.180.0"` (a telepített változat is
+  0.180.0, újratelepítés nem kell).
+- **Az „Alaprajzból 3D" demó késleltetve:** a `GdnShowcase` a `Floorplan3DDemo`-t `next/dynamic`-kal (ssr: false) tölti,
+  betöltésig azonos méretű sötét felülettel; a kör hossza külön fájlban (`floorplanDemoTiming.ts`). Így a főoldal első
+  csomagjában **nincs Three.js** — mindkét 3D rész (gömbös ábra, alaprajz-demó) külön darabban, igény szerint töltődik.
+Éles állapot: a push után a főoldalon mindenkinek látszik.
+
+## 2026-11-25 – 6. lépés, 18. kör: elkülönülő felső sáv
+
+**Mi változott (Márk: „a felső rész ne olvadjon bele ennyire" a sötét, videós nyitórészbe), `SiteHeader.tsx`:**
+melegebb, kicsit világosabb sötét-barna átmenetes háttér (#30251d → #261d17), alul vékony korall keret + középen
+felerősödő korall fényvonal, lágy árnyék lefelé; a középső menüpontok (Hogyan működik · Referenciák · Kapcsolat) egy
+halvány, keretes kapszulába kerültek — szimmetrikusan a jobb oldali Belépés · Regisztráció kapszulával.
+tsc + eslint hibamentes.
+- Visszavonva (Márk: „vissza eggyel; a feliratok mögötti blokk maradjon, a keret nem kell"): a sáv háttere újra az
+  eredeti `bg-b-dark`, alsó keret, fényvonal és árnyék nélkül; csak a menüpontok kapszulája maradt.
+
 ## 2026-11-25 – 6. lépés, 17. kör: interaktív 3D „modul-tárgy" a „Mi az egyedi modul?" sávban
 
 **Mi változott (Márk döntése: A) egy nagy 3D tárgy; a kép helyett animáció, ami egérre változik; „selymesebb szín,

@@ -1,5 +1,11 @@
 # VÁLTOZÁSOK (a tervező projekt vezeti; a repóban csak olvasható)
 
+## 2026-11-27 – 4. export (döntések: D23–D72)
+- Új dokumentum: `30-gombos-abra-terv.md` (D72): a „Mi az egyedi modul?” szekció gömbös 3D ábrája, a 7. lépés CODE-promptja.
+- Új minta: `design/gombos-abra-minta.html` (a Three.js helyét `/*THREE*/` jelöli; a működő változat a tervező projekt artifactja).
+- Módosult: `ai-ugynokseg/01` (D71, D72), új: `ai-ugynokseg/12-ugynokok-feladatkorei.md` (csak tájékoztatásul).
+- Mit kell elolvasnia a fejlesztésnek: `30`, a minta, és az `01` D72 bejegyzése.
+
 ## 2026-11-24 – 3. export (döntések: D23–D70)
 - Új dokumentum: `29-design-B-irany-terv.md` (D69, D70: a B arculat, design-tokenek, főoldal és kezdőlap megjelenése, a 6. lépés CODE-promptja).
 - Új mappa: `design/` – a vizuális minta (`B-fooldal.dc.html`, `B-kezdolap.dc.html`), statikus HTML; csak mintának, nem bemásolásra.

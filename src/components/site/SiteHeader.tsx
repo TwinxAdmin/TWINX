@@ -154,6 +154,8 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
 
   return (
     // Sötét sáv (Márk kérése 2026-11-24): a világos oldal tetején keretet ad, nem olvad bele.
+    // Sötét sáv (Márk kérése 2026-11-24). A középső menüpontok halvány kapszulában (2026-11-25); keret / külön háttér
+    // Márk kérésére nincs.
     <header className="relative z-50 bg-b-dark text-b-on-dark" ref={mobileRef}>
       <div className="mx-auto grid h-[72px] w-full max-w-[1200px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 sm:px-8">
         {/* Bal: logó */}
@@ -162,7 +164,7 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
         {/* Közép: a menü a valódi középvonalon (asztali). A burkoló mobilon is a rácsban marad (üresen), hogy a jobb
             oldali hamburger ne csússzon a középső oszlopba. */}
         <div className="flex justify-center">
-        <nav data-site-nav className={`hidden items-center text-[15px] font-medium xl:flex ${viewer ? "gap-[30px]" : "gap-[34px]"}`}>
+        <nav data-site-nav className={`hidden items-center rounded-full bg-white/[0.05] px-7 py-2 text-[15px] font-medium ring-1 ring-white/12 xl:flex ${viewer ? "gap-[30px]" : "gap-[34px]"}`}>
           {viewer ? (
             <>
               <ModulesMenu modules={viewer.modules} />

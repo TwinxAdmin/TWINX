@@ -1,0 +1,39 @@
+Új terv-csomag az ügynökségnek (D23–D71): az ügynökök feladatkörei
+
+0. Előkészítés
+- Csatoltam az ugynokseg-atadas-D71.zip fájlt. A tartalmával cseréld le a repó docs/terv/ mappáját (az ai-ugynokseg almappával együtt). A docs/terv/ csak olvasható; ha valamit módosítanál benne, javaslatként írd meg nekem, a terv a tervező projektben változik.
+- Olvasd el ebben a sorrendben:
+  1. docs/terv/VALTOZASOK.md – a legfelső bejegyzés
+  2. docs/terv/ai-ugynokseg/12-ugynokok-feladatkorei.md – MAX és a 6 ügynök feladatköre és a döntéseim (D71). Ez az irányadó.
+  3. docs/terv/ai-ugynokseg/01-alap-es-szabalyok.md – a D62–D71 bejegyzések (a korábbiakat már ismered; ha nem, az egészet)
+  4. docs/terv/ai-ugynokseg/11-ugynokseg-kovetkezo-feladatok.md – a sorrend
+  5. docs/terv/ai-ugynokseg/10, 02, 09 – a váz és a régebbi leírások (ahol a 12 mást mond, a 12 érvényes)
+
+1. Amit eldöntöttem (röviden, a részletek a 12-ben)
+- Webfejlesztő: csak ügyfeleknek épít (saját app vagy oldal, beépítés az ügyfél oldalába). A twinx.hu-hoz nem nyúl, azt a fejlesztési beszélgetés építi. Az első ilyen megrendelésnél kapcsoljuk be.
+- Modul tesztelő: külön Supabase branchen dolgozik, csak tesztadattal; az élő adatbázishoz nincs hozzáférése.
+- Felmérő: a beszélgetés jegyzetét most Telegramon kapja (szöveg vagy hangüzenet, a foglalásra hivatkozva). Később a twinx.hu adminjában lesz hozzá egy beszélgetőablak a Foglalásnál; azt nem te építed, de az adatmodelled ne zárja el (12, 10. szakasz és D61).
+- Indulási sorrend, lépésenként: (1) Hibakeresés + Modulépítés, (2) Modul tesztelő, (3) Felmérő, (4) Tudásrendszerezés, (5) Webfejlesztő. Az alapokmányok is ebben a sorrendben készülnek.
+- Parkolt, most ne foglalkozz vele: külső skill-keresés és chatbot a twinx.hu-n.
+
+2. A feladatod most
+- Először mondd vissza röviden (max. 15 sor), mit értettél a 12-ből, hol látsz ütközést a 02, 09, 10 dokumentummal vagy a meglévő kóddal, és mi nem egyértelmű.
+- Mondd meg, hol tartasz a 11-es lista 1–3. pontjával (beolvasás, a 02/09/10 szinkronja, költségvédelem kódja: napi plafon, költség-napló, újrapróbálkozás-korlát, heti jelentés). Ami nincs kész, azzal folytasd, ebben a sorrendben.
+- Utána írd meg az első két alapokmányt a háromrészes sablon szerint (02, 4.2: alapokmány / képességek / memória-hatókör): Hibakeresés és Modulépítés. A tartalmat a 12 2. és 3. szakaszából vedd, ne találj ki új feladatot vagy jogot. Mindkettőnél legyen benne:
+  - mitől indul, mi a bemenete és a kimenete (a kimenet formája, pl. a diagnózis-lap szerkezete);
+  - mit szabad és mit tilos, és mi megy kapun át;
+  - kinek adja tovább a munkát, és hogyan jelez a feladat-szálban;
+  - a memória-hatókör (közös / privat), és hogy ügyféladat hova kerülhet;
+  - a költség-szabályok (naplózás, legfeljebb 2 újrapróba, utána elakadt + Telegram);
+  - milyen modellel fut (javaslat a D06 alapján, configból cserélhető).
+- Kódot csak akkor írj, ha a visszamondás után jóváhagyom. Az alapokmányok szöveges fájlok; ha elkészültek, küldd el őket átnézésre, mielőtt bármi élesedik.
+
+3. Állandó szabályok
+- Minden kimenő anyagot ember hagy jóvá; deploy, prod-írás, repó-módosítás, új skill, kimenő üzenet és ügyféladat kijuttatása kapun (Telegram) megy át.
+- A TWINX service_role kulcsa egyetlen ügynökhöz sem kerül. Az Anthropic-kulcs csak a laptop környezeti változójában vagy .env-ben él, repóban és gitben soha.
+- Ügyféladat csak privat hatókörben; a közös tudásba csak névtelenített tanulság kerül, kapun át.
+- Egyik ügynök sem mond árat, nem ír ajánlatot és nem ígér semmit az ügyfélnek.
+- Ne legyen git push, csak ha kérem.
+
+4. Visszajelzés
+- A lépés végén VISSZAJELZES.md bejegyzés a repó gyökerében a sablon szerint (docs/terv/VISSZAJELZES.md): mi készült el, mi tér el a tervtől és miért, mi a nyitott kérdés. Ezt visszaviszem a tervező projektbe.

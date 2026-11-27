@@ -18,6 +18,7 @@ import { planBounds } from "@/lib/floorplan3d/geometry";
 import { kelvinToColor } from "@/lib/floorplan3d/materials";
 import { DEMO_PLAN } from "@/lib/floorplan3d/demo";
 import { demoFloorMaterial } from "@/components/floorplan3d/intro/demoFloors";
+import { FLOORPLAN_DEMO_MS } from "@/components/site/b/floorplanDemoTiming";
 
 // Falvastagság: a modul alapbeállítása (config.ts: FLOORPLAN3D_WALL_INTERIOR / _EXTERIOR).
 const OPTS = { interiorWall: 0.1, exteriorWall: 0.3 };
@@ -32,7 +33,6 @@ const T = {
   tilt: [1300, 3300], grow: [2300, 4600], open: [4300, 5400], floor: [5000, 6300],
   labels: 6200, rot: 5900, rotRamp: 1800, msg: 6700, msgStep: 650, fadeOut: [14000, 14500],
 };
-export const FLOORPLAN_DEMO_MS = 14500;
 const PLAN_WALL = 0.05; // a falak „alaprajz-magassága" (a teljes magasság aránya)
 
 const ROOM_LABELS = DEMO_PLAN.rooms.map((r) => {

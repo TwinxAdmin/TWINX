@@ -15,7 +15,7 @@ import IdeaMarquee from "@/components/site/b/IdeaMarquee";
 import OfficeShowcase from "@/components/site/b/OfficeShowcase";
 import GdnShowcase from "@/components/site/b/GdnShowcase";
 import SilkVideo from "@/components/site/b/SilkVideo";
-import ModuleTower3D from "@/components/site/b/ModuleTower3D";
+import GlassOrbs from "@/components/site/b/GlassOrbs";
 import TimeSkyline from "@/components/site/b/TimeSkyline";
 import TwinxStamp from "@/components/site/b/TwinxStamp";
 import { bookingsOpenFor, getSiteViewer } from "@/lib/site-preview";
@@ -66,7 +66,7 @@ export default async function HomePage() {
 
       {/* ===== 4) MI AZ EGYEDI MODUL? — sötét sáv ===== */}
       <section className="relative overflow-hidden bg-b-dark text-b-on-dark">
-        {/* Selymes, meleg háttér (CSS): lágy bronz derengés a tárgy mögött, hogy a 3D modul „beleolvadjon" a sávba. */}
+        {/* Selymes, meleg háttér (CSS): lágy bronz derengés az ábra mögött (változatlan, terv 30). */}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_76%_50%,rgba(176,118,76,0.30),transparent_65%),radial-gradient(40%_50%_at_76%_58%,rgba(255,122,79,0.14),transparent_70%),radial-gradient(90%_120%_at_0%_100%,rgba(10,6,4,0.55),transparent_60%)]" />
         <div className="relative mx-auto grid min-h-[560px] max-w-[1100px] grid-cols-1 items-center gap-6 px-4 py-16 sm:min-h-[640px] sm:px-8 sm:py-[96px] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <Reveal className="min-w-0 max-w-[560px]">
@@ -77,14 +77,14 @@ export default async function HomePage() {
             </div>
             <TwinxStamp className="mt-10" />
           </Reveal>
-          {/* Interaktív 3D modul-tárgy (ModuleTower3D): zárva izzik (láva + áram), egérre kinyílik, és kiúsznak a napi
-              feladatok kártyái; elengedve visszazár. Fix magasság. */}
-          <div className="relative h-[400px] sm:h-[540px]">
-            {/* Háttér: izzó „időspórolás-városkép" (homokóra, stopper, naptár, monitor, chip…) — a plakát épületeinek mintájára */}
-            <TimeSkyline className="absolute bottom-[3%] left-1/2 h-auto w-[135%] -translate-x-1/2 opacity-60" />
-            <div aria-hidden className="pointer-events-none absolute bottom-[8%] left-1/2 h-10 w-[60%] -translate-x-1/2 rounded-[50%] bg-black/45 blur-2xl" />
-            <ModuleTower3D className="h-full w-full" />
-            <p className="pointer-events-none absolute bottom-0 left-0 right-0 text-center text-xs text-b-on-dark-2">Mutass rá, vagy koppints rá</p>
+          {/* Gömbös 3D ábra (terv 30, D72): 7 üveggömb a TWINX előneivel; odagörgetve magától, egérre / érintésre is
+              szétrebben. Fix 1:1 doboz. (A „Mutass rá…" felirat Márk kérésére kikerült.) */}
+          <div className="relative mx-auto w-full max-w-[640px]">
+            {/* Háttér (Márk kérése 2026-11-27, a téglás animáció mögül visszahozva): izzó „időspórolás-városkép" */}
+            {/* Elválasztás az ábrától (Márk kérése 2026-11-27): a háttér hidegebb, fakó homok-szürke tónust kap, kicsit
+                elmosva (mélységélesség), így a réz gömbök kiemelkednek előtte. */}
+            <TimeSkyline className="absolute bottom-[6%] left-1/2 h-auto w-[135%] -translate-x-1/2 opacity-45 [filter:hue-rotate(155deg)_saturate(0.35)_brightness(1.05)_blur(0.8px)]" />
+            <GlassOrbs />
           </div>
         </div>
       </section>

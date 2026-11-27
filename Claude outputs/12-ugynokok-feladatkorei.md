@@ -1,6 +1,6 @@
-# TWINX ügynökség – az ügynökök feladatkörei (D71, TERVEZET)
+# TWINX ügynökség – az ügynökök feladatkörei (D71)
 
-> **Státusz:** tervezet, 2026-11-25. A `[DÖNTÉSRE VÁR]` pontokat Márk dönti el; utána ez az irányadó az alapokmányok megírásához (`02` 4.2: alapokmány / képességek / memória-hatókör).
+> **Státusz:** elfogadva, 2026-11-25 (D71, Márk döntései a 9. szakaszban). **Ez az irányadó az alapokmányok megírásához** (`02` 4.2: alapokmány / képességek / memória-hatókör). Ahol a `10` rövidebben vagy másképp írja, ez érvényes.
 > **Alap:** `10` (a 6 mag-ügynök, D29), `11` (sorrend), `01` (D23–D70). Ha ütközik, a `01` az irányadó.
 > **Kontextus 2026-11-25:** a weblap újraépítése a fejlesztési beszélgetésben (Claude Code / Cowork) 90%-ban kész. Az ügynökség a **megrendelések kiszolgálására** épül: felmérés → modulépítés → tesztelés → átadás → tanulság.
 
@@ -72,13 +72,14 @@
 
 | | |
 |---|---|
-| **Cél** | A twinx.hu oldalainak karbantartása és bővítése, és az **ügyfélnek épített saját app vagy oldal** (D27 b, c). |
-| **Mitől indul** | Márk kérése (új oldal, módosítás); megrendelés „saját app vagy oldal” / „beépítés” formával; Hibakeresés diagnózisa webes hibáról. |
-| **Bemenet** | `11`, `29` (B arculat, tokenek), `12` (admin), a repó kódja, az ügyfél arculati anyaga (karanténban). |
+| **Cél** | **Csak ügyfeleknek épít (D71):** az ügyfélnek készülő saját app vagy oldal, és a beépítés az ügyfél weboldalába (D27 b, c). **A twinx.hu-hoz nem nyúl**: azt a fejlesztési beszélgetés (Claude Code / Cowork) építi. |
+| **Mitől indul** | Megrendelés „saját app vagy oldal” vagy „beépítés” formával; Hibakeresés diagnózisa egy ügyfélnek épített oldal hibájáról. |
+| **Bemenet** | A modul-specifikáció, az ügyfél arculati anyaga (karanténban), a `01` termékszabályai; a TWINX saját felületeihez hasonló elemeknél a `29` (B arculat) mintaként. |
 | **Kimenet** | Kód feature-ágon, képernyőképek desktopon és mobilon, összevetés a tervvel, eltéréslista. |
 | **Szabad** | Feature-ágon írni, előnézetet építeni, képernyőképet készíteni. |
-| **Tilos (kapu nélkül)** | main-push, deploy, DNS vagy Vercel-beállítás, új stílus bevezetése a tokenek helyett (D70), kitalált szám vagy idézet az oldalon. |
-| **Siker** | Az oldal az első körben a tervnek megfelel; nincs layout shift; mobilon is jó. |
+| **Tilos (kapu nélkül)** | main-push, deploy, DNS vagy Vercel-beállítás, kitalált szám vagy idézet az oldalon. **Mindig tilos:** a twinx.hu kódjának módosítása. |
+| **Siker** | Az ügyfél oldala az első körben a specifikációnak megfelel; nincs layout shift; mobilon is jó. |
+| **Mikor aktív** | Az első „saját app vagy oldal” megrendelésnél kapcsoljuk be. |
 
 ## 6. Modul tesztelő (olvasó)
 
@@ -88,7 +89,8 @@
 | **Mitől indul** | A Modulépítés vagy a Webfejlesztő „kész, tesztelhető” jelzése; Márk kérése egy meglévő modul újratesztelésére. |
 | **Bemenet** | Specifikáció, a változásleírás, tesztadat (nem valódi ügyféladat), a `01` termékszabályai, `22` (felhasználói szövegek). |
 | **Kimenet** | Teszt-terv (mit, hogyan), eredmény-lista (megfelel / hiba, lépésekkel reprodukálva), szabály-ellenőrzés (RLS, plafon, hiba esetén nincs levonás, jelölés AI-képen, fix dobozok, nincs „kredit” szó). Ha komoly hibát talál: `kifogas` → az átadás megáll. |
-| **Szabad** | A tesztkörnyezetben futtatni a modult, tesztadatot használni, képernyőképet készíteni. |
+| **Tesztkörnyezet (D71)** | **Külön Supabase branch**, csak tesztadattal; minden tesztkör után eldobható. Az élő adatbázishoz a tesztelőnek nincs hozzáférése. (Ha a Supabase-csomag nem ad branchet, a beszélgetés jelez, és új döntés kell.) |
+| **Szabad** | A teszt-branchen futtatni a modult, tesztadatot használni, képernyőképet készíteni. |
 | **Tilos** | Javítani (csak jelez); prod-on tesztelni; valódi ügyféladatot használni; az átadást elvégezni (azt Márk végzi). |
 | **Siker** | Átadás után nincs olyan hiba, amit a tesztnek meg kellett volna találnia. |
 
@@ -99,7 +101,7 @@
 | **Cél** | (a) Felkészíteni Márkot vagy Tibort az ingyenes felmérő beszélgetésre; (b) a beszélgetés után összegezni, hol tudunk segíteni. |
 | **(a) Mitől indul** | Új foglalás a Foglalások lapon (a cég neve, iparág, a megadott pár mondat). |
 | **(a) Kimenet** | Előkészítő lap (1 oldal): a cég röviden (nyilvános adatból), az iparág tipikus időrabló folyamatai, 5–8 kérdés a beszélgetéshez, 2–3 lehetséges modul-irány. |
-| **(b) Mitől indul** | Márk vagy Tibor beszélgetés-jegyzete. |
+| **(b) Mitől indul** | Márk vagy Tibor beszélgetés-jegyzete. **Jegyzet-út (D71):** (1) **Telegram** – szöveg vagy hangüzenet a botnak, a foglalásra hivatkozva (most, elsőként); (2) **beszélgetőablak a twinx.hu adminjában** a Foglalásnál – a jegyzet beküldése és a Felmérő válaszának olvasása (később, külön lépés, lásd 10. szakasz). |
 | **(b) Kimenet** | Folyamat-térkép, a legtöbb időt vivő lépések, 1–3 modul-javaslat (mit csinálna, milyen adatból, hol futna), nyitott kérdések, és egy jelzés, hogy kell-e API-költséges rész (a plafon miatt). |
 | **Szabad** | A cég nyilvános adatait olvasni (karanténban); a jegyzetet feldolgozni. |
 | **Tilos** | Magánszemélyről profilt készíteni; árat mondani; ajánlatot írni; az ügyfélnek üzenni. A (b) eredménye csak `privat` hatókörbe kerülhet. |
@@ -114,10 +116,21 @@
 5. Kapu: Márk jóváhagyja a deployt → átadási bejegyzés (`23`) → Aktiválás.
 6. **Tudásrendszerezés** a lezárt munkából tanulságot javasol, ügyféladat nélkül.
 
-## 9. Döntésre váró pontok
+## 9. Márk döntései (D71, 2026-11-25)
 
-1. `[DÖNTÉSRE VÁR]` **A Webfejlesztő szerepe most**, hogy a weblapot a Claude Code / Cowork építette.
-2. `[DÖNTÉSRE VÁR]` **A Modul tesztelő tesztkörnyezete** (külön Supabase branch vagy fejlesztői adatbázis).
-3. `[DÖNTÉSRE VÁR]` **A Felmérő jegyzet-útja** (Telegram, dokumentum vagy admin űrlap).
-4. `[DÖNTÉSRE VÁR]` **Az indulás sorrendje** (melyik ügynök mikor aktív).
-5. `[KÉSŐBB]` Melyik modell hajtja az ügynököket: D06 szerint (rutin: Haiku, munka: Sonnet, kivétel: Opus), configból cserélhető; a beszélgetés javasol az első mérések után.
+1. **Webfejlesztő:** csak ügyfeleknek épít (saját app/oldal, beépítés); a twinx.hu a fejlesztési beszélgetésé. Az első ilyen megrendelésnél kapcsoljuk be.
+2. **Modul tesztelő tesztkörnyezete:** külön Supabase branch, tesztadattal.
+3. **Felmérő jegyzet-útja:** Telegram most; és egy beszélgetőablak a twinx.hu admin felületén (külön lépés, 10. szakasz).
+4. **Indulási sorrend:** lépésenként. (1) Hibakeresés + Modulépítés (2. és 3. fázis), (2) Modul tesztelő, (3) Felmérő, (4) Tudásrendszerezés (5. fázis), (5) Webfejlesztő az első „saját app” megrendelésnél. Az alapokmányok is ebben a sorrendben készülnek.
+5. **Modellek** (később): D06 szerint, configból cserélhető; a beszélgetés javasol az első mérések után.
+
+## 10. Az admin beszélgetőablak (a 3. döntés második fele)
+
+- **Mit tud:** a Foglalások lapon egy foglaláshoz megnyitható ablak; Márk vagy Tibor beírja (vagy bemásolja) a beszélgetés jegyzetét, és ugyanott olvassa a Felmérő előkészítő lapját és összegzését. Később más ügynökhöz is bővíthető.
+- **Miért külön lépés:** a twinx.hu ekkor először ír az ügynökség adatbázisába (`twinx-agents`). Ehhez kell a D61 két előfeltétele (nyilvános és `privat` mezők szétválasztása, csak olvasható szerepkör) és **egy szűk, szerveroldali beküldő végpont**; a böngészőben nincs kulcs, és az ügynök továbbra sem kap TWINX `service_role` kulcsot. A jóváhagyások maradnak a Telegramon.
+- **Sorrend:** a Felmérő Telegramon már működjön; utána a tervező projekt megtervezi az ablakot (B arculat, D70), és a fejlesztési beszélgetés építi meg. Az ügynökség-beszélgetés feladata most csak annyi, hogy az adatmodell ezt ne zárja el.
+
+## 11. Parkolt ötletek (2026-11-25)
+
+- **Külső skill-keresés** (a Tudásrendszerezés második üzemmódja): interneten és GitHubon keres skillt, értékeli (mit csinál, forrás, karbantartottság, kockázat), összefoglal. **Soha nem telepít**; idegen skill csak Márk jóváhagyásával, átnézve kerülhet be. A Tudásrendszerezés indulásakor (5. fázis) tervezzük meg.
+- **Chatbot a twinx.hu-n** az érdeklődőknek (igényfelmérés, kérdések, a foglaláshoz irányít; a D07 weblap-ügynök). Előfeltétel: élő adatkezelési tájékoztató, visszaélés-védelem és költségplafon, „nem mond árat” szabály, és újra van forgalom (hirdetés). Első változat: gyakori kérdések + foglalásra irányítás, adatgyűjtés nélkül.
