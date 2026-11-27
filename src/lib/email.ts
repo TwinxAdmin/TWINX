@@ -3,7 +3,7 @@ import type { LeadInput } from "@/lib/leads";
 import { billingCopyBlock, type BillingInfo } from "@/lib/billing";
 
 /** Új lead értesítő e-mail. `kind`: B2B ajánlatkérés (alap) vagy a /kapcsolat oldal üzenete. */
-export async function sendLeadNotification(lead: LeadInput, kind: "b2b" | "contact" = "b2b"): Promise<void> {
+export async function sendLeadNotification(lead: LeadInput, kind: "b2b" | "contact" | "callback" = "b2b"): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.LEADS_NOTIFY_EMAIL;
   if (!apiKey || !to) {
@@ -13,7 +13,7 @@ export async function sendLeadNotification(lead: LeadInput, kind: "b2b" | "conta
   const from = process.env.RESEND_FROM || "Twinx <onboarding@resend.dev>";
 
   const html = `
-    <h2>${kind === "contact" ? "Új üzenet a Kapcsolat oldalról" : "Új B2B ajánlatkérés"}</h2>
+    <h2>${kind === "callback" ? "Új visszahívás-kérés (bemutató beszélgetés egyeztetése)" : kind === "contact" ? "Új üzenet a Kapcsolat oldalról" : "Új B2B ajánlatkérés"}</h2>
     <p><strong>Név:</strong> ${escapeHtml(lead.name)}</p>
     <p><strong>E-mail:</strong> ${escapeHtml(lead.email)}</p>
     <p><strong>Cég:</strong> ${escapeHtml(lead.company ?? "-")}</p>
@@ -33,7 +33,7 @@ export async function sendLeadNotification(lead: LeadInput, kind: "b2b" | "conta
       from,
       to,
       reply_to: lead.email,
-      subject: `${kind === "contact" ? "Kapcsolat" : "Új B2B ajánlatkérés"}: ${lead.name}`,
+      subject: `${kind === "callback" ? "Visszahívás-kérés" : kind === "contact" ? "Kapcsolat" : "Új B2B ajánlatkérés"}: ${lead.name}`,
       html,
     }),
   });

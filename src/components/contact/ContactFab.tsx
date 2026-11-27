@@ -1,4 +1,6 @@
-// ContactFab — kis „Kapcsolat" gomb a bal alsó sarokban, az élő chat buboréka fölött → twinx.hu/kapcsolat.
+// ContactFab — kis „Kapcsolat" gomb a bal alsó sarokban, az élő chat buboréka fölött.
+// 8. lépés (D73): ha az oldalon van kapcsolat-blokk (#kapcsolat: főoldal, Referenciák, kezdőlap), oda görget; máshol a
+// főoldal kapcsolat-blokkjára visz (/#kapcsolat).
 // Nincs az admin- / sales-felületen és magán a Kapcsolat oldalon. A helye a globals.css-ben (.twx-contact-fab).
 "use client";
 
@@ -10,7 +12,11 @@ export default function ContactFab() {
   const path = usePathname() ?? "/";
   if (path.startsWith("/admin") || path.startsWith("/sales") || path.startsWith("/kapcsolat") || isEnglishPath(path)) return null;
   return (
-    <Link href="/kapcsolat" aria-label="Kapcsolat" title="Kapcsolat — telefon, e-mail, üzenet"
+    <Link href="/#kapcsolat" aria-label="Kapcsolat" title="Kapcsolat — ingyenes felmérés, időpont-egyeztetés"
+      onClick={(e) => {
+        const el = document.getElementById("kapcsolat");
+        if (el) { e.preventDefault(); el.scrollIntoView({ behavior: "smooth", block: "start" }); history.replaceState(null, "", "#kapcsolat"); }
+      }}
       className="twx-contact-fab fixed z-30 flex h-11 items-center gap-2 rounded-full pl-3 pr-3 text-sm font-semibold shadow-lg transition-transform hover:-translate-y-0.5 sm:pr-4"
       style={{ background: "#fff", color: "var(--twx-ink)", boxShadow: "0 0 0 1px var(--twx-line), 0 10px 26px rgba(28,24,21,.16)" }}>
       <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "#c4553a", color: "#fff" }}>

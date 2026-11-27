@@ -3,6 +3,77 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-27 – 8. lépés, 3. kör: három nap + admin „Visszahívás-kérések" fül
+Melyik beszélgetés: Fejlesztés
+Elkészült (Márk kérése):
+- **Három nap:** a naptáras ablakban három különböző hétköznapot kell választani (mindhez délelőtt / délután); a negyedik
+  kattintás a legrégebbit cseréli. Közös ellenőrzés kliensen és szerveren (`CALLBACK_DAYS = 3`,
+  `src/lib/callback-request.ts`); a szövegek („három hétköznap") és az e-mail-sablon (1–3. sor) is frissítve.
+  A foglalás mindenhol ugyanez: a kapcsolat-blokk (főoldal, Referenciák, kezdőlap) egy közös komponens, és minden
+  „Ingyenes felmérés" / „Időpontot foglalok" / lebegő „Kapcsolat" gomb ide vezet.
+- A kérés a `leads.callback_time` oszlopba is bekerül rövid összefoglalóként (pl. „december 2., kedd délelőtt · …");
+  ha az oszlop hiányozna, a napok az üzenetben akkor is megvannak.
+- **Admin → Foglalások → „Visszahívás-kérések"** (új, alapértelmezett fül, a fül címében a várakozók száma):
+  soronként beérkezés ideje, név + cég, e-mail (kattintható), telefon (kattintható), a hívható napok napszakkal,
+  megjegyzés, állapot („Új" / „Visszahívva") és gomb: „Visszahívtam ✓" / „Újranyitás" (a meglévő
+  `/api/admin/leads` lezárás — ugyanaz, mint a Kérések és üzenetek listában). Szűrő: „Visszahívásra vár" / „Összes".
+  A régi foglalások („Beérkezett foglalások") és az „Időpontok" fül megmaradt.
+- „Vagy írj nekünk" (Márk kérése): az e-mail-cím már csak szövegként látszik (kijelölhető), kattintásra nem nyit
+  levelezőt és nincs kitöltendő sablon; egyedül a „Másolás" gomb reagál. (A sablon-konstansok a `booking-mode.ts`-ben
+  maradtak, de a felület nem használja őket.)
+Adatbázis-változás nincs. Ellenőrzési lépések eredménye: tsc + eslint rendben; élő próba Márknál.
+
+## 2026-11-27 – 8. lépés, 2. kör: időpont-kérés naptárral (ablak), az e-mail opció mellett
+Melyik beszélgetés: Fejlesztés
+Elkészült (Márk kérése: gomb → kis ablak naptárral, két nap + délelőtt/délután, adatok, küldés → köszönő ablak; az
+e-mail opció maradjon; Márk vállalja, hogy nem a mi szabadnapjainkat mutatjuk, hanem az érdeklődő mondja meg):
+- Kapcsolat-blokk jobb oldala (`CallbackPanel`): fő gomb **„Időpontot foglalok"** → `CallbackRequestModal`; alatta
+  „Vagy írj nekünk": e-mail (előre kitöltött tárggyal és sablonnal) + Másolás.
+- Ablak (fix méret, belül görget, Esc / háttér bezár): **1.** naptár — holnaptól 60 napig, csak hétköznap; két különböző
+  nap (a harmadik kattintás a legrégebbit cseréli), mindkettőhöz délelőtt / délután; **2.** név, e-mail, telefonszám
+  (kötelező), cégnév, megjegyzés (nem kötelező), hozzájárulás a visszahíváshoz (kötelező pipa); **3.** küldés →
+  „Köszönjük, az időpont-kérésed megérkezett! A kollégáink hamarosan keresni fognak a megadott napok egyikén."
+  Belépve a név és az e-mail előre kitöltve.
+- Szerver: `POST /api/callback-request` (`src/lib/callback-request.ts` — közös ellenőrzés kliensen és szerveren:
+  hétköznap, jövőbeli, ≤60 nap, két különböző nap, budapesti „ma"; csali mező robotok ellen) → mentés a `leads`
+  táblába (admin „Kérések és üzenetek", az üzenet elején „[Időpont-kérés – ingyenes felmérés]" és a két nap) →
+  értesítő e-mail a csapatnak („Időpont-kérés: [név]"). Adatbázis-változás nincs; a foglalási rendszer (bookings) érintetlen.
+- Szövegpontosítás (Márk): nem írjuk, hogy „két kolléga" — csak „a kollégáink". A kérés **visszahívás**, nem a felmérés
+  időpontja: a hívásban egyeztetjük a bővebb, bemutató beszélgetést (személyesen vagy online), és ha tetszik, utána jön
+  a részletes felmérés. Ennek megfelelően átírva: a kapcsolat-blokk szövege, a panel („Visszahívás kérése", „Mi történik
+  ezután?"), az ablak (cím, 1. lépés, gomb: „Visszahívást kérek", köszönő szöveg, hozzájárulás), az e-mail-sablon
+  (tárgy: „Visszahívás kérése – egyedi modul bemutató") és az admin-üzenet / értesítő e-mail címe („Visszahívás-kérés").
+Eltérés a tervtől: a D73 eredeti promptja szerint „nincs űrlap és adattárolás" — Márk kérésére most van egy egyszerű
+űrlap, amely a meglévő `leads` táblába ment; ezért kötelező hozzájárulás-pipa is van. A tervbe átvezetendő.
+Ellenőrzési lépések eredménye: tsc + eslint rendben; élő küldés-próba Márknál (a Kérések és üzenetek listában és az
+értesítő e-mailben kell megjelennie).
+
+## 2026-11-27 – 8. lépés: ideiglenes időpont-egyeztetés — visszahívás-kérés a foglaló űrlap helyett (D73)
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: Márk CODE-promptja (8. lépés, D73) — a prompt a „GDPR-hozzájárulás pipa sem kell ebben a…"
+résznél megszakadt; a meglévő részek alapján készült.
+Elkészült:
+- `src/lib/booking-mode.ts`: `BOOKING_MODE = "callback"` (visszaállítás egy értékkel: `"booking"`); egy helyen az
+  e-mail (office@twinx.hu), a levél tárgya („Ingyenes felmérés – időpont-egyeztetés") és az előre kitöltött szöveg;
+  a `mailto` tárgya és szövege `encodeURIComponent`-tel kódolva.
+- Kapcsolat-blokk (`ContactBlock`, mindhárom helyen: főoldal, Referenciák, belépett kezdőlap): nincs űrlap és
+  időpont-választó. Cím: „Foglalj ingyenes felmérést.", szöveg: írj, egyeztetünk időpontot, minden hétköznap elérhetők
+  vagyunk, írd meg a két jó időpontot, és a két kollégánk közül valaki felhív. Jobb oldalt `CallbackPanel`: nagy,
+  kattintható e-mail elem (levélíró nyílik a sablonnal), mellette „Másolás" gomb (vágólap; „Kimásolva." / „Jelöld ki
+  és másold." fix magasságú helyen), alatta „Mi történik ezután?".
+- Lebegő „Kapcsolat" gomb: ha az oldalon van kapcsolat-blokk, oda görget; máshol a főoldal blokkjára visz (`/#kapcsolat`).
+  A többi gomb (hero, kezdőlap üres állapota, felső sáv mobilmenü, Kapcsolat oldal) eddig is `#kapcsolat`-ra vitt.
+- Admin → Foglalások: tájékoztató sor a visszahívás-módról; az üres állapot eddig is hibamentes volt.
+Eltérés a tervtől: **telefonszám nincs kint** (Márk döntése: „ne adjuk ki a telefonszámunkat, csak hogy a két kolléga
+közül valaki keresni fogja") — így a telefon-elem és a hívás-link kimaradt; a levélsablonban az érdeklődő saját
+telefonszáma szerepel.
+A foglalási rendszer (táblák, függvények, BookingForm, visszaigazoló e-mailek, admin lap) érintetlen;
+`BOOKINGS_PUBLIC` nincs bekapcsolva. Adatbázis-változás nincs. Nincs űrlap és adattárolás, ezért GDPR-pipa sem kell.
+Nem lett kész / Hamarosan: a prompt hiányzó vége (ha volt benne további kérés vagy ellenőrzési lépés) — Márk pótolja.
+A Kapcsolat oldal (`/kapcsolat`) továbbra is mutatja a két telefonszámot — ha ott sem kell, jelezd.
+Ellenőrzési lépések eredménye: tsc + eslint rendben; megtekintés Márknál.
+Döntés kell tőled, Márk: maradjon-e a telefonszám a /kapcsolat oldalon.
+
 ## 2026-11-27 – Logó: belépve a kezdőlapra visz
 Melyik beszélgetés: Fejlesztés
 Elkészült (Márk kérése: „a bal felső TWINX logó kivisz a kezdőlapról — a kezdőlapra kell vinnie"): a felső sáv logója
