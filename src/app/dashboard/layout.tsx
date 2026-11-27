@@ -172,7 +172,8 @@ export default async function DashboardLayout({
       <ModuleViewTracker />
       {/* csillagos értékelés (3. / 6. futtatás) és „Mi hiányzik?” — kis, bezárható kártyák (ME3c) */}
       <ModuleFeedbackHost />
-      {terms && !terms.accepted && <TermsGate updated={terms.updated} />}
+      {/* D74: elfogadó ablak (admin: csak bezárható jelzés — a valódi szerepkör számít, nem a „nézd más szemével") */}
+      {terms && !terms.accepted && <TermsGate updated={terms.updated} admin={me?.role === "admin"} />}
 
       {/* Élő chat: a bejelentkezett felhasználó neve + e-mail-címe (a chat maga a gyökér-layoutban töltődik be). */}
       {user && <SmartsuppIdentity name={(me?.full_name as string | null) ?? null} email={user.email ?? null} />}

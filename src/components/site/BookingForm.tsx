@@ -240,8 +240,7 @@ export default function BookingForm({ source, prefill, tone = "dark" }: {
               <input type="checkbox" checked={f.consent} onChange={set("consent")} className="mt-0.5 h-4 w-4 flex-none accent-[#c8401f]" />
               <span>
                 {BOOKING_CONSENT_TEXT}{" "}
-                <span className="whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--bf-soft)", color: "var(--bf-muted)" }}
-                  title="Az Adatkezelési tájékoztató hamarosan elérhető.">Tájékoztató: Hamarosan</span>
+<a href="/adatkezeles" target="_blank" rel="noopener" className="font-semibold underline" style={{ color: "var(--bf-link)" }}>Adatkezelési tájékoztató</a>
               </span>
             </label>
             <span className="block h-4 pt-0.5 text-[11px]" style={{ color: "var(--bf-err)" }}>{errors.consent ?? ""}</span>

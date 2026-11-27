@@ -67,6 +67,12 @@ export default function ContactBlock({ source, prefill, bookingOpen = true, inse
           </div>
         )}
       </div>
+      {/* D74: apró betűs adatkezelési jelzés a kapcsolatfelvételi blokk alatt (a 32-es tájékoztató 8. pontja szerint,
+          a visszahívás-kérő űrlaphoz igazítva) */}
+      <p className="mt-3 px-2 text-center text-[12.5px] leading-relaxed text-b-ink-3">
+        Ha visszahívást kérsz vagy írsz nekünk, az adataidat az időpont egyeztetésére használjuk. Részletek:{" "}
+        <a href="/adatkezeles" className="font-medium text-b-accent-ink underline underline-offset-2">Adatkezelési tájékoztató</a>.
+      </p>
     </section>
   );
 }

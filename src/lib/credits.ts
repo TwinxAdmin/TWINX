@@ -7,6 +7,7 @@
 // IRODAI MUNKAMÓD (20261007130712_office-mode.sql): ha a felhasználó irodai tag és „Irodai" módban
 // dolgozik, a levonás az IRODA egyenlegéből + a tag keretéből történik (office_deduct),
 // különben a saját pénztárcából. Visszatérítés: refundCredit() — oda megy vissza, ahonnan vontunk.
+import { legalAccepted } from "@/lib/terms";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMembershipIn, getWorkContext, officeFree, officeKind } from "@/lib/office-server";
 import { freeByEstateAccess } from "@/lib/new-ui";
@@ -34,7 +35,7 @@ export function payFromRequest(request: Request): PayFrom {
  */
 export type ChargeResult =
   | { ok: true; bypassed: boolean; source?: CreditSource; packageEvent?: string }
-  | { ok: false; reason: "insufficient" | "cap" | "no_package" | "no_estimate" | "error"; source?: CreditSource };
+  | { ok: false; reason: "insufficient" | "cap" | "no_package" | "no_estimate" | "error" | "legal"; source?: CreditSource };
 
 /** Irodai módban dolgozik-e a felhasználó? (a KIVÁLASZTOTT irodában; ha nincs irodai mód: null) */
 async function officeMode(userId: string): Promise<{ allowance: number; unlimited: boolean; owner: boolean; officeId: string } | null> {
@@ -70,6 +71,10 @@ export async function chargeCredit(params: {
   if (profile?.role === "admin") {
     return { ok: true, bypassed: true };
   }
+
+  // 1a) D74: az aktuális ÁSZF + Adatkezelési tájékoztató elfogadása nélkül modul nem indítható (szerveroldali kapu).
+  //     Utólagos elszámolásnál (force) nem tiltunk — az a már elindult munkáé.
+  if (!params.force && !(await legalAccepted(userId))) return { ok: false, reason: "legal" };
 
   // 1b) Új felület + Ingatlan-hozzáférés: nincs kredit-levonás (3d), helyette a cég havi Ingatlan-keretéből
   //     foglalunk a becsült költséggel (terv 27, D62). Más (nem Ingatlan) szolgáltatás a korábbi módon fut.
@@ -160,6 +165,7 @@ export async function checkCreditAvailable(params: {
     .single();
 
   if (profile?.role === "admin") return { ok: true, bypassed: true };
+  if (!(await legalAccepted(userId))) return { ok: false, reason: "legal" }; // D74: elfogadás nélkül nem indul
   // Ingatlan-hozzáférés: a cég havi keretében van-e még hely (foglalás nélkül). bypassed: false → a végén a
   // chargeCredit (force) számolja el a keretre — kredit ekkor sem fogy.
   if (await freeByEstateAccess(userId)) {

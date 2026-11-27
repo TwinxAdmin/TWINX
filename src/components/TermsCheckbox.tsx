@@ -1,5 +1,6 @@
-// TermsCheckbox — kötelező „Elfogadom az ÁSZF-et" jelölőnégyzet a regisztrációnál (felugró ablak + /register oldal).
-// Az ÁSZF új lapon nyílik, hogy a kitöltött űrlap ne vesszen el.
+// TermsCheckbox — kötelező jelölőnégyzet a regisztrációnál (felugró ablak + /register oldal), D74:
+// „Elfogadom az Általános Szerződési Feltételeket, és megismertem az Adatkezelési tájékoztatót." (mindkettő link).
+// A dokumentumok új lapon nyílnak, hogy a kitöltött űrlap ne vesszen el.
 "use client";
 
 export default function TermsCheckbox({ checked, onChange, error }: { checked: boolean; onChange: (v: boolean) => void; error?: string }) {
@@ -11,7 +12,11 @@ export default function TermsCheckbox({ checked, onChange, error }: { checked: b
         <span>
           Elfogadom az{" "}
           <a href="/aszf" target="_blank" rel="noopener" className="font-semibold underline" style={{ color: "var(--twx-coral)" }}>
-            Általános Szerződési Feltételeket (ÁSZF)
+            Általános Szerződési Feltételeket
+          </a>
+          , és megismertem az{" "}
+          <a href="/adatkezeles" target="_blank" rel="noopener" className="font-semibold underline" style={{ color: "var(--twx-coral)" }}>
+            Adatkezelési tájékoztatót
           </a>
           .
         </span>

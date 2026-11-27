@@ -3,6 +3,95 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-27 – 9. lépés: új ÁSZF és Adatkezelési tájékoztató (D74, terv 31–32–33)
+Melyik beszélgetés: Fejlesztés
+Terv, amiből dolgoztunk: `docs/terv/31-aszf.md`, `32-adatkezelesi-tajekoztato.md`, `33-code-prompt-9-lepes-aszf.md`
+(5. export, 2026-11-27; a `docs/terv/` a `terv-export_3.zip`-pel lecserélve, a külön küldött fájlok azonosak).
+Elkészült:
+- Szövegek EGY helyen, változatonként: `src/content/legal/aszf-2026-12-v1.ts`, `adatkezeles-2026-12-v1.ts` (markdown);
+  a „Belső jegyzet" és a 32-es 8. szakasz nincs bennük. Saját, csomag nélküli megjelenítő: `components/legal/LegalDoc.tsx`
+  (cím szakaszlinkkel, tartalomjegyzék, bekezdés ≤70 karakter, 16,5 px, táblázat mobilon a dobozában görgethető).
+- Oldalak (B arculat, felső sáv + lábléc): **/aszf** és **/adatkezeles** — változat + hatálybalépés, tartalomjegyzék.
+  A régi (kredites) ÁSZF 1.1 archiválva: **/aszf/1-1** (változatlan szöveg, az akkori adatokkal, „nem hatályos" jelzés,
+  noindex); az új ÁSZF alján „Korábbi változatok". Lábléc: „Általános Szerződési Feltételek" + „Adatkezelési tájékoztató"
+  (a „Hamarosan" kikerült). A parkolt BookingForm hozzájárulásában is link lett a „Hamarosan" helyén.
+- Változat: `src/lib/legal.ts` → `LEGAL_VERSION = "2026-12-v1"` (ASZF_VERSION, PRIVACY_VERSION), `LEGAL_EFFECTIVE`;
+  az üzemeltető címe Budapest, Tábornok u. 27. (Márk megerősítette).
+- Elfogadás: profil `terms_version` + **új** `privacy_version` + `terms_accepted_at` (migráció:
+  `20261127140000_legal-privacy-version.sql` + `_down.sql`; a böngésző-írást tiltó őr kibővítve). Elfogadott = mindkét
+  mező pontosan az aktuális változat; ha a konstans nő, mindenki újra elfogad.
+- Regisztráció: kötelező pipa „Elfogadom az Általános Szerződési Feltételeket, és megismertem az Adatkezelési
+  tájékoztatót." (mindkettő link); pipa nélkül a szerver is elutasítja; mentéskor mindkét változat + időpont.
+- Belépés utáni ablak (`TermsGate`): „Frissítettük az Általános Szerződési Feltételeket és az Adatkezelési
+  tájékoztatót." + két link + „Elfogadom" (szerveroldali mentés, nem jön vissza) / „Később" (a meglévő anyagok elérhetők,
+  oldalfrissítéskor újra feljön) / „Kilépés". Fix szélesség, mobilon is olvasható. **Admin**: nem akadályozó, egyszeri,
+  bezárható jelzés a képernyő alján (változatonként egyszer).
+- **Szerveroldali kapu:** `credits.ts` (`chargeCredit`, `checkCreditAvailable`) → elfogadás nélkül `reason: "legal"`,
+  egységes 403-as válasz (`credit-response.ts`, code `legal_required`). Admin és utólagos elszámolás nem érintett;
+  a migráció lefuttatása előtt nem tilt.
+- Kapcsolat-blokk alatt apró betű: „Ha visszahívást kérsz vagy írsz nekünk, az adataidat az időpont egyeztetésére
+  használjuk. Részletek: Adatkezelési tájékoztató." A visszahívás-ablak hozzájárulásában is link.
+
+Kitöltött értékek és forrásuk:
+- [KITÖLTENDŐ] (Márk, 2026-11-27): székhely 1143 Budapest, Tábornok utca 27.; nyilvántartási szám 58736647 és adószám
+  48635253-1-27 (a meglévő kódból, Márk jóváhagyásával); ÁFA: „A Szolgáltató alanyi adómentes, a számlák ÁFA-t nem
+  tartalmaznak."; számlázó: Számlázz.hu (KBOSS.hu Kft.). **Telefonszám Márk döntésére sehol nem szerepel** (csak e-mail).
+- Tárhely: Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, USA; privacy@vercel.com — vercel.com/legal/privacy-notice, vercel.com/legal/terms.
+- Adatbázis: **Supabase Pte. Ltd.**, 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 — supabase.com/terms
+  (a terv „Supabase Inc." neve pontatlan volt). Régió: **eu-west-1 (Írország)** — Supabase projekt „Website Twinx" adatai.
+- Google szerződő fél EGT-ben (Workspace, Gemini API): **Google Cloud EMEA Ltd.** — cloud.google.com/terms/google-entity;
+  Gemini API adatfeldolgozás — ai.google.dev/gemini-api/terms. Google Analytics: Google Ireland Ltd.
+- NAIH: 1055 Budapest, Falk Miksa u. 9–11.; 1363 Budapest, Pf. 9.; ugyfelszolgalat@naih.hu; +36 1 391 1400 — naih.hu (lábléc).
+- Budapesti Békéltető Testület: 1016 Budapest, Krisztina krt. 99. **I. em. 111.**; 1253 Budapest, Pf.: 10.;
+  bekelteto.testulet@bkik.hu; +36 1 488 2131; bekeltet.bkik.hu — bekeltet.bkik.hu/elerhetosegek.
+- GA4 megőrzés: a szövegben „legfeljebb 14 hónap" — **Márknak a GA4 Admin → Adatgyűjtés → Adatmegőrzés alatt 14 hónapra
+  kell állítania** (a kódból nem látszik).
+
+[HA VAN] sorok: megtartva — Hírlevél/Brevo (`lib/brevo.ts`, `lib/newsletter.ts`, `api/newsletter`, regisztráció);
+mérés: Google Analytics (`components/analytics/GoogleAnalytics.tsx`) **és Meta** (Pixel + Conversions API — ez a tervben
+nem szerepelt, hozzáadva); Resend (`lib/email.ts`, `lib/booking-notify.ts`); Számlázz.hu (`lib/szamlazz.ts`).
+**Törölve:** a „könyvelő" sor (Márk nem jelölte). Stripe nem került be (az online fizetés ki van kapcsolva; ha
+bekapcsol, új változat kell).
+
+A 3. pont szolgáltatói — a kódban ténylegesen hívott szolgáltatók, fájlonként:
+- Supabase — mindenhol (`lib/supabase/*`); Vercel — üzemeltetés.
+- Google Gemini (AI Studio) — `lib/nanobanana.ts`, `lib/property-vision.ts`, `lib/image-enhance-server.ts`,
+  `lib/floorplan3d/digitize.ts`, `builder.ts`, `critic.ts`.
+- Perplexity — `lib/perplexity.ts`, `api/real-estate/valuation`, `ad-check`, `fb-ads`, `google-ads`, `land`,
+  `api/professionals`, `api/flyer/text`, `lib/land-report.ts`, `lib/valuation-finalize.ts`.
+- fal.ai — `lib/fal.ts`, `api/real-estate/video` (képjavítás, videó).
+- Shotstack — `lib/shotstack.ts`, `lib/video-pipeline.ts`, `lib/video-renderer.ts`, `api/webhooks/shotstack`.
+- Resend — `lib/email.ts`, `lib/booking-notify.ts` (és a meghívó levelek).
+- Brevo — `lib/brevo.ts` (hírlevél, kapcsolattartó-szinkron).
+- Smartsupp (élő chat) — `components/SmartsuppChat.tsx` (a tervben nem szerepelt, hozzáadva).
+- Google Analytics — `components/analytics/GoogleAnalytics.tsx`; Meta Pixel / CAPI — `components/analytics/MetaPixel.tsx`,
+  `lib/meta-pixel.ts`, `lib/meta-capi.ts` (regisztrációkor, csak marketing-hozzájárulással).
+- Google Ads API — `lib/google-ads-api.ts` (csak ha a felhasználó összekapcsolja a fiókját).
+- Telegram — `lib/package-cap.ts`, `lib/module-cap.ts`, `lib/expiry-notify.ts`, `lib/booking-notify.ts` (belső értesítések).
+- Számlázz.hu — `lib/szamlazz.ts`, `lib/purchase-invoice.ts`. (Stripe: `lib/stripe.ts` — kikapcsolt online fizetés, nincs a listán.)
+
+**KÜLÖN: mérés / sütik hozzájárulás nélkül vagy vitatható hozzájárulással (hibaként jelezve, NEM javítva):**
+1. A süti-sáv kapcsolói (Statisztika, Marketing) **alapból bekapcsolva** (Márk korábbi döntése) — az EU-gyakorlat
+   (Planet49) szerint az előre bejelölt hozzájárulás nem érvényes. Javaslat: alapból kikapcsolva.
+2. A Google Analytics script hozzájárulás előtt is betölt (Consent Mode, „minden tiltva"), és süti nélküli, névtelen
+   jeleket küld — vitatható; a szigorúbb megoldás, hogy a GA csak elfogadás után töltődjön be.
+3. A Smartsupp élő chat **hozzájárulás nélkül** töltődik be (sütiket és látogatói adatokat kezel). A tájékoztató
+   jogos érdekként említi; a biztosabb megoldás a süti-sávhoz kötés vagy a chat kattintásra töltése.
+4. A Meta Pixel élesben alapértelmezett azonosítóval fut, de hozzájárulás nélkül tiltva (rendben).
+
+Eltérés a tervtől: telefonszámok kimaradtak (Márk); 4.1 és 13.1, valamint a tájékoztató 2.1 sora a mai működéshez
+igazítva (visszahívás-kérő űrlap, e-mail, chat — telefonos jelentkezés nincs); a tájékoztató 2.9 és 3. pontja kiegészült a
+Meta-val, a Smartsuppal, a Perplexity/fal.ai/Shotstack AI-szolgáltatókkal, a Google Ads-szel és a Telegrammal; a
+kapcsolat-blokk apró betűs szövege a visszahívás-kéréshez igazítva. A „Később" gomb az ablakon (a tervben nem szerepelt):
+a meglévő anyagok elérhetősége miatt.
+Nem lett kész / Hamarosan: `next build`, képernyőképek (desktop/mobil, mindkét oldal + ablak), a regisztráció és a régi
+tesztfelhasználó élő próbája — Márknál (a migráció lefuttatása után).
+Ellenőrzési lépések eredménye: tsc + eslint (érintett fájlok) rendben; a közzétett szövegekben nincs [KITÖLTENDŐ],
+[HA VAN], [ELLENŐRIZENDŐ] és belső jegyzet.
+Döntés kell tőled, Márk: (1) a hatálybalépés napja (`LEGAL_EFFECTIVE`, most 2026. november 27.); (2) a süti-hozzájárulás
+1–3. pontja: javítsuk-e; (3) GA4 megőrzés beállítása 14 hónapra.
+Éles állapot: push + migráció után a két oldal mindenkinek él; a felhasználók belépéskor elfogadó ablakot kapnak.
+
 ## 2026-11-27 – 8. lépés, 3. kör: három nap + admin „Visszahívás-kérések" fül
 Melyik beszélgetés: Fejlesztés
 Elkészült (Márk kérése):

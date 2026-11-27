@@ -1,5 +1,5 @@
 // A nyilvános lábléc (terv 11 / 3.8; 6. lépés: B arculat, terv 29): logó + egy mondat · Hogyan működik, Referenciák,
-// Kapcsolat · Adatkezelési tájékoztató („Hamarosan" — a cégalapításra vár, a foglalási űrlap éles indítása előtt kell) ·
+// Kapcsolat · Általános Szerződési Feltételek · Adatkezelési tájékoztató (D74, élő) ·
 // ÁSZF · süti-beállítások · office@twinx.hu · © TWINX.
 import Wordmark from "@/components/Wordmark";
 import CookieSettingsLink from "@/components/analytics/CookieSettingsLink";
@@ -21,11 +21,9 @@ export default function SiteFooter() {
         </div>
         <div className="flex flex-col gap-2">
           <a href={`mailto:${SITE_EMAIL}`} className="hover:text-b-accent-ink">{SITE_EMAIL}</a>
-          <span className="inline-flex items-center gap-2" aria-disabled title="A tájékoztató hamarosan elérhető.">
-            Adatkezelési tájékoztató
-            <span className="rounded-full bg-b-surface px-1.5 py-0.5 text-[10px] font-bold text-b-ink-2">Hamarosan</span>
-          </span>
-          <a href="/aszf" className="hover:text-b-accent-ink">ÁSZF</a>
+          {/* D74 (9. lépés): a két jogi dokumentum él — a „Hamarosan" jelzés kikerült */}
+          <a href="/aszf" className="hover:text-b-accent-ink">Általános Szerződési Feltételek</a>
+          <a href="/adatkezeles" className="hover:text-b-accent-ink">Adatkezelési tájékoztató</a>
           <CookieSettingsLink className="text-left hover:text-b-accent-ink" />
         </div>
       </div>

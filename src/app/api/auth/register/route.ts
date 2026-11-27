@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const marketingConsent = (body as { marketingConsent?: unknown } | null)?.marketingConsent === true;
 
   const { valid, errors } = validateRegisterInput({ name, email, password, passwordConfirm, phone });
-  if (!acceptTerms) errors.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et.";
+  if (!acceptTerms) errors.acceptTerms = "A regisztrációhoz el kell fogadnod az ÁSZF-et, és meg kell ismerned az Adatkezelési tájékoztatót.";
   if (!valid || !acceptTerms) {
     return NextResponse.json({ errors }, { status: 422 });
   }

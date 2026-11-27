@@ -179,7 +179,7 @@ export default function CallbackRequestModal({ open, onClose, prefill }: {
               <input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} aria-hidden className="hidden" name="website" />
               <label className="mt-1 flex items-start gap-2.5 text-sm text-b-ink-2">
                 <input type="checkbox" className="mt-0.5 h-4 w-4 flex-none accent-[#c8401f]" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />
-                <span>Hozzájárulok, hogy a megadott adataimat a TWINX a visszahíváshoz és a bemutató beszélgetés egyeztetéséhez felhasználja.</span>
+                <span>Hozzájárulok, hogy a megadott adataimat a TWINX a visszahíváshoz és a bemutató beszélgetés egyeztetéséhez felhasználja. Részletek: <a href="/adatkezeles" target="_blank" rel="noopener" className="font-medium text-b-accent-ink underline underline-offset-2">Adatkezelési tájékoztató</a>.</span>
               </label>
               {err("consent")}
             </div>

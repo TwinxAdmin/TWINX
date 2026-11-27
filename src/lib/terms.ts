@@ -1,42 +1,34 @@
-// ÁSZF-elfogadás rögzítése — CSAK szerveroldal (20261012200044_terms-acceptance.sql).
-// A profilon: melyik változatot (TERMS_VERSION) és mikor fogadta el a partner.
+// ÁSZF + Adatkezelési tájékoztató elfogadásának rögzítése — CSAK szerveroldal (D74, 9. lépés).
+// A profilon: terms_version (ÁSZF), privacy_version (tájékoztató), terms_accepted_at (az elfogadás ideje).
+// Migrációk: 20261012200044_terms-acceptance.sql, 20261127140000_legal-privacy-version.sql.
+// A változatok a src/lib/legal.ts-ből (LEGAL_VERSION); elfogadott = MINDKÉT mező pontosan az aktuális változat.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { TERMS_VERSION } from "@/lib/legal";
+import { ASZF_VERSION, PRIVACY_VERSION } from "@/lib/legal";
 
-/** Változatszámok összevetése („1.10" > „1.9"): negatív, ha a < b. */
-function cmpVersion(a: string, b: string): number {
-  const pa = a.split(".").map((n) => Number(n) || 0);
-  const pb = b.split(".").map((n) => Number(n) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d) return d;
-  }
-  return 0;
-}
+const MIGRATION_HINT = "Az elfogadás mentéséhez futtasd le a 20261127140000_legal-privacy-version.sql migrációt.";
 
-/** Elfogadás mentése. Ha a migráció még nem futott le, a hibát visszaadjuk (a hívó dönti el, mit kezd vele).
- *  Újabb, már elfogadott változatot SOHA nem írunk vissza régebbire (pl. egy régebbi kódú fejlesztői szerverről) —
- *  különben a két változat egymás után újra és újra feldobná az ablakot. */
+/** Elfogadás mentése (mindkét dokumentum aktuális változata + időpont). Hiba esetén szöveges hibát ad vissza. */
 export async function recordTermsAcceptance(userId: string): Promise<string | null> {
-  const admin = createAdminClient();
-  const { data: cur } = await admin.from("profiles").select("terms_version").eq("id", userId).maybeSingle();
-  const prev = (cur?.terms_version as string | null) ?? null;
-  if (prev && cmpVersion(prev, TERMS_VERSION) >= 0) return null; // már ezt vagy újabbat elfogadott
-  const { error } = await admin
+  const { error } = await createAdminClient()
     .from("profiles")
-    .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
+    .update({ terms_version: ASZF_VERSION, privacy_version: PRIVACY_VERSION, terms_accepted_at: new Date().toISOString() })
     .eq("id", userId);
   if (!error) return null;
-  return /terms_/.test(error.message) ? "Az ÁSZF-elfogadáshoz futtasd le a 20261012200044_terms-acceptance.sql migrációt." : error.message;
+  return /privacy_version|terms_/.test(error.message) ? MIGRATION_HINT : error.message;
 }
 
-/** Elfogadta-e az AKTUÁLIS (vagy újabb) változatot, és fogadott-e el korábbit (→ „frissült" szöveg)?
- *  Az ablak tehát CSAK akkor jön fel újra, ha a TERMS_VERSION-t (src/lib/legal.ts) kézzel megemeljük — Márk kérésére.
- *  null = nem dönthető el, pl. a migráció előtt — ilyenkor nem kérdezünk. */
+/** Elfogadta-e az AKTUÁLIS változatokat? `updated`: fogadott el korábbit (→ „Frissítettük…" szöveg).
+ *  null = nem dönthető el (pl. a migráció előtt) — ilyenkor nem kérdezünk és nem tiltunk. */
 export async function termsStatus(userId: string): Promise<{ accepted: boolean; updated: boolean } | null> {
-  const { data, error } = await createAdminClient().from("profiles").select("terms_version").eq("id", userId).maybeSingle();
+  const { data, error } = await createAdminClient().from("profiles").select("terms_version, privacy_version").eq("id", userId).maybeSingle();
   if (error || !data) return null;
-  const v = data.terms_version as string | null;
-  const accepted = v !== null && cmpVersion(v, TERMS_VERSION) >= 0;
-  return { accepted, updated: v !== null && !accepted };
+  const tv = data.terms_version as string | null, pv = data.privacy_version as string | null;
+  const accepted = tv === ASZF_VERSION && pv === PRIVACY_VERSION;
+  return { accepted, updated: !accepted && tv !== null };
+}
+
+/** Szerveroldali kapu a modulok indításához (credits.ts): true = indítható. Migráció előtt nem tilt. */
+export async function legalAccepted(userId: string): Promise<boolean> {
+  const s = await termsStatus(userId);
+  return s === null || s.accepted;
 }
