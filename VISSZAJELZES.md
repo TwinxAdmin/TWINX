@@ -3,6 +3,15 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-27 – Logó: belépve a kezdőlapra visz
+Melyik beszélgetés: Fejlesztés
+Elkészült (Márk kérése: „a bal felső TWINX logó kivisz a kezdőlapról — a kezdőlapra kell vinnie"): a felső sáv logója
+(`SiteHeader` → `SiteLogo`) belépve a saját kezdőlapra (`/dashboard`), kijelentkezve a nyilvános főoldalra (`/`) visz.
+A nyilvános főoldal belépve a profil-menüből és a mobilmenüből érhető el („TWINX főoldal" sor).
+Eltérés a tervtől: a terv 11 / 4. szerint „a nyilvános főoldal a logóra kattintva elérhető" a belépett kezdőlapról —
+Márk döntése szerint ez megfordul; a tervbe átvezetendő.
+Ellenőrzési lépések eredménye: tsc + eslint rendben.
+
 ## 2026-11-27 – 7. lépés, 2. kör: automatikus működés, elválasztott háttér, árnyék
 Melyik beszélgetés: Fejlesztés
 Elkészült (Márk kérése):

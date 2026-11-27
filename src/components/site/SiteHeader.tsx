@@ -44,7 +44,7 @@ function Chevron({ open }: { open: boolean }) {
 /** Logó: korall csempe + TWINX (a B minta szerint). */
 export function SiteLogo({ href = SITE_HOME }: { href?: string }) {
   return (
-    <a href={href} className="inline-flex items-center gap-2.5 text-b-on-dark" aria-label="TWINX — főoldal">
+    <a href={href} className="inline-flex items-center gap-2.5 text-b-on-dark" aria-label={href === SITE_HOME ? "TWINX — főoldal" : "TWINX — kezdőlapom"}>
       <span className="h-[26px] w-[26px] flex-none rounded-[7px] bg-b-accent" aria-hidden />
       <Wordmark className="font-display text-[22px] font-bold" accent="var(--color-b-accent-on-dark)" />
     </a>
@@ -118,6 +118,7 @@ function ProfileMenu({ email, isAdmin, isHead }: { email: string; isAdmin: boole
         <Panel align="right" width={248}>
           <p className="truncate px-3 pb-2 pt-1 text-xs text-b-ink-2">{email}</p>
           <a href="/dashboard" className={row}>Kezdőlapom</a>
+          <a href={SITE_HOME} className={row}>TWINX főoldal</a>
           <a href="/dashboard/munkaim" className={row}>Korábbi munkák</a>
           {isHead && <a href="/dashboard/hozzaferesek" className={row}>Hozzáférések</a>}
           <a href="/dashboard/settings" className={row}>Fiókbeállítások</a>
@@ -159,7 +160,9 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
     <header className="relative z-50 bg-b-dark text-b-on-dark" ref={mobileRef}>
       <div className="mx-auto grid h-[72px] w-full max-w-[1200px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 sm:px-8">
         {/* Bal: logó */}
-        <div className="flex min-w-0 items-center"><SiteLogo /></div>
+        {/* Logó (Márk kérése 2026-11-27): belépve a saját kezdőlapra (/dashboard) visz, kijelentkezve a főoldalra.
+            A nyilvános főoldal belépve a profil-menüből („TWINX főoldal") érhető el. */}
+        <div className="flex min-w-0 items-center"><SiteLogo href={viewer ? "/dashboard" : SITE_HOME} /></div>
 
         {/* Közép: a menü a valódi középvonalon (asztali). A burkoló mobilon is a rácsban marad (üresen), hogy a jobb
             oldali hamburger ne csússzon a középső oszlopba. */}
@@ -229,6 +232,7 @@ export default function SiteHeader({ viewer, contactHref = SITE_LINKS.contact }:
             {viewer ? (
               <>
                 <a href="/dashboard" className="rounded-lg px-1 py-2">Kezdőlapom</a>
+                <a href={SITE_HOME} className="rounded-lg px-1 py-2">TWINX főoldal</a>
                 {viewer.isHead && <a href="/dashboard/hozzaferesek" className="rounded-lg px-1 py-2">Hozzáférések</a>}
                 <a href="/dashboard/settings" className="rounded-lg px-1 py-2">Fiókbeállítások</a>
                 {viewer.isAdmin && <a href="/admin" className="rounded-lg px-1 py-2">Admin felület</a>}
