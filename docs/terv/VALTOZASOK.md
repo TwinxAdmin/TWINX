@@ -1,5 +1,11 @@
 # VÁLTOZÁSOK (a tervező projekt vezeti; a repóban csak olvasható)
 
+## 2026-11-27 – 5. export (döntések: D23–D74)
+- D73: ideiglenes időpont-egyeztetés visszahívás-kéréssel (e-mail, telefon); a saját foglalási rendszer parkolva. CODE-prompt: 8. lépés (Márk külön adja át).
+- D74: új ÁSZF (`31-aszf.md`) és adatkezelési tájékoztató (`32-adatkezelesi-tajekoztato.md`), verzió 2026-12-v1. CODE-prompt: `33-code-prompt-9-lepes-aszf.md` (9. lépés).
+- Módosult: `ai-ugynokseg/01` (D73, D74).
+- Mit kell elolvasnia a fejlesztésnek: `31`, `32`, `33`, és az `01` D73–D74 bejegyzései.
+
 ## 2026-11-27 – 4. export (döntések: D23–D72)
 - Új dokumentum: `30-gombos-abra-terv.md` (D72): a „Mi az egyedi modul?” szekció gömbös 3D ábrája, a 7. lépés CODE-promptja.
 - Új minta: `design/gombos-abra-minta.html` (a Three.js helyét `/*THREE*/` jelöli; a működő változat a tervező projekt artifactja).
