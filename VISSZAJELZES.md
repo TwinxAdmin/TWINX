@@ -3,6 +3,18 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-28 – Javítás: a főoldali selyemvideó magától induljon
+Melyik beszélgetés: Fejlesztés
+Hiba: a hero-videó csak kattintásra indult. Ok: a React a `muted` jelzőt nem írja a szerveren előállított HTML-be,
+így a böngésző nem engedte az automatikus lejátszást. Javítás (`src/components/site/b/SilkVideo.tsx`, kliens-komponens):
+betöltés után kódból némítás + indítás; tartalék: első érintés / görgetés / billentyű, és visszatéréskor a lapra.
+`preload="auto"`. Szín-vizsgálat: a `silk-loop.mp4` színei megegyeznek a forrásklippel (landing_video_twinx2, Resolve-export,
+BT.709; képkocka-átlag eltérés ≤ 0,2/255). A lapon a szöveg olvashatósága miatti sötét átmenet tompítja a képet.
+Kiderült: Márknál a Safari tartotta vissza (beállítás után működik). Hogy másnál se legyen csúnya: a videó csak akkor
+jelenik meg (áttűnéssel), amikor ténylegesen játszik; addig és tiltás esetén a poszter-állókép látszik, a Safari
+lejátszás-ikonja rejtve (`globals.css` → `.twx-bg-video`). Kódból a tiltást megkerülni nem lehet.
+Ellenőrzés: `tsc`, `eslint` hibamentes.
+
 ## 2026-11-27 – 9. lépés, kiegészítés: kisebb elfogadó kártya a bal alsó sarokban
 Melyik beszélgetés: Fejlesztés
 Elkészült: a belépés utáni ÁSZF / Adatkezelési tájékoztató elfogadó ablak (`src/components/TermsGate.tsx`) a teljes képernyős,

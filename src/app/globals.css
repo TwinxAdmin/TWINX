@@ -544,3 +544,8 @@ body {
    (a buborék: asztalin 24 px-re, telefonon 84 px-re alulról — lásd SmartsuppChat.tsx, offsetY; magassága ~56 px) */
 .twx-contact-fab { left: 12px; bottom: 92px; }
 @media (max-width: 767px) { .twx-contact-fab { bottom: 152px; } }
+
+/* Háttérvideó (SilkVideo): a Safari/iOS saját lejátszás-ikonja ne jelenjen meg, ha az automatikus lejátszás tiltott. */
+.twx-bg-video::-webkit-media-controls,
+.twx-bg-video::-webkit-media-controls-start-playback-button,
+.twx-bg-video::-webkit-media-controls-overlay-play-button { display: none !important; -webkit-appearance: none; }
