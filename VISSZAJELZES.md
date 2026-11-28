@@ -3,6 +3,13 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-27 – 9. lépés, kiegészítés: kisebb elfogadó kártya a bal alsó sarokban
+Melyik beszélgetés: Fejlesztés
+Elkészült: a belépés utáni ÁSZF / Adatkezelési tájékoztató elfogadó ablak (`src/components/TermsGate.tsx`) a teljes képernyős,
+elsötétítő ablak helyett kis (360 px széles) kártya a bal alsó sarokban, a lebegő „Kapcsolat" gomb fölött (mobilon teljes
+szélességű sáv alul). Gombok változatlanok: Kilépés / Később / Elfogadom; adminnál Bezárás / Elfogadom.
+Ellenőrzés: `tsc` és `eslint` hibamentes. Márknak: a felületet a fejlesztői szerveren megnézni.
+
 ## 2026-11-27 – 9. lépés: új ÁSZF és Adatkezelési tájékoztató (D74, terv 31–32–33)
 Melyik beszélgetés: Fejlesztés
 Terv, amiből dolgoztunk: `docs/terv/31-aszf.md`, `32-adatkezelesi-tajekoztato.md`, `33-code-prompt-9-lepes-aszf.md`
