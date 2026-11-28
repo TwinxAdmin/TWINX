@@ -3,6 +3,36 @@
 Minden lépés végén egy bejegyzés. Márk bemásolja a tervező projektbe, ott kerül átvezetésre a terv.
 Sablon: `docs/terv/VISSZAJELZES.md`.
 
+## 2026-11-28 – Hero-gombok egy sorban, felirat „TWINX AI"
+Melyik beszélgetés: Fejlesztés
+Elkészült: a harmadik gomb felirata „TWINX AI" (`APPSTORE_INFO.button`). Mindhárom gomb kompakt: 58 px magas, 16 px oldalsó
+belső margó, 15 px betű, 12 px rés. ≥1024 px `flex-nowrap` (egy sor), 640–1023 px törhet, mobilon egymás alatt teljes
+szélességben. A TWINX AI külső fénye ≈7 px-re rövidítve (hoverre ≈10 px), hogy ne lógjon át a szomszéd gombra.
+Becsült gombsor-szélesség ~510 px (< 620 px-es alcím) — mérés böngészőben Márknál.
+Nyitott: az ablak címe és szövege még „AI-Appstore"-t mond — Márk döntése, átírjuk-e.
+Ellenőrzés: `tsc`, `eslint` hibamentes.
+
+## 2026-11-28 – Hero: harmadik gomb „AI-Appstore" + felugró magyarázó ablak
+Melyik beszélgetés: Fejlesztés
+Elkészült:
+- `src/components/site/b/AppstoreButton.tsx` (új, kliens): gomb + portálos ablak. Beúszás 480 ms (áttetszőség, blur → éles,
+  8 px felúszás), zárás 260 ms visszafelé; Esc / háttér / „Bezárás" zár; fókuszcsapda, fókusz vissza a gombra; görgetés-zár;
+  „Ingyenes felmérés" bezár és a #kapcsolat blokkhoz görget. GA4: `appstore_open`, `appstore_cta_click`.
+- Szöveg: `src/lib/site-copy.ts` → `APPSTORE_INFO`.
+- Stílus: `globals.css` → `.b-glow-btn` (réz perem, ::before fényudvar 3 mp-es átlátszóság-pulzálással, hoverre erősebb;
+  reduced-motion: nincs pulzálás) és `.twx-appstore-panel`.
+- `page.tsx`: a gombsor max. 620 px (= alcím), flex-wrap → desktopon a harmadik gomb a másik kettő alá törik (egy sorban
+  ~660 px lenne), mobilon egymás alá. Mindhárom gomb 58 px magas.
+Ellenőrzés: `tsc`, `eslint` hibamentes; build + képernyőképek Márknál (Chrome-bővítmény nem kapcsolódik).
+
+## 2026-11-28 – Főoldal: új hero-alcím
+Melyik beszélgetés: Fejlesztés
+Elkészült: `src/app/(public)/page.tsx` — a „Nem sablont kapsz." helyett: „Az AI a mindennapjaidat segíti, egyedi kérések
+alapján, a saját munkamenetedhez igazítva." Szélesség 560 → 620 px, desktopon 3 sornyi hely fenntartva (min-h), a gombok nem mozdulnak.
+Máshol a „Nem sablont kapsz." nem szerepel; az első mondat a meta-leírásban (layout.tsx, page.tsx) „Foglalj ingyenes felmérést."
+folytatással van — nem nyúltunk hozzá.
+Ellenőrzés: `tsc`, `eslint` hibamentes; build és képernyőkép Márknál (a Chrome-bővítmény nem kapcsolódott).
+
 ## 2026-11-28 – Javítás: a főoldali selyemvideó magától induljon
 Melyik beszélgetés: Fejlesztés
 Hiba: a hero-videó csak kattintásra indult. Ok: a React a `muted` jelzőt nem írja a szerveren előállított HTML-be,

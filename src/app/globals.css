@@ -549,3 +549,38 @@ body {
 .twx-bg-video::-webkit-media-controls,
 .twx-bg-video::-webkit-media-controls-start-playback-button,
 .twx-bg-video::-webkit-media-controls-overlay-play-button { display: none !important; -webkit-appearance: none; }
+
+/* Hero „TWINX AI" gomb (korábban „AI-Appstore") (Márk kérése 2026-11-28): sötét, áttetsző kapszula réz peremmel; a fény lassan (3 mp)
+   erősödik és halványul (csak a ::before átlátszósága animál, a méret nem változik). Hoverre erősebb fény. */
+.b-glow-btn {
+  position: relative; isolation: isolate;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; white-space: nowrap;
+  height: 58px; padding: 0 16px; font-size: 15px; font-weight: 600; /* kompakt, a hero másik két gombjával egyező (2026-11-28) */
+  color: var(--color-b-on-dark);
+  background: rgba(200, 64, 31, 0.12);
+  border: 1.5px solid rgba(255, 154, 126, 0.6);
+  transition: background-color .2s, border-color .2s;
+}
+.b-glow-btn::before {
+  content: ""; position: absolute; inset: -1.5px; border-radius: inherit; z-index: -1; pointer-events: none;
+  /* A külső fény rövid (≈7 px), hogy a 12 px-es résen ne lógjon át a szomszéd gombra; a ragyogás nagyobb része belül van. */
+  box-shadow: 0 0 6px 1px rgba(255, 122, 79, 0.55), inset 0 0 14px rgba(255, 150, 100, 0.32);
+  opacity: .3;
+  animation: twx-glow-pulse 3s ease-in-out infinite;
+  transition: opacity .25s;
+}
+.b-glow-btn:hover { background: rgba(200, 64, 31, 0.2); border-color: rgba(255, 170, 140, 0.85); }
+.b-glow-btn:hover::before { animation: none; opacity: 1; box-shadow: 0 0 8px 2px rgba(255, 122, 79, 0.7), inset 0 0 18px rgba(255, 150, 100, 0.42); }
+.b-glow-btn:focus-visible { outline: 2px solid var(--color-b-accent-on-dark); outline-offset: 3px; }
+@keyframes twx-glow-pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .b-glow-btn::before { animation: none; opacity: .65; } }
+
+/* AI-Appstore felugró ablak felülete: sötétbarna, enyhén áttetsző, vékony réz perem, lágy narancs fényudvar. */
+.twx-appstore-panel {
+  background: rgba(36, 27, 20, 0.9);
+  border: 1px solid rgba(214, 140, 92, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 154, 126, 0.06), 0 0 60px rgba(255, 122, 79, 0.18), 0 30px 80px rgba(0, 0, 0, 0.5),
+    inset 0 0 40px rgba(255, 140, 90, 0.06);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}

@@ -113,3 +113,12 @@ export const REFERENCE_CARDS: { title: string; text: string; image?: string; con
   { title: "Hirdetés-ellenőrző", text: "Bemásolod egy hirdetés linkjét: pontozza, megmondja, mi hiányzik, és újraírja a szöveget." },
   { title: "Értékbecslés", text: "Ingatlanadatokból tájékoztató ársáv, egyoldalas PDF-ben." },
 ];
+
+/** Hero: „TWINX AI" gomb (korábban „AI-Appstore") és a felugró magyarázó ablak szövege (Márk kérése 2026-11-28). EGY helyen, cserélhető. */
+export const APPSTORE_INFO = {
+  button: "TWINX AI",
+  title: "Mi az AI-Appstore?",
+  text: "A TWINX AI-Appstore nem egy kész alkalmazásokkal teli bolt: itt a te cégednek készülő AI-modulok kapnak helyet. Egy ingyenes felmérésen megnézzük, hol megy el a legtöbb idő a napi munkádban. Erre építünk egy modult, amely egy konkrét, ismétlődő feladatot végez el helyetted, például ajánlatot ír, hirdetést ellenőriz vagy dokumentumot dolgoz fel. A modult a saját folyamatodhoz és kéréseidhez igazítjuk, nem neked kell alkalmazkodnod hozzá. Ha elkészült, a kollégáid a saját fiókjukkal érik el a TWINX oldalán, külön telepítés nélkül. Ha neked úgy kényelmesebb, saját appba, a weboldaladba vagy oda építjük, ahol már dolgoztok. Az adataidat biztonságosan kezeljük, és csak az láthatja őket, akinek hozzáférést adsz. A modul később bővíthető, ahogy a céged igényei nőnek. Az ajánlatot a felmérés után kapod, kötelezettség nélkül.",
+  cta: "Ingyenes felmérés",
+  close: "Bezárás",
+};

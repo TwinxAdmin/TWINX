@@ -18,6 +18,7 @@ import SilkVideo from "@/components/site/b/SilkVideo";
 import GlassOrbs from "@/components/site/b/GlassOrbs";
 import TimeSkyline from "@/components/site/b/TimeSkyline";
 import TwinxStamp from "@/components/site/b/TwinxStamp";
+import AppstoreButton from "@/components/site/b/AppstoreButton";
 import { bookingsOpenFor, getSiteViewer } from "@/lib/site-preview";
 import { SITE_LINKS } from "@/lib/site";
 import { GDN_SHOWCASE, HOW_STEPS, RUN_PLACES, WHAT_IS_MODULE } from "@/lib/site-copy";
@@ -47,12 +48,19 @@ export default async function HomePage() {
             <h1 className="font-display mb-[22px] text-[44px] font-bold leading-[1.02] tracking-[-1.2px] sm:text-[64px] lg:text-[76px] lg:tracking-[-2px]">
               A te cégedre<br />szabott modul.
             </h1>
-            <p className="mb-[34px] max-w-[560px] text-lg leading-[1.55] text-b-on-dark sm:text-[21px]">
-              Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Nem sablont kapsz.
+            {/* Alcím (Márk kérése 2026-11-28): max. ~620 px; desktopon 3, mobilon legfeljebb 5 sor. A 3 sornyi helyet
+                fenntartjuk (min-h), így a gombok helye nem mozdul a betűtípus betöltésekor sem. */}
+            <p className="mb-[34px] max-w-[620px] text-lg leading-[1.55] text-b-on-dark sm:min-h-[4.65em] sm:text-[21px]">
+              Profi felmérés után a TWINX a napi munkádhoz igazított eszközt épít. Az AI a mindennapjaidat segíti, egyedi
+              kérések alapján, a saját munkamenetedhez igazítva.
             </p>
-            <div className="flex flex-wrap gap-3.5">
-              <a href={SITE_LINKS.contact} className="b-btn px-[30px] py-[17px]">Ingyenes felmérés</a>
-              <a href="#ref" className="b-btn-outline border-white/45 text-b-on-dark hover:bg-white/10">Referenciák megtekintése</a>
+            {/* Gombok (Márk kérése 2026-11-28): ≥1024 px mindig EGY sorban (nowrap), kompakt, egységes kapszulák
+                (58 px magas, 16 px oldalsó belső margó, 15 px betű, 12 px rés); 640–1023 px között törhetnek;
+                mobilon egymás alatt, teljes szélességben. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:flex-nowrap">
+              <a href={SITE_LINKS.contact} className="b-btn h-[58px] w-full px-4 py-0 text-[15px] sm:w-auto">Ingyenes felmérés</a>
+              <a href="#ref" className="b-btn-outline h-[58px] w-full border-white/45 px-4 py-0 text-[15px] text-b-on-dark hover:bg-white/10 sm:w-auto">Referenciák megtekintése</a>
+              <AppstoreButton className="h-[58px] w-full sm:w-auto" />
             </div>
           </div>
         </section>
